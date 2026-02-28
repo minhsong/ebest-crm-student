@@ -8,6 +8,8 @@ export interface ProfileTag {
   name: string;
   color?: string;
   groupKey?: string;
+  groupName?: string;
+  groupColor?: string;
 }
 
 export interface ProfileSocialMedia {
@@ -42,7 +44,8 @@ export interface ProfileByTokenResult {
 
 export interface ProfileByTokenResponse {
   success?: boolean;
-  result?: ProfileByTokenResult;
+  /** CRM API returns profile in `data` */
+  data?: ProfileByTokenResult;
   message?: string;
   code?: number;
 }

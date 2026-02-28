@@ -1,8 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
+import { patchProfileUrl } from '@/lib/student-api';
+
+function parseJsonSafe<T>(text: string): T | null {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
 
 /**
- * POST /api/profile: forward PATCH profile-by-token to CRM.
+ * POST /api/profile: forward PATCH tới CRM Student Portal API.
+ * CRM: PATCH /api/v1/student/profile (domain /api/v1/student/*).
  * Body: { token, ...fields }. Không lộ CRM_API_URL ra client.
  */
 export async function POST(request: Request) {
@@ -23,7 +33,7 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
-    const url = `${apiBaseUrl.replace(/\/$/, '')}/api/v1/customers/profile-by-token`;
+    const url = patchProfileUrl(apiBaseUrl);
     const res = await fetch(url, {
       method: 'PATCH',
       headers: {
@@ -32,15 +42,19 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify(body),
     });
-    const json = await res.json();
+    const text = await res.text();
+    const json = parseJsonSafe<{ message?: string; data?: unknown }>(text);
 
     if (!res.ok) {
       return NextResponse.json(
-        { message: (json as { message?: string }).message ?? 'Cập nhật thất bại.' },
+        {
+          message:
+            (json?.message as string) ?? 'Cập nhật thất bại.',
+        },
         { status: res.status }
       );
     }
-    return NextResponse.json(json?.result ?? { success: true });
+    return NextResponse.json(json ?? { success: true, data: null });
   } catch (e) {
     return NextResponse.json(
       { message: 'Không thể kết nối. Vui lòng thử lại.' },

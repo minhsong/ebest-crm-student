@@ -11,10 +11,10 @@ import { App } from 'antd';
 export default async function CompleteProfilePage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: { token?: string | string[] };
 }) {
-  const params = await searchParams;
-  const token = params.token?.trim();
+  const tokenRaw = searchParams.token;
+  const token = (typeof tokenRaw === 'string' ? tokenRaw : tokenRaw?.[0])?.trim();
 
   if (!token) {
     return (

@@ -1,6 +1,7 @@
 /**
- * Server-side API: fetch profile by token from CRM.
- * Data load từ API server (SSR) để bảo mật.
+ * Server-side: gọi CRM Student Portal API (domain /api/v1/student/*).
+ * GET /api/v1/student/profile?token=...
+ * Chỉ gọi từ Server Component (SSR).
  */
 
 import type {
@@ -8,36 +9,61 @@ import type {
   ProfileByTokenResult,
 } from '@/types/profile';
 
+const ERRORS = {
+  invalidToken: 'Link không hợp lệ hoặc đã hết hạn.',
+  generic: 'Có lỗi xảy ra.',
+  invalidData: 'Dữ liệu không hợp lệ.',
+  network: 'Không thể kết nối. Vui lòng thử lại.',
+} as const;
+
+function parseJsonSafe<T>(text: string): T | null {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
+
+function errorMessage(
+  res: Response,
+  json: ProfileByTokenResponse | null
+): string {
+  if (json?.message) return json.message;
+  if (res.status === 422) return ERRORS.invalidToken;
+  return ERRORS.generic;
+}
+
+import { getProfileUrl } from './student-api';
+
 /**
- * Server-only: fetch profile by token from CRM API.
- * Gọi từ Server Component (SSR).
+ * Server-only: lấy profile theo token từ CRM API.
  */
 export async function getProfileByToken(
   apiBaseUrl: string,
   token: string
 ): Promise<{ data: ProfileByTokenResult | null; error: string | null }> {
-  const url = `${apiBaseUrl.replace(/\/$/, '')}/api/v1/customers/profile-by-token?token=${encodeURIComponent(token)}`;
+  const url = getProfileUrl(apiBaseUrl, token);
+
   try {
     const res = await fetch(url, {
       cache: 'no-store',
       headers: { Accept: 'application/json' },
     });
-    const json = (await res.json()) as ProfileByTokenResponse;
+    const text = await res.text();
+    const json = parseJsonSafe<ProfileByTokenResponse>(text);
+
     if (!res.ok) {
-      const msg =
-        json?.message ||
-        (res.status === 422
-          ? 'Link không hợp lệ hoặc đã hết hạn.'
-          : 'Có lỗi xảy ra.');
-      return { data: null, error: msg };
+      return { data: null, error: errorMessage(res, json) };
     }
-    if (!json?.result?.customer) {
-      return { data: null, error: 'Dữ liệu không hợp lệ.' };
+
+    const payload = json?.data ?? json?.result;
+    if (!payload?.customer) {
+      return { data: null, error: ERRORS.invalidData };
     }
-    return { data: json.result, error: null };
+
+    return { data: payload, error: null };
   } catch (e) {
-    const msg =
-      e instanceof Error ? e.message : 'Không thể kết nối. Vui lòng thử lại.';
+    const msg = e instanceof Error ? e.message : ERRORS.network;
     return { data: null, error: msg };
   }
 }
