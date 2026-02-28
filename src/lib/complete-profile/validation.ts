@@ -3,12 +3,14 @@
  * Rules aligned with CRM Customer DTO (Length, format).
  */
 
-import type { Rule } from 'antd/es/form';
+import type { Rule, RuleObject } from 'antd/es/form';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import { FIELD_LIMITS } from './constants';
 
+type FormValidator = NonNullable<RuleObject['validator']>;
+
 /** Optional phone: if filled, must be valid and within API length. */
-export const validatePhone: Rule['validator'] = (_, value) => {
+export const validatePhone: FormValidator = (_, value) => {
   if (!value || typeof value !== 'string') return Promise.resolve();
   const v = value.trim();
   if (!v) return Promise.resolve();

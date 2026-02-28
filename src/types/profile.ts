@@ -46,6 +46,8 @@ export interface ProfileByTokenResponse {
   success?: boolean;
   /** CRM API returns profile in `data` */
   data?: ProfileByTokenResult;
+  /** Legacy/fallback; code reads payload from data ?? result */
+  result?: ProfileByTokenResult;
   message?: string;
   code?: number;
 }
