@@ -144,13 +144,14 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
       setSubmitting(true);
       try {
         const values = form.getFieldsValue();
+        const stepNum = step === 'done' ? 0 : step;
         const fullPayload = buildProfilePayload(
           token,
           values as Parameters<typeof buildProfilePayload>[1],
-          step >= 3 ? selectedTagIds : []
+          stepNum >= 3 ? selectedTagIds : []
         );
         const payload: Record<string, unknown> = { token: fullPayload.token };
-        if (step >= 1) {
+        if (stepNum >= 1) {
           Object.assign(payload, {
             firstName: fullPayload.firstName,
             lastName: fullPayload.lastName,
@@ -161,14 +162,14 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
             socialMedia: fullPayload.socialMedia,
           });
         }
-        if (step >= 2) {
+        if (stepNum >= 2) {
           Object.assign(payload, {
             emergencyContact: fullPayload.emergencyContact,
             emergencyContactRelationship: fullPayload.emergencyContactRelationship,
             emergencyPhone: fullPayload.emergencyPhone,
           });
         }
-        if (step >= 3) {
+        if (stepNum >= 3) {
           payload.tagIds = fullPayload.tagIds;
         }
         const res = await fetch('/api/profile', {
