@@ -39,8 +39,11 @@ export const formRules = {
   primaryPhone: [{ validator: validatePhone }] as Rule[],
   emergencyPhone: [{ validator: validatePhone }] as Rule[],
   facebookUrl: [{ type: 'url' as const, message: 'Link Facebook không hợp lệ' }] as Rule[],
-  occupation: [{ max: FIELD_LIMITS.occupation, message: `Tối đa ${FIELD_LIMITS.occupation} ký tự` }] as Rule[],
+  nickname: [{ max: FIELD_LIMITS.nickname, message: `Tối đa ${FIELD_LIMITS.nickname} ký tự` }] as Rule[],
   emergencyContact: [
     { max: FIELD_LIMITS.emergencyContact, message: `Tối đa ${FIELD_LIMITS.emergencyContact} ký tự` },
+  ] as Rule[],
+  emergencyContactRelationship: [
+    { max: FIELD_LIMITS.emergencyContactRelationship, message: `Tối đa ${FIELD_LIMITS.emergencyContactRelationship} ký tự` },
   ] as Rule[],
 } as const;

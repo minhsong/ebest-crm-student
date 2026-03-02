@@ -17,11 +17,12 @@ const SOCIAL_TYPES = ['facebook', 'zalo'] as const;
 export interface ProfileFormValues {
   firstName?: string;
   lastName?: string;
+  nickname?: string;
   primaryEmail?: string;
   primaryPhone?: string;
   dateOfBirth?: Dayjs;
-  occupation?: string;
   emergencyContact?: string;
+  emergencyContactRelationship?: string;
   emergencyPhone?: string;
   facebookUrl?: string;
   zaloUrl?: string;
@@ -45,13 +46,14 @@ export function buildProfilePayload(
     token,
     firstName: trimOrUndefined(values.firstName),
     lastName: trimOrUndefined(values.lastName),
+    nickname: trimOrUndefined(values.nickname),
     primaryEmail: trimOrUndefined(values.primaryEmail),
     primaryPhone: trimOrUndefined(values.primaryPhone),
     dateOfBirth: values.dateOfBirth
       ? values.dateOfBirth.format('YYYY-MM-DD')
       : undefined,
-    occupation: trimOrUndefined(values.occupation),
     emergencyContact: trimOrUndefined(values.emergencyContact),
+    emergencyContactRelationship: trimOrUndefined(values.emergencyContactRelationship),
     emergencyPhone: trimOrUndefined(values.emergencyPhone),
     tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
     socialMedia: socialMedia && socialMedia.length > 0 ? socialMedia : undefined,

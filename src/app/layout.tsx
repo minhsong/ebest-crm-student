@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
+import { App } from 'antd';
+import { AuthProvider } from '@/contexts/auth-context';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -15,7 +17,11 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body className="min-h-screen bg-gray-50 antialiased">
-        <AntdRegistry>{children}</AntdRegistry>
+        <AntdRegistry>
+          <App>
+            <AuthProvider>{children}</AuthProvider>
+          </App>
+        </AntdRegistry>
       </body>
     </html>
   );

@@ -6,10 +6,11 @@
 export const FIELD_LIMITS = {
   firstName: 100,
   lastName: 100,
+  nickname: 100,
   primaryEmail: 255,
   primaryPhone: 20,
-  occupation: 100,
   emergencyContact: 100,
+  emergencyContactRelationship: 100,
   emergencyPhone: 20,
   socialUrl: 500,
 } as const;
@@ -29,4 +30,6 @@ export const MESSAGES = {
   networkError: 'Không thể kết nối. Vui lòng thử lại.',
   successTitle: 'Cập nhật thành công',
   successDescription: 'Bạn đã hoàn thành cập nhật thông tin. Cảm ơn bạn và chúc bạn có một khoảng thời gian tuyệt vời tại Ebest. 💖',
+  createAccountSuccess: 'Tạo tài khoản thành công.',
+  createAccountDescription: 'Bạn có thể đăng nhập bằng email/SĐT và mật khẩu vừa đặt.',
 } as const;
