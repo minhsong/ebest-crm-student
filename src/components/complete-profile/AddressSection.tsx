@@ -142,11 +142,12 @@ export function AddressSection({
 
   /** Filter không phân biệt hoa thường, tìm theo tên (đã bỏ tiền tố) và mã code */
   const filterOptionByLabelAndCode = useCallback(
-    (input: string, option: { label?: string; value?: number }) => {
+    (input: string, option?: { label: string; value: number }): boolean => {
       const q = (input || '').trim().toLowerCase();
       if (!q) return true;
-      const label = String(option?.label ?? '').toLowerCase();
-      const code = String(option?.value ?? '').toLowerCase();
+      if (option == null) return false;
+      const label = (option.label ?? '').toLowerCase();
+      const code = String(option.value ?? '').toLowerCase();
       return label.includes(q) || code.includes(q);
     },
     []
