@@ -33,6 +33,7 @@ export const formRules = {
     { max: FIELD_LIMITS.lastName, message: `Tên tối đa ${FIELD_LIMITS.lastName} ký tự` },
   ] as Rule[],
   primaryEmail: [
+    { required: true, message: 'Vui lòng nhập email' },
     { type: 'email' as const, message: 'Email không hợp lệ' },
     { max: FIELD_LIMITS.primaryEmail, message: `Email tối đa ${FIELD_LIMITS.primaryEmail} ký tự` },
   ] as Rule[],
@@ -45,5 +46,11 @@ export const formRules = {
   ] as Rule[],
   emergencyContactRelationship: [
     { max: FIELD_LIMITS.emergencyContactRelationship, message: `Tối đa ${FIELD_LIMITS.emergencyContactRelationship} ký tự` },
+  ] as Rule[],
+  identityCardNumber: [
+    { max: FIELD_LIMITS.identityCardNumber, message: `Số CCCD/CMND tối đa ${FIELD_LIMITS.identityCardNumber} ký tự` },
+  ] as Rule[],
+  streetAddress: [
+    { max: FIELD_LIMITS.streetAddress, message: `Địa chỉ tối đa ${FIELD_LIMITS.streetAddress} ký tự` },
   ] as Rule[],
 } as const;

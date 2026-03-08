@@ -11,10 +11,11 @@ import {
   Alert,
   App,
   Steps,
+  Checkbox,
 } from 'antd';
 import { ArrowLeftOutlined, ArrowRightOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { ProfileByTokenResult } from '@/types/profile';
+import type { ProfileByTokenResult, ProfileAddressData } from '@/types/profile';
 import { PhoneInputField } from '@/components/phone-input';
 import { FANPAGE_URL } from '@/lib/ui-constants';
 import {
@@ -23,7 +24,10 @@ import {
   WELCOME,
   MESSAGES,
   FIELD_LIMITS,
+  CONSENT_LABEL,
+  ADDRESS_CCCD_STEP_NOTE,
 } from '@/lib/complete-profile';
+import { AddressSection } from './AddressSection';
 
 const GET_VALUE_PHONE = (v: string | undefined) => v ?? undefined;
 
@@ -40,11 +44,14 @@ const STEP_1_FIELDS = [
 
 const STEP_2_FIELDS = ['emergencyContact', 'emergencyContactRelationship', 'emergencyPhone'] as const;
 
+const STEP_4_FIELDS = ['termsAccepted'] as const;
+
 const STEP_TITLES: Record<StepNumber, string> = {
   1: 'Thông tin cơ bản',
   2: 'Liên hệ khẩn cấp',
   3: 'Tags mô tả',
-  4: 'Đặt mật khẩu đăng nhập',
+  4: 'Thông tin địa chỉ & CCCD',
+  5: 'Đặt mật khẩu đăng nhập',
 };
 
 const EMERGENCY_GUIDANCE =
@@ -59,7 +66,7 @@ function getSocialUrl(customer: ProfileByTokenResult['customer'], type: string):
   return customer.socialMedia?.find((s) => s.type === type)?.url ?? '';
 }
 
-type StepNumber = 1 | 2 | 3 | 4;
+type StepNumber = 1 | 2 | 3 | 4 | 5;
 
 export function ProfileForm({ initialData, token }: ProfileFormProps) {
   const { customer, availableTags } = initialData;
@@ -72,6 +79,8 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
   );
   const { message: antMessage } = App.useApp();
 
+  const addressData = customer.addressData as ProfileAddressData | undefined;
+
   const initialValues = useMemo(
     () => ({
       firstName: customer.firstName ?? '',
@@ -80,13 +89,22 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
       primaryEmail: customer.primaryEmail ?? '',
       primaryPhone: customer.primaryPhone ?? '',
       dateOfBirth: customer.dateOfBirth ? dayjs(customer.dateOfBirth) : undefined,
+      identityCardNumber: customer.identityCardNumber ?? '',
+      streetAddress: addressData?.streetAddress ?? '',
+      provinceCode: undefined as number | undefined,
+      provinceName: addressData?.province?.name ?? '',
+      provinceCodename: addressData?.province?.codename ?? '',
+      wardCode: undefined as number | undefined,
+      wardName: addressData?.ward?.name ?? '',
+      wardCodename: addressData?.ward?.codename ?? '',
       emergencyContact: customer.emergencyContact ?? '',
       emergencyContactRelationship: customer.emergencyContactRelationship ?? '',
       emergencyPhone: customer.emergencyPhone ?? '',
       facebookUrl: getSocialUrl(customer, 'facebook'),
       zaloUrl: getSocialUrl(customer, 'zalo'),
+      termsAccepted: false,
     }),
-    [customer]
+    [customer, addressData]
   );
 
   const tagGroups = useMemo(() => {
@@ -140,6 +158,13 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
           return;
         }
       }
+      if (step === 4) {
+        try {
+          await form.validateFields(STEP_4_FIELDS as unknown as string[]);
+        } catch {
+          return;
+        }
+      }
 
       setSubmitting(true);
       try {
@@ -172,14 +197,23 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
         if (stepNum >= 3) {
           payload.tagIds = fullPayload.tagIds;
         }
+        if (stepNum >= 4) {
+          Object.assign(payload, {
+            identityCardNumber: fullPayload.identityCardNumber,
+            addressData: fullPayload.addressData,
+            termsAccepted: true,
+          });
+        }
         const res = await fetch('/api/profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload as Record<string, unknown>),
         });
-        const json = await res.json().catch(() => ({}));
+        const json = (await res.json().catch(() => ({}))) as { message?: string; code?: string };
         if (!res.ok) {
-          setSubmitError(json?.message ?? MESSAGES.updateFailed);
+          setSubmitError(
+            json?.code === 'DUPLICATE_EMAIL' ? MESSAGES.duplicateEmail : (json?.message ?? MESSAGES.updateFailed)
+          );
           return;
         }
         setStep(nextStep);
@@ -199,6 +233,7 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
     if (step === 1) saveProfileAndNext(2);
     else if (step === 2) saveProfileAndNext(3);
     else if (step === 3) saveProfileAndNext(4);
+    else if (step === 4) saveProfileAndNext(5);
   }, [step, saveProfileAndNext]);
 
   const handleCreateAccount = useCallback(
@@ -254,7 +289,7 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
     );
   }
 
-  if (step === 4) {
+  if (step === 5) {
     const loginKey =
       (customer.primaryEmail?.trim() || customer.primaryPhone?.trim()) ?? '';
     const loginKeyType = customer.primaryEmail?.trim()
@@ -267,7 +302,7 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
         <Card className="w-full max-w-md shadow-sm">
           <h2 className="mb-2 text-2xl font-semibold text-gray-900">
-            {STEP_TITLES[4]}
+            {STEP_TITLES[5]}
           </h2>
           <p className="mb-4 text-sm text-gray-600">
             Tạo mật khẩu để sau này đăng nhập vào cổng học viên.
@@ -349,6 +384,7 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
   }
 
   const stepItems = [
+    { title: '' },
     { title: '' },
     { title: '' },
     { title: '' },
@@ -560,13 +596,62 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
                 )}
               </div>
             )}
+
+            {/* Step 4: Địa chỉ, CCCD và xác nhận đồng ý */}
+            {step === 4 && (
+              <div className="space-y-4">
+                <Alert
+                  type="info"
+                  showIcon
+                  message={ADDRESS_CCCD_STEP_NOTE.title}
+                  description={ADDRESS_CCCD_STEP_NOTE.description}
+                  className="mb-4"
+                />
+                <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+                  <div className="mb-3 text-sm font-medium text-gray-700">Địa chỉ</div>
+                  <AddressSection
+                    form={form}
+                    initialStreetAddress={addressData?.streetAddress}
+                    initialProvinceCodename={addressData?.province?.codename}
+                    initialProvinceName={addressData?.province?.name}
+                    initialWardCodename={addressData?.ward?.codename}
+                    initialWardName={addressData?.ward?.name}
+                  />
+                </div>
+                <Form.Item
+                  name="identityCardNumber"
+                  label="Số CCCD/CMND"
+                  rules={formRules.identityCardNumber}
+                >
+                  <Input
+                    placeholder="Nhập số căn cước công dân (dùng để xuất hóa đơn theo quy định)"
+                    maxLength={FIELD_LIMITS.identityCardNumber}
+                    showCount
+                  />
+                </Form.Item>
+                <Form.Item
+                  name="termsAccepted"
+                  valuePropName="checked"
+                  rules={[
+                    {
+                      validator: (_, value) =>
+                        value
+                          ? Promise.resolve()
+                          : Promise.reject(new Error('Bạn cần tick xác nhận đồng ý để hoàn thành bước này.')),
+                    },
+                  ]}
+                >
+                  <Checkbox>{CONSENT_LABEL}</Checkbox>
+                </Form.Item>
+              </div>
+            )}
             </div>
 
             {submitError && (
               <Alert type="error" message={submitError} className="mb-4" showIcon />
             )}
 
-            {step <= 3 && (
+            {step <= 4 && (
               <div className="mt-8 flex flex-wrap items-center justify-center gap-6">
                 {step > 1 && (
                   <Button
@@ -584,11 +669,11 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
                   htmlType="submit"
                   loading={submitting}
                   size="large"
-                  icon={<ArrowRightOutlined />}
+                  icon={step === 4 ? <SafetyCertificateOutlined /> : <ArrowRightOutlined />}
                   iconPosition="end"
                   className="min-w-[200px]"
                 >
-                  Lưu và tiếp tục
+                  {step === 4 ? 'Xác nhận và tiếp tục' : 'Lưu và tiếp tục'}
                 </Button>
               </div>
             )}

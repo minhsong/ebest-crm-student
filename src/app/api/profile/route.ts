@@ -48,8 +48,8 @@ export async function POST(request: Request) {
     if (!res.ok) {
       return NextResponse.json(
         {
-          message:
-            (json?.message as string) ?? 'Cập nhật thất bại.',
+          message: (json?.message as string) ?? 'Cập nhật thất bại.',
+          code: (json as { code?: string })?.code,
         },
         { status: res.status }
       );

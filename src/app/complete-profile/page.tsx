@@ -1,8 +1,16 @@
 import { getProfileByToken } from '@/lib/api';
 import { getApiBaseUrl } from '@/lib/env';
+import { buildPageMetadata } from '@/lib/metadata';
 import { TokenError } from '@/components/complete-profile/TokenError';
 import { ProfileForm } from '@/components/complete-profile/ProfileForm';
 import { App } from 'antd';
+
+export const metadata = buildPageMetadata({
+  title: 'Hoàn thiện thông tin',
+  description:
+    'Điền thông tin cá nhân để hoàn tất hồ sơ học viên Ebest English. Link từ trung tâm.',
+  path: '/complete-profile',
+});
 
 /**
  * Trang hoàn thiện thông tin (SSR).

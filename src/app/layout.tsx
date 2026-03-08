@@ -1,13 +1,10 @@
-import type { Metadata } from 'next';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import { App } from 'antd';
 import { AuthProvider } from '@/contexts/auth-context';
+import { defaultMetadata } from '@/lib/metadata';
 import './globals.css';
 
-export const metadata: Metadata = {
-  title: 'Ebest English - Student Portal',
-  description: 'Hoàn thiện thông tin và cổng học viên Ebest English',
-};
+export const metadata = defaultMetadata;
 
 export default function RootLayout({
   children,

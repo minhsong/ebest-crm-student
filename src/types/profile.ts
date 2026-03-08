@@ -3,6 +3,15 @@
  * Contract: ebest-crm-api/docs/modules/customer/CUSTOMER_PROFILE_COMPLETION_LINK.md
  */
 
+/** Địa chỉ (2 cấp: province, ward) – dùng chung cho customer/addressData và payload. */
+export interface ProfileAddressData {
+  streetAddress?: string;
+  province?: { name: string; codename: string };
+  ward?: { name: string; codename: string };
+  country?: { name: string; codename: string };
+  postalCode?: string;
+}
+
 export interface ProfileTag {
   id: number;
   name: string;
@@ -32,7 +41,8 @@ export interface ProfileCustomer {
   emergencyPhone?: string;
   currentLevel?: string;
   learningGoals?: string[];
-  addressData?: Record<string, unknown>;
+  identityCardNumber?: string;
+  addressData?: ProfileAddressData;
   additionalContacts?: Array<{ type: string; value: string }>;
   tags?: ProfileTag[];
   socialMedia?: ProfileSocialMedia[];
@@ -65,6 +75,8 @@ export interface UpdateProfilePayload {
   emergencyContact?: string;
   emergencyContactRelationship?: string;
   emergencyPhone?: string;
+  identityCardNumber?: string;
+  addressData?: ProfileAddressData;
   tagIds?: number[];
   socialMedia?: Array<{ type: string; url: string; username?: string }>;
 }

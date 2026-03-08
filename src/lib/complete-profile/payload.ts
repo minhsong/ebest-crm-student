@@ -14,6 +14,16 @@ function trimOrUndefined(s: unknown): string | undefined {
 
 const SOCIAL_TYPES = ['facebook', 'zalo'] as const;
 
+export interface AddressFormValue {
+  streetAddress?: string;
+  provinceCode?: number;
+  provinceName?: string;
+  provinceCodename?: string;
+  wardCode?: number;
+  wardName?: string;
+  wardCodename?: string;
+}
+
 export interface ProfileFormValues {
   firstName?: string;
   lastName?: string;
@@ -21,11 +31,20 @@ export interface ProfileFormValues {
   primaryEmail?: string;
   primaryPhone?: string;
   dateOfBirth?: Dayjs;
+  identityCardNumber?: string;
+  streetAddress?: string;
+  provinceCode?: number;
+  provinceName?: string;
+  provinceCodename?: string;
+  wardCode?: number;
+  wardName?: string;
+  wardCodename?: string;
   emergencyContact?: string;
   emergencyContactRelationship?: string;
   emergencyPhone?: string;
   facebookUrl?: string;
   zaloUrl?: string;
+  termsAccepted?: boolean;
 }
 
 export function buildProfilePayload(
@@ -42,6 +61,26 @@ export function buildProfilePayload(
     undefined
   );
 
+  const streetAddress = trimOrUndefined(values.streetAddress);
+  const hasProvince = values.provinceName && values.provinceCodename;
+  const hasWard = values.wardName && values.wardCodename;
+  const addressData =
+    streetAddress || hasProvince || hasWard
+      ? {
+          streetAddress: streetAddress ?? undefined,
+          province: hasProvince
+            ? { name: values.provinceName!, codename: values.provinceCodename! }
+            : undefined,
+          ward: hasWard
+            ? { name: values.wardName!, codename: values.wardCodename! }
+            : undefined,
+          country:
+            hasProvince || hasWard
+              ? { name: 'Việt Nam', codename: 'viet_nam' }
+              : undefined,
+        }
+      : undefined;
+
   return {
     token,
     firstName: trimOrUndefined(values.firstName),
@@ -52,6 +91,8 @@ export function buildProfilePayload(
     dateOfBirth: values.dateOfBirth
       ? values.dateOfBirth.format('YYYY-MM-DD')
       : undefined,
+    identityCardNumber: trimOrUndefined(values.identityCardNumber),
+    addressData,
     emergencyContact: trimOrUndefined(values.emergencyContact),
     emergencyContactRelationship: trimOrUndefined(values.emergencyContactRelationship),
     emergencyPhone: trimOrUndefined(values.emergencyPhone),
