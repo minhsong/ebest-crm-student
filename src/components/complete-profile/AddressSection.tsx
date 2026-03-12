@@ -211,45 +211,53 @@ export function AddressSection({
         rules={formRules.streetAddress}
         initialValue={initialStreetAddress}
       >
-        <Input.TextArea
+        <Input
           placeholder="VD: 123 Nguyễn Huệ"
-          rows={2}
           maxLength={FIELD_LIMITS.streetAddress}
-          showCount
         />
       </Form.Item>
-      <Form.Item name="provinceCode" label="Tỉnh/Thành phố" initialValue={initialProvinceCode}>
-        <Select
-          showSearch
-          placeholder="Chọn tỉnh/thành phố"
-          loading={loadingProvinces}
-          allowClear
-          optionLabelProp="label"
-          options={provinces.map((p) => ({
-            label: stripAddressPrefix(p.name),
-            value: p.code,
-          }))}
-          filterOption={filterOptionByLabelAndCode}
-          onChange={handleProvinceChange}
-          value={provinceCode ?? undefined}
-        />
-      </Form.Item>
-      <Form.Item name="wardCode" label="Phường/Xã" initialValue={initialWardCode}>
-        <Select
-          showSearch
-          placeholder="Chọn phường/xã"
-          loading={loadingWards}
-          allowClear
-          disabled={!provinceCode || wards.length === 0}
-          optionLabelProp="label"
-          options={wards.map((w) => ({
-            label: stripAddressPrefix(w.name),
-            value: w.code,
-          }))}
-          filterOption={filterOptionByLabelAndCode}
-          onChange={handleWardChange}
-        />
-      </Form.Item>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Form.Item
+          name="provinceCode"
+          label="Tỉnh/Thành phố"
+          initialValue={initialProvinceCode}
+        >
+          <Select
+            showSearch
+            placeholder="Chọn tỉnh/thành phố"
+            loading={loadingProvinces}
+            allowClear
+            optionLabelProp="label"
+            options={provinces.map((p) => ({
+              label: stripAddressPrefix(p.name),
+              value: p.code,
+            }))}
+            filterOption={filterOptionByLabelAndCode}
+            onChange={handleProvinceChange}
+            value={provinceCode ?? undefined}
+          />
+        </Form.Item>
+        <Form.Item
+          name="wardCode"
+          label="Phường/Xã"
+          initialValue={initialWardCode}
+        >
+          <Select
+            showSearch
+            placeholder="Chọn phường/xã"
+            loading={loadingWards}
+            allowClear
+            disabled={!provinceCode || wards.length === 0}
+            optionLabelProp="label"
+            options={wards.map((w) => ({
+              label: stripAddressPrefix(w.name),
+              value: w.code,
+            }))}
+            filterOption={filterOptionByLabelAndCode}
+            onChange={handleWardChange}
+          />
+        </Form.Item>
+      </div>
       {/* Hidden fields for payload (name/codename) */}
       <Form.Item name="provinceName" hidden>
         <input type="hidden" />
