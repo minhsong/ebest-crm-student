@@ -9,8 +9,9 @@ export const APP_BRAND = 'Ebest English';
 /** Fanpage – khi không có link, liên hệ tại đây */
 export const FANPAGE_URL = 'https://www.facebook.com/ebestmsvy';
 
-/** Padding content trong dashboard (px) */
+/** Padding content desktop (px) — mobile dùng 12px trong globals `.dashboard-layout-content` */
 export const CONTENT_PADDING = 24;
+export const CONTENT_PADDING_MOBILE = 12;
 
 /** Max width nội dung form / card (px) */
 export const CONTENT_MAX_WIDTH = 640;

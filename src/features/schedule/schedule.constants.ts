@@ -1,0 +1,3 @@
+import { CRM_ASSIGNMENT_RESULT_STATUS } from '@/lib/crm-enums';
+
+export const ASSIGNMENT_GRADED = CRM_ASSIGNMENT_RESULT_STATUS.GRADED;

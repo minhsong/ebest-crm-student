@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Table, Tag } from 'antd';
 import { useAuth } from '@/contexts/auth-context';
 import { PageHeader, PageCard, LoadingState } from '@/components/layout';
@@ -58,7 +59,15 @@ export default function MyClassesPage() {
     <>
       <PageHeader
         title="Lớp học của tôi"
-        description="Danh sách lớp bạn đang theo học."
+        description={
+          <>
+            Danh sách lớp bạn đang theo học.{' '}
+            <Link href="/schedule" className="text-blue-600 hover:underline">
+              Xem lịch buổi học theo ngày
+            </Link>
+            .
+          </>
+        }
       />
       <PageCard noPadding>
         <Table

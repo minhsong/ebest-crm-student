@@ -5,15 +5,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Layout, Menu, ConfigProvider, Drawer } from 'antd';
 import Link from 'next/link';
-import {
-  HEADER_HEIGHT,
-  FOOTER_HEIGHT,
-  SIDER_WIDTH,
-  SIDER_COLLAPSED_WIDTH,
-} from '@/lib/ui-constants';
+import { SIDER_WIDTH, SIDER_COLLAPSED_WIDTH } from '@/lib/ui-constants';
 import { LoadingState } from '@/components/layout';
 import {
-  DASHBOARD_MENU_ITEMS,
+  buildDashboardMenuAntdItems,
   getBreadcrumbFromPath,
 } from '@/lib/dashboard-menu';
 import {
@@ -54,15 +49,11 @@ export default function DashboardLayoutClient({
 
   const menuItems = useMemo(
     () =>
-      DASHBOARD_MENU_ITEMS.map((item) => ({
-        key: item.path,
-        icon: item.icon,
-        label: (
-          <Link href={item.path} onClick={() => setDrawerOpen(false)}>
-            {item.label}
-          </Link>
-        ),
-      })),
+      buildDashboardMenuAntdItems((path, label) => (
+        <Link href={path} onClick={() => setDrawerOpen(false)}>
+          {label}
+        </Link>
+      )),
     [],
   );
 
@@ -156,14 +147,9 @@ export default function DashboardLayoutClient({
 
           <Content
             ref={contentRef}
-            className="flex-1 overflow-auto"
-            style={{
-              padding: 24,
-              minHeight: `calc(100vh - ${HEADER_HEIGHT}px - ${FOOTER_HEIGHT}px)`,
-              background: '#f0f2f5',
-            }}
+            className="dashboard-layout-content"
           >
-            <main style={{ maxWidth: 1200 }}>{children}</main>
+            <main style={{ maxWidth: '100%' }}>{children}</main>
           </Content>
 
           <DashboardFooter />

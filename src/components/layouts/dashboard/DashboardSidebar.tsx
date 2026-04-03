@@ -1,9 +1,9 @@
 'use client';
 
 import { Layout, Menu } from 'antd';
+import type { MenuProps } from 'antd';
 import Link from 'next/link';
 import { APP_NAME, SIDER_WIDTH, SIDER_COLLAPSED_WIDTH, SIDEBAR_TITLE_HEIGHT } from '@/lib/ui-constants';
-import { DASHBOARD_MENU_ITEMS } from '@/lib/dashboard-menu';
 
 const { Sider } = Layout;
 
@@ -13,8 +13,8 @@ export interface DashboardSidebarProps {
   collapsed: boolean;
   onCollapse?: (collapsed: boolean) => void;
   pathname: string;
-  /** Menu items with Link; closeDrawer for mobile */
-  menuItems: Array<{ key: string; icon: React.ReactNode; label: React.ReactNode }>;
+  /** Menu items (có thể gồm divider) */
+  menuItems: MenuProps['items'];
 }
 
 export default function DashboardSidebar({

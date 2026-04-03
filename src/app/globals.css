@@ -1,3 +1,29 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/**
+ * Dashboard main scroll area.
+ * Padding: 12px ≤769px, 24px ≥770px (khớp useIsMobile). Safe-area cho notch / home indicator.
+ * Chiều cao: flex-1 + min-height:0 trên cha (column flex) — không dùng calc(100vh - 88px) để tránh lệch mobile.
+ */
+@layer components {
+  .dashboard-layout-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    background: #f0f2f5;
+    box-sizing: border-box;
+    --content-pad: 12px;
+    padding: var(--content-pad);
+    padding-left: max(var(--content-pad), env(safe-area-inset-left, 0px));
+    padding-right: max(var(--content-pad), env(safe-area-inset-right, 0px));
+    padding-bottom: max(var(--content-pad), env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (min-width: 770px) {
+    .dashboard-layout-content {
+      --content-pad: 24px;
+    }
+  }
+}

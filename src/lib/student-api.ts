@@ -12,6 +12,10 @@ export const STUDENT_API = {
   basePath: `/api/v${STUDENT_API_VERSION}/${STUDENT_API_PATH}`,
   /** Route profile: GET ?token=..., PATCH body { token, ... } */
   profile: 'profile',
+  authLogin: 'auth/login',
+  authChangePassword: 'auth/change-password',
+  authForgotPassword: 'auth/forgot-password',
+  authResetPassword: 'auth/reset-password',
 } as const;
 
 /** Build full URL: GET profile với token */

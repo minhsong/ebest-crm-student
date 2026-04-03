@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { getMessageFromClientApiJson } from '@/lib/parse-client-api-json';
 
 const STORAGE_KEY = 'student_portal_auth';
 
@@ -81,10 +82,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await res.json().catch(() => ({}));
         const payload = data?.result ?? data?.data ?? data;
         if (!res.ok) {
-          return { ok: false, message: data?.message ?? payload?.message ?? 'Đăng nhập thất bại.' };
+          return {
+            ok: false,
+            message:
+              getMessageFromClientApiJson(data) ??
+              (typeof payload === 'object' &&
+              payload &&
+              'message' in payload &&
+              typeof (payload as { message?: string }).message === 'string'
+                ? (payload as { message: string }).message
+                : 'Đăng nhập thất bại.'),
+          };
         }
-        const token = payload?.accessToken;
-        const customer = payload?.customer;
+        const token = (payload as { accessToken?: string })?.accessToken;
+        const customer = (payload as { customer?: AuthCustomer })?.customer;
         if (!token || !customer) {
           return { ok: false, message: 'Dữ liệu đăng nhập không hợp lệ.' };
         }
@@ -102,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [persist]
   );
 
+  /** Gọi API nội bộ / CRM — luôn gắn Bearer của học viên đang đăng nhập (server suy ra customerId). */
   const fetchWithAuth = useCallback(
     async (url: string, options: RequestInit = {}) => {
       const token = state.accessToken ?? loadStored().accessToken;

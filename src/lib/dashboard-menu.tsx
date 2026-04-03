@@ -4,12 +4,14 @@
  */
 
 import type { ReactNode } from 'react';
+import type { MenuProps } from 'antd';
 import {
   HomeOutlined,
   UserOutlined,
   BookOutlined,
   FileTextOutlined,
   LockOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 
 export interface DashboardMenuItem {
@@ -19,14 +21,89 @@ export interface DashboardMenuItem {
   icon: ReactNode;
 }
 
-/** Thứ tự và cấu hình từng mục menu – đường dẫn tại root */
-export const DASHBOARD_MENU_ITEMS: DashboardMenuItem[] = [
-  { key: 'overview', path: '/', label: 'Tổng quan', icon: <HomeOutlined /> },
-  { key: 'profile', path: '/profile', label: 'Thông tin cá nhân', icon: <UserOutlined /> },
-  { key: 'change-password', path: '/change-password', label: 'Đổi mật khẩu', icon: <LockOutlined /> },
-  { key: 'classes', path: '/classes', label: 'Lớp học của tôi', icon: <BookOutlined /> },
-  { key: 'invoices', path: '/invoices', label: 'Hóa đơn', icon: <FileTextOutlined /> },
+export interface DashboardMenuLinkEntry extends DashboardMenuItem {
+  type: 'link';
+}
+
+export interface DashboardMenuDividerEntry {
+  type: 'divider';
+  key: string;
+}
+
+export type DashboardMenuEntry = DashboardMenuLinkEntry | DashboardMenuDividerEntry;
+
+/** Thứ tự menu: nhóm chính → divider → tài khoản */
+export const DASHBOARD_MENU_ENTRIES: DashboardMenuEntry[] = [
+  {
+    type: 'link',
+    key: 'overview',
+    path: '/',
+    label: 'Tổng quan',
+    icon: <HomeOutlined />,
+  },
+  {
+    type: 'link',
+    key: 'schedule',
+    path: '/schedule',
+    label: 'Lịch học',
+    icon: <CalendarOutlined />,
+  },
+  {
+    type: 'link',
+    key: 'classes',
+    path: '/classes',
+    label: 'Lớp học của tôi',
+    icon: <BookOutlined />,
+  },
+  {
+    type: 'link',
+    key: 'invoices',
+    path: '/invoices',
+    label: 'Hóa Đơn',
+    icon: <FileTextOutlined />,
+  },
+  { type: 'divider', key: 'divider-after-main' },
+  {
+    type: 'link',
+    key: 'profile',
+    path: '/profile',
+    label: 'Thông tin cá nhân',
+    icon: <UserOutlined />,
+  },
+  {
+    type: 'link',
+    key: 'change-password',
+    path: '/change-password',
+    label: 'Đổi mật khẩu',
+    icon: <LockOutlined />,
+  },
 ];
+
+/** Chỉ các mục có link (không divider) — dùng khi cần danh sách phẳng */
+export const DASHBOARD_MENU_ITEMS: DashboardMenuItem[] = DASHBOARD_MENU_ENTRIES.filter(
+  (e): e is DashboardMenuLinkEntry => e.type === 'link',
+).map(({ key, path, label, icon }) => ({ key, path, label, icon }));
+
+/**
+ * Build `items` cho Ant Design Menu (có divider).
+ */
+export function buildDashboardMenuAntdItems(
+  renderLinkLabel: (path: string, label: string) => ReactNode,
+): NonNullable<MenuProps['items']> {
+  const out: NonNullable<MenuProps['items']> = [];
+  for (const entry of DASHBOARD_MENU_ENTRIES) {
+    if (entry.type === 'divider') {
+      out.push({ type: 'divider', key: entry.key });
+    } else {
+      out.push({
+        key: entry.path,
+        icon: entry.icon,
+        label: renderLinkLabel(entry.path, entry.label),
+      });
+    }
+  }
+  return out;
+}
 
 /** Map path -> label cho breadcrumb (bao gồm path con, VD /invoices/[id]) */
 const PATH_LABELS: Record<string, string> = {
@@ -34,12 +111,13 @@ const PATH_LABELS: Record<string, string> = {
   '/profile': 'Thông tin cá nhân',
   '/change-password': 'Đổi mật khẩu',
   '/classes': 'Lớp học của tôi',
-  '/invoices': 'Hóa đơn',
+  '/schedule': 'Lịch học',
+  '/invoices': 'Hóa Đơn',
 };
 
 /**
  * Trả về breadcrumb items [{ path, label }] từ pathname.
- * VD: /invoices/123 -> [ Tổng quan, Hóa đơn, Chi tiết ]
+ * VD: /invoices/123 -> [ Tổng quan, Hóa Đơn, Chi tiết ]
  */
 export function getBreadcrumbFromPath(pathname: string): Array<{ path: string; label: string }> {
   const normalized = pathname?.replace(/\/$/, '') || '';

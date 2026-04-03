@@ -116,6 +116,14 @@ export default function LoginPage() {
                       placeholder="Mật khẩu"
                     />
                   </Form.Item>
+                  <div className="-mt-2 mb-4 text-right">
+                    <Link
+                      href="/forgot-password"
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      Quên mật khẩu?
+                    </Link>
+                  </div>
                   {error && (
                     <Alert
                       type="error"
