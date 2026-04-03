@@ -6,8 +6,8 @@ import {
   postResetPassword,
 } from '@/lib/password-recovery';
 
-const DEFAULT_FORGOT_HINT =
-  'Nếu email đã đăng ký trong hệ thống, bạn sẽ nhận hướng dẫn đặt lại mật khẩu qua email.';
+const DEFAULT_FORGOT_SUCCESS =
+  'Đã gửi hướng dẫn đặt lại mật khẩu tới email của bạn. Vui lòng kiểm tra hộp thư (kể cả thư mục Spam).';
 
 /**
  * Quên mật khẩu — gọi API, quản lý loading / lỗi.
@@ -21,7 +21,7 @@ export function useForgotPassword() {
     setLoading(true);
     try {
       const result = await postForgotPassword(email);
-      const msg = result.message ?? DEFAULT_FORGOT_HINT;
+      const msg = result.message ?? DEFAULT_FORGOT_SUCCESS;
       if (!result.ok) {
         setError(msg || 'Không thể gửi yêu cầu.');
         return { ok: false as const, message: msg };

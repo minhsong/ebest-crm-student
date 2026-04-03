@@ -11,7 +11,8 @@ import { AuthWideFormLayout } from '@/components/auth/AuthWideFormLayout';
 import { FANPAGE_URL } from '@/lib/ui-constants';
 
 const SIDEBAR_ITEMS = [
-  'Chỉ tài khoản đăng nhập bằng email mới nhận được thư đặt lại mật khẩu.',
+  'Chỉ email đã có tài khoản đăng nhập trên hệ thống mới nhận được link đặt lại mật khẩu.',
+  'Nếu hệ thống báo chưa có tài khoản, có thể bạn chưa hoàn tất đăng ký — vui lòng liên hệ Fanpage để được hỗ trợ.',
   'Kiểm tra cả thư mục Spam / Quảng cáo nếu không thấy email trong hộp thư đến.',
   <>Cần hỗ trợ? <a href={FANPAGE_URL} target="_blank" rel="noopener noreferrer">Fanpage E-best English</a>.</>,
 ];
@@ -56,9 +57,10 @@ export default function ForgotPasswordPage() {
     >
       <div className="flex flex-col md:max-w-md">
         <p className="mb-4 text-sm leading-relaxed text-gray-600">
-          Nhập <strong>email đã dùng để đăng nhập</strong> (tài khoản tạo bằng
-          email). Nếu bạn chỉ đăng nhập bằng số điện thoại, vui lòng liên hệ
-          trung tâm để được hỗ trợ.
+          Nhập <strong>email đã dùng để đăng nhập</strong> (đã hoàn tất đăng ký
+          trên hệ thống). Nếu email chưa có tài khoản, bạn sẽ thấy hướng dẫn liên
+          hệ Fanpage. Đăng nhập bằng số điện thoại thì vui lòng liên hệ trung
+          tâm.
         </p>
         <Form layout="vertical" onFinish={onFinish} size="large">
           <Form.Item
