@@ -3,6 +3,24 @@
 @tailwind utilities;
 
 /**
+ * Preflight Tailwind đang tắt (tránh đụng antd) — phải reset html/body thủ công,
+ * không thì UA stylesheet (vd. margin ~8px quanh body) làm lệch layout dashboard.
+ */
+@layer base {
+  html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+  }
+}
+
+/**
  * Dashboard main scroll area.
  * Padding: 12px ≤769px, 24px ≥770px (khớp useIsMobile). Safe-area cho notch / home indicator.
  * Chiều cao: flex-1 + min-height:0 trên cha (column flex) — không dùng calc(100vh - 88px) để tránh lệch mobile.
@@ -25,5 +43,17 @@
     .dashboard-layout-content {
       --content-pad: 24px;
     }
+  }
+
+  /** Sidebar trắng: thanh thu gọn antd đọ được trên nền sáng */
+  .dashboard-sider-ebest .ant-layout-sider-trigger {
+    background: #f8fafc !important;
+    color: rgba(0, 0, 0, 0.65) !important;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .dashboard-sider-ebest .ant-layout-sider-trigger:hover {
+    color: #e35321 !important;
+    background: #fff7ed !important;
   }
 }

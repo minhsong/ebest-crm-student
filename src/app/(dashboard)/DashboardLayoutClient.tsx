@@ -6,6 +6,9 @@ import { useAuth } from '@/contexts/auth-context';
 import { Layout, Menu, ConfigProvider, Drawer } from 'antd';
 import Link from 'next/link';
 import { SIDER_WIDTH, SIDER_COLLAPSED_WIDTH } from '@/lib/ui-constants';
+import { dashboardAntdTheme } from '@/lib/ebest-antd-theme';
+import { useDashboardMobile } from '@/hooks/use-dashboard-mobile';
+import { EbestLogo } from '@/components/branding/EbestLogo';
 import { LoadingState } from '@/components/layout';
 import {
   buildDashboardMenuAntdItems,
@@ -16,22 +19,7 @@ import {
   DashboardHeader,
   DashboardFooter,
 } from '@/components/layouts/dashboard';
-import { APP_NAME } from '@/lib/ui-constants';
-
 const { Content } = Layout;
-
-/** Breakpoint 769px như antd-multipurpose-dashboard */
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 769px)');
-    const update = () => setIsMobile(mq.matches);
-    update();
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, []);
-  return isMobile;
-}
 
 export default function DashboardLayoutClient({
   children,
@@ -41,7 +29,7 @@ export default function DashboardLayoutClient({
   const { accessToken, customer, ready, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const isMobile = useIsMobile();
+  const isMobile = useDashboardMobile();
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [navFill, setNavFill] = useState(false);
@@ -105,15 +93,7 @@ export default function DashboardLayoutClient({
     isMobile ? 0 : collapsed ? SIDER_COLLAPSED_WIDTH : SIDER_WIDTH;
 
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorBgContainer: '#ffffff',
-          colorBgLayout: '#f0f2f5',
-          borderRadius: 6,
-        },
-      }}
-    >
+    <ConfigProvider theme={dashboardAntdTheme}>
       <Layout className="min-h-screen" style={{ background: '#f0f2f5' }}>
         {isMobile ? null : (
           <DashboardSidebar
@@ -140,7 +120,6 @@ export default function DashboardLayoutClient({
             breadcrumbItems={breadcrumbItems}
             navFill={navFill}
             userDisplayName={customer?.fullName ?? 'Học viên'}
-            onProfileClick={() => {}}
             onLogout={handleLogout}
             onOpenDrawer={() => setDrawerOpen(true)}
           />
@@ -158,11 +137,24 @@ export default function DashboardLayoutClient({
 
       {isMobile && (
         <Drawer
-          title={APP_NAME}
+          title={
+            <EbestLogo
+              variant="drawer-header"
+              link={{
+                href: '/',
+                onClick: () => setDrawerOpen(false),
+                className: '-m-1 flex items-center py-0.5',
+              }}
+            />
+          }
           placement="left"
           onClose={() => setDrawerOpen(false)}
           open={drawerOpen}
-          bodyStyle={{ padding: 0 }}
+          width={280}
+          styles={{
+            body: { padding: 0, background: '#ffffff' },
+            header: { borderBottom: '1px solid #f0f0f0' },
+          }}
         >
           <Menu
             selectedKeys={[pathname ?? '']}

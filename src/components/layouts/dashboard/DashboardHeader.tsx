@@ -21,7 +21,8 @@ export interface DashboardHeaderProps {
   /** Header có nền khi scroll (antd-multipurpose-dashboard navFill) */
   navFill?: boolean;
   userDisplayName: string;
-  onProfileClick: () => void;
+  /** Gọi khi bấm mục profile trong menu (vd. đóng popover) */
+  onProfileClick?: () => void;
   onLogout: () => void;
   onOpenDrawer?: () => void;
 }
@@ -77,7 +78,14 @@ export default function DashboardHeader({
             {
               key: 'profile',
               icon: <UserOutlined />,
-              label: <Link href="/profile" onClick={onProfileClick}>Thông tin cá nhân</Link>,
+              label: (
+                <Link
+                  href="/profile"
+                  onClick={() => onProfileClick?.()}
+                >
+                  Thông tin cá nhân
+                </Link>
+              ),
             },
             {
               key: 'logout',

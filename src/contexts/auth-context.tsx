@@ -20,6 +20,8 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   login: (loginId: string, password: string) => Promise<{ ok: boolean; message?: string }>;
+  loginWithGoogle: (idToken: string) => Promise<{ ok: boolean; message?: string }>;
+  linkGoogle: (idToken: string) => Promise<{ ok: boolean; message?: string }>;
   logout: () => void;
   setAuth: (accessToken: string, customer: AuthCustomer) => void;
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
@@ -113,6 +115,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [persist]
   );
 
+  const loginWithGoogle = useCallback(
+    async (idToken: string) => {
+      try {
+        const res = await fetch('/api/auth/google/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken }),
+        });
+        const data = await res.json().catch(() => ({}));
+        const payload = data?.result ?? data?.data ?? data;
+        if (!res.ok) {
+          return {
+            ok: false,
+            message:
+              getMessageFromClientApiJson(data) ??
+              (typeof payload === 'object' &&
+              payload &&
+              'message' in payload &&
+              typeof (payload as { message?: string }).message === 'string'
+                ? (payload as { message: string }).message
+                : 'Đăng nhập Google thất bại.'),
+          };
+        }
+        const token = (payload as { accessToken?: string })?.accessToken;
+        const customer = (payload as { customer?: AuthCustomer })?.customer;
+        if (!token || !customer) {
+          return { ok: false, message: 'Dữ liệu đăng nhập không hợp lệ.' };
+        }
+        persist(token, {
+          id: customer.id,
+          fullName: customer.fullName ?? 'Học viên',
+          primaryEmail: customer.primaryEmail,
+          primaryPhone: customer.primaryPhone,
+        });
+        return { ok: true };
+      } catch {
+        return { ok: false, message: 'Không thể kết nối. Vui lòng thử lại.' };
+      }
+    },
+    [persist]
+  );
+
+  const linkGoogle = useCallback(async (idToken: string) => {
+    try {
+      const token = state.accessToken ?? loadStored().accessToken;
+      const res = await fetch('/api/auth/google/link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ idToken }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return {
+          ok: false,
+          message:
+            getMessageFromClientApiJson(data) ??
+            (typeof data?.message === 'string' ? data.message : 'Liên kết Google thất bại.'),
+        };
+      }
+      return { ok: true, message: typeof data?.message === 'string' ? data.message : undefined };
+    } catch {
+      return { ok: false, message: 'Không thể kết nối. Vui lòng thử lại.' };
+    }
+  }, [state.accessToken]);
+
   /** Gọi API nội bộ / CRM — luôn gắn Bearer của học viên đang đăng nhập (server suy ra customerId). */
   const fetchWithAuth = useCallback(
     async (url: string, options: RequestInit = {}) => {
@@ -134,6 +204,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value: AuthContextValue = {
     ...state,
     login,
+    loginWithGoogle,
+    linkGoogle,
     logout,
     setAuth,
     fetchWithAuth,

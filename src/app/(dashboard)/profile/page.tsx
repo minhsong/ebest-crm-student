@@ -5,6 +5,8 @@ import { Form, Input, Button, Alert, App, Avatar } from 'antd';
 import { UserOutlined, CameraOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/auth-context';
 import { PageHeader, PageCard, LoadingState } from '@/components/layout';
+import { parseStudentPortalGoogleFromPublic } from '@/lib/student-portal-google-settings';
+import { ProfileGoogleLink } from '@/features/auth/ProfileGoogleLink';
 
 type LoginKeyType = 'email' | 'phone';
 
@@ -20,6 +22,7 @@ interface MeCustomer {
   emergencyPhone?: string;
   loginKeyType?: LoginKeyType;
   avatarUrl?: string | null;
+  googleLinked?: boolean;
 }
 
 export default function ProfilePage() {
@@ -32,7 +35,34 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [loginKeyType, setLoginKeyType] = useState<LoginKeyType | undefined>();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [googleLinked, setGoogleLinked] = useState(false);
+  const [profileEmail, setProfileEmail] = useState<string | undefined>();
+  const [googlePublic, setGooglePublic] = useState<{
+    enabled: boolean;
+    clientId: string;
+  } | null>(null);
   const { message: antMessage } = App.useApp();
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch('/api/settings/public')
+      .then((r) => r.json())
+      .then((data: unknown) => {
+        if (cancelled) return;
+        const p =
+          data && typeof data === 'object'
+            ? (data as Record<string, unknown>)
+            : {};
+        const raw = (p.result ?? p.data ?? p) as Record<string, unknown>;
+        setGooglePublic(parseStudentPortalGoogleFromPublic(raw));
+      })
+      .catch(() => {
+        if (!cancelled) setGooglePublic({ enabled: false, clientId: '' });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -48,6 +78,10 @@ export default function ProfilePage() {
       if (payload) {
         setLoginKeyType(payload.loginKeyType);
         setAvatarUrl(payload.avatarUrl ?? null);
+        setGoogleLinked(payload.googleLinked === true);
+        setProfileEmail(
+          typeof payload.primaryEmail === 'string' ? payload.primaryEmail.trim() : undefined
+        );
         form.setFieldsValue({
           firstName: payload.firstName ?? '',
           lastName: payload.lastName ?? '',
@@ -154,6 +188,40 @@ export default function ProfilePage() {
         {error && (
           <Alert type="error" message={error} className="mb-4" showIcon />
         )}
+
+        {googlePublic?.enabled &&
+        googlePublic.clientId &&
+        !googleLinked &&
+        !!profileEmail ? (
+          <Alert
+            type="info"
+            showIcon
+            className="mb-4"
+            message="Đăng nhập bằng Google"
+            description={
+              <div className="mt-2">
+                <p className="mb-3 text-sm">
+                  Liên kết Google (email trùng với email trong hồ sơ) để lần sau đăng nhập
+                  không cần mật khẩu.
+                </p>
+                <ProfileGoogleLink
+                  clientId={googlePublic.clientId}
+                  onLinked={() => void loadProfile()}
+                />
+              </div>
+            }
+          />
+        ) : null}
+
+        {googleLinked ? (
+          <Alert
+            type="success"
+            showIcon
+            className="mb-4"
+            message="Đã liên kết Google"
+            description="Bạn có thể đăng nhập bằng Google trên trang đăng nhập."
+          />
+        ) : null}
 
         <div className="mb-6 flex flex-col items-center gap-3 sm:flex-row sm:items-start">
           <div className="relative">

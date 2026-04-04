@@ -13,6 +13,8 @@ export const STUDENT_API = {
   /** Route profile: GET ?token=..., PATCH body { token, ... } */
   profile: 'profile',
   authLogin: 'auth/login',
+  authGoogleLogin: 'auth/google/login',
+  authGoogleLink: 'auth/google/link',
   authChangePassword: 'auth/change-password',
   authForgotPassword: 'auth/forgot-password',
   authResetPassword: 'auth/reset-password',

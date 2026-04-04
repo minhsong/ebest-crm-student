@@ -13,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi">
-      <body className="min-h-screen bg-gray-50 antialiased">
+      <body className="min-h-screen m-0 p-0 bg-gray-50 antialiased">
         <AntdRegistry>
           <App>
             <AuthProvider>{children}</AuthProvider>

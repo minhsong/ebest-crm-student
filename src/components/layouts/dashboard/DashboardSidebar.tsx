@@ -2,8 +2,12 @@
 
 import { Layout, Menu } from 'antd';
 import type { MenuProps } from 'antd';
-import Link from 'next/link';
-import { APP_NAME, SIDER_WIDTH, SIDER_COLLAPSED_WIDTH, SIDEBAR_TITLE_HEIGHT } from '@/lib/ui-constants';
+import { EbestLogo } from '@/components/branding/EbestLogo';
+import {
+  SIDER_WIDTH,
+  SIDER_COLLAPSED_WIDTH,
+  SIDEBAR_TITLE_HEIGHT,
+} from '@/lib/ui-constants';
 
 const { Sider } = Layout;
 
@@ -25,12 +29,13 @@ export default function DashboardSidebar({
 }: DashboardSidebarProps) {
   return (
     <Sider
-      theme="dark"
+      theme="light"
       collapsible
       collapsed={collapsed}
       onCollapse={onCollapse}
       width={SIDER_WIDTH}
       collapsedWidth={SIDER_COLLAPSED_WIDTH}
+      className="dashboard-sider-ebest border-r-0 shadow-[4px_0_24px_rgba(15,23,42,0.08)]"
       style={{
         overflow: 'auto',
         height: '100vh',
@@ -39,31 +44,30 @@ export default function DashboardSidebar({
         top: 0,
         bottom: 0,
         zIndex: 100,
-        background: '#001529',
-        borderRight: '1px solid rgba(255,255,255,0.08)',
+        backgroundColor: '#ffffff',
       }}
     >
       <div
-        className="flex items-center justify-center border-b border-white/10"
-        style={{ height: SIDEBAR_TITLE_HEIGHT }}
+        className="flex items-center justify-center border-b border-gray-100 bg-white px-2"
+        style={{ minHeight: SIDEBAR_TITLE_HEIGHT }}
       >
-        <Link
-          href="/"
-          className="overflow-hidden text-ellipsis whitespace-nowrap font-semibold text-white"
-          style={{
-            padding: collapsed ? '0 12px' : '0 16px',
-            fontSize: collapsed ? 14 : 16,
+        <EbestLogo
+          variant={collapsed ? 'sidebar-icon' : 'sidebar-full'}
+          priority
+          link={{
+            href: '/',
+            title: 'EBest English',
+            className: 'flex w-full items-center justify-center py-2',
           }}
-        >
-          {collapsed ? 'SP' : APP_NAME}
-        </Link>
+        />
       </div>
       <Menu
-        theme="dark"
+        theme="light"
         selectedKeys={[pathname]}
         mode="inline"
         items={menuItems}
-        style={{ marginTop: 8, borderRight: 0 }}
+        className="border-r-0 bg-transparent"
+        style={{ marginTop: 8 }}
       />
     </Sider>
   );
