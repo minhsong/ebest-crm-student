@@ -12,12 +12,16 @@ import {
   App,
   Steps,
   Checkbox,
+  ConfigProvider,
 } from 'antd';
 import { ArrowLeftOutlined, ArrowRightOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { ProfileByTokenResult, ProfileAddressData } from '@/types/profile';
 import { PhoneInputField } from '@/components/phone-input';
-import { FANPAGE_URL } from '@/lib/ui-constants';
+import { EBEST_BRAND_ORANGE, FANPAGE_URL } from '@/lib/ui-constants';
+import { ebestPublicAntdTheme } from '@/lib/ebest-public-antd-theme';
+import { BrandedPublicShell } from '@/components/branding/BrandedPublicShell';
+import { CompleteProfileBrandHeader } from './CompleteProfileBrandHeader';
 import {
   formRules,
   buildProfilePayload,
@@ -265,27 +269,33 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
 
   if (step === 'done') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
-        <Card className="w-full max-w-md shadow-sm">
-          <Alert
-            type="success"
-            showIcon
-            message={MESSAGES.createAccountSuccess}
-            description={
-              <>
-                {MESSAGES.createAccountDescription}
-                <br />
-                <a
-                  href="/login"
-                  className="mt-2 inline-block font-medium text-blue-600 hover:underline"
-                >
-                  Đi đến trang đăng nhập →
-                </a>
-              </>
-            }
-          />
-        </Card>
-      </div>
+      <ConfigProvider theme={ebestPublicAntdTheme}>
+        <BrandedPublicShell maxWidthClass="max-w-md" logoPriority>
+          <Card
+            bordered={false}
+            className="overflow-hidden rounded-xl shadow-lg ring-1 ring-black/10"
+          >
+            <Alert
+              type="success"
+              showIcon
+              message={MESSAGES.createAccountSuccess}
+              description={
+                <>
+                  {MESSAGES.createAccountDescription}
+                  <br />
+                  <a
+                    href="/login"
+                    className="mt-2 inline-block font-semibold hover:underline"
+                    style={{ color: EBEST_BRAND_ORANGE }}
+                  >
+                    Đi đến trang đăng nhập →
+                  </a>
+                </>
+              }
+            />
+          </Card>
+        </BrandedPublicShell>
+      </ConfigProvider>
     );
   }
 
@@ -299,8 +309,15 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
         : '';
 
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
-        <Card className="w-full max-w-md shadow-sm">
+      <ConfigProvider theme={ebestPublicAntdTheme}>
+        <BrandedPublicShell maxWidthClass="max-w-md" logoPriority>
+          <Card
+            bordered={false}
+            className="overflow-hidden rounded-xl shadow-lg ring-1 ring-black/10"
+            styles={{ body: { padding: 0 } }}
+          >
+            <CompleteProfileBrandHeader />
+            <div className="px-4 py-5 sm:px-6">
           <h2 className="mb-2 text-2xl font-semibold text-gray-900">
             {STEP_TITLES[5]}
           </h2>
@@ -309,7 +326,7 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
           </p>
 
           {loginKey && (
-            <div className="mb-6 rounded-lg border-2 border-blue-200 bg-blue-50/60 p-4">
+            <div className="mb-6 rounded-lg border-2 border-orange-200 bg-orange-50/70 p-4">
               <div className="mb-2 text-sm font-medium text-gray-600">
                 Tên đăng nhập của bạn
               </div>
@@ -317,7 +334,7 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
                 Loại: <span className="font-bold text-gray-800">{loginKeyType}</span>
               </div>
               <div
-                className="rounded border border-gray-200 bg-white px-3 py-2.5 text-xl font-bold text-gray-900"
+                className="rounded border border-orange-100 bg-white px-3 py-2.5 text-xl font-bold text-gray-900"
                 role="textbox"
                 aria-readonly="true"
               >
@@ -378,8 +395,10 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
               </Button>
             </div>
           </Form>
-        </Card>
-      </div>
+            </div>
+          </Card>
+        </BrandedPublicShell>
+      </ConfigProvider>
     );
   }
 
@@ -392,18 +411,30 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-      <div className="mx-auto max-w-2xl">
-        <Card className="shadow-sm">
+    <ConfigProvider theme={ebestPublicAntdTheme}>
+      <BrandedPublicShell maxWidthClass="max-w-4xl" logoPriority>
+        <Card
+          bordered={false}
+          className="overflow-hidden rounded-xl shadow-lg ring-1 ring-black/10"
+          styles={{ body: { padding: 0 } }}
+        >
+          <CompleteProfileBrandHeader />
+          <div className="px-4 py-5 md:px-6 md:py-6">
           <h1 className="mb-2 text-xl font-semibold text-gray-900">{WELCOME.title}</h1>
-          <div className="mb-6 rounded-lg bg-gray-50 p-4 text-sm leading-relaxed text-gray-700">
+          <div className="mb-6 rounded-lg border border-orange-100 bg-orange-50/40 p-4 text-sm leading-relaxed text-gray-700">
             {WELCOME.bullets.map((text, i) => (
               <p key={i} className="mb-2">
                 🔸{' '}
                 {i === 1 ? (
                   <>
                     Mọi thắc mắc khi đăng ký, bạn vui lòng nhắn tin qua{' '}
-                    <a href={FANPAGE_URL} target="_blank" rel="noopener noreferrer">
+                    <a
+                      href={FANPAGE_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium hover:underline"
+                      style={{ color: EBEST_BRAND_ORANGE }}
+                    >
                       Fanpage E-best English
                     </a>{' '}
                     để được hỗ trợ sớm nhất.
@@ -423,7 +454,9 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
           <Steps
             current={step - 1}
             items={stepItems}
-            className="complete-profile-steps mb-0"
+            className="complete-profile-steps complete-profile-steps--numbers mb-0"
+            responsive={false}
+            size="small"
           />
 
           <h2 className="mt-6 text-2xl font-semibold text-gray-900">
@@ -580,7 +613,9 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
                             >
                               <Tag
                                 color={
-                                  selectedTagIds.includes(t.id) ? t.color ?? 'blue' : 'default'
+                                  selectedTagIds.includes(t.id)
+                                    ? (t.color ?? 'orange')
+                                    : 'default'
                                 }
                               >
                                 {t.name}
@@ -678,8 +713,9 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
               </div>
             )}
           </Form>
+          </div>
         </Card>
-      </div>
-    </div>
+      </BrandedPublicShell>
+    </ConfigProvider>
   );
 }

@@ -56,4 +56,43 @@
     color: #e35321 !important;
     background: #fff7ed !important;
   }
+
+  /**
+   * Complete profile — thanh bước: luôn một hàng ngang (tắt responsive vertical của antd),
+   * chia đều, không rớt dòng; lề hai bên dễ nhìn trên mobile lẫn desktop.
+   */
+  .complete-profile-steps--numbers.ant-steps-horizontal {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+    box-sizing: border-box;
+    padding-inline: clamp(6px, 3vw, 20px);
+    column-gap: 2px;
+  }
+
+  .complete-profile-steps--numbers.ant-steps-horizontal .ant-steps-item {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    margin-inline-end: 0 !important;
+    padding-inline-start: 0 !important;
+    padding-inline-end: 0 !important;
+    overflow: visible !important;
+  }
+
+  .complete-profile-steps--numbers.ant-steps-horizontal .ant-steps-item:last-child {
+    flex: 1 1 0 !important;
+  }
+
+  .complete-profile-steps--numbers.ant-steps-horizontal .ant-steps-item-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .complete-profile-steps--numbers.ant-steps-horizontal .ant-steps-item-icon {
+    margin-inline: auto !important;
+  }
 }
