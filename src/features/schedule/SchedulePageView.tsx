@@ -20,16 +20,7 @@ export function SchedulePageView() {
 
   return (
     <>
-      <PageHeader
-        title="Lịch học"
-        description={
-          <>
-            Buổi đã lên kế hoạch (không gồm bản nháp và buổi đã hủy).{' '}
-            <strong>Sắp diễn ra</strong> hiển thị trước, <strong>đã diễn ra</strong>{' '}
-            theo sau — cùng dạng thẻ.
-          </>
-        }
-      />
+      <PageHeader title="Lịch học" />
 
       <PageCard>
         {sessionCount === 0 ? (
