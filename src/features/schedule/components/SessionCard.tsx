@@ -16,9 +16,11 @@ import {
 import type { OverviewSessionRow } from '@/types/overview-sessions';
 import { formatSessionDatetimeCompact } from '@/lib/session-format';
 import { CRM_ASSIGNMENT_RESULT_STATUS } from '@/lib/crm-enums';
+import { FolderOutlined } from '@ant-design/icons';
 import { SessionStatusTag } from '@/features/dashboard/components/SessionStatusTag';
 import { AttendanceCell } from '@/features/dashboard/components/AttendanceCell';
 import { StudentAssignmentDetailModal } from '@/features/schedule/components/StudentAssignmentDetailModal';
+import { StudentSessionMaterialsModal } from '@/features/schedule/components/StudentSessionMaterialsModal';
 
 const { Text, Paragraph } = Typography;
 
@@ -52,6 +54,7 @@ function SessionCardInner({ row, stripedDim, classContextLabel }: SessionCardPro
   const [detailAssignmentId, setDetailAssignmentId] = useState<number | null>(
     null,
   );
+  const [materialsOpen, setMaterialsOpen] = useState(false);
 
   const assistants = row.assistantTeachers?.length
     ? row.assistantTeachers
@@ -104,6 +107,14 @@ function SessionCardInner({ row, stripedDim, classContextLabel }: SessionCardPro
                 {row.title?.trim() || 'Buổi học'}
               </Paragraph>
               <Flex wrap="wrap" gap={8} align="center" style={{ flexShrink: 0 }}>
+                <Button
+                  type="default"
+                  size="small"
+                  icon={<FolderOutlined />}
+                  onClick={() => setMaterialsOpen(true)}
+                >
+                  Tài liệu
+                </Button>
                 <SessionStatusTag
                   status={row.sessionStatus}
                   label={row.sessionStatusLabel}
@@ -309,6 +320,13 @@ function SessionCardInner({ row, stripedDim, classContextLabel }: SessionCardPro
         open={detailOpen}
         assignmentId={detailAssignmentId}
         onClose={closeDetail}
+      />
+
+      <StudentSessionMaterialsModal
+        open={materialsOpen}
+        sessionId={row.sessionId}
+        sessionTitle={row.title ?? undefined}
+        onClose={() => setMaterialsOpen(false)}
       />
     </>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Modal,
   Descriptions,
@@ -13,6 +13,7 @@ import {
   Card,
   theme,
 } from 'antd';
+import { ExportOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/auth-context';
 import type { StudentAssignmentDetail } from '@/types/student-assignment-detail';
 import {
@@ -21,8 +22,13 @@ import {
 } from '@/lib/assignment-display';
 import { CRM_ASSIGNMENT_RESULT_STATUS } from '@/lib/crm-enums';
 import { normalizeStudentAssignmentDetail } from '@/lib/student-assignment-detail-normalize';
+import {
+  assignmentAttachmentSupportsPlay,
+  isAudioMimeType,
+} from '@/lib/media-play-utils';
+import { StudentMediaPlayModal } from '@/features/schedule/components/StudentMediaPlayModal';
 
-const { Text, Title, Link } = Typography;
+const { Text, Title } = Typography;
 
 type Props = {
   open: boolean;
@@ -40,6 +46,28 @@ export function StudentAssignmentDetailModal({
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<StudentAssignmentDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [playOpen, setPlayOpen] = useState(false);
+  const [playTitle, setPlayTitle] = useState('');
+  const [playUrl, setPlayUrl] = useState<string | null>(null);
+  const [playVariant, setPlayVariant] = useState<'audio' | 'video'>('video');
+
+  const closePlay = useCallback(() => {
+    setPlayOpen(false);
+    setPlayUrl(null);
+  }, []);
+
+  const openAttachmentPlay = useCallback(
+    (name: string, url: string, mimeType?: string) => {
+      const u = url.trim();
+      if (!u) return;
+      setPlayTitle(name || 'Phát');
+      setPlayVariant(isAudioMimeType(mimeType) ? 'audio' : 'video');
+      setPlayUrl(u);
+      setPlayOpen(true);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!open || assignmentId == null) {
@@ -104,6 +132,7 @@ export function StudentAssignmentDetailModal({
   `;
 
   return (
+    <>
     <Modal
       title={
         detail ? (
@@ -229,41 +258,78 @@ export function StudentAssignmentDetailModal({
                 Tài liệu đính kèm ({detail.attachments.length})
               </Title>
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                {detail.attachments.map((item, index) => (
-                  <Card
-                    key={`${item.url}-${index}`}
-                    size="small"
-                    type="inner"
-                    styles={{
-                      body: {
-                        fontSize: token.fontSize,
-                        paddingBlock: token.paddingSM,
-                      },
-                    }}
-                  >
-                    <Space wrap>
-                      {item.resourceKind &&
-                        getResourceKindLabel(item.resourceKind) && (
-                          <Tag color="green">
-                            {getResourceKindLabel(item.resourceKind)}
-                          </Tag>
-                        )}
-                      <Text strong>{item.name}</Text>
+                {detail.attachments.map((item, index) => {
+                  const canPlay = assignmentAttachmentSupportsPlay(item);
+                  const url = item.url?.trim() ?? '';
+                  return (
+                    <Card
+                      key={`${item.id ?? item.fileId ?? url}-${index}`}
+                      size="small"
+                      type="inner"
+                      styles={{
+                        body: {
+                          fontSize: token.fontSize,
+                          paddingBlock: token.paddingSM,
+                        },
+                      }}
+                    >
+                      <Flex wrap="wrap" gap={token.marginSM} align="center">
+                        {item.resourceKind &&
+                          getResourceKindLabel(item.resourceKind) && (
+                            <Tag color="green">
+                              {getResourceKindLabel(item.resourceKind)}
+                            </Tag>
+                          )}
+                        <Text strong style={{ flex: '1 1 180px', minWidth: 0 }}>
+                          {item.name}
+                        </Text>
+                        <Space wrap>
+                          {canPlay && url ? (
+                            <Button
+                              type="primary"
+                              size="small"
+                              icon={<PlayCircleOutlined />}
+                              onClick={() =>
+                                openAttachmentPlay(
+                                  item.name,
+                                  item.url,
+                                  item.mimeType,
+                                )
+                              }
+                            >
+                              Phát
+                            </Button>
+                          ) : null}
+                          {url ? (
+                            <Button
+                              size="small"
+                              icon={<ExportOutlined />}
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {item.type === 'link'
+                                ? 'Mở liên kết'
+                                : 'Mở tab / tải'}
+                            </Button>
+                          ) : null}
+                        </Space>
+                      </Flex>
                       {item.description ? (
-                        <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                        <Text
+                          type="secondary"
+                          style={{
+                            display: 'block',
+                            marginTop: token.marginXS,
+                            fontSize: token.fontSizeSM,
+                          }}
+                        >
                           {item.description}
                         </Text>
                       ) : null}
-                      <Link
-                        href={item.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {item.type === 'link' ? 'Mở liên kết' : 'Tải / mở'}
-                      </Link>
-                    </Space>
-                  </Card>
-                ))}
+                    </Card>
+                  );
+                })}
               </Space>
             </div>
           ) : null}
@@ -283,6 +349,15 @@ export function StudentAssignmentDetailModal({
             )}
         </Space>
       )}
+
     </Modal>
+    <StudentMediaPlayModal
+      open={playOpen}
+      title={playTitle}
+      playUrl={playUrl}
+      variant={playVariant}
+      onClose={closePlay}
+    />
+    </>
   );
 }
