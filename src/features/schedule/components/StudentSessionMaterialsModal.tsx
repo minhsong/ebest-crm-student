@@ -128,9 +128,10 @@ export function StudentSessionMaterialsModal({
             : 'Không lấy được đường dẫn.';
         throw new Error(msg);
       }
+      const payload = data?.result ?? data;
       const url =
-        (typeof data?.signedUrl === 'string' && data.signedUrl) ||
-        (typeof data?.externalUrl === 'string' && data.externalUrl) ||
+        (typeof payload?.signedUrl === 'string' && payload.signedUrl) ||
+        (typeof payload?.externalUrl === 'string' && payload.externalUrl) ||
         null;
       return url;
     },

@@ -55,5 +55,7 @@ export async function POST(
       { status: res.status },
     );
   }
-  return NextResponse.json(data);
+  /** CRM bọc { signedUrl, expiresIn } trong `result` — trả phẳng cho client (react-player / modal). */
+  const payload = data?.result ?? data;
+  return NextResponse.json(payload);
 }

@@ -108,7 +108,8 @@ function SessionCardInner({ row, stripedDim, classContextLabel }: SessionCardPro
               </Paragraph>
               <Flex wrap="wrap" gap={8} align="center" style={{ flexShrink: 0 }}>
                 <Button
-                  type="default"
+                  color="cyan"
+                  variant="solid"
                   size="small"
                   icon={<FolderOutlined />}
                   onClick={() => setMaterialsOpen(true)}
