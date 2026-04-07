@@ -46,6 +46,8 @@ export interface ProfileCustomer {
   additionalContacts?: Array<{ type: string; value: string }>;
   tags?: ProfileTag[];
   socialMedia?: ProfileSocialMedia[];
+  /** true khi học viên đã hoàn tất xác nhận hồ sơ qua link complete-profile. */
+  confirmed?: boolean;
 }
 
 export interface ProfileByTokenResult {

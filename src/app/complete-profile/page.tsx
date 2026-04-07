@@ -3,6 +3,7 @@ import { getApiBaseUrl } from '@/lib/env';
 import { buildPageMetadata } from '@/lib/metadata';
 import { TokenError } from '@/components/complete-profile/TokenError';
 import { ProfileForm } from '@/components/complete-profile/ProfileForm';
+import { AlreadyConfirmedRedirect } from '@/components/complete-profile/AlreadyConfirmedRedirect';
 import { App } from 'antd';
 
 export const metadata = buildPageMetadata({
@@ -41,6 +42,10 @@ export default async function CompleteProfilePage({
 
   if (error || !data) {
     return <TokenError message={error ?? 'Link không hợp lệ hoặc đã hết hạn.'} />;
+  }
+
+  if (data.customer?.confirmed) {
+    return <AlreadyConfirmedRedirect />;
   }
 
   return (
