@@ -78,12 +78,22 @@ export function assignmentAttachmentSupportsPlay(
   const url = item.url?.trim();
   if (!url) return false;
   const kind = item.resourceKind;
+
+  /**
+   * Đồng nhất với tài liệu buổi học:
+   * - File upload: ưu tiên MIME để quyết định phát media (audio/video),
+   *   tránh phụ thuộc tuyệt đối vào resourceKind bị nhập sai hoặc dữ liệu cũ.
+   * - Link ngoài: bám theo resourceKind đã chọn (youtube/audio/video).
+   */
+  if (item.type === 'file') {
+    if (isAudioMimeType(item.mimeType) || isVideoMimeType(item.mimeType)) {
+      return true;
+    }
+    return kind != null && PLAY_RESOURCE_KINDS.has(kind);
+  }
+
   if (kind) {
     return PLAY_RESOURCE_KINDS.has(kind);
-  }
-  /* Dữ liệu cũ: file chưa có resourceKind — gợi ý theo MIME */
-  if (item.type === 'file') {
-    return isAudioMimeType(item.mimeType) || isVideoMimeType(item.mimeType);
   }
   return false;
 }
@@ -94,11 +104,12 @@ export function assignmentAttachmentSupportsImagePreview(
   const url = item.url?.trim();
   if (!url) return false;
   const kind = item.resourceKind;
-  if (kind) {
+  if (item.type === 'file') {
+    if (isImageMimeType(item.mimeType)) return true;
     return kind === 'image';
   }
-  if (item.type === 'file') {
-    return isImageMimeType(item.mimeType);
+  if (kind) {
+    return kind === 'image';
   }
   return false;
 }
