@@ -14,7 +14,7 @@ export function buildAssignmentSessionLine(
 }
 
 export function getResourceKindLabel(
-  kind?: 'audio' | 'slide' | 'document' | 'video' | 'other',
+  kind?: string,
 ): string {
   switch (kind) {
     case 'audio':
@@ -25,6 +25,14 @@ export function getResourceKindLabel(
       return 'Tài liệu';
     case 'video':
       return 'Video';
+    case 'youtube':
+      return 'YouTube / video nhúng';
+    case 'image':
+      return 'Hình ảnh';
+    case 'powerpoint':
+      return 'PowerPoint';
+    case 'web_link':
+      return 'Liên kết web';
     case 'other':
       return 'Khác';
     default:

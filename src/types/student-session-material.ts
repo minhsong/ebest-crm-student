@@ -7,7 +7,10 @@ export type StudentSessionMaterialType =
   | 'video'
   | 'slide'
   | 'document'
-  | 'link';
+  | 'link'
+  | 'youtube'
+  | 'image'
+  | 'powerpoint';
 
 export interface StudentSessionMaterialVersion {
   id: number;

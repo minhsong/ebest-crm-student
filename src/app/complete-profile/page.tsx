@@ -44,13 +44,17 @@ export default async function CompleteProfilePage({
     return <TokenError message={error ?? 'Link không hợp lệ hoặc đã hết hạn.'} />;
   }
 
-  if (data.customer?.confirmed) {
+  const c = data.customer;
+  const hasAccount = c?.portalAccountCreated ?? c?.confirmed;
+  if (hasAccount) {
     return <AlreadyConfirmedRedirect />;
   }
 
+  const initialStep = c?.profileDataComplete ? 5 : 1;
+
   return (
     <App>
-      <ProfileForm initialData={data} token={token} />
+      <ProfileForm initialData={data} token={token} initialStep={initialStep} />
     </App>
   );
 }

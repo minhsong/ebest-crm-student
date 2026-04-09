@@ -64,6 +64,8 @@ const EMERGENCY_GUIDANCE =
 interface ProfileFormProps {
   initialData: ProfileByTokenResult;
   token: string;
+  /** 5 = chỉ bước đặt mật khẩu (đã có đủ thông tin hồ sơ). */
+  initialStep?: 1 | 5;
 }
 
 function getSocialUrl(customer: ProfileByTokenResult['customer'], type: string): string {
@@ -72,11 +74,17 @@ function getSocialUrl(customer: ProfileByTokenResult['customer'], type: string):
 
 type StepNumber = 1 | 2 | 3 | 4 | 5;
 
-export function ProfileForm({ initialData, token }: ProfileFormProps) {
+export function ProfileForm({
+  initialData,
+  token,
+  initialStep = 1,
+}: ProfileFormProps) {
   const { customer, availableTags } = initialData;
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
-  const [step, setStep] = useState<StepNumber | 'done'>(1);
+  const [step, setStep] = useState<StepNumber | 'done'>(() =>
+    initialStep === 5 ? 5 : 1,
+  );
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>(
     customer.tags?.map((t) => t.id) ?? []
@@ -318,6 +326,15 @@ export function ProfileForm({ initialData, token }: ProfileFormProps) {
           >
             <CompleteProfileBrandHeader />
             <div className="px-4 py-5 sm:px-6">
+          {initialStep === 5 && (
+            <Alert
+              type="info"
+              showIcon
+              className="mb-4"
+              message="Thông tin hồ sơ đã được lưu"
+              description="Bạn chỉ cần đặt mật khẩu để tạo tài khoản đăng nhập cổng học viên."
+            />
+          )}
           <h2 className="mb-2 text-2xl font-semibold text-gray-900">
             {STEP_TITLES[5]}
           </h2>

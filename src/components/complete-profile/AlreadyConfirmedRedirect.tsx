@@ -42,10 +42,10 @@ export function AlreadyConfirmedRedirect() {
           <Alert
             type="success"
             showIcon
-            message="Bạn đã xác nhận tài khoản"
+            message="Tài khoản cổng học viên đã được tạo"
             description={
               <Typography.Paragraph style={{ margin: 0 }}>
-                Bạn đã xác nhận tài khoản trước đó, sẽ về trang đăng nhập sau{' '}
+                Bạn đã có tài khoản đăng nhập. Sẽ chuyển về trang đăng nhập sau{' '}
                 <strong>{countdown}s</strong>.
               </Typography.Paragraph>
             }

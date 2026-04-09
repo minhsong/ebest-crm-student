@@ -46,7 +46,16 @@ export interface ProfileCustomer {
   additionalContacts?: Array<{ type: string; value: string }>;
   tags?: ProfileTag[];
   socialMedia?: ProfileSocialMedia[];
-  /** true khi học viên đã hoàn tất xác nhận hồ sơ qua link complete-profile. */
+  /** Đã có tài khoản đăng nhập cổng học viên (email/SĐT + mật khẩu hoặc tương đương). */
+  portalAccountCreated?: boolean;
+  /**
+   * Đã hoàn tất các bước thông tin tới địa chỉ/CCCD; có thể chỉ còn bước đặt mật khẩu.
+   */
+  profileDataComplete?: boolean;
+  /**
+   * @deprecated Cùng nghĩa `portalAccountCreated` — giữ để tương thích.
+   * true = đã có tài khoản đăng nhập (redirect về login).
+   */
   confirmed?: boolean;
 }
 

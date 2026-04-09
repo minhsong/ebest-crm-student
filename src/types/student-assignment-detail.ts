@@ -2,6 +2,18 @@
  * Khớp GET /api/v1/student/assignments/:id (sau unwrap nếu có wrapper).
  */
 
+/** Khớp CRM `resource_kind` — hành vi hiển thị do người nhập liệu chọn, không suy URL. */
+export type StudentAssignmentAttachmentResourceKind =
+  | 'audio'
+  | 'video'
+  | 'youtube'
+  | 'image'
+  | 'slide'
+  | 'document'
+  | 'powerpoint'
+  | 'web_link'
+  | 'other';
+
 export interface StudentAssignmentAttachment {
   id?: string;
   fileId?: string;
@@ -11,7 +23,7 @@ export interface StudentAssignmentAttachment {
   size?: number;
   mimeType?: string;
   uploadedAt?: string;
-  resourceKind?: 'audio' | 'slide' | 'document' | 'video' | 'other';
+  resourceKind?: StudentAssignmentAttachmentResourceKind;
   description?: string;
 }
 

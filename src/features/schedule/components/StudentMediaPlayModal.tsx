@@ -12,8 +12,8 @@ type Props = {
   playUrl: string | null;
   loading?: boolean;
   error?: string | null;
-  /** audio → <audio controls>; còn lại → react-player (video, YouTube, …) */
-  variant: 'audio' | 'video';
+  /** audio → <audio>; image → <img>; video → react-player (file, YouTube, …) */
+  variant: 'audio' | 'video' | 'image';
   onClose: () => void;
 };
 
@@ -53,9 +53,32 @@ export function StudentMediaPlayModal({
           key={url}
           src={url}
           controls
+          controlsList="nodownload"
           autoPlay
           style={{ width: '100%', minHeight: 48 }}
         />
+      ) : null}
+      {!loading && !error && url && variant === 'image' ? (
+        <div
+          style={{
+            width: '100%',
+            textAlign: 'center',
+            maxHeight: '70vh',
+            overflow: 'auto',
+          }}
+        >
+          <img
+            key={url}
+            src={url}
+            alt=""
+            style={{
+              maxWidth: '100%',
+              height: 'auto',
+              borderRadius: token.borderRadiusLG,
+            }}
+            draggable={false}
+          />
+        </div>
       ) : null}
       {!loading && !error && url && variant === 'video' ? (
         <div

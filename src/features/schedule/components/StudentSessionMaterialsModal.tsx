@@ -17,11 +17,15 @@ import {
   PlayCircleOutlined,
   ExportOutlined,
   FolderOpenOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/contexts/auth-context';
 import type { StudentSessionMaterial } from '@/types/student-session-material';
 import {
   SESSION_MATERIAL_TYPE_LABEL,
+  getSessionMaterialPlayVariant,
+  sessionMaterialOpenInNewTabLabel,
+  sessionMaterialPrimaryActionLabel,
   sessionMaterialSupportsInlinePlay,
 } from '@/lib/media-play-utils';
 import { StudentMediaPlayModal } from '@/features/schedule/components/StudentMediaPlayModal';
@@ -50,7 +54,9 @@ export function StudentSessionMaterialsModal({
   const [playOpen, setPlayOpen] = useState(false);
   const [playTitle, setPlayTitle] = useState('');
   const [playUrl, setPlayUrl] = useState<string | null>(null);
-  const [playVariant, setPlayVariant] = useState<'audio' | 'video'>('video');
+  const [playVariant, setPlayVariant] = useState<'audio' | 'video' | 'image'>(
+    'video',
+  );
   const [playLoading, setPlayLoading] = useState(false);
   const [playError, setPlayError] = useState<string | null>(null);
 
@@ -148,7 +154,7 @@ export function StudentSessionMaterialsModal({
       setPlayUrl(null);
 
       try {
-        if (m.materialType === 'link') {
+        if (m.materialType === 'youtube') {
           const u = m.current?.externalUrl?.trim() ?? '';
           if (!u) {
             setPlayError('Không có URL để phát.');
@@ -161,11 +167,13 @@ export function StudentSessionMaterialsModal({
           return;
         }
 
-        if (m.materialType === 'audio') {
-          setPlayVariant('audio');
-        } else {
-          setPlayVariant('video');
+        if (m.materialType === 'link') {
+          setPlayError('Liên kết web chỉ mở ở tab mới. Chọn loại YouTube để phát trong app.');
+          setPlayLoading(false);
+          return;
         }
+
+        setPlayVariant(getSessionMaterialPlayVariant(m));
 
         const url = await resolveAccessUrl(m.id);
         if (!url) {
@@ -188,7 +196,7 @@ export function StudentSessionMaterialsModal({
     async (m: StudentSessionMaterial) => {
       if (sessionId == null) return;
       try {
-        if (m.materialType === 'link') {
+        if (m.materialType === 'link' || m.materialType === 'youtube') {
           const u = m.current?.externalUrl?.trim();
           if (u) {
             window.open(u, '_blank', 'noopener,noreferrer');
@@ -245,6 +253,7 @@ export function StudentSessionMaterialsModal({
               const typeLabel =
                 SESSION_MATERIAL_TYPE_LABEL[m.materialType] ?? m.materialType;
               const canPlay = sessionMaterialSupportsInlinePlay(m);
+              const primaryLabel = sessionMaterialPrimaryActionLabel(m);
               return (
                 <Card
                   key={m.id}
@@ -265,17 +274,23 @@ export function StudentSessionMaterialsModal({
                       {canPlay ? (
                         <Button
                           type="primary"
-                          icon={<PlayCircleOutlined />}
+                          icon={
+                            primaryLabel === 'Xem' ? (
+                              <EyeOutlined />
+                            ) : (
+                              <PlayCircleOutlined />
+                            )
+                          }
                           onClick={() => void openPlay(m)}
                         >
-                          Phát
+                          {primaryLabel}
                         </Button>
                       ) : null}
                       <Button
                         icon={<ExportOutlined />}
                         onClick={() => void openInNewTab(m)}
                       >
-                        Mở tab mới
+                        {sessionMaterialOpenInNewTabLabel(m)}
                       </Button>
                     </Space>
                   </Flex>

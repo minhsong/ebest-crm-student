@@ -9,28 +9,120 @@ export function isVideoMimeType(mime?: string): boolean {
   return mime != null && mime.toLowerCase().startsWith('video/');
 }
 
-/** File âm thanh / video hoặc liên kết (YouTube, v.v.) — react-player. */
+export function isImageMimeType(mime?: string): boolean {
+  return mime != null && mime.toLowerCase().startsWith('image/');
+}
+
+function isUrlOnlySessionMaterialType(
+  t: StudentSessionMaterial['materialType'],
+): boolean {
+  return t === 'link' || t === 'youtube';
+}
+
+/** Phát / xem trong modal — theo loại CRM, không đoán từ URL. */
 export function sessionMaterialSupportsInlinePlay(
   m: StudentSessionMaterial,
 ): boolean {
-  if (m.materialType === 'link') {
-    return Boolean(m.current?.externalUrl?.trim());
+  const cur = m.current;
+  const ext = cur?.externalUrl?.trim();
+  const hasFile = Boolean(cur?.fileId);
+  switch (m.materialType) {
+    case 'youtube':
+      return Boolean(ext);
+    case 'link':
+      return false;
+    case 'audio':
+    case 'video':
+      return Boolean(hasFile || ext);
+    case 'image':
+      return Boolean(hasFile);
+    default:
+      return false;
   }
-  return (
-    (m.materialType === 'audio' || m.materialType === 'video') &&
-    Boolean(m.current?.fileId || m.current?.externalUrl?.trim())
-  );
 }
 
+/** Modal phát: audio | video(youtube/file) | ảnh */
+export type SessionMaterialPlayVariant = 'audio' | 'video' | 'image';
+
+export function getSessionMaterialPlayVariant(
+  m: StudentSessionMaterial,
+): SessionMaterialPlayVariant {
+  if (m.materialType === 'audio') return 'audio';
+  if (m.materialType === 'image') return 'image';
+  return 'video';
+}
+
+export function sessionMaterialOpenInNewTabLabel(
+  m: StudentSessionMaterial,
+): string {
+  if (isUrlOnlySessionMaterialType(m.materialType)) {
+    return m.materialType === 'youtube' ? 'Mở YouTube / tab mới' : 'Mở liên kết';
+  }
+  return 'Mở tab mới';
+}
+
+export function sessionMaterialPrimaryActionLabel(
+  m: StudentSessionMaterial,
+): string {
+  return m.materialType === 'image' ? 'Xem' : 'Phát';
+}
+
+const PLAY_RESOURCE_KINDS: ReadonlySet<
+  NonNullable<StudentAssignmentAttachment['resourceKind']>
+> = new Set(['audio', 'video', 'youtube']);
+
+/** Chỉ audio / video / youtube được phát trong modal; link web dùng tab mới. */
 export function assignmentAttachmentSupportsPlay(
   item: StudentAssignmentAttachment,
 ): boolean {
-  if (item.type === 'link') {
-    return Boolean(item.url?.trim());
+  const url = item.url?.trim();
+  if (!url) return false;
+  const kind = item.resourceKind;
+  if (kind) {
+    return PLAY_RESOURCE_KINDS.has(kind);
   }
-  return (
-    isAudioMimeType(item.mimeType) || isVideoMimeType(item.mimeType)
-  ) && Boolean(item.url?.trim());
+  /* Dữ liệu cũ: file chưa có resourceKind — gợi ý theo MIME */
+  if (item.type === 'file') {
+    return isAudioMimeType(item.mimeType) || isVideoMimeType(item.mimeType);
+  }
+  return false;
+}
+
+export function assignmentAttachmentSupportsImagePreview(
+  item: StudentAssignmentAttachment,
+): boolean {
+  const url = item.url?.trim();
+  if (!url) return false;
+  const kind = item.resourceKind;
+  if (kind) {
+    return kind === 'image';
+  }
+  if (item.type === 'file') {
+    return isImageMimeType(item.mimeType);
+  }
+  return false;
+}
+
+export function assignmentAttachmentPlayVariant(
+  item: StudentAssignmentAttachment,
+): 'audio' | 'video' | 'image' {
+  const kind = item.resourceKind;
+  if (kind === 'audio') return 'audio';
+  if (kind === 'image') return 'image';
+  if (kind === 'youtube' || kind === 'video') return 'video';
+  if (item.type === 'file' && isAudioMimeType(item.mimeType)) return 'audio';
+  if (item.type === 'file' && isImageMimeType(item.mimeType)) return 'image';
+  return 'video';
+}
+
+export function assignmentAttachmentOpenTabLabel(
+  item: StudentAssignmentAttachment,
+): string {
+  if (item.type === 'link') {
+    if (item.resourceKind === 'youtube') return 'Mở YouTube / tab mới';
+    return 'Mở liên kết';
+  }
+  return 'Mở tab mới';
 }
 
 export const SESSION_MATERIAL_TYPE_LABEL: Record<string, string> = {
@@ -38,5 +130,8 @@ export const SESSION_MATERIAL_TYPE_LABEL: Record<string, string> = {
   video: 'Video',
   slide: 'Slide',
   document: 'Tài liệu',
-  link: 'Liên kết',
+  link: 'Liên kết web',
+  youtube: 'YouTube / video nhúng',
+  image: 'Hình ảnh',
+  powerpoint: 'PowerPoint',
 };

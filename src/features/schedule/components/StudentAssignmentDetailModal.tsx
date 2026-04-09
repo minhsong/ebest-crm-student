@@ -13,9 +13,16 @@ import {
   Card,
   theme,
 } from 'antd';
-import { ExportOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import {
+  ExportOutlined,
+  EyeOutlined,
+  PlayCircleOutlined,
+} from '@ant-design/icons';
 import { useAuth } from '@/contexts/auth-context';
-import type { StudentAssignmentDetail } from '@/types/student-assignment-detail';
+import type {
+  StudentAssignmentAttachment,
+  StudentAssignmentDetail,
+} from '@/types/student-assignment-detail';
 import {
   buildAssignmentSessionLine,
   getResourceKindLabel,
@@ -23,8 +30,10 @@ import {
 import { CRM_ASSIGNMENT_RESULT_STATUS } from '@/lib/crm-enums';
 import { normalizeStudentAssignmentDetail } from '@/lib/student-assignment-detail-normalize';
 import {
+  assignmentAttachmentOpenTabLabel,
+  assignmentAttachmentPlayVariant,
+  assignmentAttachmentSupportsImagePreview,
   assignmentAttachmentSupportsPlay,
-  isAudioMimeType,
 } from '@/lib/media-play-utils';
 import { StudentMediaPlayModal } from '@/features/schedule/components/StudentMediaPlayModal';
 
@@ -50,19 +59,21 @@ export function StudentAssignmentDetailModal({
   const [playOpen, setPlayOpen] = useState(false);
   const [playTitle, setPlayTitle] = useState('');
   const [playUrl, setPlayUrl] = useState<string | null>(null);
-  const [playVariant, setPlayVariant] = useState<'audio' | 'video'>('video');
+  const [playVariant, setPlayVariant] = useState<'audio' | 'video' | 'image'>(
+    'video',
+  );
 
   const closePlay = useCallback(() => {
     setPlayOpen(false);
     setPlayUrl(null);
   }, []);
 
-  const openAttachmentPlay = useCallback(
-    (name: string, url: string, mimeType?: string) => {
-      const u = url.trim();
+  const openAttachmentViewer = useCallback(
+    (item: StudentAssignmentAttachment) => {
+      const u = item.url?.trim();
       if (!u) return;
-      setPlayTitle(name || 'Phát');
-      setPlayVariant(isAudioMimeType(mimeType) ? 'audio' : 'video');
+      setPlayTitle(item.name || 'Xem');
+      setPlayVariant(assignmentAttachmentPlayVariant(item));
       setPlayUrl(u);
       setPlayOpen(true);
     },
@@ -260,6 +271,8 @@ export function StudentAssignmentDetailModal({
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
                 {detail.attachments.map((item, index) => {
                   const canPlay = assignmentAttachmentSupportsPlay(item);
+                  const canPreviewImage =
+                    assignmentAttachmentSupportsImagePreview(item);
                   const url = item.url?.trim() ?? '';
                   return (
                     <Card
@@ -289,15 +302,19 @@ export function StudentAssignmentDetailModal({
                               type="primary"
                               size="small"
                               icon={<PlayCircleOutlined />}
-                              onClick={() =>
-                                openAttachmentPlay(
-                                  item.name,
-                                  item.url,
-                                  item.mimeType,
-                                )
-                              }
+                              onClick={() => openAttachmentViewer(item)}
                             >
                               Phát
+                            </Button>
+                          ) : null}
+                          {canPreviewImage && url && !canPlay ? (
+                            <Button
+                              type="primary"
+                              size="small"
+                              icon={<EyeOutlined />}
+                              onClick={() => openAttachmentViewer(item)}
+                            >
+                              Xem
                             </Button>
                           ) : null}
                           {url ? (
@@ -308,9 +325,7 @@ export function StudentAssignmentDetailModal({
                               target="_blank"
                               rel="noopener noreferrer"
                             >
-                              {item.type === 'link'
-                                ? 'Mở liên kết'
-                                : 'Mở tab / tải'}
+                              {assignmentAttachmentOpenTabLabel(item)}
                             </Button>
                           ) : null}
                         </Space>
