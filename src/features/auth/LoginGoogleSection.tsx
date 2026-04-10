@@ -5,6 +5,19 @@ import { App } from 'antd';
 
 import { useAuth } from '@/contexts/auth-context';
 
+const COMPLETE_PROFILE_MODAL = {
+  passwordOnly: {
+    title: 'Tạo tài khoản đăng nhập',
+    content:
+      'Trung tâm đã lưu đủ thông tin với email Google này. Bạn chỉ cần đặt mật khẩu để tạo tài khoản cổng học viên. Chuyển tới trang đặt mật khẩu?',
+  },
+  fullForm: {
+    title: 'Hoàn thiện hồ sơ học viên',
+    content:
+      'Trung tâm đã tạo hồ sơ với email này nhưng chưa đủ thông tin. Bạn có muốn mở trang hoàn thiện hồ sơ không?',
+  },
+} as const;
+
 type Props = {
   /** Phải nằm trong `<GoogleOAuthProvider clientId={...}>` (xem trang login). */
   onLoggedIn: () => void;
@@ -22,7 +35,7 @@ export function LoginGoogleSection({
   className = '',
   noteClassName = '',
 }: Props) {
-  const { message: antMessage } = App.useApp();
+  const { message: antMessage, modal } = App.useApp();
   const { loginWithGoogle } = useAuth();
 
   return (
@@ -40,12 +53,28 @@ export function LoginGoogleSection({
             }
             try {
               const r = await loginWithGoogle(t);
-              if (r.ok) {
-                antMessage.success('Đăng nhập thành công.');
-                onLoggedIn();
-              } else {
+              if (!r.ok) {
                 antMessage.error(r.message ?? 'Đăng nhập Google thất bại.');
+                return;
               }
+              if (r.kind === 'complete_profile') {
+                const copy =
+                  r.reason === 'needs_password'
+                    ? COMPLETE_PROFILE_MODAL.passwordOnly
+                    : COMPLETE_PROFILE_MODAL.fullForm;
+                modal.confirm({
+                  title: copy.title,
+                  content: copy.content,
+                  okText: 'Đồng ý',
+                  cancelText: 'Hủy',
+                  onOk: () => {
+                    window.location.assign(r.completeProfileUrl);
+                  },
+                });
+                return;
+              }
+              antMessage.success('Đăng nhập thành công.');
+              onLoggedIn();
             } catch {
               antMessage.error('Đăng nhập Google thất bại.');
             }
@@ -64,7 +93,7 @@ export function LoginGoogleSection({
       <p
         className={`mt-1.5 text-center text-xs text-gray-500 ${noteClassName}`.trim()}
       >
-        Dùng Gmail trùng email đã đăng ký trên cổng học viên.
+        Dùng Gmail trùng email hồ sơ tại trung tâm hoặc tài khoản đã đăng ký cổng học viên.
       </p>
     </div>
   );

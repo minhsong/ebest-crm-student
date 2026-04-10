@@ -2,6 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { getMessageFromClientApiJson } from '@/lib/parse-client-api-json';
+import { parseGoogleLoginPayload } from '@/lib/parse-google-login-result';
 
 const STORAGE_KEY = 'student_portal_auth';
 
@@ -18,9 +19,19 @@ interface AuthState {
   ready: boolean;
 }
 
+export type LoginWithGoogleResult =
+  | { ok: true; kind: 'session' }
+  | {
+      ok: true;
+      kind: 'complete_profile';
+      completeProfileUrl: string;
+      reason: 'incomplete_profile' | 'needs_password';
+    }
+  | { ok: false; message?: string };
+
 interface AuthContextValue extends AuthState {
   login: (loginId: string, password: string) => Promise<{ ok: boolean; message?: string }>;
-  loginWithGoogle: (idToken: string) => Promise<{ ok: boolean; message?: string }>;
+  loginWithGoogle: (idToken: string) => Promise<LoginWithGoogleResult>;
   linkGoogle: (idToken: string) => Promise<{ ok: boolean; message?: string }>;
   logout: () => void;
   setAuth: (accessToken: string, customer: AuthCustomer) => void;
@@ -116,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const loginWithGoogle = useCallback(
-    async (idToken: string) => {
+    async (idToken: string): Promise<LoginWithGoogleResult> => {
       try {
         const res = await fetch('/api/auth/google/login', {
           method: 'POST',
@@ -138,18 +149,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 : 'Đăng nhập Google thất bại.'),
           };
         }
-        const token = (payload as { accessToken?: string })?.accessToken;
-        const customer = (payload as { customer?: AuthCustomer })?.customer;
-        if (!token || !customer) {
-          return { ok: false, message: 'Dữ liệu đăng nhập không hợp lệ.' };
+        const parsed = parseGoogleLoginPayload(payload);
+        if (parsed.kind === 'complete_profile') {
+          return {
+            ok: true,
+            kind: 'complete_profile',
+            completeProfileUrl: parsed.completeProfileUrl,
+            reason: parsed.reason,
+          };
         }
-        persist(token, {
-          id: customer.id,
-          fullName: customer.fullName ?? 'Học viên',
-          primaryEmail: customer.primaryEmail,
-          primaryPhone: customer.primaryPhone,
-        });
-        return { ok: true };
+        if (parsed.kind === 'session') {
+          persist(parsed.accessToken, parsed.customer);
+          return { ok: true, kind: 'session' };
+        }
+        return { ok: false, message: 'Dữ liệu đăng nhập không hợp lệ.' };
       } catch {
         return { ok: false, message: 'Không thể kết nối. Vui lòng thử lại.' };
       }
