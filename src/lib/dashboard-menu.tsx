@@ -12,6 +12,7 @@ import {
   FileTextOutlined,
   LockOutlined,
   CalendarOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons';
 
 export interface DashboardMenuItem {
@@ -61,6 +62,13 @@ export const DASHBOARD_MENU_ENTRIES: DashboardMenuEntry[] = [
     path: '/invoices',
     label: 'Hóa Đơn',
     icon: <FileTextOutlined />,
+  },
+  {
+    type: 'link',
+    key: 'qa',
+    path: '/qa',
+    label: 'Hỏi đáp',
+    icon: <QuestionCircleOutlined />,
   },
   { type: 'divider', key: 'divider-after-main' },
   {
@@ -113,6 +121,7 @@ const PATH_LABELS: Record<string, string> = {
   '/classes': 'Lớp học của tôi',
   '/schedule': 'Lịch học',
   '/invoices': 'Hóa Đơn',
+  '/qa': 'Hỏi đáp',
 };
 
 /**

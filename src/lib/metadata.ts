@@ -66,6 +66,7 @@ export function buildPageMetadata({
   return {
     title,
     description,
+    alternates: url ? { canonical: url } : undefined,
     openGraph: {
       title,
       description,
@@ -82,6 +83,29 @@ export function buildPageMetadata({
     twitter: {
       title,
       description,
+    },
+  };
+}
+
+/**
+ * Trang trong dashboard (đã đăng nhập): không index để tránh nội dung trùng / yêu cầu auth.
+ * Vẫn có title/description/canonical cho tab trình duyệt và preview nội bộ.
+ */
+export function buildDashboardPageMetadata({
+  title,
+  description,
+  path = '',
+}: {
+  title: string;
+  description: string;
+  path?: string;
+}): Metadata {
+  const base = buildPageMetadata({ title, description, path });
+  return {
+    ...base,
+    robots: {
+      index: false,
+      follow: true,
     },
   };
 }

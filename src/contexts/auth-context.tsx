@@ -202,9 +202,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = state.accessToken ?? loadStored().accessToken;
       const headers = new Headers(options.headers);
       if (token) headers.set('Authorization', `Bearer ${token}`);
-      return fetch(url, { ...options, headers });
+      const res = await fetch(url, { ...options, headers });
+      if (res.status === 401) {
+        logout();
+        if (typeof window !== 'undefined') {
+          const { pathname, search } = window.location;
+          if (!pathname.startsWith('/login')) {
+            const next = encodeURIComponent(`${pathname}${search}`);
+            window.location.assign(`/login?session=expired&redirect=${next}`);
+          }
+        }
+      }
+      return res;
     },
-    [state.accessToken]
+    [state.accessToken, logout]
   );
 
   const setAuth = useCallback(

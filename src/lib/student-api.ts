@@ -18,6 +18,8 @@ export const STUDENT_API = {
   authChangePassword: 'auth/change-password',
   authForgotPassword: 'auth/forgot-password',
   authResetPassword: 'auth/reset-password',
+  /** Knowledge base — proxy Next: `/api/qa`, `/api/qa/by-slug/[slug]` */
+  qa: 'qa',
 } as const;
 
 /** Build full URL: GET profile với token */

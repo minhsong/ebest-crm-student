@@ -31,10 +31,17 @@ export default function LoginPage() {
   const { message: antMessage } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [googleCfg, setGoogleCfg] = useState<{
     enabled: boolean;
     clientId: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search);
+    setSessionExpired(q.get('session') === 'expired');
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,6 +70,14 @@ export default function LoginPage() {
     }
   }, [ready, accessToken, router]);
 
+  const postLoginPath = useCallback(() => {
+    if (typeof window === 'undefined') return '/';
+    const q = new URLSearchParams(window.location.search);
+    const raw = q.get('redirect');
+    if (raw && raw.startsWith('/') && !raw.startsWith('//')) return raw;
+    return '/';
+  }, []);
+
   const onFinish = useCallback(
     async (values: { loginId: string; password: string }) => {
       setError(null);
@@ -71,7 +86,7 @@ export default function LoginPage() {
         const result = await login(values.loginId.trim(), values.password);
         if (result.ok) {
           antMessage.success('Đăng nhập thành công.');
-          router.replace('/');
+          router.replace(postLoginPath());
         } else {
           setError(result.message ?? 'Đăng nhập thất bại.');
         }
@@ -79,7 +94,7 @@ export default function LoginPage() {
         setLoading(false);
       }
     },
-    [login, router, antMessage]
+    [login, router, antMessage, postLoginPath]
   );
 
   if (ready && accessToken) {
@@ -110,6 +125,14 @@ export default function LoginPage() {
                     className="w-full max-w-sm [&_.ant-form-item]:mb-3 [&_.ant-form-item-label>label]:!text-sm [&_.ant-form-item-label>label]:!text-white [&_.ant-form-item-label>label]:!h-auto [&_.ant-form-item-required::before]:!text-amber-200"
                     size="large"
                   >
+                    {sessionExpired && (
+                      <Alert
+                        type="info"
+                        message="Phiên đăng nhập đã hết hạn hoặc không còn hợp lệ. Vui lòng đăng nhập lại."
+                        className="mb-3 border-white/30 bg-white/10 text-white"
+                        showIcon
+                      />
+                    )}
                     <Form.Item
                       name="loginId"
                       label="Email hoặc số điện thoại"
@@ -188,7 +211,7 @@ export default function LoginPage() {
                       <LoginGoogleSection
                         className="mt-1.5"
                         noteClassName="!text-white/75"
-                        onLoggedIn={() => router.replace('/')}
+                        onLoggedIn={() => router.replace(postLoginPath())}
                       />
                     </GoogleOAuthProvider>
                   ) : null}

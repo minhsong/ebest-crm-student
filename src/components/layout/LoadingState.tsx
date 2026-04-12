@@ -16,7 +16,10 @@ export function LoadingState({
     <div
       className={`flex min-h-[120px] items-center justify-center py-8 ${className}`}
     >
-      <Spin tip={tip} />
+      {/* Ant Design: `tip` chỉ hiển thị khi Spin bọc nội dung (nest), không dùng standalone */}
+      <Spin tip={tip}>
+        <div className="min-h-[100px] min-w-[160px]" aria-hidden />
+      </Spin>
     </div>
   );
 }
