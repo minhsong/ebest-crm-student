@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   Alert,
@@ -21,6 +21,7 @@ import { useDashboardHome } from '@/features/dashboard/hooks/useDashboardHome';
 import { DASHBOARD_QUICK_LINKS } from '@/features/dashboard/dashboard.constants';
 import { StudentWeekSchedule } from '@/features/dashboard/components/StudentWeekSchedule';
 import { SessionCard } from '@/features/schedule/components/SessionCard';
+import { StudentChecklistDetailModal, StudentPendingChecklistsCard } from '@/features/checklists';
 import {
   countPastSessions,
   flattenSessionsWithClass,
@@ -32,6 +33,18 @@ const { Text, Title } = Typography;
 export function DashboardHomeView() {
   const { token } = theme.useToken();
   const { loading, classes, sessionsByClass } = useDashboardHome();
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  const [checklistId, setChecklistId] = useState<number | null>(null);
+
+  const openChecklist = useCallback((id: number) => {
+    setChecklistId(id);
+    setChecklistOpen(true);
+  }, []);
+
+  const closeChecklist = useCallback(() => {
+    setChecklistOpen(false);
+    setChecklistId(null);
+  }, []);
 
   const flatSessions = useMemo(
     () => flattenSessionsWithClass(sessionsByClass),
@@ -72,6 +85,8 @@ export function DashboardHomeView() {
         title="Tổng quan"
         description="Lịch tuần này, buổi đã học gần đây và lối tắt tới các mục chính."
       />
+
+      <StudentPendingChecklistsCard onOpenDetail={openChecklist} />
 
       {upcomingClasses.length > 0 && (
         <Space
@@ -184,6 +199,12 @@ export function DashboardHomeView() {
           </Col>
         ))}
       </Row>
+
+      <StudentChecklistDetailModal
+        open={checklistOpen}
+        checklistId={checklistId}
+        onClose={closeChecklist}
+      />
     </>
   );
 }

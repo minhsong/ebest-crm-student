@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Table, Tag } from 'antd';
+import { Table, Tag, Typography } from 'antd';
 import { useAuth } from '@/contexts/auth-context';
 import { PageHeader, PageCard, LoadingState } from '@/components/layout';
 
@@ -40,7 +40,19 @@ export default function MyClassesPage() {
 
   const columns = [
     { title: 'Mã lớp', dataIndex: 'classCode', key: 'classCode', width: 120 },
-    { title: 'Tên lớp', dataIndex: 'className', key: 'className' },
+    {
+      title: 'Tên lớp',
+      dataIndex: 'className',
+      key: 'className',
+      render: (v: string, row: ClassItem) => (
+        <Link
+          href={`/classes/${row.classId}`}
+          className="text-blue-600 hover:underline"
+        >
+          {v || `Lớp ${row.classCode || row.classId}`}
+        </Link>
+      ),
+    },
     { title: 'Khóa học', dataIndex: 'courseName', key: 'courseName' },
     { title: 'Ngày ghi danh', dataIndex: 'enrollmentDate', key: 'enrollmentDate', width: 120, render: (v: string) => v || '—' },
     {
@@ -69,6 +81,9 @@ export default function MyClassesPage() {
           </>
         }
       />
+      <Typography.Paragraph type="secondary" className="!mt-0">
+        Checklist chưa hoàn thành sẽ hiển thị ở trang Tổng quan để bạn dễ theo dõi.
+      </Typography.Paragraph>
       <PageCard noPadding>
         <Table
           loading={loading}
