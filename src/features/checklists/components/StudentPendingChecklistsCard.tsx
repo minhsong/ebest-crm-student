@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Badge, Button, Card, Empty, Flex, List, Space, Typography, theme } from 'antd';
-import { RightOutlined } from '@ant-design/icons';
+import { Badge, Card, Empty, Flex, List, Space, Typography, theme } from 'antd';
 import { useAuth } from '@/contexts/auth-context';
 import type { StudentChecklistListRow } from '@/types/student-checklists';
-import { checklistTypeLabel } from '@/lib/checklist-labels';
+import { StudentChecklistCardItem } from '@/features/checklists/components/StudentChecklistCardItem';
 
 const { Text } = Typography;
 
@@ -62,43 +61,11 @@ export function StudentPendingChecklistsCard({ onOpenDetail, limit = 8 }: Props)
       ) : (
         <List
           dataSource={rows}
+          split={false}
           renderItem={(row) => {
-            const classLabel = row.className
-              ? `${row.className} (${row.classCode || '—'})`
-              : row.classCode || 'Lớp học';
             return (
-              <List.Item
-                actions={[
-                  <Button
-                    key="view"
-                    type="link"
-                    icon={<RightOutlined />}
-                    onClick={() => onOpenDetail(row.checklistId)}
-                  >
-                    Xem
-                  </Button>,
-                ]}
-              >
-                <List.Item.Meta
-                  title={
-                    <Space direction="vertical" size={0}>
-                      <Text strong>{row.title || checklistTypeLabel(row.typeKey)}</Text>
-                      <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                        {classLabel}
-                      </Text>
-                    </Space>
-                  }
-                  description={
-                    <Space size="small" wrap>
-                      <Text type="secondary">{checklistTypeLabel(row.typeKey)}</Text>
-                      {row.deadlineAt ? (
-                        <Text type="secondary">
-                          Deadline: {new Date(row.deadlineAt).toLocaleString('vi-VN')}
-                        </Text>
-                      ) : null}
-                    </Space>
-                  }
-                />
+              <List.Item style={{ padding: 0 }}>
+                <StudentChecklistCardItem row={row} onOpenDetail={onOpenDetail} />
               </List.Item>
             );
           }}

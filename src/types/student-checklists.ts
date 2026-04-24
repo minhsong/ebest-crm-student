@@ -3,6 +3,7 @@ export type StudentChecklistListRow = {
   classId: number;
   className: string;
   classCode: string;
+  classSessionTitle: string | null;
   typeKey: string;
   title: string;
   note: string | null;

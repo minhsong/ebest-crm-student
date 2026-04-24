@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
+import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
 
 const STUDENT_BASE = '/api/v1/student';
 
-function getAuthHeader(request: NextRequest): string | null {
-  const auth = request.headers.get('authorization');
-  if (auth?.startsWith('Bearer ')) return auth;
-  return null;
-}
-
 export async function GET(request: NextRequest) {
-  const auth = getAuthHeader(request);
-  if (!auth) {
+  const token = getStudentAccessTokenFromCookie();
+  if (!token) {
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }
   const apiBaseUrl = getApiBaseUrl();
@@ -23,7 +18,7 @@ export async function GET(request: NextRequest) {
   }
   const url = `${apiBaseUrl.replace(/\/$/, '')}${STUDENT_BASE}/me`;
   const res = await fetch(url, {
-    headers: { Accept: 'application/json', Authorization: auth },
+    headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -37,8 +32,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const auth = getAuthHeader(request);
-  if (!auth) {
+  const token = getStudentAccessTokenFromCookie();
+  if (!token) {
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }
   const apiBaseUrl = getApiBaseUrl();
@@ -55,7 +50,7 @@ export async function PATCH(request: NextRequest) {
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      Authorization: auth,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(body),
   });

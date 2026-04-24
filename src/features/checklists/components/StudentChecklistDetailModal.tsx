@@ -93,39 +93,23 @@ export function StudentChecklistDetailModal({ open, checklistId, onClose }: Prop
             column={{ xs: 1, sm: 1 }}
             labelStyle={{ fontWeight: 600, width: 160 }}
           >
-            <Descriptions.Item label="Tiêu đề">
-              {detail.checklist.title || '—'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Ghi chú">
-              {detail.checklist.note ? (
+            {detail.checklist.note ? (
+              <Descriptions.Item label="Ghi chú" span={2}>
                 <Text>{detail.checklist.note}</Text>
-              ) : (
-                <Text type="secondary">—</Text>
-              )}
-            </Descriptions.Item>
-            <Descriptions.Item label="Ghi chú riêng">
-              {detail.studentItem.note ? (
+              </Descriptions.Item>
+            ) : null}
+            {detail.studentItem.note ? (
+              <Descriptions.Item label="Ghi chú riêng" span={2}>
                 <Text>{detail.studentItem.note}</Text>
-              ) : (
-                <Text type="secondary">—</Text>
-              )}
-            </Descriptions.Item>
-            <Descriptions.Item label="Cập nhật">
-              <Space size="small" wrap>
-                {detail.studentItem.checkedAt ? (
-                  <Text type="secondary">
-                    Done: {new Date(detail.studentItem.checkedAt).toLocaleString('vi-VN')}
-                  </Text>
-                ) : (
-                  <Text type="secondary">Chưa có</Text>
-                )}
-              </Space>
-            </Descriptions.Item>
+              </Descriptions.Item>
+            ) : null}
           </Descriptions>
 
-          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-            Checklist được đánh dấu hoàn thành bởi quản lý trên hệ thống.
-          </Text>
+          {detail.studentItem.checkedAt ? (
+            <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+              Cập nhật: {new Date(detail.studentItem.checkedAt).toLocaleString('vi-VN')}
+            </Text>
+          ) : null}
         </Space>
       )}
     </Modal>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getApiBaseUrl } from '@/lib/env';
+import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
 
 export const STUDENT_CRM_API_PREFIX = '/api/v1/student';
 
@@ -14,10 +15,11 @@ export async function proxyStudentCrmGet(
   request: NextRequest,
   relativePath: string,
 ): Promise<NextResponse> {
-  const auth = getAuthHeader(request);
-  if (!auth) {
-    return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
-  }
+  const authFromHeader = getAuthHeader(request);
+  const tokenFromCookie = getStudentAccessTokenFromCookie();
+  const auth = authFromHeader || (tokenFromCookie ? `Bearer ${tokenFromCookie}` : null);
+  if (!auth) return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
+
   const apiBaseUrl = getApiBaseUrl();
   if (!apiBaseUrl) {
     return NextResponse.json(

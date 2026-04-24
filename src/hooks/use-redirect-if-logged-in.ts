@@ -7,13 +7,13 @@ import { useAuth } from '@/contexts/auth-context';
 /** Cổng public: đã có token thì về dashboard. */
 export function useRedirectIfLoggedIn() {
   const router = useRouter();
-  const { accessToken, ready } = useAuth();
+  const { customer, ready } = useAuth();
 
   useEffect(() => {
-    if (ready && accessToken) {
+    if (ready && customer) {
       router.replace('/');
     }
-  }, [ready, accessToken, router]);
+  }, [ready, customer, router]);
 
-  return { ready, accessToken, shouldHide: ready && !!accessToken };
+  return { ready, customer, shouldHide: ready && !!customer };
 }

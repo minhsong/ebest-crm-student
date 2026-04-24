@@ -6,6 +6,8 @@ export interface OverviewSessionRow {
   sessionId: number;
   sessionStatus: number;
   sessionStatusLabel: string;
+  /** Buổi kèm/học bổ trợ (CRM `class_sessions.is_tutoring_session`). */
+  isTutoringSession: boolean;
   scheduledDate: string;
   scheduledStartTime: string;
   scheduledEndTime: string;

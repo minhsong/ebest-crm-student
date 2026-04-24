@@ -1,12 +1,13 @@
 'use client';
 
-import { Layout, Button, Breadcrumb, Dropdown } from 'antd';
+import { Layout, Button, Breadcrumb, Dropdown, Avatar } from 'antd';
 import {
   UserOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   MenuOutlined,
+  DownOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
 import { HEADER_HEIGHT } from '@/lib/ui-constants';
@@ -21,6 +22,9 @@ export interface DashboardHeaderProps {
   /** Header có nền khi scroll (antd-multipurpose-dashboard navFill) */
   navFill?: boolean;
   userDisplayName: string;
+  /** Ảnh đại diện từ CRM `/me` (thumbnail); cùng nguồn với cache Redis phía API. */
+  avatarUrl?: string | null;
+  profileHref?: string;
   /** Gọi khi bấm mục profile trong menu (vd. đóng popover) */
   onProfileClick?: () => void;
   onLogout: () => void;
@@ -34,6 +38,8 @@ export default function DashboardHeader({
   breadcrumbItems,
   navFill = false,
   userDisplayName,
+  avatarUrl,
+  profileHref = '/profile',
   onProfileClick,
   onLogout,
   onOpenDrawer,
@@ -72,37 +78,50 @@ export default function DashboardHeader({
           className="min-w-0"
         />
       </div>
-      <Dropdown
-        menu={{
-          items: [
-            {
-              key: 'profile',
-              icon: <UserOutlined />,
-              label: (
-                <Link
-                  href="/profile"
-                  onClick={() => onProfileClick?.()}
-                >
-                  Thông tin cá nhân
-                </Link>
-              ),
-            },
-            {
-              key: 'logout',
-              icon: <LogoutOutlined />,
-              label: 'Đăng xuất',
-              onClick: onLogout,
-            },
-          ],
-        }}
-      >
-        <Button type="text" className="flex items-center gap-2 flex-shrink-0">
-          <UserOutlined />
-          <span className="max-w-[120px] truncate sm:max-w-[180px]">
-            {userDisplayName}
-          </span>
-        </Button>
-      </Dropdown>
+      <div className="flex flex-shrink-0 items-center gap-0.5">
+        <Link
+          href={profileHref}
+          className="flex min-w-0 max-w-[220px] sm:max-w-[280px] items-center gap-2 rounded-lg px-2 py-1 text-left text-gray-900 transition-colors hover:bg-gray-50"
+          onClick={() => onProfileClick?.()}
+        >
+          <Avatar
+            src={avatarUrl || undefined}
+            icon={<UserOutlined />}
+            size={36}
+            className="flex-shrink-0"
+          />
+          <span className="truncate text-sm font-medium">{userDisplayName}</span>
+        </Link>
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: 'profile',
+                icon: <UserOutlined />,
+                label: (
+                  <Link href={profileHref} onClick={() => onProfileClick?.()}>
+                    Thông tin cá nhân
+                  </Link>
+                ),
+              },
+              {
+                key: 'logout',
+                icon: <LogoutOutlined />,
+                label: 'Đăng xuất',
+                onClick: onLogout,
+              },
+            ],
+          }}
+          placement="bottomRight"
+        >
+          <Button
+            type="text"
+            className="flex h-9 w-8 items-center justify-center flex-shrink-0 text-gray-600"
+            aria-label="Menu tài khoản"
+            icon={<DownOutlined />}
+          />
+        </Dropdown>
+      </div>
     </Header>
   );
 }

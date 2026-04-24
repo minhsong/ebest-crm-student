@@ -15,6 +15,12 @@ import {
   QuestionCircleOutlined,
 } from '@ant-design/icons';
 
+export interface DashboardMenuClassItem {
+  id: number;
+  name: string;
+  status?: string | null;
+}
+
 export interface DashboardMenuItem {
   key: string;
   path: string;
@@ -97,12 +103,66 @@ export const DASHBOARD_MENU_ITEMS: DashboardMenuItem[] = DASHBOARD_MENU_ENTRIES.
  */
 export function buildDashboardMenuAntdItems(
   renderLinkLabel: (path: string, label: string) => ReactNode,
+  options?: { classes?: DashboardMenuClassItem[] },
 ): NonNullable<MenuProps['items']> {
+  const classes = Array.isArray(options?.classes) ? options?.classes : [];
   const out: NonNullable<MenuProps['items']> = [];
   for (const entry of DASHBOARD_MENU_ENTRIES) {
     if (entry.type === 'divider') {
       out.push({ type: 'divider', key: entry.key });
     } else {
+      if (entry.path === '/classes' && classes.length > 0) {
+        const inProgress = classes.filter((c) => String(c.status ?? '').toUpperCase() === 'IN_PROGRESS');
+        const completed = classes.filter((c) => String(c.status ?? '').toUpperCase() === 'COMPLETED');
+        const other = classes.filter(
+          (c) =>
+            !inProgress.some((x) => x.id === c.id) && !completed.some((x) => x.id === c.id),
+        );
+
+        const toChild = (c: DashboardMenuClassItem) => ({
+          key: `/classes/${c.id}`,
+          label: renderLinkLabel(`/classes/${c.id}`, c.name),
+        });
+
+        const children: NonNullable<MenuProps['items']> = [];
+        children.push({
+          key: '/classes',
+          label: renderLinkLabel('/classes', 'Tất cả lớp'),
+        });
+        if (inProgress.length) {
+          children.push({
+            type: 'group',
+            key: 'classes-in-progress',
+            label: 'Đang học',
+            children: inProgress.map(toChild),
+          });
+        }
+        if (completed.length) {
+          children.push({
+            type: 'group',
+            key: 'classes-completed',
+            label: 'Đã học',
+            children: completed.map(toChild),
+          });
+        }
+        if (other.length) {
+          children.push({
+            type: 'group',
+            key: 'classes-other',
+            label: 'Khác',
+            children: other.map(toChild),
+          });
+        }
+
+        out.push({
+          key: entry.path,
+          icon: entry.icon,
+          label: renderLinkLabel(entry.path, entry.label),
+          children,
+        });
+        continue;
+      }
+
       out.push({
         key: entry.path,
         icon: entry.icon,

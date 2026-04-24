@@ -38,6 +38,19 @@ export function getClassSessionsTableColumns(): ColumnsType<OverviewSessionRow> 
       dataIndex: 'title',
       key: 'title',
       ellipsis: true,
+      render: (v: string, row) => (
+        <Flex gap={8} align="center" wrap="wrap">
+          <Text style={{ maxWidth: 260 }} ellipsis>
+            {v || 'Buổi học'}
+          </Text>
+          <Tag
+            color={row.isTutoringSession ? 'magenta' : 'blue'}
+            className="m-0"
+          >
+            {row.isTutoringSession ? 'Buổi kèm' : 'Chính thức'}
+          </Tag>
+        </Flex>
+      ),
     },
     {
       title: 'Trạng thái buổi',

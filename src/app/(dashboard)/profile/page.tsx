@@ -26,7 +26,7 @@ interface MeCustomer {
 }
 
 export default function ProfilePage() {
-  const { fetchWithAuth, setAuth, accessToken } = useAuth();
+  const { fetchWithAuth, refreshSession } = useAuth();
   const [form] = Form.useForm();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
@@ -121,21 +121,12 @@ export default function ProfilePage() {
           return;
         }
         antMessage.success('Đã cập nhật thông tin.');
-        const updated = data?.customer ?? data;
-        if (accessToken && updated?.firstName != null) {
-          const fullName = [updated.firstName, updated.lastName].filter(Boolean).join(' ').trim() || 'Học viên';
-          setAuth(accessToken, {
-            id: updated.id ?? 0,
-            fullName,
-            primaryEmail: updated.primaryEmail,
-            primaryPhone: updated.primaryPhone,
-          });
-        }
+        await refreshSession();
       } finally {
         setSaving(false);
       }
     },
-    [fetchWithAuth, antMessage, loginKeyType, accessToken, setAuth]
+    [fetchWithAuth, antMessage, loginKeyType, refreshSession]
   );
 
   const handleAvatarChange = useCallback(
@@ -166,12 +157,13 @@ export default function ProfilePage() {
         const url = data?.url ?? data?.data?.url;
         if (url) setAvatarUrl(url);
         antMessage.success('Đã cập nhật ảnh đại diện.');
+        await refreshSession();
         if (fileInputRef.current) fileInputRef.current.value = '';
       } finally {
         setUploadingAvatar(false);
       }
     },
-    [fetchWithAuth, antMessage]
+    [fetchWithAuth, antMessage, refreshSession]
   );
 
   if (loading) {

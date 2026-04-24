@@ -27,7 +27,7 @@ const GUIDE_ITEMS = [
  */
 export default function LoginPage() {
   const router = useRouter();
-  const { login, accessToken, ready } = useAuth();
+  const { login, customer, ready } = useAuth();
   const { message: antMessage } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,10 +65,10 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (ready && accessToken) {
+    if (ready && customer) {
       router.replace('/');
     }
-  }, [ready, accessToken, router]);
+  }, [ready, customer, router]);
 
   const postLoginPath = useCallback(() => {
     if (typeof window === 'undefined') return '/';
@@ -97,7 +97,7 @@ export default function LoginPage() {
     [login, router, antMessage, postLoginPath]
   );
 
-  if (ready && accessToken) {
+  if (ready && customer) {
     return null;
   }
 

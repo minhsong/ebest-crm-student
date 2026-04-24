@@ -14,7 +14,6 @@ export type ParsedGoogleLoginPayload =
     }
   | {
       kind: 'session';
-      accessToken: string;
       customer: GoogleSessionCustomerSummary;
     }
   | { kind: 'invalid' };
@@ -42,9 +41,8 @@ export function parseGoogleLoginPayload(
       reason,
     };
   }
-  const accessToken = p.accessToken;
   const raw = p.customer;
-  if (typeof accessToken !== 'string' || !raw || typeof raw !== 'object') {
+  if (!raw || typeof raw !== 'object') {
     return { kind: 'invalid' };
   }
   const c = raw as Record<string, unknown>;
@@ -61,5 +59,5 @@ export function parseGoogleLoginPayload(
     primaryPhone:
       typeof c.primaryPhone === 'string' ? c.primaryPhone : undefined,
   };
-  return { kind: 'session', accessToken, customer };
+  return { kind: 'session', customer };
 }

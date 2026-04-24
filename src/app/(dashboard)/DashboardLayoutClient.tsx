@@ -23,10 +23,12 @@ const { Content } = Layout;
 
 export default function DashboardLayoutClient({
   children,
+  initialClasses,
 }: {
   children: React.ReactNode;
+  initialClasses?: Array<{ id: number; name: string; status?: string | null }> | null;
 }) {
-  const { accessToken, customer, ready, logout } = useAuth();
+  const { customer, ready, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const isMobile = useDashboardMobile();
@@ -37,12 +39,15 @@ export default function DashboardLayoutClient({
 
   const menuItems = useMemo(
     () =>
-      buildDashboardMenuAntdItems((path, label) => (
+      buildDashboardMenuAntdItems(
+        (path, label) => (
         <Link href={path} onClick={() => setDrawerOpen(false)}>
           {label}
         </Link>
-      )),
-    [],
+        ),
+        { classes: initialClasses ?? [] },
+      ),
+    [initialClasses],
   );
 
   const breadcrumbItems = useMemo(() => {
@@ -59,10 +64,10 @@ export default function DashboardLayoutClient({
 
   useEffect(() => {
     if (!ready) return;
-    if (!accessToken) {
+    if (!customer) {
       router.replace('/login');
     }
-  }, [ready, accessToken, router]);
+  }, [ready, customer, router]);
 
   useEffect(() => {
     const el = contentRef.current;
@@ -73,7 +78,7 @@ export default function DashboardLayoutClient({
   }, []);
 
   const handleLogout = () => {
-    logout();
+    void logout();
     router.replace('/login');
   };
 
@@ -85,7 +90,7 @@ export default function DashboardLayoutClient({
     );
   }
 
-  if (!accessToken) {
+  if (!customer) {
     return null;
   }
 
@@ -120,6 +125,8 @@ export default function DashboardLayoutClient({
             breadcrumbItems={breadcrumbItems}
             navFill={navFill}
             userDisplayName={customer?.fullName ?? 'Học viên'}
+            avatarUrl={customer?.avatarUrl}
+            profileHref="/profile"
             onLogout={handleLogout}
             onOpenDrawer={() => setDrawerOpen(true)}
           />
