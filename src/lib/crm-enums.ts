@@ -29,4 +29,5 @@ export const CRM_ATTENDANCE_STATUS = {
 export const CRM_ASSIGNMENT_RESULT_STATUS = {
   PENDING: 1,
   GRADED: 2,
+  SUBMITTED: 3,
 } as const;

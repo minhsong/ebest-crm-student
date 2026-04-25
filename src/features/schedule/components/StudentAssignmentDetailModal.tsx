@@ -1,17 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Descriptions,
   Space,
   Typography,
+  Input,
   Button,
   Spin,
   Tag,
   Flex,
   Card,
   theme,
+  message,
 } from 'antd';
 import {
   ExportOutlined,
@@ -36,10 +38,25 @@ import {
   assignmentAttachmentSupportsPlay,
 } from '@/lib/media-play-utils';
 import { StudentMediaPlayModal } from '@/features/schedule/components/StudentMediaPlayModal';
+import { StudentSubmissionAudioRecorder } from '@/features/schedule/components/StudentSubmissionAudioRecorder';
+import { isAllowedStudentSubmissionMime } from '@/lib/student-submission-mime';
 
 const { Text, Title } = Typography;
 
-type Props = {
+const SUBMISSION_MIME_REJECT_DETAIL =
+  'có định dạng không được phép (âm thanh, ảnh, video, PDF, Office…).';
+
+function assertSubmissionFilesMimeAllowed(files: File[]): boolean {
+  for (const f of files) {
+    if (!isAllowedStudentSubmissionMime(f.type)) {
+      message.error(`File "${f.name}" ${SUBMISSION_MIME_REJECT_DETAIL}`);
+      return false;
+    }
+  }
+  return true;
+}
+
+type StudentAssignmentDetailModalProps = {
   open: boolean;
   assignmentId: number | null;
   onClose: () => void;
@@ -49,12 +66,15 @@ export function StudentAssignmentDetailModal({
   open,
   assignmentId,
   onClose,
-}: Props) {
+}: StudentAssignmentDetailModalProps) {
   const { token } = theme.useToken();
   const { fetchWithAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<StudentAssignmentDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submissionNote, setSubmissionNote] = useState('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [playOpen, setPlayOpen] = useState(false);
   const [playTitle, setPlayTitle] = useState('');
@@ -80,11 +100,35 @@ export function StudentAssignmentDetailModal({
     [],
   );
 
+  const loadDetail = useCallback(async () => {
+    if (assignmentId == null) return;
+    const res = await fetchWithAuth(`/api/assignments/${assignmentId}`);
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const msg =
+        typeof data?.message === 'string'
+          ? data.message
+          : 'Không tải được chi tiết bài tập.';
+      setError(msg);
+      setDetail(null);
+      return;
+    }
+    const normalized = normalizeStudentAssignmentDetail(data);
+    if (normalized) {
+      setDetail(normalized);
+      setError(null);
+      return;
+    }
+    setError('Dữ liệu bài tập không hợp lệ.');
+    setDetail(null);
+  }, [assignmentId, fetchWithAuth]);
+
   useEffect(() => {
     if (!open || assignmentId == null) {
       setDetail(null);
       setError(null);
       setLoading(false);
+      setSubmissionNote('');
       return;
     }
 
@@ -92,31 +136,12 @@ export function StudentAssignmentDetailModal({
     setDetail(null);
     setError(null);
     setLoading(true);
+    setSubmissionNote('');
 
     void (async () => {
       try {
-        const res = await fetchWithAuth(`/api/assignments/${assignmentId}`);
-        const data = await res.json().catch(() => null);
-        if (!res.ok) {
-          const msg =
-            typeof data?.message === 'string'
-              ? data.message
-              : 'Không tải được chi tiết bài tập.';
-          if (!cancelled) {
-            setError(msg);
-            setLoading(false);
-          }
-          return;
-        }
-        const normalized = normalizeStudentAssignmentDetail(data);
-        if (!cancelled) {
-          if (normalized) {
-            setDetail(normalized);
-          } else {
-            setError('Dữ liệu bài tập không hợp lệ.');
-          }
-          setLoading(false);
-        }
+        await loadDetail();
+        if (!cancelled) setLoading(false);
       } catch {
         if (!cancelled) {
           setError('Lỗi mạng. Vui lòng thử lại.');
@@ -128,7 +153,109 @@ export function StudentAssignmentDetailModal({
     return () => {
       cancelled = true;
     };
-  }, [open, assignmentId, fetchWithAuth]);
+  }, [open, assignmentId, loadDetail]);
+
+  const maxUploadFiles = Math.min(
+    5,
+    Math.max(1, detail?.studentUploadMaxFiles ?? 1),
+  );
+
+  const submissionAttachmentCount = useMemo(
+    () => detail?.submission?.attachments?.length ?? 0,
+    [detail?.submission?.attachments?.length],
+  );
+
+  const submitFiles = useCallback(
+    async (files: File[]): Promise<boolean> => {
+      if (!files.length || assignmentId == null) return false;
+
+      if (!assertSubmissionFilesMimeAllowed(files)) return false;
+
+      const hasExisting = submissionAttachmentCount > 0;
+      if (hasExisting) {
+        const ok = window.confirm(
+          'Bạn đang nộp lại bài. Toàn bộ file bài nộp cũ sẽ bị xoá. Bạn có chắc chắn không?',
+        );
+        if (!ok) return false;
+      }
+
+      const form = new FormData();
+      for (const f of files) {
+        form.append('files', f);
+      }
+      const note = submissionNote.trim();
+      if (note) {
+        form.append('note', note);
+      }
+      if (files.length === 1) {
+        const f0 = files[0]!;
+        form.append('name', f0.name);
+        const mime = (f0.type ?? '').toLowerCase();
+        form.append(
+          'resourceKind',
+          mime.startsWith('audio/') ? 'audio' : 'document',
+        );
+      }
+
+      setSubmitting(true);
+      try {
+        const res = await fetchWithAuth(
+          `/api/assignments/${assignmentId}/submission`,
+          {
+            method: 'POST',
+            body: form,
+          },
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const msg =
+            typeof data?.message === 'string' ? data.message : 'Nộp bài thất bại.';
+          message.error(msg);
+          return false;
+        }
+        message.success('Đã nộp bài.');
+        setSubmissionNote('');
+        await loadDetail();
+        return true;
+      } catch {
+        message.error('Lỗi mạng. Vui lòng thử lại.');
+        return false;
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [
+      assignmentId,
+      fetchWithAuth,
+      loadDetail,
+      submissionAttachmentCount,
+      submissionNote,
+    ],
+  );
+
+  const handleSubmitRecording = useCallback(
+    (file: File) => submitFiles([file]),
+    [submitFiles],
+  );
+
+  const handlePickFile = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileSelected = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const list = Array.from(e.target.files ?? []);
+      e.target.value = '';
+      if (!list.length || assignmentId == null) return;
+
+      if (list.length > maxUploadFiles) {
+        message.error(`Chỉ được chọn tối đa ${maxUploadFiles} file.`);
+        return;
+      }
+      await submitFiles(list);
+    },
+    [assignmentId, maxUploadFiles, submitFiles],
+  );
 
   const sessionLine = detail
     ? buildAssignmentSessionLine(
@@ -144,6 +271,14 @@ export function StudentAssignmentDetailModal({
 
   return (
     <>
+    <input
+      ref={fileInputRef}
+      type="file"
+      multiple={maxUploadFiles > 1}
+      accept="audio/*,image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.txt"
+      style={{ display: 'none' }}
+      onChange={handleFileSelected}
+    />
     <Modal
       title={
         detail ? (
@@ -209,8 +344,7 @@ export function StudentAssignmentDetailModal({
               </Descriptions.Item>
             )}
             <Descriptions.Item label="Kết quả của bạn">
-              {detail.result?.resultStatus ===
-              CRM_ASSIGNMENT_RESULT_STATUS.GRADED ? (
+              {detail.result?.resultStatus === CRM_ASSIGNMENT_RESULT_STATUS.GRADED ? (
                 <Space wrap size="small">
                   <Tag color="blue">Đã chấm</Tag>
                   {detail.result?.scoreDisplay != null &&
@@ -220,11 +354,145 @@ export function StudentAssignmentDetailModal({
                       </span>
                     )}
                 </Space>
+              ) : detail.result?.resultStatus ===
+                CRM_ASSIGNMENT_RESULT_STATUS.SUBMITTED ? (
+                <Tag color="processing">Đã nộp</Tag>
               ) : (
-                <Text type="secondary">Chờ chấm / chưa có điểm</Text>
+                <Tag>Chưa nộp</Tag>
               )}
             </Descriptions.Item>
           </Descriptions>
+
+          {detail.studentUploadEnabled &&
+          detail.result?.resultStatus !== CRM_ASSIGNMENT_RESULT_STATUS.GRADED ? (
+            <Card size="small">
+              <Flex justify="space-between" align="center" gap="middle" wrap>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>Nộp bài trực tiếp</div>
+                  <Text type="secondary" style={{ fontSize: token.fontSize }}>
+                    Tối đa {maxUploadFiles} file mỗi lần, mỗi file tối đa 20MB (âm
+                    thanh, ảnh, video, PDF, Office…). Nộp lại sẽ thay toàn bộ bài
+                    cũ.
+                  </Text>
+                  <Input.TextArea
+                    value={submissionNote}
+                    onChange={(e) => setSubmissionNote(e.target.value)}
+                    rows={2}
+                    maxLength={500}
+                    placeholder="Ghi chú (tuỳ chọn)"
+                    style={{ marginTop: token.marginSM }}
+                    disabled={submitting}
+                    autoSize={{ minRows: 2, maxRows: 4 }}
+                  />
+                </div>
+                <Flex wrap="wrap" gap={8} align="center">
+                  <StudentSubmissionAudioRecorder
+                    disabled={submitting}
+                    onSubmitRecording={handleSubmitRecording}
+                  />
+                  <Button
+                    type="primary"
+                    loading={submitting}
+                    onClick={handlePickFile}
+                  >
+                    {detail.result?.resultStatus ===
+                    CRM_ASSIGNMENT_RESULT_STATUS.SUBMITTED
+                      ? 'Upload file'
+                      : 'Chọn file'}
+                  </Button>
+                </Flex>
+              </Flex>
+            </Card>
+          ) : null}
+
+          {detail.submission?.attachments?.length ? (
+            <div>
+              <Title
+                level={5}
+                style={{
+                  marginTop: token.marginSM,
+                  marginBottom: token.marginXS,
+                }}
+              >
+                Bài nộp của bạn
+              </Title>
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                {detail.submission.submittedAt ? (
+                  <Text type="secondary" style={{ fontSize: token.fontSize }}>
+                    Nộp lúc:{' '}
+                    {new Date(detail.submission.submittedAt).toLocaleString(
+                      'vi-VN',
+                      {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      },
+                    )}
+                  </Text>
+                ) : null}
+                {detail.submission.submittedNote ? (
+                  <Text type="secondary" style={{ fontSize: token.fontSize }}>
+                    Ghi chú: {detail.submission.submittedNote}
+                  </Text>
+                ) : null}
+                {detail.submission.attachments.map((a) => (
+                  <Card
+                    key={a.id}
+                    size="small"
+                    styles={{ body: { padding: token.paddingSM } }}
+                  >
+                    <Flex justify="space-between" align="center" gap="middle">
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, wordBreak: 'break-word' }}>
+                          {a.name}
+                        </div>
+                        {a.note ? (
+                          <Text type="secondary" style={{ fontSize: token.fontSize }}>
+                            {a.note}
+                          </Text>
+                        ) : null}
+                      </div>
+                      <Space size="small">
+                        {assignmentAttachmentSupportsPlay({
+                          type: 'file',
+                          name: a.name,
+                          url: a.url,
+                          mimeType: a.mimeType ?? undefined,
+                          resourceKind: a.resourceKind as any,
+                        }) ? (
+                          <Button
+                            size="small"
+                            icon={<PlayCircleOutlined />}
+                            onClick={() =>
+                              openAttachmentViewer({
+                                type: 'file',
+                                name: a.name,
+                                url: a.url,
+                                mimeType: a.mimeType ?? undefined,
+                                resourceKind: a.resourceKind as any,
+                              })
+                            }
+                          >
+                            Phát
+                          </Button>
+                        ) : (
+                          <Button
+                            size="small"
+                            icon={<ExportOutlined />}
+                            onClick={() => window.open(a.url, '_blank')}
+                          >
+                            Mở
+                          </Button>
+                        )}
+                      </Space>
+                    </Flex>
+                  </Card>
+                ))}
+              </Space>
+            </div>
+          ) : null}
 
           {detail.content ? (
             <div>

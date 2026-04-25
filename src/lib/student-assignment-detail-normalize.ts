@@ -38,6 +38,15 @@ export function normalizeStudentAssignmentDetail(
     ? (o.attachments as StudentAssignmentDetail['attachments'])
     : [];
 
+  const studentUploadEnabled =
+    typeof o.studentUploadEnabled === 'boolean' ? o.studentUploadEnabled : undefined;
+  const studentUploadMaxFiles =
+    typeof o.studentUploadMaxFiles === 'number' ? o.studentUploadMaxFiles : undefined;
+  const submission =
+    o.submission != null && typeof o.submission === 'object'
+      ? (o.submission as StudentAssignmentDetail['submission'])
+      : undefined;
+
   return {
     assignmentId,
     title: typeof o.title === 'string' ? o.title : '',
@@ -64,6 +73,9 @@ export function normalizeStudentAssignmentDetail(
       typeof o.courseSessionTitle === 'string'
         ? o.courseSessionTitle
         : null,
+    studentUploadEnabled,
+    studentUploadMaxFiles,
+    submission,
     result: {
       resultStatus:
         typeof res?.resultStatus === 'number' ? res.resultStatus : null,

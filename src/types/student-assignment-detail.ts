@@ -41,6 +41,23 @@ export interface StudentAssignmentDetail {
   attachments: StudentAssignmentAttachment[];
   classSessionTitle: string | null;
   courseSessionTitle: string | null;
+  studentUploadEnabled?: boolean;
+  studentUploadMaxFiles?: number;
+  submission?: {
+    submittedAt?: string | null;
+    submittedNote?: string | null;
+    attachments?: Array<{
+      id: string;
+      fileId?: string | null;
+      url: string;
+      name: string;
+      note?: string | null;
+      mimeType?: string | null;
+      size?: number | null;
+      resourceKind?: StudentAssignmentAttachmentResourceKind | string;
+      createdAt?: string | Date;
+    }>;
+  };
   result: {
     resultStatus: number | null;
     scoreDisplay: string | null;
