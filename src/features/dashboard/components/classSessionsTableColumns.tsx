@@ -11,9 +11,9 @@ import { AttendanceCell } from '@/features/dashboard/components/AttendanceCell';
 const { Text } = Typography;
 
 function assignmentResultLabel(resultStatus: number | null): string {
-  return resultStatus === CRM_ASSIGNMENT_RESULT_STATUS.GRADED
-    ? 'Đã chấm'
-    : 'Chờ chấm';
+  if (resultStatus === CRM_ASSIGNMENT_RESULT_STATUS.GRADED) return 'Đã chấm';
+  if (resultStatus === CRM_ASSIGNMENT_RESULT_STATUS.SUBMITTED) return 'Đã nộp';
+  return 'Chưa nộp';
 }
 
 export function getClassSessionsTableColumns(): ColumnsType<OverviewSessionRow> {

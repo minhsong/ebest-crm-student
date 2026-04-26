@@ -16,7 +16,15 @@ import {
   message,
 } from 'antd';
 import {
+  AppstoreOutlined,
   ExportOutlined,
+  FileTextOutlined,
+  AudioOutlined,
+  TrophyOutlined,
+  EditOutlined,
+  MessageOutlined,
+  BookOutlined,
+  CheckSquareOutlined,
   EyeOutlined,
   PlayCircleOutlined,
 } from '@ant-design/icons';
@@ -160,6 +168,29 @@ export function StudentAssignmentDetailModal({
     Math.max(1, detail?.studentUploadMaxFiles ?? 1),
   );
 
+  const headerStatusTag = useMemo(() => {
+    const st = detail?.result?.resultStatus ?? null;
+    if (st === CRM_ASSIGNMENT_RESULT_STATUS.GRADED) {
+      return <Tag color="blue">Đã chấm</Tag>;
+    }
+    if (st === CRM_ASSIGNMENT_RESULT_STATUS.SUBMITTED) {
+      return <Tag color="processing">Đã nộp</Tag>;
+    }
+    return <Tag>Chưa nộp</Tag>;
+  }, [detail?.result?.resultStatus]);
+
+  const headerExerciseIcon = useMemo(() => {
+    const t = (detail?.exerciseType ?? '').trim().toLowerCase();
+    if (t === 'recording') return <AudioOutlined aria-hidden />;
+    if (t === 'paper') return <FileTextOutlined aria-hidden />;
+    if (t === 'toeic') return <TrophyOutlined aria-hidden />;
+    if (t === 'writing') return <EditOutlined aria-hidden />;
+    if (t === 'speaking') return <MessageOutlined aria-hidden />;
+    if (t === 'homework') return <BookOutlined aria-hidden />;
+    if (t === 'quiz') return <CheckSquareOutlined aria-hidden />;
+    return <AppstoreOutlined aria-hidden />;
+  }, [detail?.exerciseType]);
+
   const submissionAttachmentCount = useMemo(
     () => detail?.submission?.attachments?.length ?? 0,
     [detail?.submission?.attachments?.length],
@@ -282,9 +313,22 @@ export function StudentAssignmentDetailModal({
     <Modal
       title={
         detail ? (
-          <span style={{ paddingRight: token.paddingSM }}>
-            Bài tập: {detail.title}
-          </span>
+          <Flex align="center" wrap="wrap" gap={8} style={{ paddingRight: token.paddingSM }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                lineHeight: 1,
+                fontSize: 16,
+                color: token.colorTextSecondary,
+              }}
+              title={detail.exerciseTypeLabel ?? undefined}
+            >
+              {headerExerciseIcon}
+            </span>
+            <span style={{ fontWeight: 700 }}>{detail.title}</span>
+            {headerStatusTag}
+          </Flex>
         ) : (
           'Chi tiết bài tập'
         )
@@ -319,19 +363,24 @@ export function StudentAssignmentDetailModal({
             size="small"
             labelStyle={{ fontWeight: 600, width: 130 }}
           >
-            <Descriptions.Item label="Loại bài">
-              {detail.typeLabel}
+            <Descriptions.Item label="Điểm">
+              <Space size="small" wrap>
+                {detail.result?.scoreDisplay != null &&
+                detail.result.scoreDisplay !== '' ? (
+                  <span>
+                    Điểm: <strong>{detail.result?.scoreDisplay}</strong>
+                  </span>
+                ) : (
+                  <span>Điểm: —</span>
+                )}
+                {detail.scoringTypeLabel ? (
+                  <Tag style={{ margin: 0 }}>{detail.scoringTypeLabel}</Tag>
+                ) : null}
+                {detail.scoringMaxScore != null ? (
+                  <Tag style={{ margin: 0 }}>Max: {detail.scoringMaxScore}</Tag>
+                ) : null}
+              </Space>
             </Descriptions.Item>
-            {detail.exerciseTypeLabel && (
-              <Descriptions.Item label="Dạng bài tập">
-                {detail.exerciseTypeLabel}
-              </Descriptions.Item>
-            )}
-            {detail.scoringTypeLabel && (
-              <Descriptions.Item label="Cách chấm">
-                {detail.scoringTypeLabel}
-              </Descriptions.Item>
-            )}
             {detail.deadline && (
               <Descriptions.Item label="Deadline">
                 {new Date(detail.deadline).toLocaleString('vi-VN', {
@@ -343,24 +392,6 @@ export function StudentAssignmentDetailModal({
                 })}
               </Descriptions.Item>
             )}
-            <Descriptions.Item label="Kết quả của bạn">
-              {detail.result?.resultStatus === CRM_ASSIGNMENT_RESULT_STATUS.GRADED ? (
-                <Space wrap size="small">
-                  <Tag color="blue">Đã chấm</Tag>
-                  {detail.result?.scoreDisplay != null &&
-                    detail.result.scoreDisplay !== '' && (
-                      <span>
-                        Điểm: <strong>{detail.result?.scoreDisplay}</strong>
-                      </span>
-                    )}
-                </Space>
-              ) : detail.result?.resultStatus ===
-                CRM_ASSIGNMENT_RESULT_STATUS.SUBMITTED ? (
-                <Tag color="processing">Đã nộp</Tag>
-              ) : (
-                <Tag>Chưa nộp</Tag>
-              )}
-            </Descriptions.Item>
           </Descriptions>
 
           {detail.studentUploadEnabled &&

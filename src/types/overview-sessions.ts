@@ -25,6 +25,8 @@ export interface OverviewSessionRow {
   assignments: Array<{
     assignmentId: number;
     title: string;
+    /** ExerciseType (crm-api) — e.g. 'recording', 'writing', ... */
+    exerciseType?: string | null;
     resultStatus: number | null;
     scoreDisplay: string | null;
   }>;

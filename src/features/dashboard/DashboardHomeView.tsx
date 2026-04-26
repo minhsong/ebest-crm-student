@@ -160,7 +160,7 @@ export function DashboardHomeView() {
                   key={`${m.classId}-${m.row.sessionId}`}
                   row={m.row}
                   stripedDim={i % 2 === 0}
-                  classContextLabel={`${m.className} (${m.classCode})`}
+                  classCode={m.classCode}
                 />
               ))}
             </Space>

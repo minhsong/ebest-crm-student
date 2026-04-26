@@ -64,10 +64,18 @@ export function StudentWeekSessionCell({ item }: StudentWeekSessionCellProps) {
         textAlign: 'left',
       }}
     >
-      <Text strong style={{ fontSize: 12, color: token.colorText, lineHeight: 1.35 }}>
-        {formatSessionTimeShort(row.scheduledStartTime)} –{' '}
-        {formatSessionTimeShort(row.scheduledEndTime)}
-      </Text>
+      <Flex align="center" wrap="wrap" gap={6}>
+        <Text strong style={{ fontSize: 12, color: token.colorText, lineHeight: 1.35 }}>
+          {formatSessionTimeShort(row.scheduledStartTime)} –{' '}
+          {formatSessionTimeShort(row.scheduledEndTime)}
+        </Text>
+        <Tag
+          color={row.isTutoringSession ? 'magenta' : 'blue'}
+          style={tagStyle}
+        >
+          {row.isTutoringSession ? 'Buổi kèm' : 'Chính thức'}
+        </Tag>
+      </Flex>
       <Text
         strong
         ellipsis={{ tooltip: title }}

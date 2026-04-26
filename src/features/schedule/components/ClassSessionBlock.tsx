@@ -155,6 +155,7 @@ function ClassSessionBlockInner({ block, headerExtra }: ClassSessionBlockProps) 
             key={row.sessionId}
             row={row}
             stripedDim={index % 2 === 0}
+            classCode={block.classCode}
           />
         ))}
       </Space>

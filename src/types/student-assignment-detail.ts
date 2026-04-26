@@ -36,6 +36,8 @@ export interface StudentAssignmentDetail {
   exerciseTypeLabel: string | null;
   scoringType: number | null;
   scoringTypeLabel: string | null;
+  /** Điểm tối đa (nếu có) — lấy từ scoringConfig.maxScore */
+  scoringMaxScore: number | null;
   content: string | null;
   deadline: string | null;
   attachments: StudentAssignmentAttachment[];

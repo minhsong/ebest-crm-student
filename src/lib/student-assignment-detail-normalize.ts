@@ -62,6 +62,8 @@ export function normalizeStudentAssignmentDetail(
       typeof o.scoringType === 'number' ? o.scoringType : null,
     scoringTypeLabel:
       typeof o.scoringTypeLabel === 'string' ? o.scoringTypeLabel : null,
+    scoringMaxScore:
+      typeof o.scoringMaxScore === 'number' ? o.scoringMaxScore : null,
     content: typeof o.content === 'string' ? o.content : null,
     deadline: typeof o.deadline === 'string' ? o.deadline : null,
     attachments,

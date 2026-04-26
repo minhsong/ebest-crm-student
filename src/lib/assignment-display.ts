@@ -1,16 +1,17 @@
-/** Dòng phụ dưới tiêu đề bài tập — cùng ý với CRM AssignmentDetailModal. */
+/**
+ * Dòng phụ dưới tiêu đề bài tập (Student Portal).
+ *
+ * Student Portal chỉ nên hiển thị "buổi học của lớp" theo góc nhìn học viên;
+ * không đưa các khái niệm nội bộ như "bài học mẫu / template" lên UI.
+ */
 export function buildAssignmentSessionLine(
   courseSessionTitle?: string | null,
   classSessionTitle?: string | null,
 ): string {
-  const parts: string[] = [];
-  if (courseSessionTitle?.trim()) {
-    parts.push(`Bài học mẫu: ${courseSessionTitle.trim()}`);
-  }
-  if (classSessionTitle?.trim()) {
-    parts.push(`Buổi học lớp: ${classSessionTitle.trim()}`);
-  }
-  return parts.join(' · ');
+  if (classSessionTitle?.trim()) return classSessionTitle.trim();
+  // Fallback: nếu thiếu classSessionTitle thì hiển thị tối thiểu một tiêu đề.
+  if (courseSessionTitle?.trim()) return courseSessionTitle.trim();
+  return '';
 }
 
 export function getResourceKindLabel(
