@@ -13,6 +13,7 @@ import {
   LockOutlined,
   CalendarOutlined,
   QuestionCircleOutlined,
+  FormOutlined,
 } from '@ant-design/icons';
 
 export interface DashboardMenuClassItem {
@@ -76,6 +77,13 @@ export const DASHBOARD_MENU_ENTRIES: DashboardMenuEntry[] = [
     label: 'Hỏi đáp',
     icon: <QuestionCircleOutlined />,
   },
+  {
+    type: 'link',
+    key: 'quiz-test',
+    path: '/quiz-test',
+    label: 'Quiz test',
+    icon: <FormOutlined />,
+  },
   { type: 'divider', key: 'divider-after-main' },
   {
     type: 'link',
@@ -126,7 +134,7 @@ export function buildDashboardMenuAntdItems(
 
         const children: NonNullable<MenuProps['items']> = [];
         children.push({
-          key: '/classes',
+          key: 'classes-all',
           label: renderLinkLabel('/classes', 'Tất cả lớp'),
         });
         if (inProgress.length) {
@@ -182,6 +190,7 @@ const PATH_LABELS: Record<string, string> = {
   '/schedule': 'Lịch học',
   '/invoices': 'Hóa Đơn',
   '/qa': 'Hỏi đáp',
+  '/quiz-test': 'Quiz test',
 };
 
 /**
