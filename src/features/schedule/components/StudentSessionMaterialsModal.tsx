@@ -229,9 +229,10 @@ export function StudentSessionMaterialsModal({
         }
         open={open}
         onCancel={onClose}
+        maskClosable={false}
         footer={null}
         width={720}
-        destroyOnClose
+        destroyOnHidden
       >
         <Paragraph type="secondary" style={{ marginTop: 0, marginBottom: token.marginMD }}>
           Chỉ hiển thị tài liệu CRM đánh dấu công khai cho học viên (công khai trên chi tiết buổi).

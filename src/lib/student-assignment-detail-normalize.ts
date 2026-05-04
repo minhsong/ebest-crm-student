@@ -42,6 +42,18 @@ export function normalizeStudentAssignmentDetail(
     typeof o.studentUploadEnabled === 'boolean' ? o.studentUploadEnabled : undefined;
   const studentUploadMaxFiles =
     typeof o.studentUploadMaxFiles === 'number' ? o.studentUploadMaxFiles : undefined;
+  const testQuizFormPublicId =
+    typeof o.testQuizFormPublicId === 'string' && o.testQuizFormPublicId.trim() !== ''
+      ? o.testQuizFormPublicId
+      : o.testQuizFormPublicId === null
+        ? null
+        : undefined;
+  const quizMaxAttempts =
+    typeof o.quizMaxAttempts === 'number'
+      ? o.quizMaxAttempts
+      : o.quizMaxAttempts === null
+        ? null
+        : undefined;
   const submission =
     o.submission != null && typeof o.submission === 'object'
       ? (o.submission as StudentAssignmentDetail['submission'])
@@ -77,6 +89,8 @@ export function normalizeStudentAssignmentDetail(
         : null,
     studentUploadEnabled,
     studentUploadMaxFiles,
+    testQuizFormPublicId,
+    quizMaxAttempts,
     submission,
     result: {
       resultStatus:

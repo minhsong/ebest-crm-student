@@ -4,6 +4,7 @@ import { CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
 import { QaArticleHtml } from '@/features/qa/components/QaArticleHtml';
 import type { QuizFormItemPayload } from '@/features/quiz-test/types';
 import {
+  normalizeFillInBlankValue,
   normalizeMcqMultipleValue,
   normalizeMcqSingleValue,
 } from '@/features/quiz-test/question-view';
@@ -12,6 +13,7 @@ import { Card, Typography } from 'antd';
 import { memo, useMemo } from 'react';
 import type { ReactNode } from 'react';
 
+import { QuizFillInBlankQuestion } from './QuizFillInBlankQuestion';
 import { QuizMcqMultipleQuestion } from './QuizMcqMultipleQuestion';
 import { QuizMcqSingleQuestion } from './QuizMcqSingleQuestion';
 import { QuizUnsupportedQuestionBody } from './QuizUnsupportedQuestionBody';
@@ -95,6 +97,25 @@ export const QuizQuestionCard = memo(function QuizQuestionCard({
                 ? undefined
                 : (ids) => {
                     onAnswerChange?.(model.formItemId, ids);
+                  }
+            }
+          />
+        </div>
+      );
+      break;
+    }
+    case 'fill_in_blank': {
+      const text = normalizeFillInBlankValue(answerValue);
+      body = (
+        <div className="mt-4">
+          <QuizFillInBlankQuestion
+            value={text}
+            readOnly={readOnly}
+            onChange={
+              readOnly
+                ? undefined
+                : (next) => {
+                    onAnswerChange?.(model.formItemId, next);
                   }
             }
           />

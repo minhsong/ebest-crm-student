@@ -1,3 +1,5 @@
+export { QuizFillInBlankQuestion } from './QuizFillInBlankQuestion';
+export type { QuizFillInBlankQuestionProps } from './QuizFillInBlankQuestion';
 export { QuizMcqMultipleQuestion } from './QuizMcqMultipleQuestion';
 export { QuizMcqSingleQuestion } from './QuizMcqSingleQuestion';
 export { QuizQuestionBundleCard } from './QuizQuestionBundleCard';

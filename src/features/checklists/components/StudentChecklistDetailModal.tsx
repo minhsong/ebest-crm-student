@@ -60,9 +60,10 @@ export function StudentChecklistDetailModal({ open, checklistId, onClose }: Prop
       title={title}
       open={open}
       onCancel={onClose}
+      maskClosable={false}
       footer={null}
       width={720}
-      destroyOnClose
+      destroyOnHidden
     >
       {loading && (
         <Flex justify="center" align="center" style={{ padding: '40px 0' }}>

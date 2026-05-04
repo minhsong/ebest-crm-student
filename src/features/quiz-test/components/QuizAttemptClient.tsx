@@ -37,9 +37,12 @@ import { useEffect, useMemo } from 'react';
 
 export function QuizAttemptClient({
   formPublicId,
+  assignmentId,
   initialSummary,
 }: {
   formPublicId: string;
+  /** Từ query `?assignmentId=` khi vào đề từ bài tập — đồng bộ điểm sau submit. */
+  assignmentId?: number;
   initialSummary?: QuizPublishedFormSummary | null;
 }) {
   const {
@@ -59,7 +62,7 @@ export function QuizAttemptClient({
     onAnswerChange,
     handleSubmit,
     openConfirmStart,
-  } = useQuizAttemptRuntime({ formPublicId });
+  } = useQuizAttemptRuntime({ formPublicId, assignmentId });
 
   const renderBlocks = useMemo(
     (): QuizRenderableBlock[] => buildQuizRenderableBlocks(formPayload),
@@ -183,7 +186,7 @@ export function QuizAttemptClient({
       renderBlocks={renderBlocks}
       blockStartIndexes={blockStartIndexes}
       onAnswerChange={onAnswerChange}
-      onSubmit={() => void handleSubmit()}
+      onSubmit={handleSubmit}
       submitting={phase === 'submitting'}
     />
   );

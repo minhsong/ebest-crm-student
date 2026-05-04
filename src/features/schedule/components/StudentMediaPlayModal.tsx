@@ -35,9 +35,10 @@ export function StudentMediaPlayModal({
       open={open}
       title={title}
       onCancel={onClose}
+      maskClosable={false}
       footer={null}
       width={840}
-      destroyOnClose
+      destroyOnHidden
       styles={{ body: { paddingTop: 16 } }}
     >
       {loading && (

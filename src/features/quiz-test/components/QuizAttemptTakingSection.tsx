@@ -13,7 +13,7 @@ import type {
   StartAttemptResponse,
 } from '@/features/quiz-test/types';
 import { HEADER_HEIGHT } from '@/lib/ui-constants';
-import { Alert, Button, Card, Divider, Space, Tag, Typography } from 'antd';
+import { Alert, App, Button, Card, Divider, Space, Tag, Typography } from 'antd';
 import Link from 'next/link';
 
 type QuizAttemptTakingSectionProps = {
@@ -27,7 +27,7 @@ type QuizAttemptTakingSectionProps = {
   renderBlocks: QuizRenderableBlock[];
   blockStartIndexes: number[];
   onAnswerChange: (formItemId: string, value: string | string[]) => void;
-  onSubmit: () => void;
+  onSubmit: () => void | Promise<void>;
   submitting: boolean;
 };
 
@@ -45,7 +45,20 @@ export function QuizAttemptTakingSection({
   onSubmit,
   submitting,
 }: QuizAttemptTakingSectionProps) {
+  const { modal } = App.useApp();
   const timerOk = !!(attempt && getAttemptTimerValidity(attempt).ok);
+
+  const requestSubmit = () => {
+    modal.confirm({
+      title: 'Xác nhận nộp bài?',
+      content:
+        'Sau khi nộp bài, bạn sẽ không thể tiếp tục làm bài hay thay đổi câu trả lời. Bạn có chắc chắn muốn nộp bài lúc này?',
+      okText: 'Nộp bài',
+      cancelText: 'Làm tiếp',
+      okButtonProps: { type: 'primary' },
+      onOk: () => onSubmit(),
+    });
+  };
 
   return (
     <Card styles={{ body: { padding: 0 } }}>
@@ -97,7 +110,7 @@ export function QuizAttemptTakingSection({
 
       <div className="px-4 pb-6 md:px-6">
         <Space>
-          <Button type="primary" size="large" loading={submitting} onClick={onSubmit}>
+          <Button type="primary" size="large" loading={submitting} onClick={requestSubmit}>
             Nộp bài
           </Button>
         </Space>

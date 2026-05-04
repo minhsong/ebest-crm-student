@@ -1,8 +1,14 @@
 'use client';
 
 import { QuizFormMetaBlock } from '@/features/quiz-test/components/QuizFormMetaBlock';
-import { getScoreSummary, getStatusLabel, getStatusTagColor, toViDateTime } from '@/features/quiz-test/lib/quiz-runtime-view';
-import type { QuizPublishedFormPayload, SubmitAttemptResponse } from '@/features/quiz-test/types';
+import {
+  getScoreSummary,
+  getStatusLabel,
+  getStatusTagColor,
+  toViDateTime,
+  type QuizGradingScoreInput,
+} from '@/features/quiz-test/lib/quiz-runtime-view';
+import type { QuizPublishedFormPayload } from '@/features/quiz-test/types';
 import { Tag, Typography } from 'antd';
 
 type QuizAttemptResultHeaderProps = {
@@ -13,7 +19,7 @@ type QuizAttemptResultHeaderProps = {
   attemptStatus: string;
   attemptStartedAt?: string;
   attemptSubmittedAt?: string | null;
-  grading: SubmitAttemptResponse['grading'] | null | undefined;
+  grading: QuizGradingScoreInput;
 };
 
 export function QuizAttemptResultHeader({

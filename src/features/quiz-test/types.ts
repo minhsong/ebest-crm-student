@@ -109,6 +109,8 @@ export type QuizAttemptHistoryItem = {
   expiresAt: string;
   submittedAt: string | null;
   remainingSeconds: number;
+  /** Gắn bài tập CRM khi start attempt có participantSnapshot.assignmentId */
+  assignmentId?: number | null;
   gradingSummary?: {
     totalQuestions: number;
     gradedQuestions: number;

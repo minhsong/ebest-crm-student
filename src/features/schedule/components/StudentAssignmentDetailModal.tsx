@@ -28,6 +28,7 @@ import {
   EyeOutlined,
   PlayCircleOutlined,
 } from '@ant-design/icons';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import type {
   StudentAssignmentAttachment,
@@ -178,6 +179,16 @@ export function StudentAssignmentDetailModal({
     }
     return <Tag>Chưa nộp</Tag>;
   }, [detail?.result?.resultStatus]);
+
+  const isQuizWithLinkedForm = useMemo(() => {
+    if (!detail) return false;
+    const pub = detail.testQuizFormPublicId?.trim();
+    return (
+      (detail.exerciseType ?? '').toLowerCase() === 'quiz' &&
+      typeof pub === 'string' &&
+      pub.length > 0
+    );
+  }, [detail]);
 
   const headerExerciseIcon = useMemo(() => {
     const t = (detail?.exerciseType ?? '').trim().toLowerCase();
@@ -335,13 +346,14 @@ export function StudentAssignmentDetailModal({
       }
       open={open}
       onCancel={onClose}
+      maskClosable={false}
       footer={
         <Button type="primary" onClick={onClose}>
           Đóng
         </Button>
       }
       width={720}
-      destroyOnClose
+      destroyOnHidden
     >
       {loading && (
         <Flex justify="center" align="center" style={{ padding: '40px 0' }}>
@@ -394,7 +406,29 @@ export function StudentAssignmentDetailModal({
             )}
           </Descriptions>
 
+          {isQuizWithLinkedForm && detail.testQuizFormPublicId ? (
+            <Card size="small">
+              <Flex justify="space-between" align="center" gap="middle" wrap>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>Làm bài trắc nghiệm</div>
+                  <Text type="secondary" style={{ fontSize: token.fontSize }}>
+                    Sau khi nộp bài, điểm được đồng bộ về bài tập lớp.
+                  </Text>
+                </div>
+                <Link
+                  href={`/quiz-test/${encodeURIComponent(detail.testQuizFormPublicId)}?assignmentId=${detail.assignmentId}`}
+                  prefetch={false}
+                >
+                  <Button type="primary" icon={<PlayCircleOutlined />}>
+                    Làm bài
+                  </Button>
+                </Link>
+              </Flex>
+            </Card>
+          ) : null}
+
           {detail.studentUploadEnabled &&
+          !isQuizWithLinkedForm &&
           detail.result?.resultStatus !== CRM_ASSIGNMENT_RESULT_STATUS.GRADED ? (
             <Card size="small">
               <Flex justify="space-between" align="center" gap="middle" wrap>

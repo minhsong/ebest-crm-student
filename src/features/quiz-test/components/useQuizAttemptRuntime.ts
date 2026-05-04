@@ -23,6 +23,11 @@ import {
   fetchQuizWsAccessToken,
   normalizeAnswersWsPayload,
 } from '@/features/quiz-test/quiz-runtime-ws-client';
+import {
+  fetchQuizStartEligibility,
+  postQuizResultSync,
+} from '@/lib/quiz-assignment-crm';
+import { QuizAssignmentUiMessages } from '@/lib/quiz-assignment-ui-messages';
 import { message as antdMessage } from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Socket } from 'socket.io-client';
@@ -39,9 +44,14 @@ export type QuizAttemptPhase =
 
 type UseQuizAttemptRuntimeArgs = {
   formPublicId: string;
+  /** Khi mở từ bài tập — sau nộp gọi CRM đồng bộ điểm (§10.8). */
+  assignmentId?: number;
 };
 
-export function useQuizAttemptRuntime({ formPublicId }: UseQuizAttemptRuntimeArgs) {
+export function useQuizAttemptRuntime({
+  formPublicId,
+  assignmentId,
+}: UseQuizAttemptRuntimeArgs) {
   const [phase, setPhase] = useState<QuizAttemptPhase>('loading_form');
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [formPayload, setFormPayload] = useState<QuizPublishedFormPayload | null>(null);
@@ -178,10 +188,25 @@ export function useQuizAttemptRuntime({ formPublicId }: UseQuizAttemptRuntimeArg
     setErrMsg(null);
     const url = quizRuntimePublicUrl(`forms/${formPublicId}/attempts`);
     try {
+      if (assignmentId != null && assignmentId >= 1) {
+        const gate = await fetchQuizStartEligibility(assignmentId);
+        if (!gate.allowed) {
+          throw new Error(gate.reason);
+        }
+      }
+
+      const startBody =
+        assignmentId != null && assignmentId >= 1
+          ? JSON.stringify({
+              participantSnapshot: { assignmentId },
+            })
+          : JSON.stringify({});
+
       const { ok, status, data } = await fetchQuizRuntimeJson<
         StartAttemptResponse & { message?: string }
       >(url, {
         method: 'POST',
+        body: startBody,
       });
       if (!ok) {
         throw new Error(
@@ -200,7 +225,7 @@ export function useQuizAttemptRuntime({ formPublicId }: UseQuizAttemptRuntimeArg
       setErrMsg(e instanceof Error ? e.message : 'Không tạo phiên làm bài được.');
       setPhase('confirm_start');
     }
-  }, [formPayload, formPublicId]);
+  }, [assignmentId, formPayload, formPublicId]);
 
   const onAnswerChange = useCallback(
     (formItemId: string, value: string | string[]) => {
@@ -238,12 +263,33 @@ export function useQuizAttemptRuntime({ formPublicId }: UseQuizAttemptRuntimeArg
         );
       }
       setSubmitResult(data as SubmitAttemptResponse);
+
+      const submitted = data as SubmitAttemptResponse;
+      const aid = assignmentId;
+      const attemptPid = submitted?.attemptPublicId?.trim();
+      if (
+        aid != null &&
+        Number.isFinite(aid) &&
+        aid >= 1 &&
+        attemptPid
+      ) {
+        void postQuizResultSync(aid, attemptPid)
+          .then((syncOk) => {
+            if (!syncOk) {
+              antdMessage.warning(QuizAssignmentUiMessages.syncScoreToAssignmentFailed);
+            }
+          })
+          .catch(() =>
+            antdMessage.warning(QuizAssignmentUiMessages.syncNetworkError),
+          );
+      }
+
       setPhase('done');
     } catch (e) {
       setErrMsg(e instanceof Error ? e.message : 'Nộp bài thất bại');
       setPhase('attempting');
     }
-  }, [answers, attempt, patchAnswersImmediately]);
+  }, [answers, assignmentId, attempt, patchAnswersImmediately]);
 
   useEffect(() => {
     if (phase !== 'attempting' || !attempt) return;

@@ -1,7 +1,6 @@
 import type {
   QuizAttemptHistoryItem,
   StartAttemptResponse,
-  SubmitAttemptResponse,
 } from '@/features/quiz-test/types';
 import type { QuizRenderableBlock } from '@/features/quiz-test/lib/quiz-renderable-items';
 
@@ -90,8 +89,20 @@ export function getAttemptHistoryRowLabel(status: string): string {
   return 'Đang làm';
 }
 
+/** Đủ để `getScoreSummary` (GET attempt có thể trả summary thưa hơn submit). */
+export type QuizGradingScoreInput =
+  | {
+      summary?: {
+        totalQuestions?: number;
+        correctCount?: number;
+      } | null;
+      items?: unknown;
+    }
+  | null
+  | undefined;
+
 export function getScoreSummary(
-  grading: SubmitAttemptResponse['grading'] | null | undefined,
+  grading: QuizGradingScoreInput,
 ): { total: number; correct: number } | null {
   const summary = grading?.summary;
   if (

@@ -1,6 +1,8 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Layout, Button, Breadcrumb, Dropdown, Avatar } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   UserOutlined,
   LogoutOutlined,
@@ -44,9 +46,30 @@ export default function DashboardHeader({
   onLogout,
   onOpenDrawer,
 }: DashboardHeaderProps) {
+  const accountMenuItems: MenuProps['items'] = useMemo(
+    () => [
+      {
+        key: 'profile',
+        icon: <UserOutlined />,
+        label: (
+          <Link href={profileHref} onClick={() => onProfileClick?.()}>
+            Thông tin cá nhân
+          </Link>
+        ),
+      },
+      {
+        key: 'logout',
+        icon: <LogoutOutlined />,
+        label: 'Đăng xuất',
+        onClick: onLogout,
+      },
+    ],
+    [profileHref, onProfileClick, onLogout],
+  );
+
   return (
     <Header
-      className="flex items-center justify-between border-b border-gray-200 px-4 sm:px-6 transition-[background,box-shadow] duration-200"
+      className="flex items-center justify-between border-b border-gray-200 sm:px-6 transition-[background,box-shadow] duration-200"
       style={{
         height: HEADER_HEIGHT,
         position: 'sticky',
@@ -56,7 +79,7 @@ export default function DashboardHeader({
         boxShadow: navFill ? '0 2px 8px rgba(0,0,0,0.08)' : '0 1px 4px rgba(0,0,0,0.06)',
       }}
     >
-      <div className="flex items-center gap-2 min-w-0 flex-1">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
         {isMobile ? (
           <Button
             type="text"
@@ -78,49 +101,56 @@ export default function DashboardHeader({
           className="min-w-0"
         />
       </div>
-      <div className="flex flex-shrink-0 items-center gap-0.5">
-        <Link
-          href={profileHref}
-          className="flex min-w-0 max-w-[220px] sm:max-w-[280px] items-center gap-2 rounded-lg px-2 py-1 text-left text-gray-900 transition-colors hover:bg-gray-50"
-          onClick={() => onProfileClick?.()}
-        >
-          <Avatar
-            src={avatarUrl || undefined}
-            icon={<UserOutlined />}
-            size={36}
-            className="flex-shrink-0"
-          />
-          <span className="truncate text-sm font-medium">{userDisplayName}</span>
-        </Link>
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: 'profile',
-                icon: <UserOutlined />,
-                label: (
-                  <Link href={profileHref} onClick={() => onProfileClick?.()}>
-                    Thông tin cá nhân
-                  </Link>
-                ),
-              },
-              {
-                key: 'logout',
-                icon: <LogoutOutlined />,
-                label: 'Đăng xuất',
-                onClick: onLogout,
-              },
-            ],
-          }}
-          placement="bottomRight"
-        >
-          <Button
-            type="text"
-            className="flex h-9 w-8 items-center justify-center flex-shrink-0 text-gray-600"
-            aria-label="Menu tài khoản"
-            icon={<DownOutlined />}
-          />
-        </Dropdown>
+      <div className="flex flex-shrink-0 items-center gap-0.5 sm:gap-0.5">
+        {isMobile ? (
+          <Dropdown
+            menu={{ items: accountMenuItems }}
+            placement="bottomRight"
+            trigger={['click']}
+          >
+            <Button
+              type="text"
+              className="flex !h-9 !min-h-9 !w-9 !min-w-9 flex-shrink-0 items-center justify-center !p-0"
+              aria-label="Menu tài khoản"
+            >
+              <Avatar
+                src={avatarUrl || undefined}
+                icon={<UserOutlined />}
+                size={36}
+                className="flex-shrink-0"
+              />
+            </Button>
+          </Dropdown>
+        ) : (
+          <>
+            <Link
+              href={profileHref}
+              className="flex min-w-0 max-w-[220px] sm:max-w-[280px] items-center gap-2 rounded-lg px-2 py-1 text-left text-gray-900 transition-colors hover:bg-gray-50"
+              onClick={() => onProfileClick?.()}
+            >
+              <Avatar
+                src={avatarUrl || undefined}
+                icon={<UserOutlined />}
+                size={36}
+                className="flex-shrink-0"
+              />
+              <span className="truncate text-sm font-medium">
+                {userDisplayName}
+              </span>
+            </Link>
+            <Dropdown
+              menu={{ items: accountMenuItems }}
+              placement="bottomRight"
+            >
+              <Button
+                type="text"
+                className="flex h-9 w-8 flex-shrink-0 items-center justify-center text-gray-600"
+                aria-label="Menu tài khoản"
+                icon={<DownOutlined />}
+              />
+            </Dropdown>
+          </>
+        )}
       </div>
     </Header>
   );

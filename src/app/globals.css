@@ -22,7 +22,7 @@
 
 /**
  * Dashboard main scroll area.
- * Padding: 12px ≤769px, 24px ≥770px (khớp useIsMobile). Safe-area cho notch / home indicator.
+ * Padding: 8px ≤769px, 24px ≥770px (khớp useIsMobile). Safe-area cho notch / home indicator.
  * Chiều cao: flex-1 + min-height:0 trên cha (column flex) — không dùng calc(100vh - 88px) để tránh lệch mobile.
  */
 @layer components {
@@ -32,7 +32,7 @@
     overflow: auto;
     background: #f0f2f5;
     box-sizing: border-box;
-    --content-pad: 12px;
+    --content-pad: 8px;
     padding: var(--content-pad);
     padding-left: max(var(--content-pad), env(safe-area-inset-left, 0px));
     padding-right: max(var(--content-pad), env(safe-area-inset-right, 0px));

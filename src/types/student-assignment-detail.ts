@@ -45,6 +45,10 @@ export interface StudentAssignmentDetail {
   courseSessionTitle: string | null;
   studentUploadEnabled?: boolean;
   studentUploadMaxFiles?: number;
+  /** Bài QUIZ gắn Test form — UUID đề (Gateway). */
+  testQuizFormPublicId?: string | null;
+  /** Số lần làm tối đa; null = không giới hạn. */
+  quizMaxAttempts?: number | null;
   submission?: {
     submittedAt?: string | null;
     submittedNote?: string | null;

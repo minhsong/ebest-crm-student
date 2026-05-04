@@ -80,6 +80,14 @@ export function normalizeMcqMultipleValue(value: unknown): string[] | undefined 
   return ids.length ? ids : undefined;
 }
 
+/** Giá trị ô điền — một chuỗi (REST/WS có thể trả string hoặc mảng một phần tử). */
+export function normalizeFillInBlankValue(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && value.length) return String(value[0]);
+  if (value == null || value === '') return '';
+  return String(value);
+}
+
 /** A, B, … Z, AA, … giống cột Excel (index 0-based). */
 export function optionDisplayLetter(indexZeroBased: number): string {
   let n = indexZeroBased;

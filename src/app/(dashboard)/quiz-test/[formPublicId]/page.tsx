@@ -13,8 +13,18 @@ export function generateMetadata(): Metadata {
 
 export default function QuizTestAttemptPage({
   params,
+  searchParams,
 }: {
   params: { formPublicId: string };
+  searchParams?: { assignmentId?: string };
 }) {
-  return <QuizAttemptClient formPublicId={params.formPublicId} />;
+  const raw = searchParams?.assignmentId;
+  const assignmentId =
+    typeof raw === 'string' && /^\d+$/.test(raw) ? Number(raw) : undefined;
+  return (
+    <QuizAttemptClient
+      formPublicId={params.formPublicId}
+      assignmentId={assignmentId}
+    />
+  );
 }

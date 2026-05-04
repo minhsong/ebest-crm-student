@@ -14,7 +14,11 @@ import {
 export type QuizMcqOption = { id: string; html: string };
 
 /** Các loại UI đã hỗ trợ; thêm loại mới → thêm case trong `QuizQuestionCard`. */
-export type QuizQuestionUiKind = 'mcq_single' | 'mcq_multiple' | 'unsupported';
+export type QuizQuestionUiKind =
+  | 'mcq_single'
+  | 'mcq_multiple'
+  | 'fill_in_blank'
+  | 'unsupported';
 
 export type QuizQuestionViewModel = {
   formItemId: string;
@@ -48,11 +52,13 @@ export function buildQuizQuestionViewModel(
 
   const qType = typeof q.questionType === 'string' ? q.questionType : null;
   const kind: QuizQuestionUiKind =
-    options.length === 0
-      ? 'unsupported'
-      : isMultipleChoiceQuestion(qType)
-        ? 'mcq_multiple'
-        : 'mcq_single';
+    qType === 'fill_in_blank'
+      ? 'fill_in_blank'
+      : options.length === 0
+        ? 'unsupported'
+        : isMultipleChoiceQuestion(qType)
+          ? 'mcq_multiple'
+          : 'mcq_single';
 
   return {
     formItemId: String(row.formItemId),
