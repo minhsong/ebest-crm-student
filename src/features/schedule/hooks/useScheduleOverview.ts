@@ -24,7 +24,8 @@ export function useScheduleOverview() {
     try {
       const res = await fetchWithAuth(OVERVIEW_SESSIONS_PATH);
       const data = await res.json().catch(() => []);
-      setBlocks(Array.isArray(data) ? data : []);
+      const nextBlocks = Array.isArray(data) ? data : [];
+      setBlocks(nextBlocks);
     } finally {
       setLoading(false);
     }

@@ -40,8 +40,10 @@ export function useDashboardHome() {
       ]);
       const classesData = await classesRes.json().catch(() => []);
       const sessionsData = await sessionsRes.json().catch(() => []);
-      setClasses(Array.isArray(classesData) ? classesData : []);
-      setSessionsByClass(Array.isArray(sessionsData) ? sessionsData : []);
+      const nextClasses = Array.isArray(classesData) ? classesData : [];
+      const nextSessionsByClass = Array.isArray(sessionsData) ? sessionsData : [];
+      setClasses(nextClasses);
+      setSessionsByClass(nextSessionsByClass);
     } finally {
       setLoading(false);
     }

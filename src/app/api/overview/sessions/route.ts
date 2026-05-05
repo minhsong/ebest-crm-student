@@ -28,5 +28,6 @@ export async function GET(request: NextRequest) {
     );
   }
   const payload = data?.result ?? data?.data ?? data;
-  return NextResponse.json(Array.isArray(payload) ? payload : payload ?? []);
+  const normalized = Array.isArray(payload) ? payload : payload ?? [];
+  return NextResponse.json(normalized);
 }
