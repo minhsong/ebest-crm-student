@@ -5,21 +5,16 @@ import { Button, Card, Divider, Flex, Tag, Typography, theme } from 'antd';
 import type { OverviewSessionRow } from '@/types/overview-sessions';
 import { formatSessionDatetimeCompact } from '@/lib/session-format';
 import { CRM_ASSIGNMENT_RESULT_STATUS } from '@/lib/crm-enums';
-import {
-  AppstoreOutlined,
-  AudioOutlined,
-  BookOutlined,
-  CheckSquareOutlined,
-  EditOutlined,
-  FileTextOutlined,
-  FolderOutlined,
-  MessageOutlined,
-  TrophyOutlined,
-} from '@ant-design/icons';
+import { FolderOutlined } from '@ant-design/icons';
 import { SessionStatusTag } from '@/features/dashboard/components/SessionStatusTag';
 import { AttendanceCell } from '@/features/dashboard/components/AttendanceCell';
 import { StudentAssignmentDetailModal } from '@/features/schedule/components/StudentAssignmentDetailModal';
 import { StudentSessionMaterialsModal } from '@/features/schedule/components/StudentSessionMaterialsModal';
+import {
+  assignmentResultShort,
+  assignmentTypeIcon,
+  assignmentTypeShort,
+} from '@/lib/assignment-quiz-ui';
 
 const { Text, Paragraph } = Typography;
 
@@ -30,38 +25,6 @@ export type SessionCardProps = {
   /** Mã lớp — hiển thị trong title (khi có). */
   classCode?: string;
 };
-
-function assignmentResultShort(resultStatus: number | null): string {
-  if (resultStatus === CRM_ASSIGNMENT_RESULT_STATUS.GRADED) return 'Đã chấm';
-  if (resultStatus === CRM_ASSIGNMENT_RESULT_STATUS.SUBMITTED) return 'Đã nộp';
-  return 'Chưa nộp';
-}
-
-function assignmentTypeShort(exerciseType: string | null | undefined): string {
-  const t = String(exerciseType ?? '').trim().toLowerCase();
-  if (!t) return 'Bài tập';
-  if (t === 'recording') return 'Ghi âm';
-  if (t === 'paper') return 'Giấy';
-  if (t === 'toeic') return 'TOEIC';
-  if (t === 'writing') return 'Viết';
-  if (t === 'speaking') return 'Nói';
-  if (t === 'homework') return 'Homework';
-  if (t === 'quiz') return 'Quiz';
-  if (t === 'general') return 'Bài tập';
-  return 'Bài tập';
-}
-
-function assignmentTypeIcon(exerciseType: string | null | undefined) {
-  const t = String(exerciseType ?? '').trim().toLowerCase();
-  if (t === 'recording') return <AudioOutlined aria-hidden />;
-  if (t === 'paper') return <FileTextOutlined aria-hidden />;
-  if (t === 'toeic') return <TrophyOutlined aria-hidden />;
-  if (t === 'writing') return <EditOutlined aria-hidden />;
-  if (t === 'speaking') return <MessageOutlined aria-hidden />;
-  if (t === 'homework') return <BookOutlined aria-hidden />;
-  if (t === 'quiz') return <CheckSquareOutlined aria-hidden />;
-  return <AppstoreOutlined aria-hidden />;
-}
 
 const tagCellStyle: CSSProperties = { margin: 0, maxWidth: '100%' };
 const squareTagStyle: CSSProperties = {
