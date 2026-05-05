@@ -1,137 +1,88 @@
 'use client';
 
-import { Alert, Button, Card, Empty, List, Skeleton, Typography } from 'antd';
-import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
-import { quizRuntimePublicUrl } from '@/features/quiz-test/quiz-gateway-browser';
-import { fetchQuizRuntimeJson } from '@/features/quiz-test/lib/quiz-runtime-http';
+import { Alert, Button, Empty, Skeleton, Typography } from 'antd';
+import { PageCard, PageHeader } from '@/components/layout';
+import { useQuizTestListData } from '@/features/quiz-test/hooks/useQuizTestListData';
 import {
-  toQuizProgressMap,
-  toQuizPublishedFormSummaries,
-} from '@/features/quiz-test/lib/quiz-runtime-response-mappers';
-import { buildQuizListItemUiState } from '@/features/quiz-test/lib/quiz-list-item-state';
-import { formatDuration } from '@/features/quiz-test/lib/quiz-runtime-view';
-import type { QuizAttemptProgressItem, QuizPublishedFormSummary } from '@/features/quiz-test/types';
+  QuizTestAssignmentSection,
+  QuizTestListStatsRow,
+  QuizTestPublicSection,
+} from './QuizTestListSections';
+import { CRM_ASSIGNMENT_RESULT_STATUS } from '@/lib/crm-enums';
 
 export function QuizTestListClient() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [items, setItems] = useState<QuizPublishedFormSummary[]>([]);
-  const [progressByForm, setProgressByForm] = useState<Record<string, QuizAttemptProgressItem>>({});
+  const {
+    loading,
+    error,
+    publicItems,
+    assignmentItems,
+    missingLinkedQuizCount,
+    progressByForm,
+    load,
+  } = useQuizTestListData();
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const url = quizRuntimePublicUrl('forms');
-      const { ok: listOk, status: listStatus, data } = await fetchQuizRuntimeJson<{
-        items?: unknown;
-        message?: string;
-      }>(url);
-      if (!listOk) {
-        const msg =
-          typeof data === 'object' && data && 'message' in data
-            ? String((data as { message?: unknown }).message ?? `HTTP ${listStatus}`)
-            : `HTTP ${listStatus}`;
-        throw new Error(msg);
-      }
-      const next = toQuizPublishedFormSummaries(data.items);
-      setItems(next);
-
-      const ids = next.map((x) => x.formPublicId).filter(Boolean);
-      if (ids.length > 0) {
-        const q = new URLSearchParams({ formPublicIds: ids.join(',') });
-        const progressUrl = `${quizRuntimePublicUrl('progress')}?${q.toString()}`;
-        const pr = await fetchQuizRuntimeJson<{ items?: unknown[] }>(progressUrl);
-        setProgressByForm(pr.ok ? toQuizProgressMap(pr.data.items) : {});
-      } else {
-        setProgressByForm({});
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Không tải được danh sách đề.');
-      setItems([]);
-      setProgressByForm({});
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    const refetchIfVisible = () => {
-      if (document.visibilityState === 'visible') void load();
-    };
-    window.addEventListener('focus', refetchIfVisible);
-    document.addEventListener('visibilitychange', refetchIfVisible);
-    return () => {
-      window.removeEventListener('focus', refetchIfVisible);
-      document.removeEventListener('visibilitychange', refetchIfVisible);
-    };
-  }, [load]);
+  const linkedFormIds = new Set(assignmentItems.map((x) => x.formPublicId));
+  const standalonePublicItems = publicItems.filter((x) => !linkedFormIds.has(x.formPublicId));
+  const assignmentNeedDoCount = assignmentItems.filter(
+    (x) => x.resultStatus !== CRM_ASSIGNMENT_RESULT_STATUS.GRADED,
+  ).length;
+  const assignmentDoneCount = assignmentItems.length - assignmentNeedDoCount;
 
   return (
-    <Card>
-      <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            Bài ôn / kiểm tra
-          </Typography.Title>
-          <Typography.Paragraph type="secondary" style={{ marginBottom: 0, maxWidth: 560 }}>
-            Chọn đề bên dưới để bắt đầu hoặc tiếp tục phần bạn đang làm.
-          </Typography.Paragraph>
+    <>
+      <PageHeader title="Quiz test" />
+      <PageCard>
+        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              Bài ôn / kiểm tra
+            </Typography.Title>
+            <Typography.Paragraph type="secondary" style={{ marginBottom: 0, maxWidth: 740 }}>
+              Trang này tổng hợp cả đề quiz mở và quiz gắn bài tập. Bạn có thể theo dõi bài cần
+              làm, bài đã làm, và điểm số tập trung mà không cần mở từng card buổi học.
+            </Typography.Paragraph>
+          </div>
+          <Button onClick={() => load()} loading={loading} size="small">
+            Làm mới danh sách
+          </Button>
         </div>
-        <Button onClick={() => load()} loading={loading} size="small">
-          Làm mới danh sách
-        </Button>
-      </div>
 
-      {error ? <Alert type="error" showIcon className="mb-4" message={error} /> : null}
-
-      {loading ? <Skeleton active paragraph={{ rows: 6 }} /> : null}
-
-      {!loading && !error && items.length === 0 ? (
-        <Empty description="Hiện chưa có đề khả dụng." />
-      ) : null}
-
-      {!loading && items.length > 0 ? (
-        <List
-          dataSource={items}
-          renderItem={(row) => {
-            const progress = progressByForm[row.formPublicId];
-            const { actionLabel, buttonType, statusLine } = buildQuizListItemUiState(progress);
-
-            const descriptionTail = (
-              <span className="text-neutral-600">
-                Thời lượng: {formatDuration(row.durationSeconds)}
-                {statusLine ? (
-                  <>
-                    <br />
-                    {statusLine}
-                  </>
-                ) : null}
-              </span>
-            );
-
-            return (
-              <List.Item
-                actions={[
-                  <Link key="go" href={`/quiz-test/${row.formPublicId}`}>
-                    <Button type={buttonType}>{actionLabel}</Button>
-                  </Link>,
-                ]}
-              >
-                <List.Item.Meta
-                  title={row.name || `Đề #${row.crmFormId}`}
-                  description={descriptionTail}
-                />
-              </List.Item>
-            );
-          }}
+        <QuizTestListStatsRow
+          assignmentNeedDoCount={assignmentNeedDoCount}
+          assignmentDoneCount={assignmentDoneCount}
+          standalonePublicCount={standalonePublicItems.length}
         />
-      ) : null}
-    </Card>
+
+        {error ? <Alert type="error" showIcon className="mb-4" message={error} /> : null}
+
+        {missingLinkedQuizCount > 0 ? (
+          <Alert
+            type="warning"
+            showIcon
+            className="mb-4"
+            message={`Có ${missingLinkedQuizCount} bài tập Quiz chưa gắn đề công khai. Vui lòng liên hệ quản trị viên để kiểm tra cấu hình đề.`}
+          />
+        ) : null}
+
+        {loading ? <Skeleton active paragraph={{ rows: 8 }} /> : null}
+
+        {!loading && !error && assignmentItems.length === 0 && standalonePublicItems.length === 0 ? (
+          <Empty description="Hiện chưa có đề hoặc bài quiz khả dụng." />
+        ) : null}
+
+        {!loading ? (
+          <>
+            <QuizTestAssignmentSection
+              items={assignmentItems}
+              progressByForm={progressByForm}
+            />
+            <QuizTestPublicSection
+              items={standalonePublicItems}
+              progressByForm={progressByForm}
+            />
+          </>
+        ) : null}
+      </PageCard>
+    </>
   );
 }

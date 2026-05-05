@@ -121,6 +121,18 @@ export type QuizAttemptHistoryItem = {
   } | null;
 };
 
+/** Một dòng trong danh sách Quiz — bài tập QUIZ gắn đề (trang tổng hợp). */
+export type QuizAssignmentListItem = {
+  assignmentId: number;
+  assignmentTitle: string;
+  formPublicId: string;
+  scoreDisplay: string | null;
+  resultStatus: number | null;
+  deadline: string | null;
+  sessionTitle: string | null;
+  quizMaxAttempts: number | null;
+};
+
 export type SubmitAttemptResponse = {
   ok: true;
   attemptPublicId: string;
