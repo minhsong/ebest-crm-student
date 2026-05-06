@@ -51,14 +51,25 @@ import { StudentSubmissionAudioRecorder } from '@/features/schedule/components/S
 import { isAllowedStudentSubmissionMime } from '@/lib/student-submission-mime';
 
 const { Text, Title } = Typography;
+const STUDENT_SUBMISSION_MAX_BYTES = 50 * 1024 * 1024;
 
 const SUBMISSION_MIME_REJECT_DETAIL =
-  'có định dạng không được phép (âm thanh, ảnh, video, PDF, Office…).';
+  'có định dạng không được phép (chỉ hỗ trợ âm thanh, ảnh, video).';
 
 function assertSubmissionFilesMimeAllowed(files: File[]): boolean {
   for (const f of files) {
     if (!isAllowedStudentSubmissionMime(f.type)) {
       message.error(`File "${f.name}" ${SUBMISSION_MIME_REJECT_DETAIL}`);
+      return false;
+    }
+  }
+  return true;
+}
+
+function assertSubmissionFilesSizeAllowed(files: File[]): boolean {
+  for (const f of files) {
+    if (f.size > STUDENT_SUBMISSION_MAX_BYTES) {
+      message.error(`File "${f.name}" vượt quá 50MB.`);
       return false;
     }
   }
@@ -212,6 +223,7 @@ export function StudentAssignmentDetailModal({
       if (!files.length || assignmentId == null) return false;
 
       if (!assertSubmissionFilesMimeAllowed(files)) return false;
+      if (!assertSubmissionFilesSizeAllowed(files)) return false;
 
       const hasExisting = submissionAttachmentCount > 0;
       if (hasExisting) {
@@ -235,7 +247,13 @@ export function StudentAssignmentDetailModal({
         const mime = (f0.type ?? '').toLowerCase();
         form.append(
           'resourceKind',
-          mime.startsWith('audio/') ? 'audio' : 'document',
+          mime.startsWith('audio/')
+            ? 'audio'
+            : mime.startsWith('video/')
+              ? 'video'
+              : mime.startsWith('image/')
+                ? 'image'
+                : 'audio',
         );
       }
 
@@ -317,7 +335,7 @@ export function StudentAssignmentDetailModal({
       ref={fileInputRef}
       type="file"
       multiple={maxUploadFiles > 1}
-      accept="audio/*,image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.txt"
+      accept="audio/*,image/*,video/*"
       style={{ display: 'none' }}
       onChange={handleFileSelected}
     />
@@ -435,9 +453,8 @@ export function StudentAssignmentDetailModal({
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600 }}>Nộp bài trực tiếp</div>
                   <Text type="secondary" style={{ fontSize: token.fontSize }}>
-                    Tối đa {maxUploadFiles} file mỗi lần, mỗi file tối đa 20MB (âm
-                    thanh, ảnh, video, PDF, Office…). Nộp lại sẽ thay toàn bộ bài
-                    cũ.
+                    Tối đa {maxUploadFiles} file mỗi lần, mỗi file tối đa 50MB
+                    (chỉ âm thanh, ảnh, video). Nộp lại sẽ thay toàn bộ bài cũ.
                   </Text>
                   <Input.TextArea
                     value={submissionNote}
