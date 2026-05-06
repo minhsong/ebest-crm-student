@@ -13,7 +13,10 @@ export type StudentPortalQaListItem = {
   title: string;
   slug: string;
   visibility: StudentPortalQaVisibility;
-  /** Lượt đọc từ cổng học viên (API đã +1 cho lần tải hiện tại). */
+  /**
+   * Lượt đọc cổng học viên: trên **danh sách** là số đang lưu (không tăng khi load list).
+   * Trên **chi tiết**, backend tăng 1 sau khi gọi `GET .../qa/by-slug/...` và trả về số đã bump.
+   */
   portalReadCount?: number;
   tags: StudentPortalQaTag[];
 };
