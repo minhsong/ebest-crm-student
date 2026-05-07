@@ -86,6 +86,7 @@ export function QuizAttemptTakingSection({
           compact
           formType={formPayload.type ?? null}
           catalogKey={formPayload.catalogKey ?? null}
+          catalogPath={formPayload.catalogPath ?? null}
           tagKeys={formTagKeys}
         />
       </div>

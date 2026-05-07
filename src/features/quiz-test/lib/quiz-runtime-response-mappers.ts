@@ -18,6 +18,12 @@ export function toQuizPublishedFormSummaries(
         name: r.name === null ? null : typeof r.name === 'string' ? r.name : String(r.name ?? ''),
         catalogKey:
           r.catalogKey === null ? null : typeof r.catalogKey === 'string' ? r.catalogKey : null,
+        catalogPath:
+          r.catalogPath === null || r.catalogPath === undefined
+            ? null
+            : typeof r.catalogPath === 'string'
+              ? r.catalogPath
+              : null,
         type: r.type === null ? null : typeof r.type === 'string' ? r.type : null,
         durationSeconds: Number(r.durationSeconds) || 0,
         publishedAt: typeof r.publishedAt === 'string' ? r.publishedAt : null,

@@ -3,6 +3,8 @@ export type QuizPublishedFormSummary = {
   crmFormId: number;
   name: string | null;
   catalogKey: string | null;
+  /** Breadcrumb từ CRM khi đã sync runtime (ưu tiên hiển thị thay cho catalogKey). */
+  catalogPath?: string | null;
   type: string | null;
   durationSeconds: number;
   publishedAt: string | null;
@@ -50,6 +52,7 @@ export type QuizPublishedFormPayload = {
   crmFormId: number;
   name?: string;
   catalogKey?: string;
+  catalogPath?: string | null;
   type?: string;
   durationSeconds?: number;
   instructions?: string | null;

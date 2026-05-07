@@ -73,6 +73,7 @@ export function QuizAttemptReadySection({
             <QuizFormMetaBlock
               formType={formPayload.type ?? null}
               catalogKey={formPayload.catalogKey ?? null}
+              catalogPath={formPayload.catalogPath ?? null}
               tagKeys={formTagKeys}
               durationSummary={durationSummary}
             />
@@ -173,6 +174,7 @@ export function QuizAttemptConfirmSection({
             <QuizFormMetaBlock
               formType={formPayload.type ?? null}
               catalogKey={formPayload.catalogKey ?? null}
+              catalogPath={formPayload.catalogPath ?? null}
               tagKeys={formTagKeys}
               durationSummary={durationSummary}
             />
@@ -239,6 +241,7 @@ export function QuizAttemptDoneSection({
         <QuizFormMetaBlock
           formType={formPayload.type ?? null}
           catalogKey={formPayload.catalogKey ?? null}
+          catalogPath={formPayload.catalogPath ?? null}
           tagKeys={formTagKeys}
           durationSummary={durationSummary}
         />

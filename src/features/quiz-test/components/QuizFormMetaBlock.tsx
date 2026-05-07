@@ -8,6 +8,8 @@ export type QuizFormMetaBlockProps = {
   /** `original` | `random` | … */
   formType?: string | null;
   catalogKey?: string | null;
+  /** Breadcrumb danh mục từ CRM (ưu tiên hiển thị). */
+  catalogPath?: string | null;
   /** Tag taxonomy gom từ các câu trong đề. */
   tagKeys: string[];
   /** Chuỗi dạng « Thời lượng làm bài: 90 phút » — tùy màn không truyền. */
@@ -20,11 +22,13 @@ export type QuizFormMetaBlockProps = {
 export const QuizFormMetaBlock = memo(function QuizFormMetaBlock({
   formType,
   catalogKey,
+  catalogPath,
   tagKeys,
   durationSummary,
   compact,
 }: QuizFormMetaBlockProps) {
   const typeLabel = formatQuizFormTypeVi(formType);
+  const catalogDisplay = catalogPath?.trim() || catalogKey?.trim() || '';
 
   const tagCls = compact ? 'text-xs leading-tight' : '';
 
@@ -36,9 +40,9 @@ export const QuizFormMetaBlock = memo(function QuizFormMetaBlock({
             Loại đề · {typeLabel}
           </Tag>
         ) : null}
-        {catalogKey ? (
+        {catalogDisplay ? (
           <Tag color="default" className={tagCls}>
-            Danh mục · {catalogKey}
+            Danh mục · {catalogDisplay}
           </Tag>
         ) : null}
         {tagKeys.map((key) => (

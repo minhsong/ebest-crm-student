@@ -163,17 +163,20 @@ export function QuizTestPublicSection({ items, progressByForm }: QuizTestPublicS
             >
               <List.Item.Meta
                 title={row.name || `Đề #${row.crmFormId}`}
-                description={
-                  <span className="text-neutral-600">
-                    Thời lượng: {formatDuration(row.durationSeconds)}
-                    {statusLine ? (
-                      <>
-                        <br />
-                        {statusLine}
-                      </>
-                    ) : null}
-                  </span>
-                }
+				description={
+					<span className="text-neutral-600">
+						{(row.catalogPath ?? row.catalogKey)?.trim()
+							? `Danh mục · ${String(row.catalogPath ?? row.catalogKey).trim()} · `
+							: null}
+						Thời lượng: {formatDuration(row.durationSeconds)}
+						{statusLine ? (
+							<>
+								<br />
+								{statusLine}
+							</>
+						) : null}
+					</span>
+				}
               />
             </List.Item>
           );

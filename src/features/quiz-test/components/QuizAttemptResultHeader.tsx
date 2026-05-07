@@ -50,6 +50,7 @@ export function QuizAttemptResultHeader({
       <QuizFormMetaBlock
         formType={formPayload.type ?? null}
         catalogKey={formPayload.catalogKey ?? null}
+        catalogPath={formPayload.catalogPath ?? null}
         tagKeys={formTagKeys}
         durationSummary={durationSummary}
       />
