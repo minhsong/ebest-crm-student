@@ -8,7 +8,6 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { PageHeader, PageCard } from '@/components/layout';
 import { useAuth } from '@/contexts/auth-context';
 import { StudentChecklistDetailModal } from '@/features/checklists';
-import { getClassSessionsTableColumns } from '@/features/dashboard/components/classSessionsTableColumns';
 import { StudentAssignmentDetailModal } from '@/features/schedule/components/StudentAssignmentDetailModal';
 import type { OverviewSessionRow } from '@/types/overview-sessions';
 import { CRM_ASSIGNMENT_RESULT_STATUS } from '@/lib/crm-enums';
@@ -77,43 +76,6 @@ export default function StudentClassDetailPage() {
   const classLabel = useMemo(() => {
     return classDetailTitleFromOverview(classId, overview);
   }, [classId, overview]);
-
-  const sessionColumns = useMemo(() => {
-    const cols = getClassSessionsTableColumns();
-    return cols.map((c) => {
-      if (c.key === 'assignments') {
-        return {
-          ...c,
-          render: (_: unknown, row: OverviewSessionRow) => {
-            const list = row.assignments ?? [];
-            if (list.length === 0) {
-              return <span className="text-gray-400">—</span>;
-            }
-            return (
-              <div className="space-y-1.5 text-sm">
-                {list.map((a) => (
-                  <button
-                    key={a.assignmentId}
-                    type="button"
-                    className="block w-full cursor-pointer rounded border border-gray-100 bg-gray-50/80 px-2 py-1.5 text-left hover:bg-gray-100"
-                    onClick={() => openAssignment(a.assignmentId)}
-                  >
-                    <div className="font-medium text-gray-800">
-                      {a.title || 'Bài tập'}
-                    </div>
-                    <div className="mt-0.5 text-xs text-gray-500">
-                      Click để xem chi tiết
-                    </div>
-                  </button>
-                ))}
-              </div>
-            );
-          },
-        };
-      }
-      return c;
-    });
-  }, [openAssignment]);
 
   const flattenedAssignments = useMemo(() => {
     const out: StudentClassAssignmentsRow[] = [];
@@ -203,11 +165,7 @@ export default function StudentClassDetailPage() {
               key: 'sessions',
               label: 'Các buổi học',
               children: (
-                <ClassSessionsTab
-                  loading={overviewLoading}
-                  sessions={sessions}
-                  columns={sessionColumns}
-                />
+                <ClassSessionsTab loading={overviewLoading} overview={overview} />
               ),
             },
             {
