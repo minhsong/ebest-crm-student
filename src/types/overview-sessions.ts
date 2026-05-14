@@ -25,10 +25,16 @@ export interface OverviewSessionRow {
   assignments: Array<{
     assignmentId: number;
     title: string;
-    /** ExerciseType (crm-api) — e.g. 'recording', 'writing', ... */
+    /** ExerciseType (crm-api) — e.g. 'recording', 'writing', 'quiz', ... */
     exerciseType?: string | null;
     resultStatus: number | null;
     scoreDisplay: string | null;
+    /** ISO 8601 — null khi không deadline. */
+    deadline?: string | null;
+    /** UUID đề runtime (Gateway); null khi bài QUIZ chưa gắn đề. */
+    testQuizFormPublicId?: string | null;
+    /** null = không giới hạn lần làm. */
+    quizMaxAttempts?: number | null;
   }>;
 }
 
