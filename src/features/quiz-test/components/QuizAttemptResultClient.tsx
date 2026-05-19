@@ -23,6 +23,10 @@ import {
   quizAnchorDomId,
 } from '@/features/quiz-test/lib/quiz-section-navigation';
 import { useQuizAttemptResultData } from '@/features/quiz-test/components/useQuizAttemptResultData';
+import {
+  useCanViewResultDetails,
+  getCannotViewResultMessage,
+} from '@/features/quiz-test/components/useCanViewResultDetails';
 import { Alert, Button, Card, Collapse, Skeleton, Space } from 'antd';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
@@ -39,6 +43,13 @@ export function QuizAttemptResultClient({
 }) {
   const { formPayload, attempt, error, loading } = useQuizAttemptResultData(
     formPublicId,
+    attemptPublicId,
+  );
+
+  // Check if user can view result details
+  const { data: canViewData, loading: checkingCanView } = useCanViewResultDetails(
+    formPublicId,
+    undefined,
     attemptPublicId,
   );
 
@@ -173,6 +184,11 @@ export function QuizAttemptResultClient({
     );
   }
 
+  // Determine if user can view detailed results
+  const canViewDetails = canViewData?.canView ?? false;
+  const cannotViewReason = canViewData?.reason ?? null;
+  const showCannotViewAlert = !canViewDetails && !checkingCanView && canViewData !== null;
+
   const answers = attempt.answersByFormItemId ?? {};
   const formDisplayName =
     typeof formPayload.name === 'string' && formPayload.name.trim()
@@ -199,43 +215,66 @@ export function QuizAttemptResultClient({
           grading={attempt.grading}
         />
 
-        {sectionsOrdered.length > 1 ? (
-          <Collapse
-            bordered={false}
-            activeKey={collapseOpenKeys}
-            onChange={(k) => setCollapseOpenKeys(Array.isArray(k) ? k : [String(k)])}
-            items={sectionsOrdered.map((sec) => {
-              const blocks = filterRenderableBlocksBySectionId(
-                formPayload,
-                renderBlocks,
-                sec.sectionId,
-              );
-              const idx = buildBlockStartIndexes(blocks);
-              return {
-                key: String(sec.sectionId),
-                label: sec.title?.trim() || `Phần ${sec.order + 1}`,
-                children: (
-                  <QuizAttemptQuestionBlocks
-                    renderBlocks={blocks}
-                    blockStartIndexes={idx}
-                    answers={answers}
-                    readOnly
-                    correctByFormItemId={correctByFormItemId}
-                    showExplanation={showExplanationOnReview}
-                  />
-                ),
-              };
-            })}
+        {/* Alert when user cannot view detailed results */}
+        {showCannotViewAlert && cannotViewReason && canViewData ? (
+          <Alert
+            type="warning"
+            message={
+              <span>
+                <strong>Chưa thể xem chi tiết kết quả</strong>
+                <br />
+                {getCannotViewResultMessage(cannotViewReason, canViewData)}
+              </span>
+            }
+            showIcon
           />
+        ) : null}
+
+        {/* Render question blocks only if user can view details */}
+        {canViewDetails ? (
+          sectionsOrdered.length > 1 ? (
+            <Collapse
+              bordered={false}
+              activeKey={collapseOpenKeys}
+              onChange={(k) => setCollapseOpenKeys(Array.isArray(k) ? k : [String(k)])}
+              items={sectionsOrdered.map((sec) => {
+                const blocks = filterRenderableBlocksBySectionId(
+                  formPayload,
+                  renderBlocks,
+                  sec.sectionId,
+                );
+                const idx = buildBlockStartIndexes(blocks);
+                return {
+                  key: String(sec.sectionId),
+                  label: sec.title?.trim() || `Phần ${sec.order + 1}`,
+                  children: (
+                    <QuizAttemptQuestionBlocks
+                      renderBlocks={blocks}
+                      blockStartIndexes={idx}
+                      answers={answers}
+                      readOnly
+                      correctByFormItemId={correctByFormItemId}
+                      showExplanation={showExplanationOnReview}
+                    />
+                  ),
+                };
+              })}
+            />
+          ) : (
+            <QuizAttemptQuestionBlocks
+              renderBlocks={renderBlocks}
+              blockStartIndexes={blockStartIndexes}
+              answers={answers}
+              readOnly
+              correctByFormItemId={correctByFormItemId}
+              showExplanation={showExplanationOnReview}
+            />
+          )
         ) : (
-          <QuizAttemptQuestionBlocks
-            renderBlocks={renderBlocks}
-            blockStartIndexes={blockStartIndexes}
-            answers={answers}
-            readOnly
-            correctByFormItemId={correctByFormItemId}
-            showExplanation={showExplanationOnReview}
-          />
+          /* Placeholder when cannot view details - show summary only */
+          <div className="text-center py-8 text-gray-500">
+            <p>Điểm số của bạn sẽ được hiển thị sau khi hoàn thành các điều kiện xem kết quả.</p>
+          </div>
         )}
 
         <Space wrap>
