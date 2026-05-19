@@ -28,6 +28,14 @@ export type QuizFormItemPayload = {
     content?: Record<string, unknown>;
     /** Gom tag cấp câu (CRM preview) để hiển thị meta đề học viên. */
     taxonomyRefs?: { tagKeys?: string[] } | Record<string, unknown> | null;
+    /** Quiz Tag System mới - tags với full path */
+    tags?: Array<{
+      id: number;
+      code?: string;
+      name?: string;
+      path?: string;
+      pathNames?: string[];
+    }>;
   };
 };
 
@@ -47,6 +55,13 @@ export type QuizGroupBundlePayload = {
   children?: QuizBundleChildPayload[];
 };
 
+export type QuizFormSectionPayload = {
+  sectionId: number;
+  order: number;
+  title?: string | null;
+  formItemIds?: number[];
+};
+
 export type QuizPublishedFormPayload = {
   formPublicId: string;
   crmFormId: number;
@@ -58,6 +73,8 @@ export type QuizPublishedFormPayload = {
   instructions?: string | null;
   items?: QuizFormItemPayload[];
   groupBundles?: QuizGroupBundlePayload[];
+  /** CRM preview / gateway snapshot — partition UI (§11). */
+  sections?: QuizFormSectionPayload[];
   blueprint?: Record<string, unknown>;
 };
 
@@ -68,6 +85,8 @@ export type StartAttemptResponse = {
   durationSeconds: number;
   startedAt: string;
   resumed?: boolean;
+  /** Lượt phát còn lại: key `section:<sectionId>` = min(repeat) trong phần; legacy có thể còn key formItemId. */
+  remainingPlaysByListeningUnit?: Record<string, number>;
 };
 
 export type QuizAttemptProgressItem = {

@@ -2,6 +2,7 @@ import type {
   QuizFormItemPayload,
   QuizGroupBundlePayload,
   QuizPublishedFormPayload,
+  QuizFormSectionPayload,
 } from '@/features/quiz-test/types';
 
 /** Key ổn định cho câu con trong bundle để lưu answers + grading đồng nhất với backend. */
@@ -19,9 +20,13 @@ export type QuizRenderableBlock =
     }
   | {
       kind: 'bundle';
+      /** formItemId hàng bundle trên đề (CRM). */
+      parentFormItemId: number;
       bundleKey: string;
       sourceGroupId: number;
       stemHtml: string | null;
+      /** Nội dung bundle cha (stem + media audio). */
+      bundleContent: Record<string, unknown> | null;
       items: QuizFormItemPayload[];
     };
 
@@ -100,15 +105,38 @@ export function buildQuizRenderableBlocks(
           : null;
       const stemHtml =
         typeof content?.stem === 'string' ? content.stem : null;
+      const parentFormItemId = Number(item.formItemId);
       out.push({
         kind: 'bundle',
+        parentFormItemId: Number.isFinite(parentFormItemId) ? parentFormItemId : 0,
         bundleKey: `bundle:${String(item.formItemId)}:${String(gid)}`,
         sourceGroupId: gid,
         stemHtml,
+        bundleContent: content,
         items: bundleItems,
       });
     }
   }
   return out;
+}
+
+/** Lọc block theo một section; không có `sections` hoặc `sectionId` null → trả toàn bộ. */
+export function filterRenderableBlocksBySectionId(
+  formPayload: QuizPublishedFormPayload | null | undefined,
+  allBlocks: QuizRenderableBlock[],
+  sectionId: number | null,
+): QuizRenderableBlock[] {
+  const sections = Array.isArray(formPayload?.sections)
+    ? (formPayload!.sections as QuizFormSectionPayload[])
+    : [];
+  if (!sections.length || sectionId == null) return allBlocks;
+  const sec = sections.find((s) => Number(s.sectionId) === sectionId);
+  const rawIds = Array.isArray(sec?.formItemIds) ? sec!.formItemIds! : [];
+  const idSet = new Set(rawIds.map((x) => Number(x)).filter((n) => Number.isFinite(n)));
+  if (!idSet.size) return [];
+  return allBlocks.filter((b) => {
+    if (b.kind === 'single') return idSet.has(Number(b.item.formItemId));
+    return idSet.has(b.parentFormItemId);
+  });
 }
 

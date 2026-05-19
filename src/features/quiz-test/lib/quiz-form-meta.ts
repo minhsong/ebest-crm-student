@@ -9,14 +9,32 @@ function readTagKeys(taxonomyRefs: unknown): string[] {
     .map((s) => s.trim());
 }
 
+interface QuestionSnapshotTags {
+  tags?: Array<{ code?: string; name?: string; path?: string; pathNames?: string[] }>;
+}
+
+/** Đọc tags từ questionSnapshot.tags (Quiz Tag System mới) */
+function readTagsFromQuestionSnapshot(q: QuestionSnapshotTags): string[] {
+  const tags = q?.tags;
+  if (!Array.isArray(tags)) return [];
+  return tags
+    .filter((t) => t?.name || t?.code)
+    .map((t) => t.name || t.code || '');
+}
+
 /** Các taxonomy tag (exam:toeic, …) có trên các câu của đề, đã khử trùng. */
 export function collectFormTagKeysFromItems(items: QuizFormItemPayload[]): string[] {
   const s = new Set<string>();
   for (const row of items) {
     const q = row.questionSnapshot;
     if (!q) continue;
+    // Legacy: đọc từ taxonomyRefs.tagKeys
     for (const k of readTagKeys(q.taxonomyRefs)) {
       s.add(k);
+    }
+    // Mới: đọc từ questionSnapshot.tags (pathNames)
+    for (const tagName of readTagsFromQuestionSnapshot(q as QuestionSnapshotTags)) {
+      s.add(tagName);
     }
   }
   return [...s].sort((a, b) => a.localeCompare(b, 'vi'));

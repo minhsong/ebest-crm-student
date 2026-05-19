@@ -26,6 +26,10 @@ export type QuizQuestionViewModel = {
   stemHtml: string;
   kind: QuizQuestionUiKind;
   options: QuizMcqOption[];
+  /** Giải thích câu hỏi (HTML) - có thể rỗng */
+  explanation: string;
+  /** Giải thích cho từng lựa chọn - key là option id */
+  optionExplanations: Record<string, string>;
 };
 
 export function buildQuizQuestionViewModel(
@@ -44,6 +48,27 @@ export function buildQuizQuestionViewModel(
     typeof content?.stem === 'string'
       ? content.stem
       : '<p>Không có nội dung câu.</p>';
+
+  // Extract explanation from question content
+  const explanation =
+    typeof content?.explanation === 'string' && content.explanation.trim()
+      ? content.explanation.trim()
+      : '';
+
+  // Extract option explanations from question content
+  const optionExplanations: Record<string, string> = {};
+  if (
+    content?.optionExplanations &&
+    typeof content.optionExplanations === 'object' &&
+    !Array.isArray(content.optionExplanations)
+  ) {
+    const rawOpts = content.optionExplanations as Record<string, unknown>;
+    for (const [key, val] of Object.entries(rawOpts)) {
+      if (typeof val === 'string' && val.trim()) {
+        optionExplanations[key] = val.trim();
+      }
+    }
+  }
 
   const options = orderQuizOptionsByFormItem(
     getQuizOptionsFromSnapshot(content),
@@ -73,5 +98,7 @@ export function buildQuizQuestionViewModel(
     stemHtml: stem,
     kind,
     options,
+    explanation,
+    optionExplanations,
   };
 }

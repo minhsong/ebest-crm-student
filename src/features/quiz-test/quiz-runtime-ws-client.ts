@@ -13,6 +13,9 @@ export const QUIZ_WS = {
   PATCH_ANSWERS: 'quiz:patchAnswers',
   ANSWERS_ACK: 'quiz:answers:ack',
   ANSWERS_SYNC: 'quiz:answers:sync',
+  LISTENING_CYCLE_DONE: 'quiz:listening:cycleDone',
+  LISTENING_CYCLE_ACK: 'quiz:listening:cycleAck',
+  LISTENING_STATE_SYNC: 'quiz:listening:stateSync',
   ERROR: 'quiz:error',
 } as const;
 

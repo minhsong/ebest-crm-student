@@ -110,6 +110,20 @@ export async function proxyQuizRuntimeToGateway(
     segments.length === 3 &&
     a === 'forms' &&
     isUuid(b) &&
+    c === 'result-layout'
+  ) {
+    const res = await fetch(publicUrl(cfg.baseUrl, `forms/${b}/result-layout${search}`), {
+      headers,
+      cache: 'no-store',
+    });
+    return jsonResponse(res);
+  }
+
+  if (
+    method === 'GET' &&
+    segments.length === 3 &&
+    a === 'forms' &&
+    isUuid(b) &&
     c === 'active-attempt'
   ) {
     const res = await fetch(
@@ -230,6 +244,28 @@ export async function proxyQuizRuntimeToGateway(
       method: 'PATCH',
       headers: { ...headers, ...serviceAuth },
       body: JSON.stringify({ customerId, answersByFormItemId }),
+    });
+    return jsonResponse(res);
+  }
+
+  if (
+    method === 'POST' &&
+    segments.length === 3 &&
+    a === 'attempts' &&
+    isUuid(b) &&
+    c === 'listening-cycle'
+  ) {
+    let formItemId = '';
+    try {
+      const raw = (await request.json()) as { formItemId?: unknown };
+      if (typeof raw.formItemId === 'string') formItemId = raw.formItemId;
+    } catch {
+      formItemId = '';
+    }
+    const res = await fetch(internalStudentUrl(cfg.baseUrl, `attempts/${b}/listening-cycle`), {
+      method: 'POST',
+      headers: { ...headers, ...serviceAuth },
+      body: JSON.stringify({ customerId, formItemId }),
     });
     return jsonResponse(res);
   }

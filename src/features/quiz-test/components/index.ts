@@ -9,6 +9,10 @@ export { QuizAttemptDoneSection } from './QuizAttemptPhaseSections';
 
 export { QuizAttemptHistoryList } from './QuizAttemptHistoryList';
 export { QuizAttemptTakingSection } from './QuizAttemptTakingSection';
+export { QuizAttemptTimerBar } from './QuizAttemptTimerBar';
+export { QuizAttemptSectionToolbar } from './QuizAttemptSectionToolbar';
+export { QuizAttemptTakingFooter } from './QuizAttemptTakingFooter';
+export { QuizAttemptSubmitBar } from './QuizAttemptSubmitBar';
 export { QuizAttemptQuestionBlocks } from './QuizAttemptQuestionBlocks';
 export { QuizAttemptResultHeader } from './QuizAttemptResultHeader';
 

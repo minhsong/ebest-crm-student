@@ -1,0 +1,29 @@
+feat(quiz-test): add listening section support and UI improvements
+
+- Add QuizAttemptSectionToolbar for section navigation
+- Add QuizAttemptSubmitBar for submission flow
+- Add QuizAttemptTakingFooter for timer and controls
+- Add QuizAttemptTimerBar for countdown display
+- Add QuizSectionListeningOrchestrator for listening question handling
+- Add QuizSectionOutlineDrawer for section overview
+- Add QuizHiddenListeningPlayer for audio playback
+- Add quiz-content-audio.ts for audio handling utilities
+- Add quiz-listening-rules.ts for listening question logic
+- Add quiz-section-listening-key.ts for section key management
+- Add quiz-section-listening-queue.ts for audio queue management
+- Add quiz-section-navigation.ts for section navigation logic
+- Update QuizAttemptClient with enhanced taking mode
+- Update QuizAttemptHistoryList with better display
+- Update QuizAttemptPhaseSections with listening support
+- Update QuizAttemptQuestionBlocks with bundle handling
+- Update QuizAttemptResultClient with improved result display
+- Update QuizAttemptTakingSection with timer and controls
+- Update QuizQuestionBundleCard with better bundle display
+- Update QuizQuestionCard with enhanced options
+- Update useQuizAttemptRuntime with section management
+- Update quiz-form-meta.ts with additional metadata
+- Update quiz-question-model.ts with better model handling
+- Update quiz-renderable-items.ts with render logic
+- Update quiz-runtime-ws-client.ts with WebSocket support
+- Update types.ts with additional type definitions
+- Add quiz-runtime-gateway-proxy.ts for gateway proxy

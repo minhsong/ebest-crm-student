@@ -42,7 +42,7 @@ export function useQuizAttemptResultData(
       try {
         const [formRes, attemptRes] = await Promise.all([
           fetchQuizRuntimeJson<QuizPublishedFormPayload>(
-            quizRuntimePublicUrl(`forms/${formPublicId}`),
+            quizRuntimePublicUrl(`forms/${formPublicId}/result-layout`),
           ),
           fetchQuizRuntimeJson<QuizAttemptResultSnapshot>(
             quizRuntimePublicUrl(`attempts/${attemptPublicId}`),

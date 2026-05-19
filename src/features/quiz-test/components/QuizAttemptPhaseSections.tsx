@@ -15,7 +15,9 @@ import type {
 } from '@/features/quiz-test/types';
 import { Alert, Button, Card, Checkbox, Divider, Space, Tag, Typography } from 'antd';
 import Link from 'next/link';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
+// ==================== Types ====================
 type CommonMetaProps = {
   title: string;
   formPublicId: string;
@@ -30,6 +32,22 @@ type QuizAttemptReadySectionProps = CommonMetaProps & {
   onOpenConfirmStart: () => void;
 };
 
+type QuizAttemptConfirmSectionProps = CommonMetaProps & {
+  errMsg: string | null;
+  rulesAcknowledged: boolean;
+  onRulesAcknowledgedChange: (next: boolean) => void;
+  onBack: () => void;
+  onStart: () => void;
+};
+
+type QuizAttemptDoneSectionProps = CommonMetaProps & {
+  submitResult: SubmitAttemptResponse;
+  attemptHistory: QuizAttemptHistoryItem[];
+  onOpenConfirmStart: () => void;
+  onRefreshHistory: () => Promise<QuizAttemptHistoryItem[]>;
+};
+
+// ==================== Ready Section ====================
 export function QuizAttemptReadySection({
   title,
   formPublicId,
@@ -43,12 +61,14 @@ export function QuizAttemptReadySection({
   return (
     <Card>
       <Space direction="vertical" size="middle" className="w-full max-w-3xl">
+        {/* Header */}
         <Link href="/quiz-test">
           <Button type="default" icon={<ArrowLeftOutlined />} size="small">
             Danh sách đề
           </Button>
         </Link>
 
+        {/* Title */}
         <div>
           <Typography.Text
             type="secondary"
@@ -67,6 +87,7 @@ export function QuizAttemptReadySection({
           </Typography.Title>
         </div>
 
+        {/* Form info */}
         <div>
           <Typography.Text strong>Thông tin đề</Typography.Text>
           <div className="mt-2">
@@ -80,6 +101,7 @@ export function QuizAttemptReadySection({
           </div>
         </div>
 
+        {/* Instructions */}
         {formPayload.instructions?.trim() ? (
           <div>
             <Typography.Text strong>Hướng dẫn</Typography.Text>
@@ -88,11 +110,15 @@ export function QuizAttemptReadySection({
             </div>
           </div>
         ) : (
-          <Typography.Paragraph type="secondary">Không có hướng dẫn thêm.</Typography.Paragraph>
+          <Typography.Paragraph type="secondary">
+            Không có hướng dẫn thêm.
+          </Typography.Paragraph>
         )}
 
+        {/* Error message */}
         {errMsg ? <Alert type="error" message={errMsg} /> : null}
 
+        {/* History */}
         <QuizAttemptHistoryList
           formPublicId={formPublicId}
           rows={attemptHistory}
@@ -100,6 +126,7 @@ export function QuizAttemptReadySection({
           description="Bấm từng dòng để xem chi tiết câu trả lời."
         />
 
+        {/* Start button */}
         <Space>
           {attemptHistory.length > 0 ? (
             <Button color="green" variant="solid" size="large" onClick={onOpenConfirmStart}>
@@ -116,14 +143,7 @@ export function QuizAttemptReadySection({
   );
 }
 
-type QuizAttemptConfirmSectionProps = CommonMetaProps & {
-  errMsg: string | null;
-  rulesAcknowledged: boolean;
-  onRulesAcknowledgedChange: (next: boolean) => void;
-  onBack: () => void;
-  onStart: () => void;
-};
-
+// ==================== Confirm Section ====================
 export function QuizAttemptConfirmSection({
   title,
   formPayload,
@@ -138,20 +158,22 @@ export function QuizAttemptConfirmSection({
   return (
     <Card>
       <Space direction="vertical" size="middle" className="w-full max-w-3xl">
+        {/* Header */}
         <Link href="/quiz-test">
           <Button type="default" icon={<ArrowLeftOutlined />} size="small">
             Danh sách đề
           </Button>
         </Link>
 
+        {/* Title */}
         <Typography.Title level={4} style={{ margin: 0 }}>
           Xác nhận làm bài
         </Typography.Title>
         <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          Bạn sắp bắt đầu một phiên làm bài có giới hạn thời gian. Hãy đảm bảo mạng ổn định và
-          không đóng trình duyệt giữa chừng.
+          Bạn sắp bắt đầu một phiên làm bài có giới hạn thời gian. Hãy đảm bảo mạng ổn định và không đóng trình duyệt giữa chừng.
         </Typography.Paragraph>
 
+        {/* Rules */}
         <Alert
           type="info"
           showIcon
@@ -165,6 +187,7 @@ export function QuizAttemptConfirmSection({
           }
         />
 
+        {/* Form info */}
         <div>
           <Typography.Text strong>Đề</Typography.Text>
           <div className="mt-2">
@@ -181,6 +204,7 @@ export function QuizAttemptConfirmSection({
           </div>
         </div>
 
+        {/* Acknowledge checkbox */}
         <Checkbox
           checked={rulesAcknowledged}
           onChange={(e) => onRulesAcknowledgedChange(e.target.checked)}
@@ -188,8 +212,10 @@ export function QuizAttemptConfirmSection({
           Tôi đã đọc và đồng ý bắt đầu làm bài trong phạm vi thời gian quy định.
         </Checkbox>
 
+        {/* Error message */}
         {errMsg ? <Alert type="error" message={errMsg} /> : null}
 
+        {/* Action buttons */}
         <Space wrap>
           <Button onClick={onBack}>Quay lại</Button>
           <Button type="primary" size="large" disabled={!rulesAcknowledged} onClick={onStart}>
@@ -201,12 +227,7 @@ export function QuizAttemptConfirmSection({
   );
 }
 
-type QuizAttemptDoneSectionProps = CommonMetaProps & {
-  submitResult: SubmitAttemptResponse;
-  attemptHistory: QuizAttemptHistoryItem[];
-  onOpenConfirmStart: () => void;
-};
-
+// ==================== Done Section ====================
 export function QuizAttemptDoneSection({
   title,
   formPublicId,
@@ -216,28 +237,82 @@ export function QuizAttemptDoneSection({
   submitResult,
   attemptHistory,
   onOpenConfirmStart,
+  onRefreshHistory,
 }: QuizAttemptDoneSectionProps) {
+  const [history, setHistory] = useState<QuizAttemptHistoryItem[]>(attemptHistory);
+  const [isReloading, setIsReloading] = useState(false);
+  const hasAutoRefreshedRef = useRef(false);
+
   const isExpired = submitResult.status === 'expired';
   const statusTagColor = getStatusTagColor(submitResult.status);
   const scoreSummary = getScoreSummary(submitResult.grading);
 
+  // Sync history when prop changes (from parent refresh)
+  useEffect(() => {
+    setHistory(attemptHistory);
+  }, [attemptHistory]);
+
+  // Auto-refresh history on mount (after submit)
+  useEffect(() => {
+    if (hasAutoRefreshedRef.current) return;
+    hasAutoRefreshedRef.current = true;
+    void onRefreshHistory().then((newHistory) => {
+      if (newHistory.length > 0) {
+        setHistory(newHistory);
+      }
+    });
+  }, [onRefreshHistory]);
+
+  const handleReload = useCallback(async () => {
+    if (isReloading) return;
+    setIsReloading(true);
+    try {
+      const newHistory = await onRefreshHistory();
+      setHistory(newHistory);
+    } finally {
+      setIsReloading(false);
+    }
+  }, [isReloading, onRefreshHistory]);
+
+  // Determine latest attempt ID for highlighting
+  const latestAttemptId = history[0]?.attemptPublicId ?? null;
+
   return (
     <Card>
       <Space direction="vertical" size="middle" className="w-full">
-        <Link href="/quiz-test">
-          <Button type="default" icon={<ArrowLeftOutlined />} size="small">
-            Danh sách đề
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <Link href="/quiz-test">
+            <Button type="default" icon={<ArrowLeftOutlined />} size="small">
+              Danh sách đề
+            </Button>
+          </Link>
+          <Button
+            type="text"
+            icon={<span className={`${isReloading ? 'animate-spin' : ''}`}>↻</span>}
+            onClick={handleReload}
+            loading={isReloading}
+            size="small"
+            title="Tải lại danh sách bài làm"
+          >
+            {isReloading ? 'Đang tải...' : 'Tải lại'}
           </Button>
-        </Link>
+        </div>
+
+        {/* Title & Status */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Typography.Title level={4} style={{ margin: 0 }}>
             Chi tiết bài làm
           </Typography.Title>
           <Tag color={statusTagColor}>{isExpired ? 'Hết giờ' : 'Đã nộp bài'}</Tag>
         </div>
+
+        {/* Quiz title */}
         <Typography.Title level={5} type="secondary" style={{ margin: 0 }}>
           {title}
         </Typography.Title>
+
+        {/* Form info */}
         <QuizFormMetaBlock
           formType={formPayload.type ?? null}
           catalogKey={formPayload.catalogKey ?? null}
@@ -245,24 +320,36 @@ export function QuizAttemptDoneSection({
           tagKeys={formTagKeys}
           durationSummary={durationSummary}
         />
+
+        {/* Score summary */}
         {scoreSummary ? (
           <Typography.Paragraph style={{ marginBottom: 0, marginTop: 4 }}>
-            Kết quả: <strong>{scoreSummary.correct}</strong> / <strong>{scoreSummary.total}</strong>{' '}
-            câu đúng.
+            Kết quả: <strong>{scoreSummary.correct}</strong> /{' '}
+            <strong>{scoreSummary.total}</strong> câu đúng.
           </Typography.Paragraph>
         ) : null}
+
         <Divider style={{ margin: '8px 0' }} />
+
+        {/* History with highlight for current/latest attempt */}
         <QuizAttemptHistoryList
           formPublicId={formPublicId}
-          rows={attemptHistory}
+          rows={history}
           title="Các bài đã làm"
           vertical
           showScore
+          highlightAttemptId={latestAttemptId}
+          onRefresh={onRefreshHistory}
         />
+
+        {/* Action buttons */}
         <Space wrap>
           <Button color="green" variant="solid" onClick={onOpenConfirmStart}>
             Làm bài mới
           </Button>
+          <Link href={`/quiz-test/${formPublicId}/attempts`}>
+            <Button type="default">Các lần làm khác</Button>
+          </Link>
         </Space>
       </Space>
     </Card>

@@ -32,6 +32,16 @@ import { message as antdMessage } from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Socket } from 'socket.io-client';
 
+function normalizeListeningMap(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const o: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const n = Number(v);
+    if (Number.isFinite(n)) o[String(k)] = n;
+  }
+  return o;
+}
+
 export type QuizAttemptPhase =
   | 'loading_form'
   | 'ready'
@@ -63,6 +73,7 @@ export function useQuizAttemptRuntime({
   const [rulesAcknowledged, setRulesAcknowledged] = useState(false);
   const quizSocketRef = useRef<Socket | null>(null);
   const autoSubmitTriggeredRef = useRef(false);
+  const [listeningRemaining, setListeningRemaining] = useState<Record<string, number>>({});
 
   const loadForm = useCallback(async () => {
     setPhase('loading_form');
@@ -101,6 +112,12 @@ export function useQuizAttemptRuntime({
                 (state.attempt as { answersByFormItemId?: unknown })?.answersByFormItemId,
               ),
             );
+            setListeningRemaining(
+              normalizeListeningMap(
+                (state.attempt as { remainingPlaysByListeningUnit?: unknown })
+                  ?.remainingPlaysByListeningUnit,
+              ),
+            );
             setRemainingSeconds(syncRemainingFromAttempt(merged));
             setPhase('attempting');
             return;
@@ -111,6 +128,7 @@ export function useQuizAttemptRuntime({
           setAttempt(null);
           setAnswers({});
           setRemainingSeconds(REMAINING_UNSET);
+          setListeningRemaining({});
           setSubmitResult({
             ok: true,
             attemptPublicId: attemptId,
@@ -133,6 +151,7 @@ export function useQuizAttemptRuntime({
       setAnswers({});
       setSubmitResult(null);
       setRemainingSeconds(REMAINING_UNSET);
+      setListeningRemaining({});
       setPhase('ready');
     } catch (e) {
       setErrMsg(e instanceof Error ? e.message : 'Không tải được đề.');
@@ -217,6 +236,11 @@ export function useQuizAttemptRuntime({
       }
       const mergedStart = mergeAttemptWithFormPublishedDuration(data, formPayload);
       setAttempt(mergedStart);
+      setListeningRemaining(
+        normalizeListeningMap(
+          (data as { remainingPlaysByListeningUnit?: unknown }).remainingPlaysByListeningUnit,
+        ),
+      );
       autoSubmitTriggeredRef.current = false;
       setRemainingSeconds(syncRemainingFromAttempt(mergedStart));
       if (!data.resumed) setAnswers({});
@@ -263,6 +287,17 @@ export function useQuizAttemptRuntime({
         );
       }
       setSubmitResult(data as SubmitAttemptResponse);
+
+      // Refresh history immediately after submit
+      void refreshHistory().then((newHistory) => {
+        // If the new history has a more recent submission than submitResult, update it
+        const latestSubmitted = newHistory.find(
+          (h) => h.attemptPublicId === (data as SubmitAttemptResponse).attemptPublicId,
+        );
+        if (latestSubmitted?.gradingSummary) {
+          // History already has grading, no need to update
+        }
+      });
 
       const submitted = data as SubmitAttemptResponse;
       const aid = assignmentId;
@@ -341,6 +376,14 @@ export function useQuizAttemptRuntime({
           if (p?.attemptPublicId !== attemptId) return;
           setAnswers((prev) => ({ ...prev, ...normalizeAnswersWsPayload(p.answersByFormItemId) }));
         });
+        sock.on(QUIZ_WS.LISTENING_STATE_SYNC, (payload: unknown) => {
+          const p = payload as {
+            attemptPublicId?: string;
+            remainingPlaysByListeningUnit?: unknown;
+          };
+          if (p?.attemptPublicId !== attemptId) return;
+          setListeningRemaining(normalizeListeningMap(p.remainingPlaysByListeningUnit));
+        });
         const sendJoin = () => {
           sock.emit(QUIZ_WS.JOIN, { attemptPublicId: attemptId }, (ack: unknown) => {
             const a = ack as {
@@ -379,6 +422,43 @@ export function useQuizAttemptRuntime({
     setPhase('confirm_start');
   }, []);
 
+  const reportListeningCycle = useCallback(
+    async (formItemId: string) => {
+      const id = attempt?.attemptPublicId?.trim();
+      if (!id || !formItemId.trim()) return;
+      const url = quizRuntimePublicUrl(`attempts/${id}/listening-cycle`);
+      const { ok, data } = await fetchQuizRuntimeJson<{
+        remainingPlaysByListeningUnit?: unknown;
+      }>(url, {
+        method: 'POST',
+        body: JSON.stringify({ formItemId: formItemId.trim() }),
+      });
+      if (ok) {
+        setListeningRemaining(normalizeListeningMap(data?.remainingPlaysByListeningUnit));
+      }
+    },
+    [attempt?.attemptPublicId],
+  );
+
+  const refreshHistory = useCallback(async () => {
+    const historyUrl = quizRuntimePublicUrl(`forms/${formPublicId}/attempts`);
+    try {
+      const historyRes = await fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
+        historyUrl,
+      );
+      if (historyRes.ok && historyRes.data) {
+        const nextHistory = Array.isArray(historyRes.data.items)
+          ? historyRes.data.items
+          : [];
+        setAttemptHistory(nextHistory);
+        return nextHistory;
+      }
+    } catch {
+      // Silently fail on refresh
+    }
+    return [];
+  }, [formPublicId]);
+
   return {
     phase,
     errMsg,
@@ -396,5 +476,8 @@ export function useQuizAttemptRuntime({
     onAnswerChange,
     handleSubmit,
     openConfirmStart,
+    listeningRemaining,
+    reportListeningCycle,
+    refreshHistory,
   };
 }
