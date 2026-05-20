@@ -24,12 +24,18 @@ type CommonMetaProps = {
   formPayload: QuizPublishedFormPayload;
   formTagKeys: string[];
   durationSummary: string;
+  /** Quay lại danh sách bài tập hoặc ôn luyện */
+  backHref?: string;
 };
 
 type QuizAttemptReadySectionProps = CommonMetaProps & {
   errMsg: string | null;
   attemptHistory: QuizAttemptHistoryItem[];
   onOpenConfirmStart: () => void;
+  assignmentId?: number;
+  canStartNew?: boolean;
+  resultsPageHref?: string | null;
+  startBlockReason?: string | null;
 };
 
 type QuizAttemptConfirmSectionProps = CommonMetaProps & {
@@ -45,6 +51,9 @@ type QuizAttemptDoneSectionProps = CommonMetaProps & {
   attemptHistory: QuizAttemptHistoryItem[];
   onOpenConfirmStart: () => void;
   onRefreshHistory: () => Promise<QuizAttemptHistoryItem[]>;
+  assignmentId?: number;
+  canStartNew?: boolean;
+  resultsPageHref?: string | null;
 };
 
 // ==================== Ready Section ====================
@@ -54,17 +63,22 @@ export function QuizAttemptReadySection({
   formPayload,
   formTagKeys,
   durationSummary,
+  backHref,
   errMsg,
   attemptHistory,
   onOpenConfirmStart,
+  assignmentId,
+  canStartNew = true,
+  resultsPageHref,
+  startBlockReason,
 }: QuizAttemptReadySectionProps) {
   return (
     <Card>
       <Space direction="vertical" size="middle" className="w-full max-w-3xl">
         {/* Header */}
-        <Link href="/quiz-test">
+        <Link href={backHref ?? '/assignments'}>
           <Button type="default" icon={<ArrowLeftOutlined />} size="small">
-            Danh sách đề
+            Quay lại
           </Button>
         </Link>
 
@@ -118,25 +132,46 @@ export function QuizAttemptReadySection({
         {/* Error message */}
         {errMsg ? <Alert type="error" message={errMsg} /> : null}
 
+        {!canStartNew && startBlockReason ? (
+          <Alert type="info" showIcon message={startBlockReason} />
+        ) : null}
+
         {/* History */}
         <QuizAttemptHistoryList
           formPublicId={formPublicId}
-          rows={attemptHistory}
+          rows={attemptHistory.filter(
+            (a) => a.status === 'submitted' || a.status === 'expired',
+          )}
           title="Các lần làm trước"
-          description="Bấm từng dòng để xem chi tiết câu trả lời."
+          description="Bấm từng dòng để xem đáp án, điểm và giải thích."
+          showScore
         />
 
-        {/* Start button */}
-        <Space>
-          {attemptHistory.length > 0 ? (
-            <Button color="green" variant="solid" size="large" onClick={onOpenConfirmStart}>
-              Làm bài mới
-            </Button>
-          ) : (
-            <Button type="primary" size="large" onClick={onOpenConfirmStart}>
-              Bắt đầu làm bài
-            </Button>
-          )}
+        {/* Start / xem kết quả */}
+        <Space wrap>
+          {canStartNew ? (
+            attemptHistory.some((a) => a.status === 'submitted' || a.status === 'expired') ? (
+              <Button color="green" variant="solid" size="large" onClick={onOpenConfirmStart}>
+                Làm bài mới
+              </Button>
+            ) : (
+              <Button type="primary" size="large" onClick={onOpenConfirmStart}>
+                Bắt đầu làm bài
+              </Button>
+            )
+          ) : null}
+          {!canStartNew && resultsPageHref ? (
+            <Link href={resultsPageHref}>
+              <Button type="primary" size="large">
+                Xem kết quả các lần làm
+              </Button>
+            </Link>
+          ) : null}
+          {canStartNew && resultsPageHref && attemptHistory.length > 0 ? (
+            <Link href={resultsPageHref}>
+              <Button size="large">Xem kết quả</Button>
+            </Link>
+          ) : null}
         </Space>
       </Space>
     </Card>
@@ -149,6 +184,7 @@ export function QuizAttemptConfirmSection({
   formPayload,
   formTagKeys,
   durationSummary,
+  backHref,
   errMsg,
   rulesAcknowledged,
   onRulesAcknowledgedChange,
@@ -159,9 +195,9 @@ export function QuizAttemptConfirmSection({
     <Card>
       <Space direction="vertical" size="middle" className="w-full max-w-3xl">
         {/* Header */}
-        <Link href="/quiz-test">
+        <Link href={backHref ?? '/assignments'}>
           <Button type="default" icon={<ArrowLeftOutlined />} size="small">
-            Danh sách đề
+            Quay lại
           </Button>
         </Link>
 
@@ -234,10 +270,14 @@ export function QuizAttemptDoneSection({
   formPayload,
   formTagKeys,
   durationSummary,
+  backHref,
   submitResult,
   attemptHistory,
   onOpenConfirmStart,
   onRefreshHistory,
+  assignmentId,
+  canStartNew = true,
+  resultsPageHref,
 }: QuizAttemptDoneSectionProps) {
   const [history, setHistory] = useState<QuizAttemptHistoryItem[]>(attemptHistory);
   const [isReloading, setIsReloading] = useState(false);
@@ -282,9 +322,9 @@ export function QuizAttemptDoneSection({
       <Space direction="vertical" size="middle" className="w-full">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <Link href="/quiz-test">
+          <Link href={backHref ?? '/assignments'}>
             <Button type="default" icon={<ArrowLeftOutlined />} size="small">
-              Danh sách đề
+              Quay lại
             </Button>
           </Link>
           <Button
@@ -344,12 +384,27 @@ export function QuizAttemptDoneSection({
 
         {/* Action buttons */}
         <Space wrap>
-          <Button color="green" variant="solid" onClick={onOpenConfirmStart}>
-            Làm bài mới
-          </Button>
-          <Link href={`/quiz-test/${formPublicId}/attempts`}>
-            <Button type="default">Các lần làm khác</Button>
-          </Link>
+          {submitResult.attemptPublicId ? (
+            <Link
+              href={`/quiz-test/${formPublicId}/attempts/${submitResult.attemptPublicId}`}
+            >
+              <Button type="primary">Xem chi tiết lần vừa nộp</Button>
+            </Link>
+          ) : null}
+          {canStartNew ? (
+            <Button color="green" variant="solid" onClick={onOpenConfirmStart}>
+              Làm bài mới
+            </Button>
+          ) : null}
+          {resultsPageHref ? (
+            <Link href={resultsPageHref}>
+              <Button type="default">Các lần làm khác</Button>
+            </Link>
+          ) : (
+            <Link href={`/quiz-test/${formPublicId}`}>
+              <Button type="default">Quay lại đề</Button>
+            </Link>
+          )}
         </Space>
       </Space>
     </Card>

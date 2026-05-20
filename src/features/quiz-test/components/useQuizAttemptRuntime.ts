@@ -26,14 +26,15 @@ import {
   postQuizResultSync,
 } from '@/lib/quiz-assignment-crm';
 import { QuizAssignmentUiMessages } from '@/lib/quiz-assignment-ui-messages';
+import { normalizeQuizAttemptHistoryItems } from '@/features/quiz-test/lib/quiz-attempt-history';
 import {
-  mergeAttemptWithFormPublishedDuration,
   normalizeAttemptAnswers,
   toValidAttemptPayload,
   syncRemainingFromAttempt,
   REMAINING_UNSET,
   getAttemptTimerValidity,
 } from '@/features/quiz-test/lib/quiz-runtime-view';
+import { mergeAttemptWithFormPublishedDuration } from '@/features/quiz-test/lib/quiz-attempt-merge';
 import {
   QUIZ_WS,
   connectQuizRuntimeSocket,
@@ -60,7 +61,23 @@ type UseQuizAttemptRuntimeArgs = {
   formPublicId: string;
   /** Khi mở từ bài tập — sau nộp gọi CRM đồng bộ điểm */
   assignmentId?: number;
+  /** Ôn luyện — `?mode=practice` trên proxy + snapshot */
+  practiceMode?: boolean;
 };
+
+function quizRuntimeQuerySuffix(
+  assignmentId?: number,
+  practiceMode?: boolean,
+): string {
+  const sp = new URLSearchParams();
+  if (assignmentId != null && assignmentId >= 1) {
+    sp.set('assignmentId', String(assignmentId));
+  } else if (practiceMode) {
+    sp.set('mode', 'practice');
+  }
+  const q = sp.toString();
+  return q ? `?${q}` : '';
+}
 
 // ============================================================================
 // Utility Functions
@@ -83,7 +100,9 @@ function normalizeListeningMap(raw: unknown): Record<string, number> {
 export function useQuizAttemptRuntime({
   formPublicId,
   assignmentId,
+  practiceMode,
 }: UseQuizAttemptRuntimeArgs) {
+  const querySuffix = quizRuntimeQuerySuffix(assignmentId, practiceMode);
   // Core state
   const [phase, setPhase] = useState<QuizAttemptPhase>('loading_form');
   const [errMsg, setErrMsg] = useState<string | null>(null);
@@ -108,7 +127,7 @@ export function useQuizAttemptRuntime({
     setPhase('loading_form');
     setErrMsg(null);
 
-    const url = quizRuntimePublicUrl(`forms/${formPublicId}`);
+    const url = quizRuntimePublicUrl(`forms/${formPublicId}${querySuffix}`);
 
     try {
       const { ok, status, data } = await fetchQuizRuntimeJson<
@@ -128,16 +147,14 @@ export function useQuizAttemptRuntime({
       // Fetch active attempt and history in parallel
       const [active, historyRes] = await Promise.all([
         fetchQuizRuntimeJson<QuizAttemptStateResponse>(
-          quizRuntimePublicUrl(`forms/${formPublicId}/active-attempt`),
+          quizRuntimePublicUrl(`forms/${formPublicId}/active-attempt${querySuffix}`),
         ),
         fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
-          quizRuntimePublicUrl(`forms/${formPublicId}/attempts`),
+          quizRuntimePublicUrl(`forms/${formPublicId}/attempts${querySuffix}`),
         ),
       ]);
 
-      const nextHistory = Array.isArray(historyRes.data?.items)
-        ? historyRes.data.items
-        : [];
+      const nextHistory = normalizeQuizAttemptHistoryItems(historyRes.data?.items);
       setAttemptHistory(nextHistory);
 
       // Handle active attempt state
@@ -206,7 +223,7 @@ export function useQuizAttemptRuntime({
       setErrMsg(e instanceof Error ? e.message : 'Không tải được đề.');
       setPhase('error');
     }
-  }, [formPublicId]);
+  }, [formPublicId, querySuffix]);
 
   useEffect(() => {
     void loadForm();
@@ -281,7 +298,7 @@ export function useQuizAttemptRuntime({
     setPhase('starting');
     setErrMsg(null);
 
-    const url = quizRuntimePublicUrl(`forms/${formPublicId}/attempts`);
+    const url = quizRuntimePublicUrl(`forms/${formPublicId}/attempts${querySuffix}`);
 
     try {
       // Check eligibility if from assignment
@@ -293,12 +310,15 @@ export function useQuizAttemptRuntime({
       }
 
       // Start attempt
-      const startBody =
+      const snapshot =
         assignmentId != null && assignmentId >= 1
-          ? JSON.stringify({
-              participantSnapshot: { assignmentId },
-            })
-          : JSON.stringify({});
+          ? { assignmentId }
+          : practiceMode
+            ? { mode: 'practice' as const }
+            : undefined;
+      const startBody = snapshot
+        ? JSON.stringify({ participantSnapshot: snapshot })
+        : JSON.stringify({});
 
       const { ok, status, data } = await fetchQuizRuntimeJson<
         StartAttemptResponse & { message?: string }
@@ -331,7 +351,7 @@ export function useQuizAttemptRuntime({
       setErrMsg(e instanceof Error ? e.message : 'Không tạo phiên làm bài được.');
       setPhase('confirm_start');
     }
-  }, [assignmentId, formPayload, formPublicId]);
+  }, [assignmentId, formPayload, formPublicId, practiceMode, querySuffix]);
 
   // ============================================================================
   // Answer Change Handler
@@ -573,15 +593,13 @@ export function useQuizAttemptRuntime({
   );
 
   const refreshHistory = useCallback(async () => {
-    const historyUrl = quizRuntimePublicUrl(`forms/${formPublicId}/attempts`);
+    const historyUrl = quizRuntimePublicUrl(`forms/${formPublicId}/attempts${querySuffix}`);
     try {
       const historyRes = await fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
         historyUrl,
       );
       if (historyRes.ok && historyRes.data) {
-        const nextHistory = Array.isArray(historyRes.data.items)
-          ? historyRes.data.items
-          : [];
+        const nextHistory = normalizeQuizAttemptHistoryItems(historyRes.data.items);
         setAttemptHistory(nextHistory);
         return nextHistory;
       }
@@ -589,7 +607,7 @@ export function useQuizAttemptRuntime({
       // Silently fail on refresh
     }
     return [];
-  }, [formPublicId]);
+  }, [formPublicId, querySuffix]);
 
   // ============================================================================
   // Return

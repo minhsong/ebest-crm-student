@@ -80,6 +80,23 @@ export function normalizeMcqMultipleValue(value: unknown): string[] | undefined 
   return ids.length ? ids : undefined;
 }
 
+/** So khớp option id (opt_a, A, a…) khi hiển thị đáp án đúng trên kết quả. */
+export function quizOptionIdsMatch(optionId: string, candidateId: string): boolean {
+  const a = String(optionId).trim().toLowerCase();
+  const b = String(candidateId).trim().toLowerCase();
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const strip = (s: string) => s.replace(/^opt[_-]?/i, '');
+  return strip(a) === strip(b);
+}
+
+export function quizOptionIsCorrect(
+  optionId: string,
+  correctOptionIds: string[],
+): boolean {
+  return correctOptionIds.some((id) => quizOptionIdsMatch(optionId, id));
+}
+
 /** Giá trị ô điền — một chuỗi (REST/WS có thể trả string hoặc mảng một phần tử). */
 export function normalizeFillInBlankValue(value: unknown): string {
   if (typeof value === 'string') return value;

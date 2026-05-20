@@ -6,6 +6,7 @@ import type { QuizFormItemPayload } from '@/features/quiz-test/types';
 import {
   extractQuizAudioTracks,
 } from '@/features/quiz-test/lib/quiz-content-audio';
+import type { QuizGradingPerItem } from '@/features/quiz-test/lib/quiz-runtime-view';
 import { listeningUnitHasAutoplayEligibleAudio } from '@/features/quiz-test/lib/quiz-listening-rules';
 import { quizAnchorDomId } from '@/features/quiz-test/lib/quiz-section-navigation';
 import { Card, Typography } from 'antd';
@@ -25,6 +26,8 @@ export type QuizQuestionBundleCardProps = {
   readOnly: boolean;
   onAnswerChange?: (formItemId: string, next: string | string[]) => void;
   correctByFormItemId?: Record<string, boolean>;
+  /** Detailed grading per item (includes correctOptionIds, selectedOptionIds) */
+  gradingPerItem?: Record<string, QuizGradingPerItem | undefined>;
   listeningUnitKey?: string;
   listeningRemaining?: number;
   reportListeningCycle?: (formItemKey: string) => Promise<void>;
@@ -47,6 +50,7 @@ export const QuizQuestionBundleCard = memo(function QuizQuestionBundleCard({
   readOnly,
   onAnswerChange,
   correctByFormItemId,
+  gradingPerItem,
   listeningUnitKey,
   listeningRemaining,
   reportListeningCycle,
@@ -119,6 +123,7 @@ export const QuizQuestionBundleCard = memo(function QuizQuestionBundleCard({
             readOnly={readOnly}
             onAnswerChange={onAnswerChange}
             isCorrect={correctByFormItemId?.[String(row.formItemId)]}
+            grading={gradingPerItem?.[String(row.formItemId)]}
             scrollAnchorId={quizAnchorDomId(String(row.formItemId))}
             listeningHighlight={listeningHighlight}
             showExplanation={showExplanation}

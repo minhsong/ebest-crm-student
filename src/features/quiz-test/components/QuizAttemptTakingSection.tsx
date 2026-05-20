@@ -41,6 +41,7 @@ export type QuizAttemptTakingSectionProps = {
   onNavigateToBlock?: (sectionId: number | null, anchorKey: string) => void;
   /** Báo portal khi khóa/mở chuyển phần (URL) vì lượt nghe. */
   onListeningNavLock?: (locked: boolean) => void;
+  backHref?: string;
 };
 
 export function QuizAttemptTakingSection({
@@ -65,6 +66,7 @@ export function QuizAttemptTakingSection({
   activeAnchorKey,
   onNavigateToBlock,
   onListeningNavLock,
+  backHref,
 }: QuizAttemptTakingSectionProps) {
   const [outlineOpen, setOutlineOpen] = useState(true);
   const [listeningHighlightKey, setListeningHighlightKey] = useState<string | null>(null);
@@ -145,9 +147,9 @@ export function QuizAttemptTakingSection({
       {timerOk ? <QuizAttemptTimerBar remainingSeconds={remainingSeconds} /> : null}
 
       <div className="flex flex-col gap-3 px-4 pb-4 pt-4 md:px-6">
-        <Link href="/quiz-test">
+        <Link href={backHref ?? '/assignments'}>
           <Button type="default" icon={<ArrowLeftOutlined />} size="small">
-            Danh sách đề
+            Quay lại
           </Button>
         </Link>
         <Typography.Title level={4} style={{ margin: 0 }}>

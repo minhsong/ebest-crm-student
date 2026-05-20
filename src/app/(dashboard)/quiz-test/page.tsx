@@ -1,12 +1,6 @@
-import { buildPageMetadata } from '@/lib/metadata';
-import { QuizTestListClient } from '@/features/quiz-test';
+import { redirect } from 'next/navigation';
 
-export const metadata = buildPageMetadata({
-  title: 'Quiz test',
-  description: 'Danh sách đề làm kiểm tra / ôn tập.',
-  path: '/quiz-test',
-});
-
-export default function QuizTestPage() {
-  return <QuizTestListClient />;
+/** Catalog quiz công khai đã bỏ — chuyển sang Ôn luyện / Bài tập. */
+export default function QuizTestListRedirectPage() {
+  redirect('/practice-quizzes');
 }

@@ -1,36 +1,23 @@
 'use client';
 
-import { fetchQuizRuntimeJson } from '@/features/quiz-test/lib/quiz-runtime-http';
-import { quizRuntimePublicUrl } from '@/features/quiz-test/quiz-gateway-browser';
-import type { QuizPublishedFormPayload } from '@/features/quiz-test/types';
+import { fetchQuizAttemptResultBundle } from '@/lib/quiz-attempt-result-bundle';
 import { useEffect, useState } from 'react';
 
-export type QuizAttemptResultSnapshot = {
-  attemptPublicId: string;
-  formPublicId: string;
-  status: string;
-  answersByFormItemId?: Record<string, unknown>;
-  startedAt?: string;
-  submittedAt?: string | null;
-  expiresAt?: string;
-  grading?: {
-    summary?: {
-      totalQuestions?: number;
-      correctCount?: number;
-    };
-    items?: Array<{
-      formItemId?: string | number;
-      isCorrect?: boolean;
-    }>;
-  } | null;
-};
+export type { QuizAttemptResultSnapshot } from '@/features/quiz-test/types/quiz-attempt-result';
 
+/**
+ * @deprecated Trang kết quả nên dùng `useQuizAttemptResultPage` (một bundle, ít request hơn).
+ */
 export function useQuizAttemptResultData(
   formPublicId: string,
   attemptPublicId: string,
 ) {
-  const [formPayload, setFormPayload] = useState<QuizPublishedFormPayload | null>(null);
-  const [attempt, setAttempt] = useState<QuizAttemptResultSnapshot | null>(null);
+  const [formPayload, setFormPayload] = useState(
+    null as import('@/features/quiz-test/types').QuizPublishedFormPayload | null,
+  );
+  const [attempt, setAttempt] = useState(
+    null as import('@/features/quiz-test/types/quiz-attempt-result').QuizAttemptResultSnapshot | null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -40,23 +27,14 @@ export function useQuizAttemptResultData(
       setLoading(true);
       setError(null);
       try {
-        const [formRes, attemptRes] = await Promise.all([
-          fetchQuizRuntimeJson<QuizPublishedFormPayload>(
-            quizRuntimePublicUrl(`forms/${formPublicId}/result-layout`),
-          ),
-          fetchQuizRuntimeJson<QuizAttemptResultSnapshot>(
-            quizRuntimePublicUrl(`attempts/${attemptPublicId}`),
-          ),
-        ]);
-        if (!formRes.ok || !attemptRes.ok) {
-          throw new Error('Không tải được kết quả bài làm.');
-        }
+        const bundle = await fetchQuizAttemptResultBundle(formPublicId, attemptPublicId);
         if (cancelled) return;
-        setFormPayload(formRes.data);
-        setAttempt(attemptRes.data);
+        setFormPayload(bundle.formPayload);
+        setAttempt(bundle.attempt);
       } catch (e) {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : 'Không tải được kết quả.');
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : 'Không tải được kết quả bài làm.');
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -64,7 +42,7 @@ export function useQuizAttemptResultData(
     return () => {
       cancelled = true;
     };
-  }, [attemptPublicId, formPublicId]);
+  }, [formPublicId, attemptPublicId]);
 
   return { formPayload, attempt, error, loading };
 }

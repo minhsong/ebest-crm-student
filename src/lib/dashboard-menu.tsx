@@ -14,6 +14,7 @@ import {
   CalendarOutlined,
   QuestionCircleOutlined,
   FormOutlined,
+  FileDoneOutlined,
 } from '@ant-design/icons';
 
 export interface DashboardMenuClassItem {
@@ -79,9 +80,16 @@ export const DASHBOARD_MENU_ENTRIES: DashboardMenuEntry[] = [
   },
   {
     type: 'link',
-    key: 'quiz-test',
-    path: '/quiz-test',
-    label: 'Quiz test',
+    key: 'assignments',
+    path: '/assignments',
+    label: 'Bài tập',
+    icon: <FileDoneOutlined />,
+  },
+  {
+    type: 'link',
+    key: 'practice-quizzes',
+    path: '/practice-quizzes',
+    label: 'Ôn luyện',
     icon: <FormOutlined />,
   },
   { type: 'divider', key: 'divider-after-main' },
@@ -190,7 +198,9 @@ const PATH_LABELS: Record<string, string> = {
   '/schedule': 'Lịch học',
   '/invoices': 'Hóa Đơn',
   '/qa': 'Hỏi đáp',
-  '/quiz-test': 'Quiz test',
+  '/assignments': 'Bài tập',
+  '/practice-quizzes': 'Ôn luyện',
+  '/quiz-test': 'Làm bài',
 };
 
 /**

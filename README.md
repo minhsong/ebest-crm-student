@@ -83,7 +83,9 @@ Tạo `.env.local` từ `.env.local.example` và cấu hình:
 
 ## Tài liệu Test Quiz & bài tập (monorepo CRM)
 
-Logic runtime, BFF proxy và chấm điểm được mô tả tập trung trong API docs (tránh copy sang repo này):
+**Đọc canonical (không copy logic sang repo này):**
 
-- `ebest-crm-api/docs/modules/test-quiz/TEST_QUIZ_TECHNICAL_SPEC_MVP.md` — spec kỹ thuật (Gateway + grading, gồm `fill_in_blank`).
-- `ebest-crm-api/docs/modules/assignments/ASSIGNMENT_TEST_ONLINE_LINK_SPEC.md` — bài tập **QUIZ** + liên kết đề, đồng bộ `assignment_result` (§5/§11 as-built).
+- **[TEST_FORM_SCOPE_DELIVERY_AND_ACCESS.md](../ebest-crm-api/docs/modules/test-quiz/TEST_FORM_SCOPE_DELIVERY_AND_ACCESS.md)** ⭐ — phạm vi khóa/buổi, bài tập vs ôn luyện, menu Portal, authorize
+- [IMPLEMENTATION_TRACKING_SCOPE_DELIVERY.md](../ebest-crm-api/docs/modules/test-quiz/IMPLEMENTATION_TRACKING_SCOPE_DELIVERY.md) — checklist triển khai
+- [TEST_QUIZ_TECHNICAL_SPEC_MVP.md](../ebest-crm-api/docs/modules/test-quiz/TEST_QUIZ_TECHNICAL_SPEC_MVP.md) — runtime, grading
+- [ASSIGNMENT_TEST_ONLINE_LINK_SPEC.md](../ebest-crm-api/docs/modules/assignments/ASSIGNMENT_TEST_ONLINE_LINK_SPEC.md) — sync `assignment_result`

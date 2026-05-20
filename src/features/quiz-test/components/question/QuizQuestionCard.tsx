@@ -1,11 +1,10 @@
 'use client';
 
+import { RightCircleOutlined, SoundFilled } from '@ant-design/icons';
 import {
-  CheckCircleFilled,
-  CloseCircleFilled,
-  RightCircleOutlined,
-  SoundFilled,
-} from '@ant-design/icons';
+  QuizResultCorrectIcon,
+  QuizResultWrongIcon,
+} from '@/features/quiz-test/components/question/quiz-result-icons';
 import { QaArticleHtml } from '@/features/qa/components/QaArticleHtml';
 import type { QuizFormItemPayload } from '@/features/quiz-test/types';
 import {
@@ -14,10 +13,11 @@ import {
   normalizeMcqSingleValue,
 } from '@/features/quiz-test/question-view';
 import { buildQuizQuestionViewModel } from '@/features/quiz-test/lib/quiz-question-model';
+import type { QuizGradingPerItem } from '@/features/quiz-test/lib/quiz-runtime-view';
 import { extractQuizAudioTracks } from '@/features/quiz-test/lib/quiz-content-audio';
 import { listeningUnitHasAutoplayEligibleAudio } from '@/features/quiz-test/lib/quiz-listening-rules';
-import { Button, Card, Space, Typography } from 'antd';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { Button, Card, Space, Tooltip, Typography } from 'antd';
+import { memo, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 
 import { QuizHiddenListeningPlayer } from './QuizHiddenListeningPlayer';
@@ -38,6 +38,8 @@ export type QuizQuestionCardProps = {
   unsupportedHint?: string;
   /** `true` đúng, `false` sai, `undefined` không hiển thị icon. */
   isCorrect?: boolean;
+  /** Detailed grading info (includes correctOptionIds, selectedOptionIds) for result display */
+  grading?: QuizGradingPerItem;
   /** Audio câu đơn — chỉ khi `readOnly === false` và có `reportListeningCycle`. */
   questionContent?: Record<string, unknown> | null;
   listeningUnitKey?: string;
@@ -77,6 +79,7 @@ export const QuizQuestionCard = memo(function QuizQuestionCard({
   onAnswerChange,
   unsupportedHint,
   isCorrect,
+  grading,
   questionContent,
   listeningUnitKey,
   listeningRemaining,
@@ -86,11 +89,15 @@ export const QuizQuestionCard = memo(function QuizQuestionCard({
   embedListeningPlayer = true,
   showExplanation = false,
 }: QuizQuestionCardProps) {
-  const [showExplanationDetail, setShowExplanationDetail] = useState(false);
   const model = useMemo(
     () => buildQuizQuestionViewModel(row, questionIndex),
     [row, questionIndex],
   );
+
+  // Chế độ xem kết quả: tô đúng/sai + icon (cần readOnly; grading hoặc isCorrect từ API)
+  const showResult =
+    readOnly &&
+    (grading !== undefined || typeof isCorrect === 'boolean');
 
   const contentForAudio = questionContent ?? row.questionSnapshot?.content;
 
@@ -115,10 +122,6 @@ export const QuizQuestionCard = memo(function QuizQuestionCard({
   const handleListeningRoundDone = useCallback(() => {
     void reportListeningCycle?.(listeningKey);
   }, [listeningKey, reportListeningCycle]);
-
-  const toggleExplanation = useCallback(() => {
-    setShowExplanationDetail((prev) => !prev);
-  }, []);
 
   if (!model) return null;
 
@@ -167,6 +170,8 @@ export const QuizQuestionCard = memo(function QuizQuestionCard({
                     onAnswerChange?.(model.formItemId, id);
                   }
             }
+            correctOptionIds={grading?.correctOptionIds ?? []}
+            showResult={showResult}
           />
         </div>
       );
@@ -186,6 +191,8 @@ export const QuizQuestionCard = memo(function QuizQuestionCard({
                     onAnswerChange?.(model.formItemId, ids);
                   }
             }
+            correctOptionIds={grading?.correctOptionIds ?? []}
+            showResult={showResult}
           />
         </div>
       );
@@ -205,6 +212,8 @@ export const QuizQuestionCard = memo(function QuizQuestionCard({
                     onAnswerChange?.(model.formItemId, next);
                   }
             }
+            showResult={showResult}
+            isCorrect={grading?.isCorrect ?? isCorrect}
           />
         </div>
       );
@@ -218,54 +227,60 @@ export const QuizQuestionCard = memo(function QuizQuestionCard({
     (model.explanation.length > 0 ||
       Object.values(model.optionExplanations).some((e) => e.length > 0));
 
-  // Render explanation panel
-  const renderExplanationPanel = () => {
-    if (!showExplanationDetail || !hasExplanationContent) return null;
+  // Build explanation tooltip content
+  const explanationTooltipContent = useMemo(() => {
+    if (!hasExplanationContent) return null;
 
-    return (
-      <div className="mt-4 rounded-md bg-blue-50 p-3 border border-blue-200">
-        <Typography.Text strong className="text-blue-700 text-sm">
-          Giải thích
-        </Typography.Text>
+    const parts: ReactNode[] = [];
 
-        {model.explanation ? (
-          <div className="mt-2 text-sm text-gray-700">
+    if (model.explanation) {
+      parts.push(
+        <div key="question-explanation" className="mb-3">
+          <Typography.Text strong className="text-blue-700 text-sm">
+            Giải thích câu hỏi:
+          </Typography.Text>
+          <div className="mt-1 text-sm text-gray-700">
             <QaArticleHtml html={model.explanation} />
           </div>
-        ) : null}
+        </div>
+      );
+    }
 
-        {Object.keys(model.optionExplanations).length > 0 && (
-          <div className="mt-3 space-y-2">
+    if (Object.keys(model.optionExplanations).length > 0) {
+      const optionParts = optionsWithExplanations
+        .filter((opt) => model.optionExplanations[opt.id])
+        .map((opt) => (
+          <div key={opt.id} className="flex items-start gap-2 text-sm mb-2">
+            <Typography.Text className="mt-0.5 flex-shrink-0">
+              {opt.isSelected ? (
+                <RightCircleOutlined className="text-green-600" />
+              ) : (
+                <span className="w-4 h-4 inline-block" />
+              )}
+            </Typography.Text>
+            <div>
+              <Typography.Text type="secondary">{opt.html}</Typography.Text>
+              <div className="text-gray-600 text-xs mt-0.5">
+                <QaArticleHtml html={model.optionExplanations[opt.id]} />
+              </div>
+            </div>
+          </div>
+        ));
+
+      if (optionParts.length > 0) {
+        parts.push(
+          <div key="option-explanations">
             <Typography.Text strong className="text-xs text-gray-600">
               Giải thích các lựa chọn:
             </Typography.Text>
-            {optionsWithExplanations.map((opt) => {
-              const optExplanation = model.optionExplanations[opt.id];
-              if (!optExplanation) return null;
-
-              return (
-                <div key={opt.id} className="flex items-start gap-2 text-sm">
-                  <Typography.Text className="mt-0.5 flex-shrink-0">
-                    {opt.isSelected ? (
-                      <RightCircleOutlined className="text-green-600" />
-                    ) : (
-                      <span className="w-4 h-4 inline-block" />
-                    )}
-                  </Typography.Text>
-                  <div>
-                    <Typography.Text type="secondary">{opt.html}</Typography.Text>
-                    <div className="text-gray-600 text-xs mt-0.5">
-                      <QaArticleHtml html={optExplanation} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {optionParts}
           </div>
-        )}
-      </div>
-    );
-  };
+        );
+      }
+    }
+
+    return parts.length > 0 ? <div className="max-w-md">{parts}</div> : null;
+  }, [hasExplanationContent, model.explanation, model.optionExplanations, optionsWithExplanations]);
 
   const card = (
     <Card
@@ -276,21 +291,39 @@ export const QuizQuestionCard = memo(function QuizQuestionCard({
           : 'border-neutral-200 hover:border-neutral-300'
       }
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-start justify-between gap-3 w-full">
         <Typography.Text
           strong
           className={listeningHighlight ? 'text-red-600' : undefined}
         >
           {model.heading}
         </Typography.Text>
-        {isCorrect === true ? (
-          <CheckCircleFilled className="text-base text-green-600" />
-        ) : isCorrect === false ? (
-          <CloseCircleFilled className="text-base text-red-600" />
-        ) : null}
-        {listeningHighlight ? (
-          <SoundFilled className="text-base text-red-500 animate-pulse" title="Đang phát âm thanh" />
-        ) : null}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {showResult && isCorrect === true ? (
+            <QuizResultCorrectIcon size={20} aria-label="Trả lời đúng" />
+          ) : showResult && isCorrect === false ? (
+            <QuizResultWrongIcon size={20} aria-label="Trả lời sai" />
+          ) : null}
+          {listeningHighlight ? (
+            <SoundFilled className="text-base text-red-500 animate-pulse" title="Đang phát âm thanh" />
+          ) : null}
+          {hasExplanationContent && explanationTooltipContent ? (
+            <Tooltip title={explanationTooltipContent} placement="top" trigger="hover">
+              <span className="cursor-help text-blue-500 hover:text-blue-700">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="currentColor"
+                  aria-hidden
+                >
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+                </svg>
+              </span>
+            </Tooltip>
+          ) : null}
+        </div>
       </div>
       <div className="mt-3">
         <QaArticleHtml html={model.stemHtml} />
@@ -303,22 +336,6 @@ export const QuizQuestionCard = memo(function QuizQuestionCard({
         />
       ) : null}
       {body}
-
-      {/* Explanation button - only in result view with explanation content */}
-      {hasExplanationContent && (
-        <div className="mt-3">
-          <Button
-            type="link"
-            size="small"
-            onClick={toggleExplanation}
-            className="text-blue-600 p-0 h-auto"
-          >
-            {showExplanationDetail ? 'Ẩn giải thích' : 'Xem giải thích'}
-          </Button>
-        </div>
-      )}
-
-      {renderExplanationPanel()}
     </Card>
   );
 

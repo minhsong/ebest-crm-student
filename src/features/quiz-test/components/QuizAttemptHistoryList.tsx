@@ -24,8 +24,8 @@ export type QuizAttemptHistoryListProps = {
   showScore?: boolean;
   /** Attempt ID đang được highlight (attempt hiện tại đang xem) */
   highlightAttemptId?: string | null;
-  /** Callback để refresh danh sách */
-  onRefresh?: () => Promise<void>;
+  /** Callback để refresh danh sách - trả về data mới để update state */
+  onRefresh?: () => Promise<QuizAttemptHistoryItem[]>;
 };
 
 /**

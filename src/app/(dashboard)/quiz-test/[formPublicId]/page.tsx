@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
-import { QuizAttemptClient } from '@/features/quiz-test';
+import { QuizAttemptEntryClient } from '@/features/quiz-test/components/QuizAttemptEntryClient';
 import { buildPageMetadata } from '@/lib/metadata';
 import { Card, Skeleton } from 'antd';
 
@@ -18,17 +18,23 @@ export default function QuizTestAttemptPage({
   searchParams,
 }: {
   params: { formPublicId: string };
-  searchParams?: { assignmentId?: string; section?: string; question?: string };
+  searchParams?: {
+    section?: string;
+    question?: string;
+    /** Legacy — không dùng; giữ để link cũ không 404 */
+    assignmentId?: string;
+    mode?: string;
+  };
 }) {
-  const raw = searchParams?.assignmentId;
-  const assignmentId =
-    typeof raw === 'string' && /^\d+$/.test(raw) ? Number(raw) : undefined;
   const secRaw = searchParams?.section;
   const initialSectionId =
     typeof secRaw === 'string' && /^\d+$/.test(secRaw) ? Number(secRaw) : undefined;
   const qRaw = searchParams?.question;
   const initialQuestionKey =
     typeof qRaw === 'string' && qRaw.trim() !== '' ? qRaw : undefined;
+
+  const preferPractice = searchParams?.mode === 'practice';
+
   return (
     <Suspense
       fallback={
@@ -37,9 +43,9 @@ export default function QuizTestAttemptPage({
         </Card>
       }
     >
-      <QuizAttemptClient
+      <QuizAttemptEntryClient
         formPublicId={params.formPublicId}
-        assignmentId={assignmentId}
+        preferPractice={preferPractice}
         initialSectionId={initialSectionId}
         initialQuestionKey={initialQuestionKey}
       />

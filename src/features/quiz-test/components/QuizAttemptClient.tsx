@@ -25,6 +25,8 @@ import {
   buildBlockStartIndexes,
 } from '@/features/quiz-test/lib/quiz-runtime-view';
 import { useQuizAttemptRuntime } from '@/features/quiz-test/components/useQuizAttemptRuntime';
+import { useAssignmentQuizAction } from '@/features/quiz-test/hooks/useAssignmentQuizAction';
+import { filterSubmittedAttemptsForAssignment } from '@/features/quiz-test/lib/quiz-attempt-history';
 import type {
   QuizFormSectionPayload,
   QuizFormItemPayload,
@@ -56,6 +58,7 @@ function blocksEqual(a: QuizRenderableBlock, b: QuizRenderableBlock): boolean {
 export function QuizAttemptClient({
   formPublicId,
   assignmentId,
+  practiceMode,
   initialSummary,
   initialSectionId,
   initialQuestionKey,
@@ -63,6 +66,7 @@ export function QuizAttemptClient({
   formPublicId: string;
   /** Từ query `?assignmentId=` khi vào đề từ bài tập — đồng bộ điểm sau submit. */
   assignmentId?: number;
+  practiceMode?: boolean;
   initialSummary?: QuizPublishedFormSummary | null;
   /** Từ query `?section=` — id section CRM. */
   initialSectionId?: number;
@@ -105,7 +109,16 @@ export function QuizAttemptClient({
     listeningRemaining,
     reportListeningCycle,
     refreshHistory,
-  } = useQuizAttemptRuntime({ formPublicId, assignmentId });
+  } = useQuizAttemptRuntime({ formPublicId, assignmentId, practiceMode });
+
+  const assignmentAction = useAssignmentQuizAction(
+    assignmentId != null ? formPublicId : null,
+    assignmentId,
+  );
+  const assignmentHistoryForList = useMemo(() => {
+    if (assignmentId == null || assignmentId < 1) return attemptHistory;
+    return filterSubmittedAttemptsForAssignment(attemptHistory, assignmentId);
+  }, [assignmentId, attemptHistory]);
 
   const renderBlocks = useMemo(
     (): QuizRenderableBlock[] => buildQuizRenderableBlocks(formPayload),
@@ -286,7 +299,7 @@ export function QuizAttemptClient({
     return (
       <Card>
         <Space direction="vertical" size="middle" className="w-full">
-          <Link href="/quiz-test">
+          <Link href={practiceMode ? '/practice-quizzes' : '/assignments'}>
             <Button type="default" size="small" icon={<ArrowLeftOutlined />}>
               Danh sách đề
             </Button>
@@ -298,6 +311,8 @@ export function QuizAttemptClient({
     );
   }
 
+  const backHref = practiceMode ? '/practice-quizzes' : '/assignments';
+
   if (phase === 'ready') {
     return (
       <QuizAttemptReadySection
@@ -306,9 +321,20 @@ export function QuizAttemptClient({
         formPayload={formPayload}
         formTagKeys={formTagKeys}
         durationSummary={durationSummary}
+        backHref={backHref}
         errMsg={errMsg}
-        attemptHistory={attemptHistory}
+        attemptHistory={assignmentHistoryForList}
         onOpenConfirmStart={openConfirmStart}
+        assignmentId={assignmentId}
+        canStartNew={
+          assignmentId == null || assignmentAction.loading || assignmentAction.canStart
+        }
+        resultsPageHref={
+          assignmentId != null && assignmentAction.canViewResults
+            ? assignmentAction.resultsPageHref
+            : null
+        }
+        startBlockReason={assignmentAction.startBlockReason}
       />
     );
   }
@@ -321,6 +347,7 @@ export function QuizAttemptClient({
         formPayload={formPayload}
         formTagKeys={formTagKeys}
         durationSummary={durationSummary}
+        backHref={backHref}
         errMsg={errMsg}
         rulesAcknowledged={rulesAcknowledged}
         onRulesAcknowledgedChange={setRulesAcknowledged}
@@ -338,10 +365,20 @@ export function QuizAttemptClient({
         formPayload={formPayload}
         formTagKeys={formTagKeys}
         durationSummary={durationSummary}
+        backHref={backHref}
         submitResult={submitResult}
-        attemptHistory={attemptHistory}
+        attemptHistory={assignmentHistoryForList}
         onOpenConfirmStart={openConfirmStart}
         onRefreshHistory={refreshHistory}
+        assignmentId={assignmentId}
+        canStartNew={
+          assignmentId == null || assignmentAction.loading || assignmentAction.canStart
+        }
+        resultsPageHref={
+          assignmentId != null && assignmentAction.canViewResults
+            ? assignmentAction.resultsPageHref
+            : null
+        }
       />
     );
   }
@@ -351,6 +388,7 @@ export function QuizAttemptClient({
       title={title}
       formPayload={formPayload}
       formTagKeys={formTagKeys}
+      backHref={backHref}
       errMsg={errMsg}
       attempt={attempt}
       remainingSeconds={remainingSeconds}

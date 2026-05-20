@@ -12,6 +12,7 @@ import {
   Tag,
   Flex,
   Card,
+  Alert,
   theme,
   message,
 } from 'antd';
@@ -29,6 +30,7 @@ import {
   PlayCircleOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
+import { AssignmentQuizActionButtons } from '@/features/quiz-test/components/AssignmentQuizActionButtons';
 import { useAuth } from '@/contexts/auth-context';
 import type {
   StudentAssignmentAttachment,
@@ -200,6 +202,10 @@ export function StudentAssignmentDetailModal({
       pub.length > 0
     );
   }, [detail]);
+
+  const canSubmit = detail?.learningAccess?.canSubmit !== false;
+  const canStartQuiz = detail?.learningAccess?.canStartQuiz !== false;
+  const readOnlyReason = detail?.learningAccess?.readOnlyReason ?? null;
 
   const headerExerciseIcon = useMemo(() => {
     const t = (detail?.exerciseType ?? '').trim().toLowerCase();
@@ -424,28 +430,42 @@ export function StudentAssignmentDetailModal({
             )}
           </Descriptions>
 
+          {readOnlyReason ? (
+            <Alert type="warning" showIcon message={readOnlyReason} />
+          ) : null}
+
           {isQuizWithLinkedForm && detail.testQuizFormPublicId ? (
             <Card size="small">
               <Flex justify="space-between" align="center" gap="middle" wrap>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600 }}>Làm bài trắc nghiệm</div>
                   <Text type="secondary" style={{ fontSize: token.fontSize }}>
-                    Sau khi nộp bài, điểm được đồng bộ về bài tập lớp.
+                    {detail.result?.resultStatus ===
+                    CRM_ASSIGNMENT_RESULT_STATUS.GRADED
+                      ? 'Bài tập đã chấm điểm. Ôn luyện thêm (không tính điểm lớp) tại menu Ôn luyện nếu đủ điều kiện.'
+                      : 'Làm bài qua bài tập lớp — sau khi nộp, điểm được đồng bộ về đây.'}
                   </Text>
                 </div>
-                <Link
-                  href={`/quiz-test/${encodeURIComponent(detail.testQuizFormPublicId)}?assignmentId=${detail.assignmentId}`}
-                  prefetch={false}
-                >
-                  <Button type="primary" icon={<PlayCircleOutlined />}>
-                    Làm bài
-                  </Button>
-                </Link>
+                {detail.result?.resultStatus ===
+                CRM_ASSIGNMENT_RESULT_STATUS.GRADED ? (
+                  <Link href="/practice-quizzes" prefetch={false}>
+                    <Button type="default">Ôn luyện</Button>
+                  </Link>
+                ) : (
+                  <AssignmentQuizActionButtons
+                    formPublicId={detail.testQuizFormPublicId}
+                    assignmentId={detail.assignmentId}
+                    allowStart={canStartQuiz}
+                    resultStatus={detail.result?.resultStatus ?? null}
+                    gradedStatus={CRM_ASSIGNMENT_RESULT_STATUS.GRADED}
+                  />
+                )}
               </Flex>
             </Card>
           ) : null}
 
-          {detail.studentUploadEnabled &&
+          {canSubmit &&
+          detail.studentUploadEnabled &&
           !isQuizWithLinkedForm &&
           detail.result?.resultStatus !== CRM_ASSIGNMENT_RESULT_STATUS.GRADED ? (
             <Card size="small">

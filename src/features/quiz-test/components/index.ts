@@ -1,6 +1,5 @@
 export { QuizAttemptClient } from './QuizAttemptClient';
 export { QuizAttemptResultClient } from './QuizAttemptResultClient';
-export { QuizTestListClient } from './QuizTestListClient';
 export { QuizFormMetaBlock } from './QuizFormMetaBlock';
 
 export { QuizAttemptReadySection } from './QuizAttemptPhaseSections';
@@ -19,4 +18,4 @@ export { QuizAttemptResultHeader } from './QuizAttemptResultHeader';
 export { useQuizAttemptRuntime } from './useQuizAttemptRuntime';
 export type { QuizAttemptPhase } from './useQuizAttemptRuntime';
 export { useQuizAttemptResultData } from './useQuizAttemptResultData';
-export type { QuizAttemptResultSnapshot } from './useQuizAttemptResultData';
+export type { QuizAttemptResultSnapshot } from '@/features/quiz-test/types/quiz-attempt-result';

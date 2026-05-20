@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 import { resolveStudentCustomerIdViaCrmMe } from '@/lib/crm-student-me';
+import { authorizeQuizViaCrm } from '@/lib/quiz-crm-authorize';
 
 // ============================================================================
 // Types & Interfaces
@@ -74,14 +75,16 @@ function parseJsonBody<T>(request: NextRequest): Promise<T | null> {
 // ============================================================================
 
 /**
- * GET /forms - List all public forms
+ * GET /forms - Catalog disabled (canonical §6.1)
  */
-async function handleGetForms(ctx: RouteContext): Promise<NextResponse> {
-  const res = await fetch(publicUrl(ctx.baseUrl, `forms${ctx.search}`), {
-    headers: ctx.headers,
-    cache: 'no-store',
-  });
-  return proxyResponse(res);
+async function handleGetForms(): Promise<NextResponse> {
+  return NextResponse.json(
+    {
+      message:
+        'Danh mục đề công khai đã tắt. Dùng Bài tập hoặc menu Ôn luyện.',
+    },
+    { status: 403 },
+  );
 }
 
 /**
@@ -89,10 +92,13 @@ async function handleGetForms(ctx: RouteContext): Promise<NextResponse> {
  */
 async function handleGetFormById(ctx: RouteContext, segments: string[]): Promise<NextResponse> {
   const formId = segments[1];
-  const res = await fetch(publicUrl(ctx.baseUrl, `forms/${formId}${ctx.search}`), {
-    headers: ctx.headers,
-    cache: 'no-store',
-  });
+  const res = await fetch(
+    internalStudentUrl(ctx.baseUrl, `forms/${formId}${ctx.search}`),
+    {
+      headers: { ...ctx.headers, ...ctx.serviceAuth },
+      cache: 'no-store',
+    },
+  );
   return proxyResponse(res);
 }
 
@@ -101,10 +107,13 @@ async function handleGetFormById(ctx: RouteContext, segments: string[]): Promise
  */
 async function handleGetResultLayout(ctx: RouteContext, segments: string[]): Promise<NextResponse> {
   const formId = segments[1];
-  const res = await fetch(publicUrl(ctx.baseUrl, `forms/${formId}/result-layout${ctx.search}`), {
-    headers: ctx.headers,
-    cache: 'no-store',
-  });
+  const res = await fetch(
+    internalStudentUrl(ctx.baseUrl, `forms/${formId}/result-layout${ctx.search}`),
+    {
+      headers: { ...ctx.headers, ...ctx.serviceAuth },
+      cache: 'no-store',
+    },
+  );
   return proxyResponse(res);
 }
 
@@ -147,13 +156,48 @@ async function handleCreateAttempt(
   request: NextRequest,
 ): Promise<NextResponse> {
   const formId = segments[1];
-  const body = await parseJsonBody<{ participantSnapshot?: Record<string, unknown> }>(request);
+  const deny = await assertQuizAuthorizedForForm(request, formId);
+  if (deny) return deny;
 
-  const requestBody: { customerId: number; participantSnapshot?: Record<string, unknown> } = {
+  const body = await parseJsonBody<{ participantSnapshot?: Record<string, unknown> }>(request);
+  const sp = request.nextUrl.searchParams;
+  const assignmentRaw = sp.get('assignmentId');
+  const modeRaw = sp.get('mode');
+  const assignmentId =
+    assignmentRaw && /^\d+$/.test(assignmentRaw)
+      ? Number(assignmentRaw)
+      : undefined;
+  const mode =
+    modeRaw === 'practice' || modeRaw === 'assignment' ? modeRaw : undefined;
+
+  const auth = await authorizeQuizViaCrm(request, {
+    formPublicId: formId,
+    assignmentId,
+    mode: assignmentId != null ? undefined : mode,
+    intent: 'start',
+  });
+  if (auth === null) {
+    return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
+  }
+  if (!auth.allowed) {
+    return NextResponse.json(
+      { message: auth.reason ?? 'Không được phép làm bài.' },
+      { status: 403 },
+    );
+  }
+
+  const requestBody: {
+    customerId: number;
+    participantSnapshot?: Record<string, unknown>;
+    portalAuthorizeToken?: string;
+  } = {
     customerId: ctx.customerId,
   };
   if (body?.participantSnapshot) {
     requestBody.participantSnapshot = body.participantSnapshot;
+  }
+  if (auth.portalAuthorizeToken) {
+    requestBody.portalAuthorizeToken = auth.portalAuthorizeToken;
   }
 
   const res = await fetch(internalStudentUrl(ctx.baseUrl, `forms/${formId}/attempts`), {
@@ -297,7 +341,6 @@ interface RouteDefinition {
   method: string;
   pattern: string;
   handler: (ctx: RouteContext, segments: string[], request: NextRequest) => Promise<NextResponse>;
-  segments: string[];
 }
 
 function buildRouteKey(method: string, segments: string[]): string {
@@ -312,7 +355,7 @@ function createRouteMap(): Map<string, RouteDefinition> {
     method: 'GET',
     pattern: '/forms',
     segments: ['forms'],
-    handler: async (ctx) => handleGetForms(ctx),
+    handler: async () => handleGetForms(),
   });
 
   // GET /forms/progress
@@ -328,7 +371,7 @@ function createRouteMap(): Map<string, RouteDefinition> {
     method: 'GET',
     pattern: '/forms/:uuid',
     segments: ['forms', 'uuid'],
-    handler: async (ctx, segs, _req, segments) => handleGetFormById(ctx, segments),
+    handler: async (ctx, segs) => handleGetFormById(ctx, segs),
   });
 
   // GET /forms/:uuid/result-layout
@@ -336,7 +379,7 @@ function createRouteMap(): Map<string, RouteDefinition> {
     method: 'GET',
     pattern: '/forms/:uuid/result-layout',
     segments: ['forms', 'uuid', 'result-layout'],
-    handler: async (ctx, _segs, _req, segments) => handleGetResultLayout(ctx, segments),
+    handler: async (ctx, segs) => handleGetResultLayout(ctx, segs),
   });
 
   // GET /forms/:uuid/active-attempt
@@ -344,7 +387,7 @@ function createRouteMap(): Map<string, RouteDefinition> {
     method: 'GET',
     pattern: '/forms/:uuid/active-attempt',
     segments: ['forms', 'uuid', 'active-attempt'],
-    handler: async (ctx, _segs, _req, segments) => handleGetActiveAttempt(ctx, segments),
+    handler: async (ctx, segs) => handleGetActiveAttempt(ctx, segs),
   });
 
   // GET /forms/:uuid/attempts
@@ -352,7 +395,7 @@ function createRouteMap(): Map<string, RouteDefinition> {
     method: 'GET',
     pattern: '/forms/:uuid/attempts',
     segments: ['forms', 'uuid', 'attempts'],
-    handler: async (ctx, _segs, _req, segments) => handleGetAttempts(ctx, segments),
+    handler: async (ctx, segs) => handleGetAttempts(ctx, segs),
   });
 
   // POST /forms/:uuid/attempts
@@ -360,7 +403,7 @@ function createRouteMap(): Map<string, RouteDefinition> {
     method: 'POST',
     pattern: '/forms/:uuid/attempts',
     segments: ['forms', 'uuid', 'attempts'],
-    handler: async (ctx, _segs, req, segments) => handleCreateAttempt(ctx, segments, req),
+    handler: async (ctx, segs, req) => handleCreateAttempt(ctx, segs, req),
   });
 
   // GET /forms/:uuid/attempts/active
@@ -368,7 +411,7 @@ function createRouteMap(): Map<string, RouteDefinition> {
     method: 'GET',
     pattern: '/forms/:uuid/attempts/active',
     segments: ['forms', 'uuid', 'attempts', 'active'],
-    handler: async (ctx, _segs, _req, segments) => handleGetAttemptsActive(ctx, segments),
+    handler: async (ctx, segs) => handleGetAttemptsActive(ctx, segs),
   });
 
   // GET /progress
@@ -384,7 +427,7 @@ function createRouteMap(): Map<string, RouteDefinition> {
     method: 'GET',
     pattern: '/attempts/:uuid',
     segments: ['attempts', 'uuid'],
-    handler: async (ctx, _segs, _req, segments) => handleGetAttemptById(ctx, segments),
+    handler: async (ctx, segs) => handleGetAttemptById(ctx, segs),
   });
 
   // PATCH /attempts/:uuid/answers
@@ -392,7 +435,7 @@ function createRouteMap(): Map<string, RouteDefinition> {
     method: 'PATCH',
     pattern: '/attempts/:uuid/answers',
     segments: ['attempts', 'uuid', 'answers'],
-    handler: async (ctx, _segs, req, segments) => handlePatchAnswers(ctx, segments, req),
+    handler: async (ctx, segs, req) => handlePatchAnswers(ctx, segs, req),
   });
 
   // POST /attempts/:uuid/listening-cycle
@@ -400,7 +443,7 @@ function createRouteMap(): Map<string, RouteDefinition> {
     method: 'POST',
     pattern: '/attempts/:uuid/listening-cycle',
     segments: ['attempts', 'uuid', 'listening-cycle'],
-    handler: async (ctx, _segs, req, segments) => handleListeningCycle(ctx, segments, req),
+    handler: async (ctx, segs, req) => handleListeningCycle(ctx, segs, req),
   });
 
   // POST /attempts/:uuid/submit
@@ -408,7 +451,7 @@ function createRouteMap(): Map<string, RouteDefinition> {
     method: 'POST',
     pattern: '/attempts/:uuid/submit',
     segments: ['attempts', 'uuid', 'submit'],
-    handler: async (ctx, _segs, _req, segments) => handleSubmitAttempt(ctx, segments),
+    handler: async (ctx, segs) => handleSubmitAttempt(ctx, segs),
   });
 
   return routes;
@@ -461,6 +504,46 @@ function matchRoute(
 
 const ROUTE_MAP = createRouteMap();
 
+function formPublicIdFromSegments(segments: string[]): string | null {
+  if (segments[0] !== 'forms' || segments.length < 2) return null;
+  const id = segments[1];
+  if (id === 'progress' || !isUuid(id)) return null;
+  return id;
+}
+
+async function assertQuizAuthorizedForForm(
+  request: NextRequest,
+  formPublicId: string,
+): Promise<NextResponse | null> {
+  const sp = request.nextUrl.searchParams;
+  const assignmentRaw = sp.get('assignmentId');
+  const modeRaw = sp.get('mode');
+  const assignmentId =
+    assignmentRaw && /^\d+$/.test(assignmentRaw)
+      ? Number(assignmentRaw)
+      : undefined;
+  const mode =
+    modeRaw === 'practice' || modeRaw === 'assignment' ? modeRaw : undefined;
+
+  const result = await authorizeQuizViaCrm(request, {
+    formPublicId,
+    assignmentId,
+    mode: assignmentId != null ? undefined : mode,
+    intent: 'access',
+  });
+
+  if (result === null) {
+    return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
+  }
+  if (!result.allowed) {
+    return NextResponse.json(
+      { message: result.reason ?? 'Không được phép làm bài.' },
+      { status: 403 },
+    );
+  }
+  return null;
+}
+
 /**
  * Quiz runtime: Portal server → Social Gateway (không qua CRM).
  * Đọc `customerId` từ JWT học viên; gateway internal/student tin CRM service Bearer.
@@ -507,6 +590,12 @@ export async function proxyQuizRuntimeToGateway(
     method: request.method,
     search: request.nextUrl.search ?? '',
   };
+
+  const formPublicId = formPublicIdFromSegments(segments);
+  if (formPublicId) {
+    const deny = await assertQuizAuthorizedForForm(request, formPublicId);
+    if (deny) return deny;
+  }
 
   // Find matching route
   const route = matchRoute(ROUTE_MAP, request.method, segments);

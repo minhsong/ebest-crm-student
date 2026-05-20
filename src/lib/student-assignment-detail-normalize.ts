@@ -97,5 +97,23 @@ export function normalizeStudentAssignmentDetail(
         typeof res?.resultStatus === 'number' ? res.resultStatus : null,
       scoreDisplay,
     },
+    learningAccess: parseLearningAccess(o.learningAccess),
+  };
+}
+
+function parseLearningAccess(
+  raw: unknown,
+): StudentAssignmentDetail['learningAccess'] {
+  const o = pickRecord(raw);
+  if (!o) {
+    return { canSubmit: true, canStartQuiz: true, readOnlyReason: null };
+  }
+  return {
+    canSubmit: o.canSubmit !== false,
+    canStartQuiz: o.canStartQuiz !== false,
+    readOnlyReason:
+      typeof o.readOnlyReason === 'string' && o.readOnlyReason.trim()
+        ? o.readOnlyReason
+        : null,
   };
 }

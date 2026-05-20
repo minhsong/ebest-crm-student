@@ -13,20 +13,14 @@ import {
   filterRenderableBlocksBySectionId,
   type QuizRenderableBlock,
 } from '@/features/quiz-test/lib/quiz-renderable-items';
-import {
-  buildBlockStartIndexes,
-  buildCorrectByFormItemId,
-} from '@/features/quiz-test/lib/quiz-runtime-view';
+import { buildBlockStartIndexes } from '@/features/quiz-test/lib/quiz-runtime-view';
 import {
   findSectionIdForAnchorKey,
   isAnchorKeyInForm,
   quizAnchorDomId,
 } from '@/features/quiz-test/lib/quiz-section-navigation';
-import { useQuizAttemptResultData } from '@/features/quiz-test/components/useQuizAttemptResultData';
-import {
-  useCanViewResultDetails,
-  getCannotViewResultMessage,
-} from '@/features/quiz-test/components/useCanViewResultDetails';
+import { useQuizAttemptResultPage } from '@/features/quiz-test/hooks/useQuizAttemptResultPage';
+import { buildAssignmentResultsHref } from '@/lib/quiz-assignment-action';
 import { Alert, Button, Card, Collapse, Skeleton, Space } from 'antd';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
@@ -35,26 +29,25 @@ export function QuizAttemptResultClient({
   formPublicId,
   attemptPublicId,
   initialQuestionKey,
-  assignmentId,
 }: {
   formPublicId: string;
   attemptPublicId: string;
   /** Từ `?question=` — anchor câu (formItemId hoặc composite bundle child). */
   initialQuestionKey?: string | null;
-  /** Từ `?assignmentId=` — ID của assignment để kiểm tra eligibility. */
-  assignmentId?: number;
 }) {
-  const { formPayload, attempt, error, loading } = useQuizAttemptResultData(
-    formPublicId,
-    attemptPublicId,
-  );
-
-  // Check if user can view result details
-  const { data: canViewData, loading: checkingCanView } = useCanViewResultDetails(
-    formPublicId,
-    attemptPublicId,
+  const {
+    formPayload,
+    attempt,
+    error,
+    loading,
+    practiceMode,
     assignmentId,
-  );
+    assignmentAction,
+    correctByFormItemId,
+    gradingPerItem,
+    canViewData,
+    getCannotViewResultMessage,
+  } = useQuizAttemptResultPage(formPublicId, attemptPublicId);
 
   // Build renderable blocks from form payload
   const renderBlocks = useMemo((): QuizRenderableBlock[] => {
@@ -145,11 +138,6 @@ export function QuizAttemptResultClient({
     return formatQuizDurationSummary(Number(formPayload?.durationSeconds ?? 0));
   }, [formPayload?.durationSeconds]);
 
-  // Build correct/incorrect map from grading
-  const correctByFormItemId = useMemo(() => {
-    return buildCorrectByFormItemId(attempt?.grading?.items);
-  }, [attempt?.grading?.items]);
-
   // Check if form allows showing explanations
   const showExplanationOnReview = useMemo(() => {
     const blueprint = formPayload?.blueprint as Record<string, unknown> | null | undefined;
@@ -173,7 +161,7 @@ export function QuizAttemptResultClient({
     return (
       <Card>
         <Space direction="vertical">
-          <Link href="/quiz-test">
+          <Link href={!practiceMode ? '/assignments' : '/practice-quizzes'}>
             <Button type="default" icon={<ArrowLeftOutlined />} size="small">
               Danh sách đề
             </Button>
@@ -187,10 +175,14 @@ export function QuizAttemptResultClient({
     );
   }
 
-  // Determine if user can view detailed results
-  const canViewDetails = canViewData?.canView ?? false;
+  const attemptSubmitted =
+    attempt?.status === 'submitted' || attempt?.status === 'expired';
+  const hasGradingItems =
+    Array.isArray(attempt?.grading?.items) && attempt.grading.items.length > 0;
+  const canViewDetails =
+    canViewData?.canView === true || hasGradingItems || attemptSubmitted;
   const cannotViewReason = canViewData?.reason ?? null;
-  const showCannotViewAlert = !canViewDetails && !checkingCanView && canViewData !== null;
+  const showCannotViewAlert = !canViewDetails && canViewData !== null;
 
   const answers = attempt.answersByFormItemId ?? {};
   const formDisplayName =
@@ -201,7 +193,7 @@ export function QuizAttemptResultClient({
   return (
     <Card>
       <Space direction="vertical" size="middle" className="w-full">
-        <Link href="/quiz-test">
+        <Link href={!practiceMode ? '/assignments' : '/practice-quizzes'}>
           <Button type="default" icon={<ArrowLeftOutlined />} size="small">
             Danh sách đề
           </Button>
@@ -257,6 +249,7 @@ export function QuizAttemptResultClient({
                       answers={answers}
                       readOnly
                       correctByFormItemId={correctByFormItemId}
+                      gradingPerItem={gradingPerItem}
                       showExplanation={showExplanationOnReview}
                     />
                   ),
@@ -270,6 +263,7 @@ export function QuizAttemptResultClient({
               answers={answers}
               readOnly
               correctByFormItemId={correctByFormItemId}
+              gradingPerItem={gradingPerItem}
               showExplanation={showExplanationOnReview}
             />
           )
@@ -285,14 +279,31 @@ export function QuizAttemptResultClient({
         )}
 
         <Space wrap>
-          <Link href={`/quiz-test/${formPublicId}`}>
-            <Button color="green" variant="solid">
-              Làm bài mới
-            </Button>
-          </Link>
-          <Link href={`/quiz-test/${formPublicId}/attempts`}>
-            <Button type="default">Các lần làm khác</Button>
-          </Link>
+          {assignmentId != null && assignmentId >= 1 ? (
+            <>
+              {assignmentAction?.canStart ? (
+                <Link
+                  href={`/quiz-test/${formPublicId}`}
+                >
+                  <Button type="primary">Làm bài mới</Button>
+                </Link>
+              ) : null}
+              <Link href={buildAssignmentResultsHref(formPublicId)}>
+                <Button type="default">Các lần làm khác</Button>
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href={`/quiz-test/${formPublicId}`}>
+                <Button color="green" variant="solid">
+                  Làm bài mới
+                </Button>
+              </Link>
+              <Link href={`/quiz-test/${formPublicId}?mode=practice`}>
+                <Button type="default">Quay lại đề</Button>
+              </Link>
+            </>
+          )}
         </Space>
       </Space>
     </Card>

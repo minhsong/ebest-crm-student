@@ -5,6 +5,7 @@ import {
   QuizQuestionCard,
 } from '@/features/quiz-test/components/question';
 import type { QuizRenderableBlock } from '@/features/quiz-test/lib/quiz-renderable-items';
+import type { QuizGradingPerItem } from '@/features/quiz-test/lib/quiz-runtime-view';
 import { quizAnchorDomId } from '@/features/quiz-test/lib/quiz-section-navigation';
 
 type QuizAttemptQuestionBlocksProps = {
@@ -14,6 +15,8 @@ type QuizAttemptQuestionBlocksProps = {
   readOnly: boolean;
   onAnswerChange?: (formItemId: string, value: string | string[]) => void;
   correctByFormItemId?: Record<string, boolean>;
+  /** Detailed grading per item (includes correctOptionIds, selectedOptionIds) */
+  gradingPerItem?: Record<string, QuizGradingPerItem | undefined>;
   listeningRemaining?: Record<string, number>;
   reportListeningCycle?: (formItemKey: string) => Promise<void>;
   /** Key formItemId / bundle parent — highlight khi section player đang phát. */
@@ -31,6 +34,7 @@ export function QuizAttemptQuestionBlocks({
   readOnly,
   onAnswerChange,
   correctByFormItemId,
+  gradingPerItem,
   listeningRemaining,
   reportListeningCycle,
   listeningHighlightKey,
@@ -44,6 +48,7 @@ export function QuizAttemptQuestionBlocks({
         if (block.kind === 'single') {
           const row = block.item;
           const key = String(row.formItemId);
+          const itemGrading = gradingPerItem?.[key];
           return (
             <QuizQuestionCard
               key={key}
@@ -53,6 +58,7 @@ export function QuizAttemptQuestionBlocks({
               readOnly={readOnly}
               onAnswerChange={onAnswerChange}
               isCorrect={correctByFormItemId?.[key]}
+              grading={itemGrading}
               questionContent={row.questionSnapshot?.content as Record<string, unknown> | undefined}
               listeningUnitKey={key}
               listeningRemaining={listeningRemaining?.[key]}
@@ -76,6 +82,7 @@ export function QuizAttemptQuestionBlocks({
             readOnly={readOnly}
             onAnswerChange={onAnswerChange}
             correctByFormItemId={correctByFormItemId}
+            gradingPerItem={gradingPerItem}
             listeningUnitKey={String(block.parentFormItemId)}
             listeningRemaining={listeningRemaining?.[String(block.parentFormItemId)]}
             reportListeningCycle={reportListeningCycle}

@@ -18,19 +18,11 @@ export default function QuizAttemptResultPage({
   searchParams,
 }: {
   params: { formPublicId: string; attemptPublicId: string };
-  searchParams?: { question?: string; assignmentId?: string };
+  searchParams?: { question?: string };
 }) {
   const qRaw = searchParams?.question;
   const initialQuestionKey =
     typeof qRaw === 'string' && qRaw.trim() !== '' ? qRaw : undefined;
-
-  // Parse assignmentId từ query param
-  const assignmentIdRaw = searchParams?.assignmentId;
-  const assignmentId =
-    typeof assignmentIdRaw === 'string' && assignmentIdRaw.trim() !== ''
-      ? parseInt(assignmentIdRaw, 10)
-      : undefined;
-  const parsedAssignmentId = !isNaN(assignmentId!) ? assignmentId : undefined;
 
   return (
     <Suspense
@@ -44,7 +36,6 @@ export default function QuizAttemptResultPage({
         formPublicId={params.formPublicId}
         attemptPublicId={params.attemptPublicId}
         initialQuestionKey={initialQuestionKey}
-        assignmentId={parsedAssignmentId}
       />
     </Suspense>
   );

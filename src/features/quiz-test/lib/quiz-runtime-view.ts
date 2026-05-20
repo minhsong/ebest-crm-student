@@ -165,6 +165,39 @@ export function buildCorrectByFormItemId(
   return map;
 }
 
+/** Extended grading info per form item for result display */
+export type QuizGradingPerItem = {
+  isCorrect: boolean;
+  selectedOptionIds: string[];
+  correctOptionIds: string[];
+};
+
+export function buildGradingPerItem(
+  gradingItems: Array<{
+    formItemId?: string | number;
+    isCorrect?: boolean;
+    selectedOptionIds?: string[];
+    correctOptionIds?: string[];
+  }> | null | undefined,
+): Record<string, QuizGradingPerItem | undefined> {
+  const map: Record<string, QuizGradingPerItem | undefined> = {};
+  for (const row of Array.isArray(gradingItems) ? gradingItems : []) {
+    const key = String(row?.formItemId ?? '').trim();
+    if (!key) continue;
+    const correctOptionIds = Array.isArray(row?.correctOptionIds)
+      ? row.correctOptionIds.map(String).filter((id) => id.trim() !== '')
+      : [];
+    map[key] = {
+      isCorrect: row?.isCorrect ?? false,
+      selectedOptionIds: Array.isArray(row?.selectedOptionIds)
+        ? row.selectedOptionIds.map(String)
+        : [],
+      correctOptionIds,
+    };
+  }
+  return map;
+}
+
 export function getHistoryScoreText(
   row: QuizAttemptHistoryItem,
 ): string {

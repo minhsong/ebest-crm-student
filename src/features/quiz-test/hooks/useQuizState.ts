@@ -14,12 +14,12 @@ import type {
 import { quizRuntimePublicUrl } from '@/features/quiz-test/quiz-gateway-browser';
 import { fetchQuizRuntimeJson } from '@/features/quiz-test/lib/quiz-runtime-http';
 import {
-  mergeAttemptWithFormPublishedDuration,
   normalizeAttemptAnswers,
   toValidAttemptPayload,
   syncRemainingFromAttempt,
   REMAINING_UNSET,
 } from '@/features/quiz-test/lib/quiz-runtime-view';
+import { mergeAttemptWithFormPublishedDuration } from '@/features/quiz-test/lib/quiz-attempt-merge';
 
 export type QuizAttemptPhase =
   | 'loading_form'

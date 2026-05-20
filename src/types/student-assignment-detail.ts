@@ -68,4 +68,9 @@ export interface StudentAssignmentDetail {
     resultStatus: number | null;
     scoreDisplay: string | null;
   };
+  learningAccess?: {
+    canSubmit: boolean;
+    canStartQuiz: boolean;
+    readOnlyReason: string | null;
+  };
 }
