@@ -168,14 +168,20 @@ export function buildCorrectByFormItemId(
 export function getHistoryScoreText(
   row: QuizAttemptHistoryItem,
 ): string {
+  // First try gradingSummary (from detailed response)
   const summary = row.gradingSummary;
-  if (
-    !summary ||
-    !Number.isFinite(Number(summary.totalQuestions)) ||
-    !Number.isFinite(Number(summary.correctCount))
-  ) {
-    return '';
+  if (summary && Number.isFinite(Number(summary.totalQuestions)) && Number.isFinite(Number(summary.correctCount))) {
+    return ` · Điểm: ${Number(summary.correctCount)}/${Number(summary.totalQuestions)}`;
   }
-  return ` · Điểm: ${Number(summary.correctCount)}/${Number(summary.totalQuestions)}`;
+
+  // Fallback to top-level correctCount and totalQuestions (from list response)
+  if (Number.isFinite(Number(row.correctCount)) && Number.isFinite(Number(row.totalQuestions))) {
+    const accuracy = row.totalQuestions > 0 
+      ? Math.round((Number(row.correctCount) / Number(row.totalQuestions)) * 100)
+      : 0;
+    return ` · ${Number(row.correctCount)}/${Number(row.totalQuestions)} (${accuracy}%)`;
+  }
+
+  return '';
 }
 

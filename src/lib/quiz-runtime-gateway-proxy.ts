@@ -1,17 +1,49 @@
-import { NextResponse } from 'next/server';
+/**
+ * Quiz Runtime Gateway Proxy
+ * Server-side proxy for Quiz Runtime API - routes requests to Social Gateway
+ */
 
+import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 import { resolveStudentCustomerIdViaCrmMe } from '@/lib/crm-student-me';
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// ============================================================================
+// Types & Interfaces
+// ============================================================================
+
+interface GatewayConfig {
+  baseUrl: string;
+  serviceToken: string;
+}
+
+interface RouteContext {
+  customerId: number;
+  baseUrl: string;
+  headers: Record<string, string>;
+  serviceAuth: Record<string, string>;
+  method: string;
+  search: string;
+}
+
+type RouteHandler = (context: RouteContext, segments: string[]) => Promise<NextResponse> | null;
+
+interface RouteKey {
+  method: string;
+  pattern: string;
+}
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isUuid(s: string): boolean {
   return UUID_RE.test(s);
 }
 
-function gatewayConfig(): { baseUrl: string; serviceToken: string } | null {
+function getGatewayConfig(): GatewayConfig | null {
   const baseUrl = process.env.SOCIAL_GATEWAY_BASE_URL?.replace(/\/$/, '') ?? '';
   const serviceToken = process.env.SOCIAL_GATEWAY_SERVICE_TOKEN?.trim() ?? '';
   if (!baseUrl || !serviceToken) return null;
@@ -28,13 +60,406 @@ function internalStudentUrl(baseUrl: string, subPath: string): string {
   return `${baseUrl}/api/v1/runtime/test-quiz/internal/student/${p}`;
 }
 
-async function jsonResponse(upstream: Response): Promise<NextResponse> {
-  const data = await upstream.json().catch(() => {
-    const alt: Record<string, unknown> = {};
-    return alt;
-  });
+async function proxyResponse(upstream: Response): Promise<NextResponse> {
+  const data = await upstream.json().catch(() => ({}));
   return NextResponse.json(data, { status: upstream.status });
 }
+
+function parseJsonBody<T>(request: NextRequest): Promise<T | null> {
+  return request.json().catch(() => null);
+}
+
+// ============================================================================
+// Route Handler Functions
+// ============================================================================
+
+/**
+ * GET /forms - List all public forms
+ */
+async function handleGetForms(ctx: RouteContext): Promise<NextResponse> {
+  const res = await fetch(publicUrl(ctx.baseUrl, `forms${ctx.search}`), {
+    headers: ctx.headers,
+    cache: 'no-store',
+  });
+  return proxyResponse(res);
+}
+
+/**
+ * GET /forms/:id - Get form by UUID
+ */
+async function handleGetFormById(ctx: RouteContext, segments: string[]): Promise<NextResponse> {
+  const formId = segments[1];
+  const res = await fetch(publicUrl(ctx.baseUrl, `forms/${formId}${ctx.search}`), {
+    headers: ctx.headers,
+    cache: 'no-store',
+  });
+  return proxyResponse(res);
+}
+
+/**
+ * GET /forms/:id/result-layout - Get form result layout
+ */
+async function handleGetResultLayout(ctx: RouteContext, segments: string[]): Promise<NextResponse> {
+  const formId = segments[1];
+  const res = await fetch(publicUrl(ctx.baseUrl, `forms/${formId}/result-layout${ctx.search}`), {
+    headers: ctx.headers,
+    cache: 'no-store',
+  });
+  return proxyResponse(res);
+}
+
+/**
+ * GET /forms/:id/active-attempt - Get student's active attempt
+ */
+async function handleGetActiveAttempt(ctx: RouteContext, segments: string[]): Promise<NextResponse> {
+  const formId = segments[1];
+  const res = await fetch(
+    internalStudentUrl(ctx.baseUrl, `forms/${formId}/active-attempt?customerId=${ctx.customerId}`),
+    {
+      headers: { ...ctx.headers, ...ctx.serviceAuth },
+      cache: 'no-store',
+    },
+  );
+  return proxyResponse(res);
+}
+
+/**
+ * GET /forms/:id/attempts - Get student's attempt history
+ */
+async function handleGetAttempts(ctx: RouteContext, segments: string[]): Promise<NextResponse> {
+  const formId = segments[1];
+  const res = await fetch(
+    internalStudentUrl(ctx.baseUrl, `forms/${formId}/attempts?customerId=${ctx.customerId}`),
+    {
+      headers: { ...ctx.headers, ...ctx.serviceAuth },
+      cache: 'no-store',
+    },
+  );
+  return proxyResponse(res);
+}
+
+/**
+ * POST /forms/:id/attempts - Start new attempt
+ */
+async function handleCreateAttempt(
+  ctx: RouteContext,
+  segments: string[],
+  request: NextRequest,
+): Promise<NextResponse> {
+  const formId = segments[1];
+  const body = await parseJsonBody<{ participantSnapshot?: Record<string, unknown> }>(request);
+
+  const requestBody: { customerId: number; participantSnapshot?: Record<string, unknown> } = {
+    customerId: ctx.customerId,
+  };
+  if (body?.participantSnapshot) {
+    requestBody.participantSnapshot = body.participantSnapshot;
+  }
+
+  const res = await fetch(internalStudentUrl(ctx.baseUrl, `forms/${formId}/attempts`), {
+    method: 'POST',
+    headers: { ...ctx.headers, ...ctx.serviceAuth },
+    body: JSON.stringify(requestBody),
+  });
+  return proxyResponse(res);
+}
+
+/**
+ * GET /forms/progress - Get student's overall progress
+ */
+async function handleGetFormsProgress(ctx: RouteContext): Promise<NextResponse> {
+  const sp = new URLSearchParams(ctx.search.replace(/^\?/, ''));
+  if (!sp.has('customerId')) sp.set('customerId', String(ctx.customerId));
+  const qInner = `?${sp.toString()}`;
+
+  const res = await fetch(internalStudentUrl(ctx.baseUrl, `forms/progress${qInner}`), {
+    headers: { ...ctx.headers, ...ctx.serviceAuth },
+    cache: 'no-store',
+  });
+  return proxyResponse(res);
+}
+
+/**
+ * GET /progress - Get overall progress (non-form specific)
+ */
+async function handleGetProgress(ctx: RouteContext): Promise<NextResponse> {
+  const sp = new URLSearchParams(ctx.search.replace(/^\?/, ''));
+  sp.set('customerId', String(ctx.customerId));
+  const qInner = `?${sp.toString()}`;
+
+  const res = await fetch(internalStudentUrl(ctx.baseUrl, `progress${qInner}`), {
+    headers: { ...ctx.headers, ...ctx.serviceAuth },
+    cache: 'no-store',
+  });
+  return proxyResponse(res);
+}
+
+/**
+ * GET /forms/:id/attempts/active - Check for active attempt (alternative endpoint)
+ */
+async function handleGetAttemptsActive(ctx: RouteContext, segments: string[]): Promise<NextResponse> {
+  const formId = segments[1];
+  const sp = new URLSearchParams(ctx.search.replace(/^\?/, ''));
+  if (!sp.has('customerId')) sp.set('customerId', String(ctx.customerId));
+  const qInner = `?${sp.toString()}`;
+
+  const res = await fetch(
+    internalStudentUrl(ctx.baseUrl, `forms/${formId}/attempts/active${qInner}`),
+    {
+      headers: { ...ctx.headers, ...ctx.serviceAuth },
+      cache: 'no-store',
+    },
+  );
+  return proxyResponse(res);
+}
+
+/**
+ * GET /attempts/:id - Get attempt by UUID
+ */
+async function handleGetAttemptById(ctx: RouteContext, segments: string[]): Promise<NextResponse> {
+  const attemptId = segments[1];
+  const sp = new URLSearchParams(ctx.search.replace(/^\?/, ''));
+  if (!sp.has('customerId')) sp.set('customerId', String(ctx.customerId));
+  const qInner = sp.toString() ? `?${sp.toString()}` : `?customerId=${ctx.customerId}`;
+
+  const res = await fetch(internalStudentUrl(ctx.baseUrl, `attempts/${attemptId}${qInner}`), {
+    headers: { ...ctx.headers, ...ctx.serviceAuth },
+    cache: 'no-store',
+  });
+  return proxyResponse(res);
+}
+
+/**
+ * PATCH /attempts/:id/answers - Update answers
+ */
+async function handlePatchAnswers(
+  ctx: RouteContext,
+  segments: string[],
+  request: NextRequest,
+): Promise<NextResponse> {
+  const attemptId = segments[1];
+  const body = await parseJsonBody<{ answersByFormItemId?: Record<string, unknown> }>(request);
+
+  const res = await fetch(internalStudentUrl(ctx.baseUrl, `attempts/${attemptId}/answers`), {
+    method: 'PATCH',
+    headers: { ...ctx.headers, ...ctx.serviceAuth },
+    body: JSON.stringify({
+      customerId: ctx.customerId,
+      answersByFormItemId: body?.answersByFormItemId ?? {},
+    }),
+  });
+  return proxyResponse(res);
+}
+
+/**
+ * POST /attempts/:id/listening-cycle - Report listening cycle played
+ */
+async function handleListeningCycle(
+  ctx: RouteContext,
+  segments: string[],
+  request: NextRequest,
+): Promise<NextResponse> {
+  const attemptId = segments[1];
+  const body = await parseJsonBody<{ formItemId?: string }>(request);
+
+  const res = await fetch(
+    internalStudentUrl(ctx.baseUrl, `attempts/${attemptId}/listening-cycle`),
+    {
+      method: 'POST',
+      headers: { ...ctx.headers, ...ctx.serviceAuth },
+      body: JSON.stringify({
+        customerId: ctx.customerId,
+        formItemId: body?.formItemId ?? '',
+      }),
+    },
+  );
+  return proxyResponse(res);
+}
+
+/**
+ * POST /attempts/:id/submit - Submit attempt
+ */
+async function handleSubmitAttempt(ctx: RouteContext, segments: string[]): Promise<NextResponse> {
+  const attemptId = segments[1];
+  const res = await fetch(internalStudentUrl(ctx.baseUrl, `attempts/${attemptId}/submit`), {
+    method: 'POST',
+    headers: { ...ctx.headers, ...ctx.serviceAuth },
+    body: JSON.stringify({ customerId: ctx.customerId }),
+  });
+  return proxyResponse(res);
+}
+
+// ============================================================================
+// Route Map
+// ============================================================================
+
+interface RouteDefinition {
+  method: string;
+  pattern: string;
+  handler: (ctx: RouteContext, segments: string[], request: NextRequest) => Promise<NextResponse>;
+  segments: string[];
+}
+
+function buildRouteKey(method: string, segments: string[]): string {
+  return `${method}:${segments.join(':')}`;
+}
+
+function createRouteMap(): Map<string, RouteDefinition> {
+  const routes = new Map<string, RouteDefinition>();
+
+  // GET /forms
+  routes.set(buildRouteKey('GET', ['forms']), {
+    method: 'GET',
+    pattern: '/forms',
+    segments: ['forms'],
+    handler: async (ctx) => handleGetForms(ctx),
+  });
+
+  // GET /forms/progress
+  routes.set(buildRouteKey('GET', ['forms', 'progress']), {
+    method: 'GET',
+    pattern: '/forms/progress',
+    segments: ['forms', 'progress'],
+    handler: async (ctx) => handleGetFormsProgress(ctx),
+  });
+
+  // GET /forms/:uuid
+  routes.set(buildRouteKey('GET', ['forms', 'uuid']), {
+    method: 'GET',
+    pattern: '/forms/:uuid',
+    segments: ['forms', 'uuid'],
+    handler: async (ctx, segs, _req, segments) => handleGetFormById(ctx, segments),
+  });
+
+  // GET /forms/:uuid/result-layout
+  routes.set(buildRouteKey('GET', ['forms', 'uuid', 'result-layout']), {
+    method: 'GET',
+    pattern: '/forms/:uuid/result-layout',
+    segments: ['forms', 'uuid', 'result-layout'],
+    handler: async (ctx, _segs, _req, segments) => handleGetResultLayout(ctx, segments),
+  });
+
+  // GET /forms/:uuid/active-attempt
+  routes.set(buildRouteKey('GET', ['forms', 'uuid', 'active-attempt']), {
+    method: 'GET',
+    pattern: '/forms/:uuid/active-attempt',
+    segments: ['forms', 'uuid', 'active-attempt'],
+    handler: async (ctx, _segs, _req, segments) => handleGetActiveAttempt(ctx, segments),
+  });
+
+  // GET /forms/:uuid/attempts
+  routes.set(buildRouteKey('GET', ['forms', 'uuid', 'attempts']), {
+    method: 'GET',
+    pattern: '/forms/:uuid/attempts',
+    segments: ['forms', 'uuid', 'attempts'],
+    handler: async (ctx, _segs, _req, segments) => handleGetAttempts(ctx, segments),
+  });
+
+  // POST /forms/:uuid/attempts
+  routes.set(buildRouteKey('POST', ['forms', 'uuid', 'attempts']), {
+    method: 'POST',
+    pattern: '/forms/:uuid/attempts',
+    segments: ['forms', 'uuid', 'attempts'],
+    handler: async (ctx, _segs, req, segments) => handleCreateAttempt(ctx, segments, req),
+  });
+
+  // GET /forms/:uuid/attempts/active
+  routes.set(buildRouteKey('GET', ['forms', 'uuid', 'attempts', 'active']), {
+    method: 'GET',
+    pattern: '/forms/:uuid/attempts/active',
+    segments: ['forms', 'uuid', 'attempts', 'active'],
+    handler: async (ctx, _segs, _req, segments) => handleGetAttemptsActive(ctx, segments),
+  });
+
+  // GET /progress
+  routes.set(buildRouteKey('GET', ['progress']), {
+    method: 'GET',
+    pattern: '/progress',
+    segments: ['progress'],
+    handler: async (ctx) => handleGetProgress(ctx),
+  });
+
+  // GET /attempts/:uuid
+  routes.set(buildRouteKey('GET', ['attempts', 'uuid']), {
+    method: 'GET',
+    pattern: '/attempts/:uuid',
+    segments: ['attempts', 'uuid'],
+    handler: async (ctx, _segs, _req, segments) => handleGetAttemptById(ctx, segments),
+  });
+
+  // PATCH /attempts/:uuid/answers
+  routes.set(buildRouteKey('PATCH', ['attempts', 'uuid', 'answers']), {
+    method: 'PATCH',
+    pattern: '/attempts/:uuid/answers',
+    segments: ['attempts', 'uuid', 'answers'],
+    handler: async (ctx, _segs, req, segments) => handlePatchAnswers(ctx, segments, req),
+  });
+
+  // POST /attempts/:uuid/listening-cycle
+  routes.set(buildRouteKey('POST', ['attempts', 'uuid', 'listening-cycle']), {
+    method: 'POST',
+    pattern: '/attempts/:uuid/listening-cycle',
+    segments: ['attempts', 'uuid', 'listening-cycle'],
+    handler: async (ctx, _segs, req, segments) => handleListeningCycle(ctx, segments, req),
+  });
+
+  // POST /attempts/:uuid/submit
+  routes.set(buildRouteKey('POST', ['attempts', 'uuid', 'submit']), {
+    method: 'POST',
+    pattern: '/attempts/:uuid/submit',
+    segments: ['attempts', 'uuid', 'submit'],
+    handler: async (ctx, _segs, _req, segments) => handleSubmitAttempt(ctx, segments),
+  });
+
+  return routes;
+}
+
+/**
+ * Match route from segments
+ * Supports UUID wildcards
+ */
+function matchRoute(
+  routeMap: Map<string, RouteDefinition>,
+  method: string,
+  segments: string[],
+): RouteDefinition | null {
+  // Exact match first
+  const exactKey = buildRouteKey(method, segments);
+  const exact = routeMap.get(exactKey);
+  if (exact) return exact;
+
+  // Pattern matching with UUID support
+  for (const [key, route] of routeMap) {
+    if (route.method !== method) continue;
+    if (route.segments.length !== segments.length) continue;
+
+    let matches = true;
+    for (let i = 0; i < segments.length; i++) {
+      const pattern = route.segments[i];
+      const segment = segments[i];
+
+      if (pattern === 'uuid') {
+        if (!isUuid(segment)) {
+          matches = false;
+          break;
+        }
+      } else if (pattern !== segment) {
+        matches = false;
+        break;
+      }
+    }
+
+    if (matches) return route;
+  }
+
+  return null;
+}
+
+// ============================================================================
+// Main Export
+// ============================================================================
+
+const ROUTE_MAP = createRouteMap();
 
 /**
  * Quiz runtime: Portal server → Social Gateway (không qua CRM).
@@ -44,7 +469,8 @@ export async function proxyQuizRuntimeToGateway(
   request: NextRequest,
   segments: string[],
 ): Promise<NextResponse> {
-  const cfg = gatewayConfig();
+  // Validate gateway configuration
+  const cfg = getGatewayConfig();
   if (!cfg) {
     return NextResponse.json(
       {
@@ -55,6 +481,7 @@ export async function proxyQuizRuntimeToGateway(
     );
   }
 
+  // Authenticate student
   const customerId = await resolveStudentCustomerIdViaCrmMe(request);
   if (customerId === null) {
     return NextResponse.json(
@@ -66,224 +493,47 @@ export async function proxyQuizRuntimeToGateway(
     );
   }
 
-  const method = request.method;
-  const search = request.nextUrl.search ?? '';
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
+  // Build route context
+  const ctx: RouteContext = {
+    customerId,
+    baseUrl: cfg.baseUrl,
+    headers: {
+      Accept: 'application/json',
+    },
+    serviceAuth: {
+      Authorization: `Bearer ${cfg.serviceToken}`,
+      'Content-Type': 'application/json',
+    },
+    method: request.method,
+    search: request.nextUrl.search ?? '',
   };
-  const serviceAuth = {
-    Authorization: `Bearer ${cfg.serviceToken}`,
-    'Content-Type': 'application/json',
-  } as const;
 
-  const [a, b, c, d] = segments;
-
-  if (method === 'GET' && segments.length === 1 && a === 'forms') {
-    const res = await fetch(publicUrl(cfg.baseUrl, `forms${search}`), {
-      headers,
-      cache: 'no-store',
-    });
-    return jsonResponse(res);
-  }
-
-  if (method === 'GET' && segments.length === 2 && a === 'forms' && b === 'progress') {
-    const sp = new URLSearchParams(search.replace(/^\?/, ''));
-    if (!sp.has('customerId')) sp.set('customerId', String(customerId));
-    const qInner = `?${sp.toString()}`;
-    const res = await fetch(internalStudentUrl(cfg.baseUrl, `forms/progress${qInner}`), {
-      headers: { ...headers, ...serviceAuth },
-      cache: 'no-store',
-    });
-    return jsonResponse(res);
-  }
-
-  if (method === 'GET' && segments.length === 2 && a === 'forms' && isUuid(b)) {
-    const res = await fetch(publicUrl(cfg.baseUrl, `forms/${b}${search}`), {
-      headers,
-      cache: 'no-store',
-    });
-    return jsonResponse(res);
-  }
-
-  if (
-    method === 'GET' &&
-    segments.length === 3 &&
-    a === 'forms' &&
-    isUuid(b) &&
-    c === 'result-layout'
-  ) {
-    const res = await fetch(publicUrl(cfg.baseUrl, `forms/${b}/result-layout${search}`), {
-      headers,
-      cache: 'no-store',
-    });
-    return jsonResponse(res);
-  }
-
-  if (
-    method === 'GET' &&
-    segments.length === 3 &&
-    a === 'forms' &&
-    isUuid(b) &&
-    c === 'active-attempt'
-  ) {
-    const res = await fetch(
-      internalStudentUrl(
-        cfg.baseUrl,
-        `forms/${b}/active-attempt?customerId=${String(customerId)}`,
-      ),
-      {
-        headers: { ...headers, ...serviceAuth },
-        cache: 'no-store',
-      },
+  // Find matching route
+  const route = matchRoute(ROUTE_MAP, request.method, segments);
+  if (!route) {
+    return NextResponse.json(
+      { message: 'Unsupported quiz-runtime path or method.' },
+      { status: 404 },
     );
-    return jsonResponse(res);
   }
 
-  if (
-    method === 'GET' &&
-    segments.length === 3 &&
-    a === 'forms' &&
-    isUuid(b) &&
-    c === 'attempts'
-  ) {
-    const res = await fetch(
-      internalStudentUrl(
-        cfg.baseUrl,
-        `forms/${b}/attempts?customerId=${String(customerId)}`,
-      ),
-      {
-        headers: { ...headers, ...serviceAuth },
-        cache: 'no-store',
-      },
-    );
-    return jsonResponse(res);
-  }
-
-  if (method === 'GET' && segments.length === 1 && a === 'progress') {
-    const sp = new URLSearchParams(search.replace(/^\?/, ''));
-    sp.set('customerId', String(customerId));
-    const qInner = `?${sp.toString()}`;
-    const res = await fetch(internalStudentUrl(cfg.baseUrl, `progress${qInner}`), {
-      headers: { ...headers, ...serviceAuth },
-      cache: 'no-store',
-    });
-    return jsonResponse(res);
-  }
-
-  if (method === 'POST' && segments.length === 3 && a === 'forms' && isUuid(b) && c === 'attempts') {
-    let snapshot: Record<string, unknown> | undefined;
-    const ct = request.headers.get('content-type') ?? '';
-    if (ct.includes('application/json')) {
-      try {
-        const raw = (await request.json()) as { participantSnapshot?: unknown };
-        if (raw && typeof raw.participantSnapshot === 'object' && raw.participantSnapshot) {
-          snapshot = raw.participantSnapshot as Record<string, unknown>;
-        }
-      } catch {
-        snapshot = undefined;
-      }
-    }
-    const body: { customerId: number; participantSnapshot?: Record<string, unknown> } = {
-      customerId,
-    };
-    if (snapshot) body.participantSnapshot = snapshot;
-    const res = await fetch(internalStudentUrl(cfg.baseUrl, `forms/${b}/attempts`), {
-      method: 'POST',
-      headers: { ...headers, ...serviceAuth },
-      body: JSON.stringify(body),
-    });
-    return jsonResponse(res);
-  }
-
-  if (
-    method === 'GET' &&
-    segments.length === 4 &&
-    a === 'forms' &&
-    isUuid(b) &&
-    c === 'attempts' &&
-    d === 'active'
-  ) {
-    const sp = new URLSearchParams(search.replace(/^\?/, ''));
-    if (!sp.has('customerId')) sp.set('customerId', String(customerId));
-    const qInner = `?${sp.toString()}`;
-    const res = await fetch(internalStudentUrl(cfg.baseUrl, `forms/${b}/attempts/active${qInner}`), {
-      headers: { ...headers, ...serviceAuth },
-      cache: 'no-store',
-    });
-    return jsonResponse(res);
-  }
-
-  if (method === 'GET' && segments.length === 2 && a === 'attempts' && isUuid(b)) {
-    const sp = new URLSearchParams(search.replace(/^\?/, ''));
-    if (!sp.has('customerId')) sp.set('customerId', String(customerId));
-    const qInner = sp.toString() ? `?${sp.toString()}` : `?customerId=${String(customerId)}`;
-    const res = await fetch(internalStudentUrl(cfg.baseUrl, `attempts/${b}${qInner}`), {
-      headers: { ...headers, ...serviceAuth },
-      cache: 'no-store',
-    });
-    return jsonResponse(res);
-  }
-
-  if (
-    method === 'PATCH' &&
-    segments.length === 3 &&
-    a === 'attempts' &&
-    isUuid(b) &&
-    c === 'answers'
-  ) {
-    let answersByFormItemId: Record<string, unknown> = {};
-    try {
-      const raw = (await request.json()) as { answersByFormItemId?: unknown };
-      if (raw && typeof raw.answersByFormItemId === 'object' && raw.answersByFormItemId) {
-        answersByFormItemId = raw.answersByFormItemId as Record<string, unknown>;
-      }
-    } catch {
-      answersByFormItemId = {};
-    }
-    const res = await fetch(internalStudentUrl(cfg.baseUrl, `attempts/${b}/answers`), {
-      method: 'PATCH',
-      headers: { ...headers, ...serviceAuth },
-      body: JSON.stringify({ customerId, answersByFormItemId }),
-    });
-    return jsonResponse(res);
-  }
-
-  if (
-    method === 'POST' &&
-    segments.length === 3 &&
-    a === 'attempts' &&
-    isUuid(b) &&
-    c === 'listening-cycle'
-  ) {
-    let formItemId = '';
-    try {
-      const raw = (await request.json()) as { formItemId?: unknown };
-      if (typeof raw.formItemId === 'string') formItemId = raw.formItemId;
-    } catch {
-      formItemId = '';
-    }
-    const res = await fetch(internalStudentUrl(cfg.baseUrl, `attempts/${b}/listening-cycle`), {
-      method: 'POST',
-      headers: { ...headers, ...serviceAuth },
-      body: JSON.stringify({ customerId, formItemId }),
-    });
-    return jsonResponse(res);
-  }
-
-  if (
-    method === 'POST' &&
-    segments.length === 3 &&
-    a === 'attempts' &&
-    isUuid(b) &&
-    c === 'submit'
-  ) {
-    const res = await fetch(internalStudentUrl(cfg.baseUrl, `attempts/${b}/submit`), {
-      method: 'POST',
-      headers: { ...headers, ...serviceAuth },
-      body: JSON.stringify({ customerId }),
-    });
-    return jsonResponse(res);
-  }
-
-  return NextResponse.json({ message: 'Unsupported quiz-runtime path or method.' }, { status: 404 });
+  // Execute route handler
+  return route.handler(ctx, segments, request);
 }
+
+// Export individual handlers for testing
+export {
+  handleGetForms,
+  handleGetFormById,
+  handleGetResultLayout,
+  handleGetActiveAttempt,
+  handleGetAttempts,
+  handleCreateAttempt,
+  handleGetFormsProgress,
+  handleGetProgress,
+  handleGetAttemptsActive,
+  handleGetAttemptById,
+  handlePatchAnswers,
+  handleListeningCycle,
+  handleSubmitAttempt,
+};

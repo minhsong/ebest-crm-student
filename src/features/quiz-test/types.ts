@@ -133,6 +133,12 @@ export type QuizAttemptHistoryItem = {
   remainingSeconds: number;
   /** Gắn bài tập CRM khi start attempt có participantSnapshot.assignmentId */
   assignmentId?: number | null;
+  /** Score from listAttempts response (fallback) */
+  score?: number | null;
+  scoreDisplay?: string | null;
+  correctCount?: number | null;
+  totalQuestions?: number | null;
+  /** Detailed grading summary from detailed attempt response */
   gradingSummary?: {
     totalQuestions: number;
     gradedQuestions: number;

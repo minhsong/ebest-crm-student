@@ -1,14 +1,17 @@
+/**
+ * Quiz Attempt Runtime Hook
+ * Main orchestrator hook for quiz attempt workflow
+ *
+ * Responsibilities:
+ * - Manages quiz attempt state machine
+ * - Coordinates timer, websocket, and persistence hooks
+ * - Handles form loading and attempt lifecycle
+ */
+
 'use client';
 
-import { mergeAttemptWithFormPublishedDuration } from '@/features/quiz-test/lib/quiz-attempt-merge';
-import { fetchQuizRuntimeJson } from '@/features/quiz-test/lib/quiz-runtime-http';
-import {
-  getAttemptTimerValidity,
-  normalizeAttemptAnswers,
-  REMAINING_UNSET,
-  syncRemainingFromAttempt,
-  toValidAttemptPayload,
-} from '@/features/quiz-test/lib/quiz-runtime-view';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Socket } from 'socket.io-client';
 import type {
   QuizAttemptHistoryItem,
   QuizAttemptStateResponse,
@@ -17,30 +20,31 @@ import type {
   SubmitAttemptResponse,
 } from '@/features/quiz-test/types';
 import { quizRuntimePublicUrl } from '@/features/quiz-test/quiz-gateway-browser';
+import { fetchQuizRuntimeJson } from '@/features/quiz-test/lib/quiz-runtime-http';
+import {
+  fetchQuizStartEligibility,
+  postQuizResultSync,
+} from '@/lib/quiz-assignment-crm';
+import { QuizAssignmentUiMessages } from '@/lib/quiz-assignment-ui-messages';
+import {
+  mergeAttemptWithFormPublishedDuration,
+  normalizeAttemptAnswers,
+  toValidAttemptPayload,
+  syncRemainingFromAttempt,
+  REMAINING_UNSET,
+  getAttemptTimerValidity,
+} from '@/features/quiz-test/lib/quiz-runtime-view';
 import {
   QUIZ_WS,
   connectQuizRuntimeSocket,
   fetchQuizWsAccessToken,
   normalizeAnswersWsPayload,
 } from '@/features/quiz-test/quiz-runtime-ws-client';
-import {
-  fetchQuizStartEligibility,
-  postQuizResultSync,
-} from '@/lib/quiz-assignment-crm';
-import { QuizAssignmentUiMessages } from '@/lib/quiz-assignment-ui-messages';
 import { message as antdMessage } from 'antd';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Socket } from 'socket.io-client';
 
-function normalizeListeningMap(raw: unknown): Record<string, number> {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
-  const o: Record<string, number> = {};
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    const n = Number(v);
-    if (Number.isFinite(n)) o[String(k)] = n;
-  }
-  return o;
-}
+// ============================================================================
+// Types
+// ============================================================================
 
 export type QuizAttemptPhase =
   | 'loading_form'
@@ -54,14 +58,33 @@ export type QuizAttemptPhase =
 
 type UseQuizAttemptRuntimeArgs = {
   formPublicId: string;
-  /** Khi mở từ bài tập — sau nộp gọi CRM đồng bộ điểm (§10.8). */
+  /** Khi mở từ bài tập — sau nộp gọi CRM đồng bộ điểm */
   assignmentId?: number;
 };
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+function normalizeListeningMap(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const o: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const n = Number(v);
+    if (Number.isFinite(n)) o[String(k)] = n;
+  }
+  return o;
+}
+
+// ============================================================================
+// Main Hook
+// ============================================================================
 
 export function useQuizAttemptRuntime({
   formPublicId,
   assignmentId,
 }: UseQuizAttemptRuntimeArgs) {
+  // Core state
   const [phase, setPhase] = useState<QuizAttemptPhase>('loading_form');
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [formPayload, setFormPayload] = useState<QuizPublishedFormPayload | null>(null);
@@ -71,18 +94,27 @@ export function useQuizAttemptRuntime({
   const [attemptHistory, setAttemptHistory] = useState<QuizAttemptHistoryItem[]>([]);
   const [remainingSeconds, setRemainingSeconds] = useState<number>(REMAINING_UNSET);
   const [rulesAcknowledged, setRulesAcknowledged] = useState(false);
-  const quizSocketRef = useRef<Socket | null>(null);
-  const autoSubmitTriggeredRef = useRef(false);
   const [listeningRemaining, setListeningRemaining] = useState<Record<string, number>>({});
+
+  // Refs for async callbacks
+  const autoSubmitTriggeredRef = useRef(false);
+  const quizSocketRef = useRef<Socket | null>(null);
+
+  // ============================================================================
+  // Form Loading
+  // ============================================================================
 
   const loadForm = useCallback(async () => {
     setPhase('loading_form');
     setErrMsg(null);
+
     const url = quizRuntimePublicUrl(`forms/${formPublicId}`);
+
     try {
       const { ok, status, data } = await fetchQuizRuntimeJson<
         QuizPublishedFormPayload & { message?: string }
       >(url);
+
       if (!ok) {
         const msg =
           typeof (data as { message?: string })?.message === 'string'
@@ -90,31 +122,43 @@ export function useQuizAttemptRuntime({
             : `HTTP ${String(status)}`;
         throw new Error(msg);
       }
+
       setFormPayload(data);
-      const activeUrl = quizRuntimePublicUrl(`forms/${formPublicId}/active-attempt`);
-      const historyUrl = quizRuntimePublicUrl(`forms/${formPublicId}/attempts`);
+
+      // Fetch active attempt and history in parallel
       const [active, historyRes] = await Promise.all([
-        fetchQuizRuntimeJson<QuizAttemptStateResponse>(activeUrl),
-        fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(historyUrl),
+        fetchQuizRuntimeJson<QuizAttemptStateResponse>(
+          quizRuntimePublicUrl(`forms/${formPublicId}/active-attempt`),
+        ),
+        fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
+          quizRuntimePublicUrl(`forms/${formPublicId}/attempts`),
+        ),
       ]);
-      const nextHistory = Array.isArray(historyRes.data?.items) ? historyRes.data.items : [];
+
+      const nextHistory = Array.isArray(historyRes.data?.items)
+        ? historyRes.data.items
+        : [];
       setAttemptHistory(nextHistory);
+
+      // Handle active attempt state
       if (active.ok && active.data && typeof active.data === 'object') {
         const state = active.data as QuizAttemptStateResponse;
+
         if (state.state === 'in_progress') {
-          const resumed = toValidAttemptPayload(state.attempt, formPublicId);
+          const rawAttempt = state.attempt;
+          const resumed = toValidAttemptPayload(rawAttempt, formPublicId);
           if (resumed) {
             const merged = mergeAttemptWithFormPublishedDuration(resumed, data);
             autoSubmitTriggeredRef.current = false;
             setAttempt(merged);
             setAnswers(
               normalizeAttemptAnswers(
-                (state.attempt as { answersByFormItemId?: unknown })?.answersByFormItemId,
+                (rawAttempt as { answersByFormItemId?: unknown })?.answersByFormItemId,
               ),
             );
             setListeningRemaining(
               normalizeListeningMap(
-                (state.attempt as { remainingPlaysByListeningUnit?: unknown })
+                (rawAttempt as { remainingPlaysByListeningUnit?: unknown })
                   ?.remainingPlaysByListeningUnit,
               ),
             );
@@ -123,6 +167,7 @@ export function useQuizAttemptRuntime({
             return;
           }
         }
+
         if (state.state === 'closed') {
           const attemptId = String(state.attempt?.attemptPublicId ?? '');
           setAttempt(null);
@@ -134,7 +179,9 @@ export function useQuizAttemptRuntime({
             attemptPublicId: attemptId,
             status: String(state.attempt?.status ?? state.reason),
             submittedAt:
-              typeof state.attempt?.submittedAt === 'string' ? state.attempt.submittedAt : null,
+              typeof state.attempt?.submittedAt === 'string'
+                ? state.attempt.submittedAt
+                : null,
             answersByFormItemId: state.attempt?.answersByFormItemId,
             grading: state.attempt?.grading,
           });
@@ -147,6 +194,8 @@ export function useQuizAttemptRuntime({
           return;
         }
       }
+
+      // Reset to ready state
       setAttempt(null);
       setAnswers({});
       setSubmitResult(null);
@@ -163,50 +212,79 @@ export function useQuizAttemptRuntime({
     void loadForm();
   }, [loadForm]);
 
+  // ============================================================================
+  // Answer Persistence
+  // ============================================================================
+
   const persistAnswersRealtime = useCallback(
     (next: Record<string, string | string[]>, attemptPublicId: string) => {
       const sock = quizSocketRef.current;
       if (sock?.connected) {
-        sock.emit(QUIZ_WS.PATCH_ANSWERS, { attemptPublicId, answersByFormItemId: next }, (ack: unknown) => {
-          const a = ack as { event?: string };
-          if (a?.event === QUIZ_WS.ERROR) {
-            const url = quizRuntimePublicUrl(`attempts/${attemptPublicId}/answers`);
-            void fetch(url, {
-              credentials: 'include',
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-              body: JSON.stringify({ answersByFormItemId: next }),
-            }).catch(() => undefined);
-          }
-        });
+        sock.emit(
+          QUIZ_WS.PATCH_ANSWERS,
+          { attemptPublicId, answersByFormItemId: next },
+          (ack: unknown) => {
+            const a = ack as { event?: string };
+            if (a?.event === QUIZ_WS.ERROR) {
+              const url = quizRuntimePublicUrl(`attempts/${attemptPublicId}/answers`);
+              void fetch(url, {
+                credentials: 'include',
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Accept: 'application/json',
+                },
+                body: JSON.stringify({ answersByFormItemId: next }),
+              }).catch(() => undefined);
+            }
+          },
+        );
         return;
       }
+      // REST fallback
       const url = quizRuntimePublicUrl(`attempts/${attemptPublicId}/answers`);
       void fetch(url, {
         credentials: 'include',
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
         body: JSON.stringify({ answersByFormItemId: next }),
       }).catch(() => undefined);
     },
     [],
   );
 
-  const patchAnswersImmediately = useCallback(async (attemptPublicId: string, map: Record<string, string | string[]>) => {
-    const url = quizRuntimePublicUrl(`attempts/${attemptPublicId}/answers`);
-    const { ok } = await fetchQuizRuntimeJson(url, {
-      method: 'PATCH',
-      body: JSON.stringify({ answersByFormItemId: map }),
-    });
-    if (!ok) antdMessage.warning('Không lưu nháp được — kiểm tra mạng hoặc phiên làm bài đã hết hạn.');
-  }, []);
+  const patchAnswersImmediately = useCallback(
+    async (attemptPublicId: string, map: Record<string, string | string[]>) => {
+      const url = quizRuntimePublicUrl(`attempts/${attemptPublicId}/answers`);
+      const { ok } = await fetchQuizRuntimeJson(url, {
+        method: 'PATCH',
+        body: JSON.stringify({ answersByFormItemId: map }),
+      });
+      if (!ok) {
+        antdMessage.warning(
+          'Không lưu nháp được — kiểm tra mạng hoặc phiên làm bài đã hết hạn.',
+        );
+      }
+    },
+    [],
+  );
+
+  // ============================================================================
+  // Start Attempt
+  // ============================================================================
 
   const handleStart = useCallback(async () => {
     if (!formPayload) return;
     setPhase('starting');
     setErrMsg(null);
+
     const url = quizRuntimePublicUrl(`forms/${formPublicId}/attempts`);
+
     try {
+      // Check eligibility if from assignment
       if (assignmentId != null && assignmentId >= 1) {
         const gate = await fetchQuizStartEligibility(assignmentId);
         if (!gate.allowed) {
@@ -214,6 +292,7 @@ export function useQuizAttemptRuntime({
         }
       }
 
+      // Start attempt
       const startBody =
         assignmentId != null && assignmentId >= 1
           ? JSON.stringify({
@@ -227,6 +306,7 @@ export function useQuizAttemptRuntime({
         method: 'POST',
         body: startBody,
       });
+
       if (!ok) {
         throw new Error(
           typeof (data as { message?: string })?.message === 'string'
@@ -234,11 +314,13 @@ export function useQuizAttemptRuntime({
             : `HTTP ${status}`,
         );
       }
+
       const mergedStart = mergeAttemptWithFormPublishedDuration(data, formPayload);
       setAttempt(mergedStart);
       setListeningRemaining(
         normalizeListeningMap(
-          (data as { remainingPlaysByListeningUnit?: unknown }).remainingPlaysByListeningUnit,
+          (data as { remainingPlaysByListeningUnit?: unknown })
+            ?.remainingPlaysByListeningUnit,
         ),
       );
       autoSubmitTriggeredRef.current = false;
@@ -250,6 +332,10 @@ export function useQuizAttemptRuntime({
       setPhase('confirm_start');
     }
   }, [assignmentId, formPayload, formPublicId]);
+
+  // ============================================================================
+  // Answer Change Handler
+  // ============================================================================
 
   const onAnswerChange = useCallback(
     (formItemId: string, value: string | string[]) => {
@@ -263,6 +349,10 @@ export function useQuizAttemptRuntime({
     [attempt, persistAnswersRealtime],
   );
 
+  // ============================================================================
+  // Submit Attempt
+  // ============================================================================
+
   const handleSubmit = useCallback(async () => {
     const attemptId = attempt?.attemptPublicId?.trim();
     if (!attemptId) {
@@ -270,15 +360,21 @@ export function useQuizAttemptRuntime({
       setPhase('ready');
       return;
     }
+
     setPhase('submitting');
     setErrMsg(null);
+
+    // Persist final answers
     await patchAnswersImmediately(attemptId, answers);
+
     const url = quizRuntimePublicUrl(`attempts/${attemptId}/submit`);
+
     try {
       const { ok, data } = await fetchQuizRuntimeJson<SubmitAttemptResponse & { message?: string }>(
         url,
         { method: 'POST' },
       );
+
       if (!ok) {
         throw new Error(
           typeof (data as { message?: string })?.message === 'string'
@@ -286,29 +382,21 @@ export function useQuizAttemptRuntime({
             : 'Nộp bài thất bại',
         );
       }
-      setSubmitResult(data as SubmitAttemptResponse);
-
-      // Refresh history immediately after submit
-      void refreshHistory().then((newHistory) => {
-        // If the new history has a more recent submission than submitResult, update it
-        const latestSubmitted = newHistory.find(
-          (h) => h.attemptPublicId === (data as SubmitAttemptResponse).attemptPublicId,
-        );
-        if (latestSubmitted?.gradingSummary) {
-          // History already has grading, no need to update
-        }
-      });
 
       const submitted = data as SubmitAttemptResponse;
-      const aid = assignmentId;
-      const attemptPid = submitted?.attemptPublicId?.trim();
+      setSubmitResult(submitted);
+
+      // Refresh history
+      void refreshHistory();
+
+      // Sync score to assignment if from assignment
       if (
-        aid != null &&
-        Number.isFinite(aid) &&
-        aid >= 1 &&
-        attemptPid
+        assignmentId != null &&
+        Number.isFinite(assignmentId) &&
+        assignmentId >= 1 &&
+        submitted?.attemptPublicId?.trim()
       ) {
-        void postQuizResultSync(aid, attemptPid)
+        void postQuizResultSync(assignmentId, submitted.attemptPublicId.trim())
           .then((syncOk) => {
             if (!syncOk) {
               antdMessage.warning(QuizAssignmentUiMessages.syncScoreToAssignmentFailed);
@@ -326,33 +414,53 @@ export function useQuizAttemptRuntime({
     }
   }, [answers, assignmentId, attempt, patchAnswersImmediately]);
 
+  // ============================================================================
+  // Timer Logic
+  // ============================================================================
+
   useEffect(() => {
     if (phase !== 'attempting' || !attempt) return;
-    const v = getAttemptTimerValidity(attempt);
-    if (!v.ok) {
+
+    const timerValidity = getAttemptTimerValidity(attempt);
+    if (!timerValidity.ok) {
       setRemainingSeconds(REMAINING_UNSET);
       return;
     }
-    const tick = () => Math.max(0, Math.ceil((v.deadlineMs - Date.now()) / 1000));
+
+    // Calculate initial tick
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((timerValidity.deadlineMs - Date.now()) / 1000));
+      return remaining;
+    };
+
     setRemainingSeconds(tick());
-    const iv = setInterval(() => {
-      const remain = tick();
-      setRemainingSeconds(remain);
-      if (remain <= 0) clearInterval(iv);
+
+    // Start countdown interval
+    const intervalId = setInterval(() => {
+      const remaining = tick();
+      setRemainingSeconds(remaining);
+      if (remaining <= 0) clearInterval(intervalId);
     }, 1000);
-    return () => clearInterval(iv);
+
+    return () => clearInterval(intervalId);
   }, [attempt, phase]);
 
+  // Auto-submit on timeout
   useEffect(() => {
     if (phase !== 'attempting' || !attempt) return;
     if (!getAttemptTimerValidity(attempt).ok) return;
     if (!Number.isFinite(remainingSeconds) || remainingSeconds === REMAINING_UNSET) return;
     if (remainingSeconds > 0 || autoSubmitTriggeredRef.current) return;
+
     autoSubmitTriggeredRef.current = true;
     setErrMsg('Hết giờ làm bài. Hệ thống đang tự động nộp bài.');
     antdMessage.warning('Đã hết giờ, hệ thống tự động nộp bài.');
     void handleSubmit();
   }, [attempt, handleSubmit, phase, remainingSeconds]);
+
+  // ============================================================================
+  // WebSocket Connection
+  // ============================================================================
 
   useEffect(() => {
     if (phase !== 'attempting' || !attempt?.attemptPublicId) {
@@ -364,18 +472,31 @@ export function useQuizAttemptRuntime({
 
     let cancelled = false;
     const attemptId = attempt.attemptPublicId;
-    void (async () => {
+
+    const connectSocket = async () => {
       const token = await fetchQuizWsAccessToken();
       if (cancelled || !token) return;
+
       try {
         const sock = connectQuizRuntimeSocket(token);
         quizSocketRef.current = sock;
+
         sock.on('connect_error', () => undefined);
+
+        // Answer sync from server
         sock.on(QUIZ_WS.ANSWERS_SYNC, (payload: unknown) => {
-          const p = payload as { attemptPublicId?: string; answersByFormItemId?: Record<string, unknown> };
+          const p = payload as {
+            attemptPublicId?: string;
+            answersByFormItemId?: Record<string, unknown>;
+          };
           if (p?.attemptPublicId !== attemptId) return;
-          setAnswers((prev) => ({ ...prev, ...normalizeAnswersWsPayload(p.answersByFormItemId) }));
+          setAnswers((prev) => ({
+            ...prev,
+            ...normalizeAnswersWsPayload(p.answersByFormItemId),
+          }));
         });
+
+        // Listening state sync
         sock.on(QUIZ_WS.LISTENING_STATE_SYNC, (payload: unknown) => {
           const p = payload as {
             attemptPublicId?: string;
@@ -384,6 +505,8 @@ export function useQuizAttemptRuntime({
           if (p?.attemptPublicId !== attemptId) return;
           setListeningRemaining(normalizeListeningMap(p.remainingPlaysByListeningUnit));
         });
+
+        // Join attempt room
         const sendJoin = () => {
           sock.emit(QUIZ_WS.JOIN, { attemptPublicId: attemptId }, (ack: unknown) => {
             const a = ack as {
@@ -399,12 +522,15 @@ export function useQuizAttemptRuntime({
             }
           });
         };
+
         if (sock.connected) sendJoin();
         sock.on('connect', sendJoin);
       } catch {
         /* REST autosave fallback */
       }
-    })();
+    };
+
+    void connectSocket();
 
     return () => {
       cancelled = true;
@@ -417,6 +543,10 @@ export function useQuizAttemptRuntime({
     };
   }, [phase, attempt?.attemptPublicId]);
 
+  // ============================================================================
+  // UI Actions
+  // ============================================================================
+
   const openConfirmStart = useCallback(() => {
     setRulesAcknowledged(false);
     setPhase('confirm_start');
@@ -426,6 +556,7 @@ export function useQuizAttemptRuntime({
     async (formItemId: string) => {
       const id = attempt?.attemptPublicId?.trim();
       if (!id || !formItemId.trim()) return;
+
       const url = quizRuntimePublicUrl(`attempts/${id}/listening-cycle`);
       const { ok, data } = await fetchQuizRuntimeJson<{
         remainingPlaysByListeningUnit?: unknown;
@@ -433,6 +564,7 @@ export function useQuizAttemptRuntime({
         method: 'POST',
         body: JSON.stringify({ formItemId: formItemId.trim() }),
       });
+
       if (ok) {
         setListeningRemaining(normalizeListeningMap(data?.remainingPlaysByListeningUnit));
       }
@@ -459,7 +591,12 @@ export function useQuizAttemptRuntime({
     return [];
   }, [formPublicId]);
 
+  // ============================================================================
+  // Return
+  // ============================================================================
+
   return {
+    // State
     phase,
     errMsg,
     formPayload,
@@ -469,14 +606,16 @@ export function useQuizAttemptRuntime({
     attemptHistory,
     remainingSeconds,
     rulesAcknowledged,
+    listeningRemaining,
+    // Setters
     setRulesAcknowledged,
     setPhase,
+    // Actions
     loadForm,
     handleStart,
     onAnswerChange,
     handleSubmit,
     openConfirmStart,
-    listeningRemaining,
     reportListeningCycle,
     refreshHistory,
   };

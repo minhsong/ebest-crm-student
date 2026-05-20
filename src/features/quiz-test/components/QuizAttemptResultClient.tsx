@@ -35,11 +35,14 @@ export function QuizAttemptResultClient({
   formPublicId,
   attemptPublicId,
   initialQuestionKey,
+  assignmentId,
 }: {
   formPublicId: string;
   attemptPublicId: string;
   /** Từ `?question=` — anchor câu (formItemId hoặc composite bundle child). */
   initialQuestionKey?: string | null;
+  /** Từ `?assignmentId=` — ID của assignment để kiểm tra eligibility. */
+  assignmentId?: number;
 }) {
   const { formPayload, attempt, error, loading } = useQuizAttemptResultData(
     formPublicId,
@@ -49,8 +52,8 @@ export function QuizAttemptResultClient({
   // Check if user can view result details
   const { data: canViewData, loading: checkingCanView } = useCanViewResultDetails(
     formPublicId,
-    undefined,
     attemptPublicId,
+    assignmentId,
   );
 
   // Build renderable blocks from form payload
@@ -271,9 +274,13 @@ export function QuizAttemptResultClient({
             />
           )
         ) : (
-          /* Placeholder when cannot view details - show summary only */
+          /* Placeholder when cannot view details - encourage student to try again */
           <div className="text-center py-8 text-gray-500">
-            <p>Điểm số của bạn sẽ được hiển thị sau khi hoàn thành các điều kiện xem kết quả.</p>
+            <p>
+              {canViewData && cannotViewReason
+                ? getCannotViewResultMessage(cannotViewReason, canViewData)
+                : 'Hãy cố gắng hết sức để xem kết quả chi tiết nhé!'}
+            </p>
           </div>
         )}
 
