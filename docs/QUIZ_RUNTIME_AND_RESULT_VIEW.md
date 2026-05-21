@@ -51,8 +51,10 @@ Trang `QuizAttemptResultClient` gọi riêng: `useQuizAttemptResultData`, `useQu
 2. **Không** gọi CRM `quiz-eligibility` / `result-layout` / GET attempt trùng trên trang chi tiết.
 3. **`formLayoutSnapshot`** trên `quiz_attempt_results` — freeze toàn bộ đề khi `startAttempt` (`buildFrozenFormLayoutSnapshot`).
 4. **BFF authorize cache 60s** — proxy `forms/*` không lặp CRM; `review-bundle` chỉ verify ownership qua `customerId`.
-5. **Danh sách lần làm bài tập** (trang results / modal): `assignment-quiz-stats` + `quiz-start-eligibility` qua `AssignmentQuizActionButtons`.
-6. **`/assignments` (danh sách lớp)**: **một** `GET overview/sessions`; nút từ `deriveAssignmentListRowAction` (CRM `scoreDisplay` / `resultStatus`) — **không** gọi eligibility/stats theo từng dòng.
+5. **Danh sách lần làm** (trang `/quiz-test/.../results` hoặc modal chi tiết bài): `assignment-quiz-stats` + `quiz-start-eligibility` qua `AssignmentQuizActionButtons` — **không** dùng trên list lớp.
+6. **`/assignments` (danh sách lớp)**: **một** `GET overview/sessions`; nút từ `deriveAssignmentListRowAction` + `AssignmentOverviewRowActions` — **không** gọi eligibility/stats theo từng dòng (D14).
+
+**API & troubleshooting:** [QUIZ_API_AND_OPS_REFERENCE.md](../../ebest-crm-api/docs/modules/test-quiz/QUIZ_API_AND_OPS_REFERENCE.md).
 
 ---
 
