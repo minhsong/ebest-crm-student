@@ -1,5 +1,5 @@
 import type { QuizAssignmentListItem } from '@/features/quiz-test/types';
-import { CRM_ASSIGNMENT_RESULT_STATUS } from '@/lib/crm-enums';
+import { assignmentHasGradedSummary } from '@/lib/assignment-list-row-actions';
 import type { OverviewClassSessions } from '@/types/overview-sessions';
 
 export const EXERCISE_TYPE_QUIZ = 'quiz';
@@ -25,8 +25,14 @@ export function sortQuizAssignmentListItems(
   items: QuizAssignmentListItem[],
 ): QuizAssignmentListItem[] {
   return [...items].sort((a, b) => {
-    const aDone = a.resultStatus === CRM_ASSIGNMENT_RESULT_STATUS.GRADED;
-    const bDone = b.resultStatus === CRM_ASSIGNMENT_RESULT_STATUS.GRADED;
+    const aDone = assignmentHasGradedSummary({
+      resultStatus: a.resultStatus,
+      scoreDisplay: a.scoreDisplay,
+    });
+    const bDone = assignmentHasGradedSummary({
+      resultStatus: b.resultStatus,
+      scoreDisplay: b.scoreDisplay,
+    });
     if (aDone !== bDone) return aDone ? 1 : -1;
     return a.assignmentId - b.assignmentId;
   });

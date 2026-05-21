@@ -163,7 +163,7 @@ export function QuizAttemptResultClient({
         <Space direction="vertical">
           <Link href={!practiceMode ? '/assignments' : '/practice-quizzes'}>
             <Button type="default" icon={<ArrowLeftOutlined />} size="small">
-              Danh sách đề
+              {!practiceMode ? 'Bài tập' : 'Ôn luyện'}
             </Button>
           </Link>
           <Alert type="error" message={error ?? 'Không có dữ liệu kết quả'} showIcon />
@@ -195,7 +195,7 @@ export function QuizAttemptResultClient({
       <Space direction="vertical" size="middle" className="w-full">
         <Link href={!practiceMode ? '/assignments' : '/practice-quizzes'}>
           <Button type="default" icon={<ArrowLeftOutlined />} size="small">
-            Danh sách đề
+            {!practiceMode ? 'Bài tập' : 'Ôn luyện'}
           </Button>
         </Link>
 
@@ -299,8 +299,8 @@ export function QuizAttemptResultClient({
                   Làm bài mới
                 </Button>
               </Link>
-              <Link href={`/quiz-test/${formPublicId}?mode=practice`}>
-                <Button type="default">Quay lại đề</Button>
+              <Link href="/practice-quizzes">
+                <Button type="default">Danh sách ôn luyện</Button>
               </Link>
             </>
           )}

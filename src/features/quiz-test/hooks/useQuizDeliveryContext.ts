@@ -10,6 +10,7 @@ export function useQuizDeliveryContext(
   formPublicId: string,
   options?: {
     attemptPublicId?: string;
+    assignmentIdHint?: number;
     preferPractice?: boolean;
     enabled?: boolean;
   },
@@ -31,6 +32,7 @@ export function useQuizDeliveryContext(
     try {
       const next = await resolveQuizRuntimeAccess(fid, {
         attemptPublicId: options?.attemptPublicId,
+        assignmentIdHint: options?.assignmentIdHint,
         preferPractice: options?.preferPractice,
         intent: 'access',
       });
@@ -50,6 +52,7 @@ export function useQuizDeliveryContext(
     enabled,
     formPublicId,
     options?.attemptPublicId,
+    options?.assignmentIdHint,
     options?.preferPractice,
   ]);
 

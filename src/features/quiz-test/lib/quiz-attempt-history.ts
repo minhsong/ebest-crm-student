@@ -19,9 +19,9 @@ export function getHistoryAssignmentId(row: unknown): number | null {
     (participant?.snapshot as Record<string, unknown> | undefined) ??
     (r.participantSnapshot as Record<string, unknown> | undefined);
   if (snap && typeof snap === 'object') {
-    if (snap.mode === 'practice') return null;
     const aid = Number(snap.assignmentId);
     if (Number.isFinite(aid) && aid >= 1) return aid;
+    if (snap.mode === 'practice') return null;
   }
 
   return null;

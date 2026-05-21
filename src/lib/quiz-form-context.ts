@@ -5,6 +5,8 @@
 export type QuizFormContextStored = {
   mode: 'assignment' | 'practice';
   assignmentId?: number;
+  /** Từ CRM authorize — dùng cho stats Gateway, không gọi lại eligibility CRM. */
+  quizMaxAttempts?: number | null;
 };
 
 const storageKey = (formPublicId: string) =>

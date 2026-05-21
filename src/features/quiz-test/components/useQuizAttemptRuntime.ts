@@ -35,6 +35,7 @@ import {
   getAttemptTimerValidity,
 } from '@/features/quiz-test/lib/quiz-runtime-view';
 import { mergeAttemptWithFormPublishedDuration } from '@/features/quiz-test/lib/quiz-attempt-merge';
+import { getQuizFormContext } from '@/lib/quiz-form-context';
 import {
   QUIZ_WS,
   connectQuizRuntimeSocket,
@@ -310,9 +311,16 @@ export function useQuizAttemptRuntime({
       }
 
       // Start attempt
+      const stored = getQuizFormContext(formPublicId);
       const snapshot =
         assignmentId != null && assignmentId >= 1
-          ? { assignmentId }
+          ? {
+              assignmentId,
+              quizMaxAttempts:
+                stored?.mode === 'assignment' && stored.assignmentId === assignmentId
+                  ? (stored.quizMaxAttempts ?? null)
+                  : null,
+            }
           : practiceMode
             ? { mode: 'practice' as const }
             : undefined;
@@ -409,22 +417,26 @@ export function useQuizAttemptRuntime({
       // Refresh history
       void refreshHistory();
 
-      // Sync score to assignment if from assignment
+      // Sync score to assignment (lần làm gần nhất → assignment_result)
       if (
         assignmentId != null &&
         Number.isFinite(assignmentId) &&
         assignmentId >= 1 &&
         submitted?.attemptPublicId?.trim()
       ) {
-        void postQuizResultSync(assignmentId, submitted.attemptPublicId.trim())
-          .then((syncOk) => {
-            if (!syncOk) {
-              antdMessage.warning(QuizAssignmentUiMessages.syncScoreToAssignmentFailed);
-            }
-          })
-          .catch(() =>
-            antdMessage.warning(QuizAssignmentUiMessages.syncNetworkError),
+        try {
+          const syncOk = await postQuizResultSync(
+            assignmentId,
+            submitted.attemptPublicId.trim(),
           );
+          if (!syncOk) {
+            antdMessage.warning(
+              QuizAssignmentUiMessages.syncScoreToAssignmentFailed,
+            );
+          }
+        } catch {
+          antdMessage.warning(QuizAssignmentUiMessages.syncNetworkError);
+        }
       }
 
       setPhase('done');

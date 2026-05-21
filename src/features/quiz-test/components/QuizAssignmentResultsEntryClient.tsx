@@ -2,6 +2,7 @@
 
 import { QuizAssignmentResultsClient } from '@/features/quiz-test/components/QuizAssignmentResultsClient';
 import { useQuizDeliveryContext } from '@/features/quiz-test/hooks/useQuizDeliveryContext';
+import { getQuizFormContext } from '@/lib/quiz-form-context';
 import { Alert, Card, Skeleton } from 'antd';
 import Link from 'next/link';
 
@@ -10,7 +11,14 @@ type Props = {
 };
 
 export function QuizAssignmentResultsEntryClient({ formPublicId }: Props) {
-  const { access, loading, error, assignmentId } = useQuizDeliveryContext(formPublicId);
+  const stored = getQuizFormContext(formPublicId);
+  const assignmentIdHint =
+    stored?.mode === 'assignment' && stored.assignmentId != null
+      ? stored.assignmentId
+      : undefined;
+  const { access, loading, error, assignmentId } = useQuizDeliveryContext(formPublicId, {
+    assignmentIdHint,
+  });
 
   if (loading) {
     return (

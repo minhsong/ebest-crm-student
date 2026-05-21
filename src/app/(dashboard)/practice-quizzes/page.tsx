@@ -111,7 +111,7 @@ export default function PracticeQuizzesPage() {
                   actions={[
                     <Link
                       key="start"
-                      href={`/quiz-test/${encodeURIComponent(row.formPublicId)}`}
+                      href={`/quiz-test/${encodeURIComponent(row.formPublicId)}?mode=practice`}
                       onClick={() =>
                         setQuizFormContext(row.formPublicId, { mode: 'practice' })
                       }

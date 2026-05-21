@@ -8,6 +8,11 @@ import type { NextRequest } from 'next/server';
 
 import { resolveStudentCustomerIdViaCrmMe } from '@/lib/crm-student-me';
 import { authorizeQuizViaCrm } from '@/lib/quiz-crm-authorize';
+import {
+  buildQuizAuthorizeCacheKey,
+  getCachedQuizAuthorize,
+  setCachedQuizAuthorize,
+} from '@/lib/quiz-bff-authorize-cache';
 
 // ============================================================================
 // Types & Interfaces
@@ -90,10 +95,17 @@ async function handleGetForms(): Promise<NextResponse> {
 /**
  * GET /forms/:id - Get form by UUID
  */
+function gatewayQueryWithCustomerId(ctx: RouteContext): string {
+  const sp = new URLSearchParams(ctx.search.replace(/^\?/, ''));
+  if (!sp.has('customerId')) sp.set('customerId', String(ctx.customerId));
+  const q = sp.toString();
+  return q ? `?${q}` : `?customerId=${ctx.customerId}`;
+}
+
 async function handleGetFormById(ctx: RouteContext, segments: string[]): Promise<NextResponse> {
   const formId = segments[1];
   const res = await fetch(
-    internalStudentUrl(ctx.baseUrl, `forms/${formId}${ctx.search}`),
+    internalStudentUrl(ctx.baseUrl, `forms/${formId}${gatewayQueryWithCustomerId(ctx)}`),
     {
       headers: { ...ctx.headers, ...ctx.serviceAuth },
       cache: 'no-store',
@@ -156,7 +168,7 @@ async function handleCreateAttempt(
   request: NextRequest,
 ): Promise<NextResponse> {
   const formId = segments[1];
-  const deny = await assertQuizAuthorizedForForm(request, formId);
+  const deny = await assertQuizAuthorizedForForm(request, formId, ctx.customerId);
   if (deny) return deny;
 
   const body = await parseJsonBody<{ participantSnapshot?: Record<string, unknown> }>(request);
@@ -260,11 +272,45 @@ async function handleGetAttemptsActive(ctx: RouteContext, segments: string[]): P
 /**
  * GET /attempts/:id - Get attempt by UUID
  */
+async function handleGetAttemptReviewBundle(
+  ctx: RouteContext,
+  segments: string[],
+): Promise<NextResponse> {
+  const attemptId = segments[1];
+  const res = await fetch(
+    internalStudentUrl(
+      ctx.baseUrl,
+      `attempts/${attemptId}/review-bundle${gatewayQueryWithCustomerId(ctx)}`,
+    ),
+    {
+      headers: { ...ctx.headers, ...ctx.serviceAuth },
+      cache: 'no-store',
+    },
+  );
+  return proxyResponse(res);
+}
+
+async function handleGetAssignmentQuizStats(
+  ctx: RouteContext,
+  segments: string[],
+): Promise<NextResponse> {
+  const formId = segments[1];
+  const res = await fetch(
+    internalStudentUrl(
+      ctx.baseUrl,
+      `forms/${formId}/assignment-quiz-stats${gatewayQueryWithCustomerId(ctx)}`,
+    ),
+    {
+      headers: { ...ctx.headers, ...ctx.serviceAuth },
+      cache: 'no-store',
+    },
+  );
+  return proxyResponse(res);
+}
+
 async function handleGetAttemptById(ctx: RouteContext, segments: string[]): Promise<NextResponse> {
   const attemptId = segments[1];
-  const sp = new URLSearchParams(ctx.search.replace(/^\?/, ''));
-  if (!sp.has('customerId')) sp.set('customerId', String(ctx.customerId));
-  const qInner = sp.toString() ? `?${sp.toString()}` : `?customerId=${ctx.customerId}`;
+  const qInner = gatewayQueryWithCustomerId(ctx);
 
   const res = await fetch(internalStudentUrl(ctx.baseUrl, `attempts/${attemptId}${qInner}`), {
     headers: { ...ctx.headers, ...ctx.serviceAuth },
@@ -430,6 +476,20 @@ function createRouteMap(): Map<string, RouteDefinition> {
     handler: async (ctx, segs) => handleGetAttemptById(ctx, segs),
   });
 
+  routes.set(buildRouteKey('GET', ['attempts', 'uuid', 'review-bundle']), {
+    method: 'GET',
+    pattern: '/attempts/:uuid/review-bundle',
+    segments: ['attempts', 'uuid', 'review-bundle'],
+    handler: async (ctx, segs) => handleGetAttemptReviewBundle(ctx, segs),
+  });
+
+  routes.set(buildRouteKey('GET', ['forms', 'uuid', 'assignment-quiz-stats']), {
+    method: 'GET',
+    pattern: '/forms/:uuid/assignment-quiz-stats',
+    segments: ['forms', 'uuid', 'assignment-quiz-stats'],
+    handler: async (ctx, segs) => handleGetAssignmentQuizStats(ctx, segs),
+  });
+
   // PATCH /attempts/:uuid/answers
   routes.set(buildRouteKey('PATCH', ['attempts', 'uuid', 'answers']), {
     method: 'PATCH',
@@ -514,6 +574,7 @@ function formPublicIdFromSegments(segments: string[]): string | null {
 async function assertQuizAuthorizedForForm(
   request: NextRequest,
   formPublicId: string,
+  customerId: number,
 ): Promise<NextResponse | null> {
   const sp = request.nextUrl.searchParams;
   const assignmentRaw = sp.get('assignmentId');
@@ -525,12 +586,25 @@ async function assertQuizAuthorizedForForm(
   const mode =
     modeRaw === 'practice' || modeRaw === 'assignment' ? modeRaw : undefined;
 
-  const result = await authorizeQuizViaCrm(request, {
+  const cacheKey = buildQuizAuthorizeCacheKey(
+    customerId,
     formPublicId,
     assignmentId,
-    mode: assignmentId != null ? undefined : mode,
-    intent: 'access',
-  });
+    assignmentId != null ? undefined : mode,
+  );
+  let result = getCachedQuizAuthorize(cacheKey);
+  if (!result) {
+    const fetched = await authorizeQuizViaCrm(request, {
+      formPublicId,
+      assignmentId,
+      mode: assignmentId != null ? undefined : mode,
+      intent: 'access',
+    });
+    if (fetched) {
+      setCachedQuizAuthorize(cacheKey, fetched);
+      result = fetched;
+    }
+  }
 
   if (result === null) {
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
@@ -591,9 +665,14 @@ export async function proxyQuizRuntimeToGateway(
     search: request.nextUrl.search ?? '',
   };
 
+  const isReviewBundle =
+    segments[0] === 'attempts' &&
+    segments.length === 3 &&
+    segments[2] === 'review-bundle';
+
   const formPublicId = formPublicIdFromSegments(segments);
-  if (formPublicId) {
-    const deny = await assertQuizAuthorizedForForm(request, formPublicId);
+  if (formPublicId && !isReviewBundle) {
+    const deny = await assertQuizAuthorizedForForm(request, formPublicId, customerId);
     if (deny) return deny;
   }
 

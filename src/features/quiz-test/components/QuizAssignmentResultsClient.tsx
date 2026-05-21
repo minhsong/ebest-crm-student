@@ -8,23 +8,18 @@ import { QuizAttemptHistoryList } from '@/features/quiz-test/components/QuizAtte
 import { fetchQuizRuntimeJson } from '@/features/quiz-test/lib/quiz-runtime-http';
 import { quizRuntimePublicUrl } from '@/features/quiz-test/quiz-gateway-browser';
 import type { QuizAttemptHistoryItem, QuizPublishedFormPayload } from '@/features/quiz-test/types';
-import {
-  filterSubmittedAttemptsForAssignment,
-  normalizeQuizAttemptHistoryItems,
-} from '@/features/quiz-test/lib/quiz-attempt-history';
 import { loadAssignmentQuizActionStateWithAccess } from '@/lib/quiz-assignment-action';
-import { fetchQuizStartEligibility } from '@/lib/quiz-assignment-crm';
 import {
-  quizRuntimeQueryFromAccess,
-  resolveQuizRuntimeAccess,
-  type QuizRuntimeAccess,
-} from '@/lib/quiz-runtime-access';
+  fetchGatewayAssignmentQuizStats,
+  historyItemsFromGatewayStats,
+} from '@/lib/quiz-gateway-assignment-stats';
+import { fetchQuizStartEligibility } from '@/lib/quiz-assignment-crm';
+import type { QuizRuntimeAccess } from '@/lib/quiz-runtime-access';
 import { pinAssignmentQuizRuntimeAccess } from '@/lib/quiz-runtime-access';
 
 type Props = {
   formPublicId: string;
   assignmentId: number;
-  /** Từ entry — tránh authorize trùng. */
   access: QuizRuntimeAccess;
 };
 
@@ -41,14 +36,20 @@ export function QuizAssignmentResultsClient({ formPublicId, assignmentId, access
     setLoading(true);
     setError(null);
     try {
-      pinAssignmentQuizRuntimeAccess(formPublicId, assignmentId);
-      const runtimeQ = quizRuntimeQueryFromAccess(access);
+      pinAssignmentQuizRuntimeAccess(formPublicId, assignmentId, {
+        quizMaxAttempts: access.effectiveMaxAttempts,
+      });
 
       const [formRes, action] = await Promise.all([
         fetchQuizRuntimeJson<QuizPublishedFormPayload>(
-          `${quizRuntimePublicUrl(`forms/${formPublicId}`)}${runtimeQ}`,
+          quizRuntimePublicUrl(`forms/${formPublicId}`),
         ),
-        loadAssignmentQuizActionStateWithAccess(formPublicId, assignmentId, access),
+        loadAssignmentQuizActionStateWithAccess(
+          formPublicId,
+          assignmentId,
+          access,
+          access.effectiveMaxAttempts,
+        ),
       ]);
 
       if (formRes.ok && formRes.data?.name) {
@@ -77,21 +78,21 @@ export function QuizAssignmentResultsClient({ formPublicId, assignmentId, access
   }, [load]);
 
   const refreshHistory = useCallback(async () => {
-    const access = await resolveQuizRuntimeAccess(formPublicId, { intent: 'access' });
-    const runtimeQ = access ? quizRuntimeQueryFromAccess(access) : `?assignmentId=${assignmentId}`;
-    const res = await fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
-      `${quizRuntimePublicUrl(`forms/${formPublicId}/attempts`)}${runtimeQ}`,
-    );
-    const filtered = filterSubmittedAttemptsForAssignment(
-      normalizeQuizAttemptHistoryItems(res.ok ? res.data?.items : []),
+    const stats = await fetchGatewayAssignmentQuizStats(
+      formPublicId,
       assignmentId,
+      access.effectiveMaxAttempts,
     );
+    const filtered = stats ? historyItemsFromGatewayStats(formPublicId, stats) : [];
     setAttempts(filtered);
     const gate = await fetchQuizStartEligibility(assignmentId);
     setCanStart(gate.allowed);
     setStartReason(gate.allowed ? null : gate.reason);
+    if (stats) {
+      setAttemptsRemaining(stats.attemptsRemaining);
+    }
     return filtered;
-  }, [assignmentId, formPublicId]);
+  }, [access.effectiveMaxAttempts, assignmentId, formPublicId]);
 
   if (loading) {
     return (
@@ -134,6 +135,11 @@ export function QuizAssignmentResultsClient({ formPublicId, assignmentId, access
         {canStart && attemptsRemaining != null && attemptsRemaining > 0 ? (
           <Link
             href={`/quiz-test/${encodeURIComponent(formPublicId)}`}
+            onClick={() =>
+              pinAssignmentQuizRuntimeAccess(formPublicId, assignmentId, {
+                quizMaxAttempts: access.effectiveMaxAttempts,
+              })
+            }
           >
             <Button type="primary" icon={<PlayCircleOutlined />}>
               Làm bài ({attemptsRemaining} lượt còn lại)
@@ -146,7 +152,7 @@ export function QuizAssignmentResultsClient({ formPublicId, assignmentId, access
             formPublicId={formPublicId}
             rows={attempts}
             title="Các lần làm bài"
-            description="Chọn một lần để xem đáp án, điểm từng câu và giải thích từ CRM."
+            description="Chọn một lần để xem đáp án, điểm từng câu và giải thích (theo đề đã freeze khi làm bài)."
             vertical
             showScore
             onRefresh={refreshHistory}
@@ -156,11 +162,6 @@ export function QuizAssignmentResultsClient({ formPublicId, assignmentId, access
             Chưa có lần làm bài đã nộp. Hãy bắt đầu làm bài khi còn lượt.
           </Typography.Text>
         )}
-
-        <Typography.Paragraph type="secondary" className="text-sm mb-0">
-          Trên trang chi tiết bạn sẽ thấy câu đúng/sai, đáp án đúng và giải thích (nếu đề có cấu hình
-          trên CRM).
-        </Typography.Paragraph>
       </Space>
     </Card>
   );

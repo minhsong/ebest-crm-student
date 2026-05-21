@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Button, Space, Spin, Typography } from 'antd';
 import { EyeOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { useAssignmentQuizAction } from '@/features/quiz-test/hooks/useAssignmentQuizAction';
+import { getQuizFormContext } from '@/lib/quiz-form-context';
 import { pinAssignmentQuizRuntimeAccess } from '@/lib/quiz-runtime-access';
 
 type Props = {
@@ -11,9 +12,6 @@ type Props = {
   assignmentId: number;
   /** E3: false khi đã rời lớp / không ACTIVE — vẫn cho xem kết quả cũ */
   allowStart?: boolean;
-  /** Đã chấm điểm trên assignment_result — ưu tiên gợi ý ôn luyện */
-  resultStatus?: number | null;
-  gradedStatus?: number;
   size?: 'small' | 'middle';
 };
 
@@ -21,8 +19,6 @@ export function AssignmentQuizActionButtons({
   formPublicId,
   assignmentId,
   allowStart = true,
-  resultStatus,
-  gradedStatus,
   size = 'middle',
 }: Props) {
   const {
@@ -39,19 +35,14 @@ export function AssignmentQuizActionButtons({
     return <Spin size="small" />;
   }
 
-  const isGraded =
-    gradedStatus != null && resultStatus != null && resultStatus === gradedStatus;
-
-  if (isGraded) {
-    return (
-      <Link href="/practice-quizzes" prefetch={false}>
-        <Button size={size}>Ôn luyện</Button>
-      </Link>
-    );
-  }
-
   const pinAssignmentContext = () => {
-    pinAssignmentQuizRuntimeAccess(formPublicId, assignmentId);
+    const stored = getQuizFormContext(formPublicId);
+    pinAssignmentQuizRuntimeAccess(formPublicId, assignmentId, {
+      quizMaxAttempts:
+        stored?.assignmentId === assignmentId
+          ? stored.quizMaxAttempts
+          : undefined,
+    });
   };
 
   if (canStart && canViewResults && resultsPageHref) {

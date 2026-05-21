@@ -1,14 +1,12 @@
 import { fetchQuizStartEligibility } from '@/lib/quiz-assignment-crm';
-import {
-  filterSubmittedAttemptsForAssignment,
-  normalizeQuizAttemptHistoryItems,
-} from '@/features/quiz-test/lib/quiz-attempt-history';
-import { fetchQuizRuntimeJson } from '@/features/quiz-test/lib/quiz-runtime-http';
-import { quizRuntimePublicUrl } from '@/features/quiz-test/quiz-gateway-browser';
 import type { QuizAttemptHistoryItem } from '@/features/quiz-test/types';
 import {
-  quizRuntimeQueryFromAccess,
-  resolveQuizRuntimeAccess,
+  fetchGatewayAssignmentQuizStats,
+  historyItemsFromGatewayStats,
+} from '@/lib/quiz-gateway-assignment-stats';
+import { getQuizFormContext } from '@/lib/quiz-form-context';
+import {
+  pinAssignmentQuizRuntimeAccess,
   type QuizRuntimeAccess,
 } from '@/lib/quiz-runtime-access';
 
@@ -49,63 +47,47 @@ export async function loadAssignmentQuizActionState(
   formPublicId: string,
   assignmentId: number,
 ): Promise<AssignmentQuizActionState> {
-  const access = await resolveQuizRuntimeAccess(formPublicId, { intent: 'access' });
+  pinAssignmentQuizRuntimeAccess(formPublicId, assignmentId);
+  const stored = getQuizFormContext(formPublicId);
+  const quizMaxAttempts =
+    stored?.mode === 'assignment' && stored.assignmentId === assignmentId
+      ? stored.quizMaxAttempts
+      : undefined;
   return loadAssignmentQuizActionStateWithAccess(
     formPublicId,
     assignmentId,
-    access,
+    null,
+    quizMaxAttempts,
   );
 }
 
 export async function loadAssignmentQuizActionStateWithAccess(
   formPublicId: string,
   assignmentId: number,
-  access: QuizRuntimeAccess | null,
+  _access: QuizRuntimeAccess | null,
+  quizMaxAttemptsHint?: number | null,
 ): Promise<AssignmentQuizActionState> {
   const resultsPageHref = buildAssignmentResultsHref(formPublicId);
 
   try {
-    const runtimeQ =
-      access?.mode === 'assignment' && access.assignmentId === assignmentId
-        ? quizRuntimeQueryFromAccess(access)
-        : `?assignmentId=${assignmentId}`;
-
-    const [startGate, eligRes, historyRes] = await Promise.all([
+    const [startGate, stats] = await Promise.all([
       fetchQuizStartEligibility(assignmentId),
-      fetch(
-        `/api/assignments/quiz-eligibility/${encodeURIComponent(formPublicId)}?assignmentId=${assignmentId}`,
-        {
-          credentials: 'include',
-          headers: { Accept: 'application/json' },
-          cache: 'no-store',
-        },
-      ),
-      fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
-        `${quizRuntimePublicUrl(`forms/${formPublicId}/attempts`)}${runtimeQ}`,
+      fetchGatewayAssignmentQuizStats(
+        formPublicId,
+        assignmentId,
+        quizMaxAttemptsHint,
       ),
     ]);
 
-    const eligibility = (await eligRes.json().catch(() => null)) as AssignmentQuizEligibility | null;
-    const eligOk = eligRes.ok && eligibility && typeof eligibility === 'object';
+    const submittedAttempts = stats
+      ? historyItemsFromGatewayStats(formPublicId, stats)
+      : [];
 
-    const rawHistory = historyRes.ok ? historyRes.data?.items : [];
-    const submittedAttempts = filterSubmittedAttemptsForAssignment(
-      normalizeQuizAttemptHistoryItems(rawHistory),
-      assignmentId,
-    );
-
-    const submittedCount = eligOk
-      ? Number(eligibility.submittedCount) || submittedAttempts.length
-      : submittedAttempts.length;
-    const maxAttempts = eligOk
-      ? eligibility.maxAttempts ?? null
-      : null;
-    const attemptsRemaining = eligOk
-      ? eligibility.attemptsRemaining ??
-        (maxAttempts != null ? Math.max(0, maxAttempts - submittedCount) : null)
-      : maxAttempts != null
-        ? Math.max(0, maxAttempts - submittedCount)
-        : null;
+    const submittedCount = stats?.submittedCount ?? submittedAttempts.length;
+    const maxAttempts = stats?.maxAttempts ?? quizMaxAttemptsHint ?? null;
+    const attemptsRemaining =
+      stats?.attemptsRemaining ??
+      (maxAttempts != null ? Math.max(0, maxAttempts - submittedCount) : null);
 
     const canStart = startGate.allowed === true;
     const exhausted =
@@ -117,19 +99,12 @@ export async function loadAssignmentQuizActionStateWithAccess(
       error: null,
       canStart,
       startBlockReason: canStart ? null : startGate.reason,
-      eligibility: eligOk
-        ? {
-            submittedCount,
-            maxAttempts,
-            attemptsRemaining,
-            hasPerfectScore: Boolean(eligibility.hasPerfectScore),
-          }
-        : {
-            submittedCount,
-            maxAttempts,
-            attemptsRemaining,
-            hasPerfectScore: false,
-          },
+      eligibility: {
+        submittedCount,
+        maxAttempts,
+        attemptsRemaining,
+        hasPerfectScore: Boolean(stats?.hasPerfectScore),
+      },
       submittedAttempts,
       canViewResults,
       resultsPageHref,

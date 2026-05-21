@@ -442,24 +442,15 @@ export function StudentAssignmentDetailModal({
                   <Text type="secondary" style={{ fontSize: token.fontSize }}>
                     {detail.result?.resultStatus ===
                     CRM_ASSIGNMENT_RESULT_STATUS.GRADED
-                      ? 'Bài tập đã chấm điểm. Ôn luyện thêm (không tính điểm lớp) tại menu Ôn luyện nếu đủ điều kiện.'
+                      ? 'Bài tập đã chấm điểm. Xem lại các lần làm qua «Xem kết quả». Ôn luyện (nếu có) chỉ tại menu Ôn luyện.'
                       : 'Làm bài qua bài tập lớp — sau khi nộp, điểm được đồng bộ về đây.'}
                   </Text>
                 </div>
-                {detail.result?.resultStatus ===
-                CRM_ASSIGNMENT_RESULT_STATUS.GRADED ? (
-                  <Link href="/practice-quizzes" prefetch={false}>
-                    <Button type="default">Ôn luyện</Button>
-                  </Link>
-                ) : (
-                  <AssignmentQuizActionButtons
-                    formPublicId={detail.testQuizFormPublicId}
-                    assignmentId={detail.assignmentId}
-                    allowStart={canStartQuiz}
-                    resultStatus={detail.result?.resultStatus ?? null}
-                    gradedStatus={CRM_ASSIGNMENT_RESULT_STATUS.GRADED}
-                  />
-                )}
+                <AssignmentQuizActionButtons
+                  formPublicId={detail.testQuizFormPublicId}
+                  assignmentId={detail.assignmentId}
+                  allowStart={canStartQuiz}
+                />
               </Flex>
             </Card>
           ) : null}

@@ -13,6 +13,8 @@ export type QuizRuntimeAccess = {
   mode: 'assignment' | 'practice';
   assignmentId?: number;
   practiceMode: boolean;
+  /** Từ CRM authorize — lưu session, truyền snapshot start + stats Gateway. */
+  effectiveMaxAttempts?: number | null;
 };
 
 export function quizRuntimeQueryFromAccess(access: QuizRuntimeAccess): string {
@@ -58,13 +60,22 @@ async function authorizeForm(
 
 function accessFromAuthorize(data: QuizAuthorizeResponse): QuizRuntimeAccess | null {
   if (!data.allowed) return null;
+  const effectiveMaxAttempts =
+    data.effectiveMaxAttempts === undefined
+      ? undefined
+      : data.effectiveMaxAttempts;
   if (data.mode === 'assignment') {
     const aid = data.context?.assignmentId;
     if (aid == null || !Number.isFinite(Number(aid))) return null;
     const assignmentId = Number(aid);
-    return { mode: 'assignment', assignmentId, practiceMode: false };
+    return {
+      mode: 'assignment',
+      assignmentId,
+      practiceMode: false,
+      effectiveMaxAttempts,
+    };
   }
-  return { mode: 'practice', practiceMode: true };
+  return { mode: 'practice', practiceMode: true, effectiveMaxAttempts };
 }
 
 /**
@@ -75,6 +86,8 @@ export async function resolveQuizRuntimeAccess(
   formPublicId: string,
   options?: {
     attemptPublicId?: string;
+    /** Gợi ý từ attempt/history — luôn ưu tiên kênh bài tập */
+    assignmentIdHint?: number;
     preferPractice?: boolean;
     intent?: 'access' | 'start';
     skipCache?: boolean;
@@ -100,11 +113,29 @@ async function resolveQuizRuntimeAccessUncached(
   fid: string,
   options?: {
     attemptPublicId?: string;
+    assignmentIdHint?: number;
     preferPractice?: boolean;
     intent?: 'access' | 'start';
   },
 ): Promise<QuizRuntimeAccess | null> {
   const intent = options?.intent ?? 'access';
+
+  const hintId =
+    options?.assignmentIdHint != null && options.assignmentIdHint >= 1
+      ? options.assignmentIdHint
+      : null;
+  if (hintId != null) {
+    const auth = await authorizeForm(fid, intent, { assignmentId: hintId });
+    const access = auth ? accessFromAuthorize(auth) : null;
+    if (access?.mode === 'assignment') {
+      setQuizFormContext(fid, {
+        mode: 'assignment',
+        assignmentId: hintId,
+        quizMaxAttempts: access.effectiveMaxAttempts,
+      });
+      return access;
+    }
+  }
 
   if (options?.attemptPublicId?.trim()) {
     const attemptRes = await fetchQuizRuntimeJson<Record<string, unknown>>(
@@ -112,6 +143,18 @@ async function resolveQuizRuntimeAccessUncached(
     );
     if (attemptRes.ok && attemptRes.data) {
       const aid = getHistoryAssignmentId(attemptRes.data);
+      if (aid != null && aid >= 1) {
+        const auth = await authorizeForm(fid, intent, { assignmentId: aid });
+        const access = auth ? accessFromAuthorize(auth) : null;
+        if (access) {
+          setQuizFormContext(fid, {
+            mode: 'assignment',
+            assignmentId: aid,
+            quizMaxAttempts: access.effectiveMaxAttempts,
+          });
+          return access;
+        }
+      }
       const participant = attemptRes.data.participant as { snapshot?: Record<string, unknown> } | undefined;
       const snap = participant?.snapshot;
       if (snap?.mode === 'practice') {
@@ -119,14 +162,6 @@ async function resolveQuizRuntimeAccessUncached(
         const access = auth ? accessFromAuthorize(auth) : null;
         if (access) {
           setQuizFormContext(fid, { mode: 'practice' });
-          return access;
-        }
-      }
-      if (aid != null && aid >= 1) {
-        const auth = await authorizeForm(fid, intent, { assignmentId: aid });
-        const access = auth ? accessFromAuthorize(auth) : null;
-        if (access) {
-          setQuizFormContext(fid, { mode: 'assignment', assignmentId: aid });
           return access;
         }
       }
@@ -160,6 +195,7 @@ async function resolveQuizRuntimeAccessUncached(
       setQuizFormContext(fid, {
         mode: 'assignment',
         assignmentId: access.assignmentId,
+        quizMaxAttempts: access.effectiveMaxAttempts,
       });
     } else {
       setQuizFormContext(fid, { mode: 'practice' });
@@ -172,12 +208,18 @@ async function resolveQuizRuntimeAccessUncached(
 export function pinAssignmentQuizRuntimeAccess(
   formPublicId: string,
   assignmentId: number,
+  options?: { quizMaxAttempts?: number | null },
 ): void {
-  setQuizFormContext(formPublicId, { mode: 'assignment', assignmentId });
+  setQuizFormContext(formPublicId, {
+    mode: 'assignment',
+    assignmentId,
+    quizMaxAttempts: options?.quizMaxAttempts,
+  });
   primeQuizRuntimeAccessCache(formPublicId, {
     mode: 'assignment',
     assignmentId,
     practiceMode: false,
+    effectiveMaxAttempts: options?.quizMaxAttempts,
   });
 }
 

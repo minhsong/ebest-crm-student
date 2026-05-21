@@ -30,6 +30,7 @@ export function QuizAttemptEntryClient({
       setQuizFormContext(formPublicId, {
         mode: 'assignment',
         assignmentId: access.assignmentId,
+        quizMaxAttempts: access.effectiveMaxAttempts,
       });
     } else if (access.practiceMode) {
       setQuizFormContext(formPublicId, { mode: 'practice' });

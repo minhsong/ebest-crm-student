@@ -2,10 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AssignmentQuizActionButtons } from '@/features/quiz-test/components/AssignmentQuizActionButtons';
 import {
   Alert,
-  Button,
   Card,
   Collapse,
   List,
@@ -14,11 +12,9 @@ import {
   Typography,
 } from 'antd';
 import { useAuth } from '@/contexts/auth-context';
+import { AssignmentOverviewRowActions } from '@/features/schedule/components/AssignmentOverviewRowActions';
 import { StudentAssignmentDetailModal } from '@/features/schedule/components/StudentAssignmentDetailModal';
-import {
-  formatAssignmentDeadlineVi,
-  isQuizExerciseType,
-} from '@/features/quiz-test/lib/quiz-assignment-overview';
+import { formatAssignmentDeadlineVi } from '@/features/quiz-test/lib/quiz-assignment-overview';
 import { CRM_ASSIGNMENT_RESULT_STATUS } from '@/lib/crm-enums';
 import {
   groupAssignmentsFromOverview,
@@ -100,33 +96,19 @@ export default function StudentAssignmentsPage() {
                       dataSource={session.assignments}
                       renderItem={(row) => {
                         const deadlineText = formatAssignmentDeadlineVi(row.deadline);
-                        const isQuiz = isQuizExerciseType(row.exerciseType);
-                        const canQuiz =
-                          isQuiz && Boolean(row.testQuizFormPublicId?.trim());
+                        const openDetail = () => {
+                          setModalAssignmentId(row.assignmentId);
+                          setModalOpen(true);
+                        };
                         return (
                           <List.Item
                             actions={[
-                              canQuiz ? (
-                                <AssignmentQuizActionButtons
-                                  key="quiz"
-                                  formPublicId={row.testQuizFormPublicId!}
-                                  assignmentId={row.assignmentId}
-                                  resultStatus={row.resultStatus}
-                                  gradedStatus={CRM_ASSIGNMENT_RESULT_STATUS.GRADED}
-                                  size="small"
-                                />
-                              ) : (
-                                <Button
-                                  key="detail"
-                                  size="small"
-                                  onClick={() => {
-                                    setModalAssignmentId(row.assignmentId);
-                                    setModalOpen(true);
-                                  }}
-                                >
-                                  Chi tiết
-                                </Button>
-                              ),
+                              <AssignmentOverviewRowActions
+                                key="actions"
+                                row={row}
+                                onOpenDetail={openDetail}
+                                size="small"
+                              />,
                             ]}
                           >
                             <List.Item.Meta
@@ -178,8 +160,8 @@ export default function StudentAssignmentsPage() {
   return (
     <Card title="Bài tập">
       <Typography.Paragraph type="secondary">
-        Danh sách bài tập theo khóa học, lớp và buổi học. Bài trắc nghiệm (QUIZ) mở qua liên kết
-        có mã bài tập — điểm được đồng bộ sau khi nộp bài.
+        Danh sách bài tập theo khóa học, lớp và buổi học. Bài trắc nghiệm chưa có điểm: nút Làm
+        bài; đã có điểm hoặc cần xem thêm: Chi tiết (deadline, làm lại, xem kết quả).
       </Typography.Paragraph>
       {error ? <Alert type="error" message={error} showIcon className="mb-4" /> : null}
       {loading ? (

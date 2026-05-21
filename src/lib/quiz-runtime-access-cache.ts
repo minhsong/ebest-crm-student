@@ -13,14 +13,19 @@ export function buildQuizAccessCacheKey(
   options?: {
     attemptPublicId?: string;
     preferPractice?: boolean;
+    assignmentIdHint?: number;
     intent?: 'access' | 'start';
   },
 ): string {
   const fid = formPublicId.trim();
   const attempt = (options?.attemptPublicId ?? '').trim();
   const practice = options?.preferPractice ? '1' : '0';
+  const hint =
+    options?.assignmentIdHint != null && options.assignmentIdHint >= 1
+      ? String(options.assignmentIdHint)
+      : '';
   const intent = options?.intent ?? 'access';
-  return `${fid}|${attempt}|${practice}|${intent}`;
+  return `${fid}|${attempt}|${practice}|${hint}|${intent}`;
 }
 
 export function getCachedQuizRuntimeAccess(

@@ -1,8 +1,9 @@
 # Student Portal — Quiz runtime, kết quả & tối ưu request
 
 > **Cập nhật:** 2026-05-20  
-> **Canonical CRM/Gateway:** `ebest-crm-api/docs/modules/test-quiz/TEST_FORM_SCOPE_DELIVERY_AND_ACCESS.md`  
-> **CRM xem kết quả lớp:** `ebest-crm-api/docs/modules/test-quiz/QUIZ_STUDENT_RESULT_LOGIC.md`
+> **Tracker:** [QUIZ_WORK_TRACKER.md](../../ebest-crm-api/docs/modules/test-quiz/QUIZ_WORK_TRACKER.md)  
+> **Canonical CRM/Gateway:** [TEST_FORM_SCOPE_DELIVERY_AND_ACCESS.md](../../ebest-crm-api/docs/modules/test-quiz/TEST_FORM_SCOPE_DELIVERY_AND_ACCESS.md)  
+> **CRM xem kết quả lớp:** [QUIZ_STUDENT_RESULT_LOGIC.md](../../ebest-crm-api/docs/modules/test-quiz/QUIZ_STUDENT_RESULT_LOGIC.md)
 
 ---
 
@@ -29,7 +30,9 @@
 | `src/lib/quiz-form-context.ts` | Pin `assignment` / `practice` theo form (session) |
 | `src/lib/quiz-runtime-access.ts` | `resolveQuizRuntimeAccess`, cache 60s, `pinAssignmentQuizRuntimeAccess` |
 | `src/lib/quiz-runtime-access-cache.ts` | Cache in-memory theo `(form, attempt, practice, intent)` |
-| `src/lib/quiz-assignment-action.ts` | Nút Làm bài / Xem kết quả; `loadAssignmentQuizActionStateWithAccess` |
+| `src/lib/quiz-assignment-action.ts` | Nút Làm bài / Xem kết quả (modal, results); `loadAssignmentQuizActionStateWithAccess` |
+| `src/lib/assignment-list-row-actions.ts` | Pure: `deriveAssignmentListRowAction` cho `/assignments` |
+| `src/features/schedule/components/AssignmentOverviewRowActions.tsx` | Nút list (Làm bài / Chi tiết) không fetch async |
 | `src/lib/quiz-attempt-result-bundle.ts` | **Một** resolve access + `Promise.all` form / attempt / eligibility / action |
 | `src/features/quiz-test/lib/quiz-result-view-policy.ts` | Pure: `computeCanViewResultDetails`, `getCannotViewResultMessage` |
 | `src/features/quiz-test/hooks/useQuizAttemptResultPage.ts` | Hook trang chi tiết kết quả (dùng bundle) |
@@ -42,15 +45,44 @@
 
 Trang `QuizAttemptResultClient` gọi riêng: `useQuizAttemptResultData`, `useQuizDeliveryContext`, `useAssignmentQuizAction`, `useCanViewResultDetails` — mỗi hook có thể `resolveQuizRuntimeAccess` + history + eligibility.
 
-### Sau
+### Sau (2026-05 — Mongo SSOT)
 
-1. **`fetchQuizAttemptResultBundle`**: 1× `resolveQuizRuntimeAccess` → song song:
-   - `GET forms/{id}/result-layout`
-   - `GET attempts/{attemptPublicId}` (kèm `grading` từ Gateway)
-   - eligibility CRM (nếu assignment)
-   - `loadAssignmentQuizActionStateWithAccess` (không authorize lại)
-2. **Cache access 60s** — entry results truyền `access` xuống child; nút bài tập gọi `pinAssignmentQuizRuntimeAccess`.
-3. **`useCanViewResultDetails`** — chỉ khi cần kiểm tra quyền **không** có bundle; trang chi tiết dùng `computeCanViewResultDetails` từ dữ liệu bundle.
+1. **`GET attempts/{attemptPublicId}/review-bundle`** (Gateway): một response gồm `formPayload` (từ `formLayoutSnapshot` freeze lúc start), `attempt` + `grading`, `access`, `assignmentStats` (đếm lượt từ Mongo).
+2. **Không** gọi CRM `quiz-eligibility` / `result-layout` / GET attempt trùng trên trang chi tiết.
+3. **`formLayoutSnapshot`** trên `quiz_attempt_results` — freeze toàn bộ đề khi `startAttempt` (`buildFrozenFormLayoutSnapshot`).
+4. **BFF authorize cache 60s** — proxy `forms/*` không lặp CRM; `review-bundle` chỉ verify ownership qua `customerId`.
+5. **Danh sách lần làm bài tập** (trang results / modal): `assignment-quiz-stats` + `quiz-start-eligibility` qua `AssignmentQuizActionButtons`.
+6. **`/assignments` (danh sách lớp)**: **một** `GET overview/sessions`; nút từ `deriveAssignmentListRowAction` (CRM `scoreDisplay` / `resultStatus`) — **không** gọi eligibility/stats theo từng dòng.
+
+---
+
+## 3.1 Đồng bộ điểm bài tập (lần làm gần nhất)
+
+Sau `POST attempts/:id/submit` thành công (bài tập có `assignmentId`):
+
+1. Gateway chấm + lưu Mongo → `saveQuizResult` → CRM internal sync (nếu `participant.snapshot.assignmentId` hợp lệ).
+2. Portal `useQuizAttemptRuntime`: **`await`** `postQuizResultSync(assignmentId, attemptPublicId)` → BFF → CRM `syncAfterQuizSubmit` (đọc attempt từ Gateway `with-questions`).
+
+CRM `upsertQuizGradedSync` chỉ cập nhật khi `submittedAt` attempt **≥** bản ghi hiện có — tránh race hai đường sync hoặc retry muộn ghi đè lần mới hơn.
+
+**Quy tắc điểm trên lớp:** luôn phản ánh **lần nộp gần nhất** (không lấy điểm cao nhất). Spec: [ASSIGNMENT_TEST_ONLINE_LINK_SPEC.md §10.5](../../ebest-crm-api/docs/modules/assignments/ASSIGNMENT_TEST_ONLINE_LINK_SPEC.md).
+
+---
+
+## 3.2 Trang `/assignments` — nút hành động
+
+| Hàm / component | Vai trò |
+|-----------------|--------|
+| `assignmentHasGradedSummary(row)` | `GRADED` hoặc có `scoreDisplay` |
+| `deriveAssignmentListRowAction(row)` | `quiz_start` \| `detail` |
+| `AssignmentOverviewRowActions` | Render Link Làm bài hoặc mở modal Chi tiết |
+
+```text
+QUIZ + formPublicId + chưa có điểm CRM → Làm bài
+còn lại → Chi tiết (modal có AssignmentQuizActionButtons)
+```
+
+File: `src/lib/assignment-list-row-actions.ts`, `src/lib/assignment-quiz-ui.ts`.
 
 ---
 
