@@ -15,6 +15,7 @@ import {
   Alert,
   theme,
   message,
+  Popconfirm,
 } from 'antd';
 import {
   AppstoreOutlined,
@@ -28,6 +29,7 @@ import {
   CheckSquareOutlined,
   EyeOutlined,
   PlayCircleOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
 import { AssignmentQuizActionButtons } from '@/features/quiz-test/components/AssignmentQuizActionButtons';
@@ -95,6 +97,9 @@ export function StudentAssignmentDetailModal({
   const [detail, setDetail] = useState<StudentAssignmentDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<
+    string | null
+  >(null);
   const [submissionNote, setSubmissionNote] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -207,6 +212,12 @@ export function StudentAssignmentDetailModal({
   const canStartQuiz = detail?.learningAccess?.canStartQuiz !== false;
   const readOnlyReason = detail?.learningAccess?.readOnlyReason ?? null;
 
+  const deadlinePassed = useMemo(() => {
+    if (!detail?.deadline) return false;
+    const t = new Date(detail.deadline).getTime();
+    return Number.isFinite(t) && t < Date.now();
+  }, [detail?.deadline]);
+
   const headerExerciseIcon = useMemo(() => {
     const t = (detail?.exerciseType ?? '').trim().toLowerCase();
     if (t === 'recording') return <AudioOutlined aria-hidden />;
@@ -307,6 +318,35 @@ export function StudentAssignmentDetailModal({
   const handlePickFile = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
+
+  const handleDeleteSubmissionAttachment = useCallback(
+    async (attachmentId: string) => {
+      if (assignmentId == null) return;
+      setDeletingAttachmentId(attachmentId);
+      try {
+        const res = await fetchWithAuth(
+          `/api/assignments/${assignmentId}/submission/attachments/${encodeURIComponent(attachmentId)}`,
+          { method: 'DELETE' },
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const msg =
+            typeof data?.message === 'string'
+              ? data.message
+              : 'Không xóa được file.';
+          message.error(msg);
+          return;
+        }
+        message.success('Đã xóa file bài nộp.');
+        await loadDetail();
+      } catch {
+        message.error('Lỗi mạng. Vui lòng thử lại.');
+      } finally {
+        setDeletingAttachmentId(null);
+      }
+    },
+    [assignmentId, fetchWithAuth, loadDetail],
+  );
 
   const handleFileSelected = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -432,6 +472,13 @@ export function StudentAssignmentDetailModal({
 
           {readOnlyReason ? (
             <Alert type="warning" showIcon message={readOnlyReason} />
+          ) : deadlinePassed ? (
+            <Alert
+              type="warning"
+              showIcon
+              message="Đã quá hạn nộp bài tập"
+              description="Bạn chỉ có thể xem nội dung và bài đã nộp trước đó."
+            />
           ) : null}
 
           {isQuizWithLinkedForm && detail.testQuizFormPublicId ? (
@@ -455,17 +502,15 @@ export function StudentAssignmentDetailModal({
             </Card>
           ) : null}
 
-          {canSubmit &&
-          detail.studentUploadEnabled &&
-          !isQuizWithLinkedForm &&
-          detail.result?.resultStatus !== CRM_ASSIGNMENT_RESULT_STATUS.GRADED ? (
+          {canSubmit && detail.studentUploadEnabled && !isQuizWithLinkedForm ? (
             <Card size="small">
               <Flex justify="space-between" align="center" gap="middle" wrap>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600 }}>Nộp bài trực tiếp</div>
                   <Text type="secondary" style={{ fontSize: token.fontSize }}>
                     Tối đa {maxUploadFiles} file mỗi lần, mỗi file tối đa 50MB
-                    (chỉ âm thanh, ảnh, video). Nộp lại sẽ thay toàn bộ bài cũ.
+                    (chỉ âm thanh, ảnh, video). Có thể xóa từng file bài nộp bên
+                    dưới; nộp file mới khi còn chỗ hoặc sau khi xóa.
                   </Text>
                   <Input.TextArea
                     value={submissionNote}
@@ -548,6 +593,32 @@ export function StudentAssignmentDetailModal({
                         ) : null}
                       </div>
                       <Space size="small">
+                        {canSubmit && detail.studentUploadEnabled ? (
+                          <Popconfirm
+                            title="Xóa file bài nộp?"
+                            description="Sau khi xóa, bạn có thể chọn hoặc ghi âm file mới."
+                            okText="Xóa"
+                            cancelText="Huỷ"
+                            okButtonProps={{ danger: true }}
+                            onConfirm={() =>
+                              void handleDeleteSubmissionAttachment(a.id)
+                            }
+                          >
+                            <Button
+                              size="small"
+                              danger
+                              icon={<DeleteOutlined />}
+                              loading={deletingAttachmentId === a.id}
+                              disabled={
+                                submitting ||
+                                (deletingAttachmentId != null &&
+                                  deletingAttachmentId !== a.id)
+                              }
+                            >
+                              Xóa
+                            </Button>
+                          </Popconfirm>
+                        ) : null}
                         {assignmentAttachmentSupportsPlay({
                           type: 'file',
                           name: a.name,
