@@ -386,6 +386,8 @@ async function handleSubmitAttempt(ctx: RouteContext, segments: string[]): Promi
 interface RouteDefinition {
   method: string;
   pattern: string;
+  /** Pattern segments (`uuid` = dynamic UUID). */
+  segments: string[];
   handler: (ctx: RouteContext, segments: string[], request: NextRequest) => Promise<NextResponse>;
 }
 

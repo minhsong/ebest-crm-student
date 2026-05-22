@@ -1,5 +1,6 @@
 import type { QuizAssignmentListItem } from '@/features/quiz-test/types';
 import { assignmentHasGradedSummary } from '@/lib/assignment-list-row-actions';
+import type { StudentAssignmentDetail } from '@/types/student-assignment-detail';
 import type { OverviewClassSessions } from '@/types/overview-sessions';
 
 export const EXERCISE_TYPE_QUIZ = 'quiz';
@@ -87,10 +88,90 @@ export function buildQuizAssignmentListFromOverview(
 
 export function collectFormPublicIdsForProgress(
   assignmentRows: QuizAssignmentListItem[],
+): string[];
+export function collectFormPublicIdsForProgress(
+  publicForms: Array<{ formPublicId: string }>,
+  assignmentRows: QuizAssignmentListItem[],
+): string[];
+export function collectFormPublicIdsForProgress(
+  first: Array<{ formPublicId: string }> | QuizAssignmentListItem[],
+  second?: QuizAssignmentListItem[],
 ): string[] {
+  const publicForms =
+    second !== undefined
+      ? (first as Array<{ formPublicId: string }>)
+      : [];
+  const assignmentRows =
+    second !== undefined ? second : (first as QuizAssignmentListItem[]);
   const ids = new Set<string>();
+  for (const row of publicForms) {
+    if (row.formPublicId) ids.add(row.formPublicId);
+  }
   for (const row of assignmentRows) {
     if (row.formPublicId) ids.add(row.formPublicId);
   }
   return [...ids];
+}
+
+/** @deprecated Ưu tiên `buildQuizAssignmentListFromOverview` (1 request, không N+1 detail). */
+export type QuizOverviewCandidate = {
+  assignmentId: number;
+  title: string;
+  sessionTitle: string | null;
+};
+
+/**
+ * Gom assignment QUIZ từ overview — chỉ metadata buổi học (chưa có `testQuizFormPublicId`).
+ * @deprecated Dùng `buildQuizAssignmentListFromOverview` khi overview đã embed `testQuizFormPublicId`.
+ */
+export function extractQuizCandidatesFromOverview(
+  overviewBlocks: OverviewClassSessions[],
+): QuizOverviewCandidate[] {
+  const seen = new Map<number, QuizOverviewCandidate>();
+  for (const block of overviewBlocks) {
+    for (const session of block.sessions ?? []) {
+      const sessionTitle = session.title ?? null;
+      for (const a of session.assignments ?? []) {
+        const id = a.assignmentId;
+        if (!Number.isFinite(id) || !isQuizExerciseType(a.exerciseType)) continue;
+        if (seen.has(id)) continue;
+        const title = (a.title ?? '').trim() || 'Bài trắc nghiệm';
+        seen.set(id, { assignmentId: id, title, sessionTitle });
+      }
+    }
+  }
+  return [...seen.values()];
+}
+
+export type AssignmentDetailQuizResolve =
+  | { kind: 'linked'; item: QuizAssignmentListItem }
+  | { kind: 'missing_link' }
+  | null;
+
+/** Map CRM assignment detail → dòng danh sách quiz (fallback khi overview thiếu link đề). */
+export function mapStudentAssignmentDetailToQuizRow(
+  detail: StudentAssignmentDetail,
+  fallback: QuizOverviewCandidate,
+): AssignmentDetailQuizResolve {
+  if (!isQuizExerciseType(detail.exerciseType)) return null;
+  if (!detail.testQuizFormPublicId?.trim()) return { kind: 'missing_link' };
+  const sessionTitle =
+    detail.classSessionTitle?.trim() ||
+    detail.courseSessionTitle?.trim() ||
+    fallback.sessionTitle;
+  return {
+    kind: 'linked',
+    item: {
+      assignmentId: detail.assignmentId,
+      assignmentTitle:
+        detail.title?.trim() || fallback.title || `Bài tập #${detail.assignmentId}`,
+      formPublicId: detail.testQuizFormPublicId.trim(),
+      scoreDisplay: detail.result.scoreDisplay,
+      resultStatus: detail.result.resultStatus,
+      deadline: detail.deadline,
+      sessionTitle,
+      quizMaxAttempts:
+        typeof detail.quizMaxAttempts === 'number' ? detail.quizMaxAttempts : null,
+    },
+  };
 }

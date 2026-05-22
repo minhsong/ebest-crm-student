@@ -2,6 +2,10 @@
  * Khớp GET /api/v1/student/assignments/:id (sau unwrap nếu có wrapper).
  */
 
+import type { MediaReviewComment } from '@/components/media-review';
+
+export type { MediaReviewComment };
+
 /** Khớp CRM `resource_kind` — hành vi hiển thị do người nhập liệu chọn, không suy URL. */
 export type StudentAssignmentAttachmentResourceKind =
   | 'audio'
@@ -13,6 +17,21 @@ export type StudentAssignmentAttachmentResourceKind =
   | 'powerpoint'
   | 'web_link'
   | 'other';
+
+/** File học viên đã nộp (portal submission). */
+export interface StudentSubmissionAttachment {
+  id: string;
+  fileId?: string | null;
+  url: string;
+  name: string;
+  note?: string | null;
+  mimeType?: string | null;
+  size?: number | null;
+  resourceKind?: StudentAssignmentAttachmentResourceKind | string;
+  createdAt?: string | Date;
+  mediaReviewComments?: MediaReviewComment[];
+  durationMs?: number;
+}
 
 export interface StudentAssignmentAttachment {
   id?: string;
@@ -52,25 +71,23 @@ export interface StudentAssignmentDetail {
   submission?: {
     submittedAt?: string | null;
     submittedNote?: string | null;
-    attachments?: Array<{
-      id: string;
-      fileId?: string | null;
-      url: string;
-      name: string;
-      note?: string | null;
-      mimeType?: string | null;
-      size?: number | null;
-      resourceKind?: StudentAssignmentAttachmentResourceKind | string;
-      createdAt?: string | Date;
-    }>;
+    attachments?: StudentSubmissionAttachment[];
   };
   result: {
     resultStatus: number | null;
     scoreDisplay: string | null;
+    teacherNote?: string | null;
+    assessmentTags?: Array<{
+      id: number;
+      name: string;
+      color: string;
+      description?: string;
+    }> | null;
   };
   learningAccess?: {
     canSubmit: boolean;
     canStartQuiz: boolean;
+    submissionLocked?: boolean;
     readOnlyReason: string | null;
   };
 }

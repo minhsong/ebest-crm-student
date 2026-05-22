@@ -37,6 +37,7 @@ import { useAuth } from '@/contexts/auth-context';
 import type {
   StudentAssignmentAttachment,
   StudentAssignmentDetail,
+  StudentSubmissionAttachment,
 } from '@/types/student-assignment-detail';
 import {
   buildAssignmentSessionLine,
@@ -51,6 +52,11 @@ import {
   assignmentAttachmentSupportsPlay,
 } from '@/lib/media-play-utils';
 import { StudentMediaPlayModal } from '@/features/schedule/components/StudentMediaPlayModal';
+import { StudentSubmissionMediaReviewModal } from '@/features/schedule/components/StudentSubmissionMediaReviewModal';
+import { StudentTeacherFeedbackCard } from '@/features/schedule/components/StudentTeacherFeedbackCard';
+import { StudentSubmissionReviewList } from '@/features/schedule/components/StudentSubmissionReviewList';
+import { sortComments } from '@/components/media-review';
+import { isMediaSpeakingExercise } from '@/lib/speaking-assignment';
 import { StudentSubmissionAudioRecorder } from '@/features/schedule/components/StudentSubmissionAudioRecorder';
 import { isAllowedStudentSubmissionMime } from '@/lib/student-submission-mime';
 
@@ -109,6 +115,10 @@ export function StudentAssignmentDetailModal({
   const [playVariant, setPlayVariant] = useState<'audio' | 'video' | 'image'>(
     'video',
   );
+  const [mediaReviewOpen, setMediaReviewOpen] = useState(false);
+  const [mediaReviewAtt, setMediaReviewAtt] = useState<
+    (StudentSubmissionAttachment & { label: string }) | null
+  >(null);
 
   const closePlay = useCallback(() => {
     setPlayOpen(false);
@@ -120,7 +130,50 @@ export function StudentAssignmentDetailModal({
       const u = item.url?.trim();
       if (!u) return;
       setPlayTitle(item.name || 'Xem');
-      setPlayVariant(assignmentAttachmentPlayVariant(item));
+      setPlayVariant(
+        assignmentAttachmentPlayVariant({
+          type: item.type,
+          name: item.name,
+          url: u,
+          mimeType: item.mimeType,
+          resourceKind: item.resourceKind,
+        }),
+      );
+      setPlayUrl(u);
+      setPlayOpen(true);
+    },
+    [],
+  );
+
+  const openTimelineReview = useCallback(
+    (a: StudentSubmissionAttachment, label: string) => {
+      const u = a.url?.trim();
+      if (!u) return;
+      setMediaReviewAtt({
+        ...a,
+        label,
+        url: u,
+        mediaReviewComments: sortComments(a.mediaReviewComments ?? []),
+      });
+      setMediaReviewOpen(true);
+    },
+    [],
+  );
+
+  const openPlainPlay = useCallback(
+    (a: StudentSubmissionAttachment, label: string) => {
+      const u = a.url?.trim();
+      if (!u) return;
+      setPlayTitle(label);
+      setPlayVariant(
+        assignmentAttachmentPlayVariant({
+          type: 'file',
+          name: a.name,
+          url: u,
+          mimeType: a.mimeType ?? undefined,
+          resourceKind: a.resourceKind as StudentAssignmentAttachment['resourceKind'],
+        }),
+      );
       setPlayUrl(u);
       setPlayOpen(true);
     },
@@ -234,6 +287,10 @@ export function StudentAssignmentDetailModal({
     () => detail?.submission?.attachments?.length ?? 0,
     [detail?.submission?.attachments?.length],
   );
+
+  const submissionLocked = detail?.learningAccess?.submissionLocked === true;
+  const isSpeakingExercise = isMediaSpeakingExercise(detail?.exerciseType);
+  const showSpeakingFeedback = submissionLocked && isSpeakingExercise;
 
   const submitFiles = useCallback(
     async (files: File[]): Promise<boolean> => {
@@ -440,22 +497,26 @@ export function StudentAssignmentDetailModal({
             labelStyle={{ fontWeight: 600, width: 130 }}
           >
             <Descriptions.Item label="Điểm">
-              <Space size="small" wrap>
-                {detail.result?.scoreDisplay != null &&
-                detail.result.scoreDisplay !== '' ? (
-                  <span>
-                    Điểm: <strong>{detail.result?.scoreDisplay}</strong>
-                  </span>
-                ) : (
-                  <span>Điểm: —</span>
-                )}
-                {detail.scoringTypeLabel ? (
-                  <Tag style={{ margin: 0 }}>{detail.scoringTypeLabel}</Tag>
-                ) : null}
-                {detail.scoringMaxScore != null ? (
-                  <Tag style={{ margin: 0 }}>Max: {detail.scoringMaxScore}</Tag>
-                ) : null}
-              </Space>
+              {showSpeakingFeedback ? (
+                <Text type="secondary">Xem mục «Kết quả chấm bài» bên dưới</Text>
+              ) : (
+                <Space size="small" wrap>
+                  {detail.result?.scoreDisplay != null &&
+                  detail.result.scoreDisplay !== '' ? (
+                    <span>
+                      Điểm: <strong>{detail.result.scoreDisplay}</strong>
+                    </span>
+                  ) : (
+                    <span>Điểm: —</span>
+                  )}
+                  {detail.scoringTypeLabel ? (
+                    <Tag style={{ margin: 0 }}>{detail.scoringTypeLabel}</Tag>
+                  ) : null}
+                  {detail.scoringMaxScore != null ? (
+                    <Tag style={{ margin: 0 }}>Max: {detail.scoringMaxScore}</Tag>
+                  ) : null}
+                </Space>
+              )}
             </Descriptions.Item>
             {detail.deadline && (
               <Descriptions.Item label="Deadline">
@@ -543,6 +604,27 @@ export function StudentAssignmentDetailModal({
             </Card>
           ) : null}
 
+          {showSpeakingFeedback ? <StudentTeacherFeedbackCard detail={detail} /> : null}
+
+          {!showSpeakingFeedback && submissionLocked ? (
+            <Card size="small" title="Nhận xét của giáo viên">
+              {detail.result?.teacherNote ? (
+                <Text style={{ display: 'block', marginBottom: token.marginSM }}>
+                  {detail.result.teacherNote}
+                </Text>
+              ) : null}
+              {detail.result?.assessmentTags?.length ? (
+                <Space wrap size={[4, 4]}>
+                  {detail.result.assessmentTags.map((t) => (
+                    <Tag key={t.id} color={t.color}>
+                      {t.name}
+                    </Tag>
+                  ))}
+                </Space>
+              ) : null}
+            </Card>
+          ) : null}
+
           {detail.submission?.attachments?.length ? (
             <div>
               <Title
@@ -575,85 +657,88 @@ export function StudentAssignmentDetailModal({
                     Ghi chú: {detail.submission.submittedNote}
                   </Text>
                 ) : null}
-                {detail.submission.attachments.map((a) => (
-                  <Card
-                    key={a.id}
-                    size="small"
-                    styles={{ body: { padding: token.paddingSM } }}
-                  >
-                    <Flex justify="space-between" align="center" gap="middle">
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, wordBreak: 'break-word' }}>
-                          {a.name}
+                {showSpeakingFeedback ? (
+                  <StudentSubmissionReviewList
+                    attachments={detail.submission.attachments}
+                    submissionLocked={submissionLocked}
+                    onOpenTimeline={openTimelineReview}
+                    onOpenPlainPlay={openPlainPlay}
+                  />
+                ) : (
+                  detail.submission.attachments.map((a) => (
+                    <Card
+                      key={a.id}
+                      size="small"
+                      styles={{ body: { padding: token.paddingSM } }}
+                    >
+                      <Flex justify="space-between" align="center" gap="middle">
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, wordBreak: 'break-word' }}>
+                            {a.name}
+                          </div>
+                          {a.note ? (
+                            <Text type="secondary" style={{ fontSize: token.fontSize }}>
+                              {a.note}
+                            </Text>
+                          ) : null}
                         </div>
-                        {a.note ? (
-                          <Text type="secondary" style={{ fontSize: token.fontSize }}>
-                            {a.note}
-                          </Text>
-                        ) : null}
-                      </div>
-                      <Space size="small">
-                        {canSubmit && detail.studentUploadEnabled ? (
-                          <Popconfirm
-                            title="Xóa file bài nộp?"
-                            description="Sau khi xóa, bạn có thể chọn hoặc ghi âm file mới."
-                            okText="Xóa"
-                            cancelText="Huỷ"
-                            okButtonProps={{ danger: true }}
-                            onConfirm={() =>
-                              void handleDeleteSubmissionAttachment(a.id)
-                            }
-                          >
-                            <Button
-                              size="small"
-                              danger
-                              icon={<DeleteOutlined />}
-                              loading={deletingAttachmentId === a.id}
-                              disabled={
-                                submitting ||
-                                (deletingAttachmentId != null &&
-                                  deletingAttachmentId !== a.id)
+                        <Space size="small">
+                          {canSubmit && detail.studentUploadEnabled ? (
+                            <Popconfirm
+                              title="Xóa file bài nộp?"
+                              description="Sau khi xóa, bạn có thể chọn hoặc ghi âm file mới."
+                              okText="Xóa"
+                              cancelText="Huỷ"
+                              okButtonProps={{ danger: true }}
+                              onConfirm={() =>
+                                void handleDeleteSubmissionAttachment(a.id)
                               }
                             >
-                              Xóa
+                              <Button
+                                size="small"
+                                danger
+                                icon={<DeleteOutlined />}
+                                loading={deletingAttachmentId === a.id}
+                                disabled={
+                                  submitting ||
+                                  (deletingAttachmentId != null &&
+                                    deletingAttachmentId !== a.id)
+                                }
+                              >
+                                Xóa
+                              </Button>
+                            </Popconfirm>
+                          ) : null}
+                          {assignmentAttachmentSupportsPlay({
+                            type: 'file',
+                            name: a.name,
+                            url: a.url,
+                            mimeType: a.mimeType ?? undefined,
+                            resourceKind: a.resourceKind as any,
+                          }) ? (
+                            <Button
+                              size="small"
+                              icon={<PlayCircleOutlined />}
+                              onClick={() => openPlainPlay(a, a.name)}
+                            >
+                              Phát
                             </Button>
-                          </Popconfirm>
-                        ) : null}
-                        {assignmentAttachmentSupportsPlay({
-                          type: 'file',
-                          name: a.name,
-                          url: a.url,
-                          mimeType: a.mimeType ?? undefined,
-                          resourceKind: a.resourceKind as any,
-                        }) ? (
-                          <Button
-                            size="small"
-                            icon={<PlayCircleOutlined />}
-                            onClick={() =>
-                              openAttachmentViewer({
-                                type: 'file',
-                                name: a.name,
-                                url: a.url,
-                                mimeType: a.mimeType ?? undefined,
-                                resourceKind: a.resourceKind as any,
-                              })
-                            }
-                          >
-                            Phát
-                          </Button>
-                        ) : (
-                          <Button
-                            size="small"
-                            icon={<ExportOutlined />}
-                            onClick={() => window.open(a.url, '_blank')}
-                          >
-                            Mở
-                          </Button>
-                        )}
-                      </Space>
-                    </Flex>
-                  </Card>
-                ))}
+                          ) : (
+                            <Button
+                              size="small"
+                              icon={<ExportOutlined />}
+                              href={a.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Mở
+                            </Button>
+                          )}
+                        </Space>
+                      </Flex>
+                    </Card>
+                  ))
+                )}
               </Space>
             </div>
           ) : null}
@@ -805,6 +890,21 @@ export function StudentAssignmentDetailModal({
       variant={playVariant}
       onClose={closePlay}
     />
+    {mediaReviewAtt ? (
+      <StudentSubmissionMediaReviewModal
+        open={mediaReviewOpen}
+        title={`Nhận xét — ${mediaReviewAtt.label}`}
+        url={mediaReviewAtt.url}
+        mimeType={mediaReviewAtt.mimeType}
+        resourceKind={mediaReviewAtt.resourceKind}
+        comments={mediaReviewAtt.mediaReviewComments ?? []}
+        durationMs={mediaReviewAtt.durationMs}
+        onClose={() => {
+          setMediaReviewOpen(false);
+          setMediaReviewAtt(null);
+        }}
+      />
+    ) : null}
     </>
   );
 }

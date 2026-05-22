@@ -208,11 +208,14 @@ export function getHistoryScoreText(
   }
 
   // Fallback to top-level correctCount and totalQuestions (from list response)
-  if (Number.isFinite(Number(row.correctCount)) && Number.isFinite(Number(row.totalQuestions))) {
-    const accuracy = row.totalQuestions > 0 
-      ? Math.round((Number(row.correctCount) / Number(row.totalQuestions)) * 100)
-      : 0;
-    return ` · ${Number(row.correctCount)}/${Number(row.totalQuestions)} (${accuracy}%)`;
+  const correctCount = Number(row.correctCount);
+  const totalQuestions = Number(row.totalQuestions);
+  if (Number.isFinite(correctCount) && Number.isFinite(totalQuestions)) {
+    const accuracy =
+      totalQuestions > 0
+        ? Math.round((correctCount / totalQuestions) * 100)
+        : 0;
+    return ` · ${correctCount}/${totalQuestions} (${accuracy}%)`;
   }
 
   return '';
