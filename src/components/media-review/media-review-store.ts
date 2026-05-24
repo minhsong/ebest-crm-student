@@ -6,7 +6,7 @@ export function createMediaReviewCommentId(): string {
 }
 
 export function emptyMediaReview(): AssignmentResultMediaReview {
-	return { version: 1, attachments: {} };
+	return { version: 2, attachments: {} };
 }
 
 export function getMediaReviewAttachmentPayload(
@@ -25,7 +25,7 @@ export function getMediaReviewAttachmentPayload(
 export function normalizeMediaReviewSorted(
 	review: AssignmentResultMediaReview | null,
 ): AssignmentResultMediaReview | null {
-	if (!review?.attachments) return review;
+	if (!review?.attachments || review.version !== 2) return null;
 	const attachments: AssignmentResultMediaReview["attachments"] = {};
 	for (const [id, payload] of Object.entries(review.attachments)) {
 		attachments[id] = {

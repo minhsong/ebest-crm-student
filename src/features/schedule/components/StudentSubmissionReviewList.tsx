@@ -9,7 +9,11 @@ import {
   SoundOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
-import { inferMediaKind, isMediaPlayable } from '@/components/media-review';
+import {
+  commentHasFeedback,
+  inferMediaKind,
+  isMediaPlayable,
+} from '@/components/media-review';
 import type { StudentSubmissionAttachment } from '@/types/student-assignment-detail';
 
 const { Text } = Typography;
@@ -36,7 +40,8 @@ export function StudentSubmissionReviewList({
     <Space direction="vertical" size="small" style={{ width: '100%' }}>
       {playable.map((a, index) => {
         const label = `Bài ${index + 1}`;
-        const hasComments = (a.mediaReviewComments?.length ?? 0) > 0;
+        const hasComments =
+          a.mediaReviewComments?.some((c) => commentHasFeedback(c)) ?? false;
         const isVideo = inferMediaKind(a.mimeType, a.resourceKind) === 'video';
         const Icon = isVideo ? VideoCameraOutlined : SoundOutlined;
 

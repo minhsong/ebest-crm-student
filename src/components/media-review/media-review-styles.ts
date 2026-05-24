@@ -27,3 +27,18 @@ export const MEDIA_COMMENT_CONTENT_ACTIVE: CSSProperties = {
 	fontWeight: 600,
 	color: "#141414",
 };
+
+export const FEEDBACK_COLUMNS_ROW_STYLE: CSSProperties = {
+	display: "flex",
+	flexWrap: "wrap",
+	gap: 8,
+	alignItems: "stretch",
+};
+
+export const FEEDBACK_COLUMN_CARD_STYLE: CSSProperties = {
+	flex: "1 1 108px",
+	minWidth: 100,
+	maxWidth: "100%",
+};
+
+export const INTONATION_ARROW_COLOR = "var(--ant-color-info, #1677ff)";

@@ -3,11 +3,76 @@ import type {
   StudentAssignmentDetail,
   StudentSubmissionAttachment,
 } from '@/types/student-assignment-detail';
-import { sortComments } from '@/components/media-review';
+import { commentHasFeedback, sortComments } from '@/components/media-review';
 
 function pickRecord(raw: unknown): Record<string, unknown> | null {
   if (raw == null || typeof raw !== 'object') return null;
   return raw as Record<string, unknown>;
+}
+
+function parseStringArray(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: string[] = [];
+  for (const item of raw) {
+    const s = String(item ?? '').trim();
+    if (s) out.push(s);
+  }
+  return out.length ? out : undefined;
+}
+
+function parseLiaison(raw: unknown): MediaReviewComment['liaison'] {
+  const o = pickRecord(raw);
+  if (!o || !Array.isArray(o.items)) return undefined;
+  const items: NonNullable<MediaReviewComment['liaison']>['items'] = [];
+  for (const row of o.items) {
+    const r = pickRecord(row);
+    if (!r) continue;
+    const word1 = String(r.word1 ?? '').trim();
+    const word2 = String(r.word2 ?? '').trim();
+    if (!word1 || !word2) continue;
+    const linkSound = String(r.linkSound ?? '').trim();
+    items.push({
+      word1,
+      word2,
+      ...(linkSound ? { linkSound } : {}),
+    });
+  }
+  return items.length ? { items } : undefined;
+}
+
+function parseStress(raw: unknown): MediaReviewComment['stress'] {
+  const o = pickRecord(raw);
+  if (!o || !Array.isArray(o.items)) return undefined;
+  const items: NonNullable<MediaReviewComment['stress']>['items'] = [];
+  for (const row of o.items) {
+    const r = pickRecord(row);
+    if (!r) continue;
+    const word = String(r.word ?? '').trim();
+    const stressedSyllable = String(r.stressedSyllable ?? '').trim();
+    if (!word || !stressedSyllable) continue;
+    items.push({ word, stressedSyllable });
+  }
+  return items.length ? { items } : undefined;
+}
+
+function parseIntonation(raw: unknown): MediaReviewComment['intonation'] {
+  const o = pickRecord(raw);
+  if (!o || !Array.isArray(o.items)) return undefined;
+  const items: NonNullable<MediaReviewComment['intonation']>['items'] = [];
+  for (const row of o.items) {
+    const r = pickRecord(row);
+    if (!r) continue;
+    const text = String(r.text ?? '').trim();
+    if (!text) continue;
+    const arrows: Array<'up' | 'down' | 'flat'> = [];
+    if (Array.isArray(r.arrows)) {
+      for (const a of r.arrows) {
+        if (a === 'up' || a === 'down' || a === 'flat') arrows.push(a);
+      }
+    }
+    items.push({ text, arrows });
+  }
+  return items.length ? { items } : undefined;
 }
 
 function parseMediaReviewComments(raw: unknown): MediaReviewComment[] | undefined {
@@ -18,15 +83,26 @@ function parseMediaReviewComments(raw: unknown): MediaReviewComment[] | undefine
     if (!o || typeof o.id !== 'string') continue;
     const startMs = Number(o.startMs);
     if (!Number.isFinite(startMs) || startMs < 0) continue;
-    const content = String(o.content ?? '').trim();
-    if (!content) continue;
-    list.push({
+    const comment: MediaReviewComment = {
       id: o.id,
       startMs: Math.floor(startMs),
-      content,
       updatedAt:
         typeof o.updatedAt === 'string' ? o.updatedAt : undefined,
-    });
+    };
+    const ipa = parseStringArray(o.ipa);
+    const finalSounds = parseStringArray(o.finalSounds);
+    const liaison = parseLiaison(o.liaison);
+    const stress = parseStress(o.stress);
+    const intonation = parseIntonation(o.intonation);
+    const note = String(o.note ?? '').trim();
+    if (ipa?.length) comment.ipa = ipa;
+    if (finalSounds?.length) comment.finalSounds = finalSounds;
+    if (liaison) comment.liaison = liaison;
+    if (stress) comment.stress = stress;
+    if (intonation) comment.intonation = intonation;
+    if (note) comment.note = note;
+    if (!commentHasFeedback(comment)) continue;
+    list.push(comment);
   }
   return list.length ? sortComments(list) : undefined;
 }

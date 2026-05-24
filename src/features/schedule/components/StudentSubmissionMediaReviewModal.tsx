@@ -6,6 +6,7 @@ import {
   inferMediaKind,
   type MediaReviewComment,
 } from '@/components/media-review';
+import { usePronunciationCatalog } from '@/lib/use-pronunciation-catalog';
 
 type Props = {
   open: boolean;
@@ -28,6 +29,8 @@ export function StudentSubmissionMediaReviewModal({
   durationMs,
   onClose,
 }: Props) {
+  const { catalog } = usePronunciationCatalog(open);
+
   return (
     <Modal
       open={open}
@@ -40,6 +43,7 @@ export function StudentSubmissionMediaReviewModal({
     >
       <MediaTimelineReview
         mode="view"
+        pronunciationCatalog={catalog}
         mediaUrl={url}
         mediaKind={inferMediaKind(mimeType, resourceKind)}
         comments={comments}

@@ -1,21 +1,19 @@
-/** Barrel view-only — đồng bộ UI với CRM, không export hook CRM. */
+/** Barrel view-only — đồng bộ UI với CRM. */
 export type {
-  AssignmentResultMediaReview,
   MediaReviewComment,
+  PronunciationReviewCatalog,
+  PronunciationCatalogItem,
   MediaTimelineReviewKind,
-  MediaTimelineReviewMode,
   MediaTimelineReviewProps,
 } from './types';
 
 export { MediaTimelineReview } from './MediaTimelineReview';
+export { PronunciationFeedbackView } from './components/PronunciationFeedbackView';
 export {
   formatMs,
   findActiveComment,
-  getCommentsFromReview,
   inferMediaKind,
   isMediaPlayable,
-  parseMmSs,
   sortComments,
-  attachmentHasTimelineComments,
 } from './media-review-utils';
-export { normalizeMediaReviewSorted } from './media-review-store';
+export { commentHasFeedback, commentSummaryText, commentSummaryMetaText } from './pronunciation-utils';
