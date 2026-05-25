@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { Card, Typography } from 'antd';
-import { FEEDBACK_COLUMN_CARD_STYLE } from '../media-review-styles';
+import { FEEDBACK_COLUMN_CARD_STYLE } from '../../media-review-styles';
 
 const { Text } = Typography;
 
