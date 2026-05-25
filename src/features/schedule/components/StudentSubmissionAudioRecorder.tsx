@@ -8,10 +8,18 @@ import {
   SendOutlined,
   StopOutlined,
 } from '@ant-design/icons';
+import {
+  buildStudentRecordingFile,
+  canPlayAudioMimeInElement,
+  flushMediaRecorderBeforeStop,
+  pickStudentRecorderMime,
+} from '@/lib/student-audio-recorder';
 
 const MIN_RECORDING_BYTES = 256;
 const ELAPSED_TICK_MS = 500;
 const MEDIA_RECORDER_TIMESLICE_MS = 200;
+/** Chờ chunk cuối sau `stop()` trước khi ghép blob. */
+const FINALIZE_BLOB_DELAY_MS = 50;
 
 type RecorderPhase = 'idle' | 'recording' | 'preview';
 
@@ -25,41 +33,11 @@ export type StudentSubmissionAudioRecorderProps = {
   onSubmitRecording: (file: File) => Promise<boolean>;
 };
 
-function pickRecorderMime(): string | undefined {
-  if (typeof MediaRecorder === 'undefined') return undefined;
-  const candidates = [
-    'audio/webm;codecs=opus',
-    'audio/webm',
-    'audio/mp4',
-  ];
-  for (const c of candidates) {
-    try {
-      if (MediaRecorder.isTypeSupported(c)) return c;
-    } catch {
-      // ignore
-    }
-  }
-  return undefined;
-}
-
-function extensionForMime(mime: string): string {
-  if (mime.includes('webm')) return 'webm';
-  if (mime.includes('mp4') || mime.includes('m4a')) return 'm4a';
-  return 'webm';
-}
-
 function formatElapsed(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   const m = Math.floor(s / 60);
   const r = s % 60;
   return `${m}:${r.toString().padStart(2, '0')}`;
-}
-
-function buildRecordingFile(blob: Blob, mimeFallback: string): File {
-  const type = blob.type || mimeFallback || 'audio/webm';
-  const ext = extensionForMime(type);
-  const name = `ghi-am-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.${ext}`;
-  return new File([blob], name, { type });
 }
 
 export function StudentSubmissionAudioRecorder({
@@ -72,16 +50,18 @@ export function StudentSubmissionAudioRecorder({
   const [elapsedSec, setElapsedSec] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [previewPlayable, setPreviewPlayable] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   const chunksRef = useRef<Blob[]>([]);
-  /** Tránh hai lần bấm “Ghi âm” trước khi `phase` kịp thành `recording`. */
   const acquiringMicRef = useRef(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const stopIntentRef = useRef<'finalize' | 'discard'>('finalize');
   const recordingStartedAtRef = useRef(0);
   const previewObjectUrlRef = useRef<string | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const activeMimeTypeRef = useRef<string>('audio/webm');
 
   const setPhaseSafe = useCallback((next: RecorderPhase) => {
     if (mountedRef.current) setPhase(next);
@@ -99,7 +79,40 @@ export function StudentSubmissionAudioRecorder({
     }
     setPreviewUrl(null);
     setPreviewFile(null);
+    setPreviewPlayable(true);
   }, []);
+
+  const applyPreviewBlob = useCallback(
+    (blob: Blob, mimeType: string) => {
+      if (!mountedRef.current) return;
+
+      if (blob.size < MIN_RECORDING_BYTES) {
+        message.warning('Bản ghi quá ngắn hoặc không có dữ liệu.');
+        setPhaseSafe('idle');
+        return;
+      }
+
+      const file = buildStudentRecordingFile(blob, mimeType);
+      const url = URL.createObjectURL(blob);
+      if (previewObjectUrlRef.current) {
+        URL.revokeObjectURL(previewObjectUrlRef.current);
+      }
+      previewObjectUrlRef.current = url;
+
+      const playable = canPlayAudioMimeInElement(blob.type || mimeType);
+      setPreviewPlayable(playable);
+      setPreviewUrl(url);
+      setPreviewFile(file);
+      setPhaseSafe('preview');
+
+      if (!playable) {
+        message.warning(
+          'Trình duyệt có thể không nghe được bản ghi trước khi nộp. Bạn vẫn có thể nộp bài; sau khi nộp sẽ nghe được từ danh sách bài nộp.',
+        );
+      }
+    },
+    [setPhaseSafe],
+  );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -110,6 +123,7 @@ export function StudentSubmissionAudioRecorder({
       recorderRef.current = null;
       if (r && r.state !== 'inactive') {
         try {
+          flushMediaRecorderBeforeStop(r);
           r.stop();
         } catch {
           // ignore
@@ -138,6 +152,14 @@ export function StudentSubmissionAudioRecorder({
     return () => window.clearInterval(id);
   }, [phase]);
 
+  /** Tải lại `<audio>` khi blob URL đổi (tránh nút play không phản hồi). */
+  useEffect(() => {
+    if (phase !== 'preview' || !previewUrl) return;
+    const el = previewAudioRef.current;
+    if (!el) return;
+    el.load();
+  }, [phase, previewUrl]);
+
   const startRecording = useCallback(async () => {
     if (phase !== 'idle' || acquiringMicRef.current) return;
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
@@ -150,7 +172,8 @@ export function StudentSubmissionAudioRecorder({
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       chunksRef.current = [];
-      const mimeType = pickRecorderMime();
+      const mimeType = pickStudentRecorderMime();
+      activeMimeTypeRef.current = mimeType || 'audio/webm';
       const rec = mimeType
         ? new MediaRecorder(stream, { mimeType })
         : new MediaRecorder(stream);
@@ -167,6 +190,8 @@ export function StudentSubmissionAudioRecorder({
       };
       rec.onstop = () => {
         const intent = stopIntentRef.current;
+        const recordedMime =
+          rec.mimeType || activeMimeTypeRef.current || 'audio/webm';
         recorderRef.current = null;
         stopTracks();
 
@@ -176,29 +201,12 @@ export function StudentSubmissionAudioRecorder({
           return;
         }
 
-        const type = rec.mimeType || mimeType || 'audio/webm';
-        const blob = new Blob(chunksRef.current, { type });
-        chunksRef.current = [];
-
-        if (!mountedRef.current) {
-          return;
-        }
-
-        if (blob.size < MIN_RECORDING_BYTES) {
-          message.warning('Bản ghi quá ngắn hoặc không có dữ liệu.');
-          setPhaseSafe('idle');
-          return;
-        }
-
-        const file = buildRecordingFile(blob, type);
-        const url = URL.createObjectURL(blob);
-        if (previewObjectUrlRef.current) {
-          URL.revokeObjectURL(previewObjectUrlRef.current);
-        }
-        previewObjectUrlRef.current = url;
-        setPreviewUrl(url);
-        setPreviewFile(file);
-        setPhaseSafe('preview');
+        window.setTimeout(() => {
+          const type = recordedMime;
+          const blob = new Blob(chunksRef.current, { type });
+          chunksRef.current = [];
+          applyPreviewBlob(blob, type);
+        }, FINALIZE_BLOB_DELAY_MS);
       };
 
       recordingStartedAtRef.current = Date.now();
@@ -212,36 +220,36 @@ export function StudentSubmissionAudioRecorder({
     } finally {
       acquiringMicRef.current = false;
     }
-  }, [clearPreview, phase, setPhaseSafe, stopTracks]);
+  }, [applyPreviewBlob, clearPreview, phase, setPhaseSafe, stopTracks]);
+
+  const stopRecorder = useCallback(
+    (intent: 'finalize' | 'discard') => {
+      const r = recorderRef.current;
+      if (!r || r.state === 'inactive') return;
+      stopIntentRef.current = intent;
+      try {
+        flushMediaRecorderBeforeStop(r);
+        r.stop();
+      } catch {
+        recorderRef.current = null;
+        stopTracks();
+        chunksRef.current = [];
+        setPhaseSafe('idle');
+        if (intent === 'finalize') {
+          message.error('Không dừng được bản ghi.');
+        }
+      }
+    },
+    [setPhaseSafe, stopTracks],
+  );
 
   const stopRecordingDiscard = useCallback(() => {
-    const r = recorderRef.current;
-    if (!r || r.state === 'inactive') return;
-    stopIntentRef.current = 'discard';
-    try {
-      r.stop();
-    } catch {
-      recorderRef.current = null;
-      stopTracks();
-      chunksRef.current = [];
-      setPhaseSafe('idle');
-    }
-  }, [setPhaseSafe, stopTracks]);
+    stopRecorder('discard');
+  }, [stopRecorder]);
 
   const stopRecordingToPreview = useCallback(() => {
-    const r = recorderRef.current;
-    if (!r || r.state === 'inactive') return;
-    stopIntentRef.current = 'finalize';
-    try {
-      r.stop();
-    } catch {
-      message.error('Không dừng được bản ghi.');
-      recorderRef.current = null;
-      stopTracks();
-      chunksRef.current = [];
-      setPhaseSafe('idle');
-    }
-  }, [setPhaseSafe, stopTracks]);
+    stopRecorder('finalize');
+  }, [stopRecorder]);
 
   const cancelPreview = useCallback(() => {
     clearPreview();
@@ -321,11 +329,27 @@ export function StudentSubmissionAudioRecorder({
         <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
           Nghe lại trước khi nộp. Huỷ để ghi lại từ đầu (chưa gửi lên hệ thống).
         </Text>
+        {!previewPlayable ? (
+          <Text type="warning" style={{ fontSize: token.fontSizeSM }}>
+            Trình duyệt có thể không phát được định dạng ghi âm này trước khi nộp.
+            Vẫn có thể bấm «Nộp bản ghi» — sau khi nộp, dùng «Phát» trong danh sách
+            bài nộp.
+          </Text>
+        ) : null}
         <audio
+          ref={previewAudioRef}
           controls
+          playsInline
+          preload="auto"
           src={previewUrl}
           style={{ width: '100%', maxHeight: 44 }}
           aria-label="Nghe lại bản ghi"
+          onError={() => {
+            setPreviewPlayable(false);
+            message.error(
+              'Không phát được bản ghi trên thiết bị này. Thử Chrome/Edge hoặc nộp bài để nghe từ server.',
+            );
+          }}
         />
         <Space size="small" wrap>
           <Button
