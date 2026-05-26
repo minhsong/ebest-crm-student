@@ -27,6 +27,7 @@ import {
 import { useQuizAttemptRuntime } from '@/features/quiz-test/components/useQuizAttemptRuntime';
 import { useAssignmentQuizAction } from '@/features/quiz-test/hooks/useAssignmentQuizAction';
 import { filterSubmittedAttemptsForAssignment } from '@/features/quiz-test/lib/quiz-attempt-history';
+import { useQuizResultViewGate } from '@/features/quiz-test/hooks/useQuizResultViewGate';
 import type {
   QuizFormSectionPayload,
   QuizFormItemPayload,
@@ -114,6 +115,15 @@ export function QuizAttemptClient({
   const assignmentAction = useAssignmentQuizAction(
     assignmentId != null ? formPublicId : null,
     assignmentId,
+  );
+
+  const { allowDetailLinks: allowHistoryDetailLinks } = useQuizResultViewGate(
+    formPublicId,
+    {
+      assignmentId,
+      practiceMode,
+      assignmentAction,
+    },
   );
   const assignmentHistoryForList = useMemo(() => {
     if (assignmentId == null || assignmentId < 1) return attemptHistory;
@@ -330,11 +340,12 @@ export function QuizAttemptClient({
           assignmentId == null || assignmentAction.loading || assignmentAction.canStart
         }
         resultsPageHref={
-          assignmentId != null && assignmentAction.canViewResults
+          assignmentId != null && assignmentAction.canViewResultDetail
             ? assignmentAction.resultsPageHref
             : null
         }
         startBlockReason={assignmentAction.startBlockReason}
+        allowHistoryDetailLinks={allowHistoryDetailLinks}
       />
     );
   }
@@ -375,10 +386,12 @@ export function QuizAttemptClient({
           assignmentId == null || assignmentAction.loading || assignmentAction.canStart
         }
         resultsPageHref={
-          assignmentId != null && assignmentAction.canViewResults
+          assignmentId != null && assignmentAction.canViewResultDetail
             ? assignmentAction.resultsPageHref
             : null
         }
+        allowHistoryDetailLinks={allowHistoryDetailLinks}
+        canViewLatestAttemptDetail={allowHistoryDetailLinks}
       />
     );
   }

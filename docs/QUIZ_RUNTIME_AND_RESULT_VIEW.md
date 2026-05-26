@@ -60,6 +60,14 @@ Trang `QuizAttemptResultClient` gọi riêng: `useQuizAttemptResultData`, `useQu
 
 ## 3.1 Đồng bộ điểm bài tập (lần làm gần nhất)
 
+### Chấm lại toàn bộ khi nộp bài (2026-05)
+
+Khi chuyển `in_progress` → `submitted`, Gateway **luôn chấm lại mọi câu** từ snapshot mới nhất:
+
+- Module: `ebest-social-gateway/src/quiz-grading/quiz-grading.utils.ts` (`gradeAllQuestionsOnSubmit`, `mergeAnswersForSubmitGrading`).
+- `submitAttempt` gộp `answersByFormItemId` trên DB + `studentAnswer` từng câu (sau PATCH realtime), không chỉ closure React trên portal.
+- Portal: `answersRef` + `await patchAnswersImmediately` trước `POST submit`.
+
 Sau `POST attempts/:id/submit` thành công (bài tập có `assignmentId`):
 
 1. Gateway chấm + lưu Mongo → `saveQuizResult` → CRM internal sync (nếu `participant.snapshot.assignmentId` hợp lệ).
@@ -92,11 +100,18 @@ File: `src/lib/assignment-list-row-actions.ts`, `src/lib/assignment-quiz-ui.ts`.
 
 Logic pure trong `quiz-result-view-policy.ts`:
 
-| Kênh | Quy tắc |
-|------|---------|
-| **Assignment** | Attempt `submitted` / `expired` → **luôn** xem chi tiết (kể cả hết lượt) |
-| **Practice** (không giới hạn lượt) | Có lần nộp → xem |
-| **Practice** (có `maxAttempts`) | Xem khi hết lượt **hoặc** điểm tuyệt đối; còn lượt → thông báo khuyến khích làm tiếp |
+| Kênh | Quy tắc (thống nhất) |
+|------|----------------------|
+| **Assignment** & **Practice** | Chỉ xem chi tiết đáp án khi: (1) `submittedCount >= maxAttempts` (hết lượt), **hoặc** (2) có lần đạt **100%** / đủ câu đúng (`hasPerfectScore`). Còn lượt và chưa đạt tuyệt đối → ẩn đáp án, thông báo khuyến khích làm tiếp. |
+| **maxAttempts** | Bài tập: ưu tiên `quizMaxAttempts` từ assignment (authorize / snapshot). Ôn luyện: `practiceMaxAttempts` trên đề publish (authorize / snapshot). Không giới hạn (`null`): chỉ mở chi tiết khi `hasPerfectScore`. |
+
+| Module | Vai trò |
+|--------|---------|
+| `quiz-result-view-policy.ts` | SSOT pure: `isQuizResultDetailEligible`, `buildQuizEligibilityFromGatewayStats`, `resolveQuizMaxAttempts` |
+| `quiz-runtime-eligibility.ts` | `fetchQuizEligibilityForAccess` — gọi Gateway (+ CRM fallback assignment) |
+| `quiz-gateway-stats.ts` | `fetchGatewayQuizStats({ channel })` |
+| `useQuizResultViewGate` | Hook UI: `allowDetailLinks` cho list / nút |
+| Gateway `review-bundle` | `quizAttemptStats` (+ alias `assignmentStats` / `practiceStats`) |
 
 UI chi tiết:
 

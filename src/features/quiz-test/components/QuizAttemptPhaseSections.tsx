@@ -16,6 +16,7 @@ import type {
 import { Alert, Button, Card, Checkbox, Divider, Space, Tag, Typography } from 'antd';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { QUIZ_RESULT_DETAIL_LOCKED_DESCRIPTION } from '@/features/quiz-test/lib/quiz-result-view-policy';
 
 // ==================== Types ====================
 type CommonMetaProps = {
@@ -36,6 +37,7 @@ type QuizAttemptReadySectionProps = CommonMetaProps & {
   canStartNew?: boolean;
   resultsPageHref?: string | null;
   startBlockReason?: string | null;
+  allowHistoryDetailLinks?: boolean;
 };
 
 type QuizAttemptConfirmSectionProps = CommonMetaProps & {
@@ -54,6 +56,8 @@ type QuizAttemptDoneSectionProps = CommonMetaProps & {
   assignmentId?: number;
   canStartNew?: boolean;
   resultsPageHref?: string | null;
+  allowHistoryDetailLinks?: boolean;
+  canViewLatestAttemptDetail?: boolean;
 };
 
 // ==================== Ready Section ====================
@@ -71,6 +75,7 @@ export function QuizAttemptReadySection({
   canStartNew = true,
   resultsPageHref,
   startBlockReason,
+  allowHistoryDetailLinks = true,
 }: QuizAttemptReadySectionProps) {
   return (
     <Card>
@@ -143,8 +148,13 @@ export function QuizAttemptReadySection({
             (a) => a.status === 'submitted' || a.status === 'expired',
           )}
           title="Các lần làm trước"
-          description="Bấm từng dòng để xem đáp án, điểm và giải thích."
+          description={
+            allowHistoryDetailLinks
+              ? 'Bấm từng dòng để xem đáp án, điểm và giải thích.'
+              : QUIZ_RESULT_DETAIL_LOCKED_DESCRIPTION
+          }
           showScore
+          allowDetailLinks={allowHistoryDetailLinks}
         />
 
         {/* Start / xem kết quả */}
@@ -278,6 +288,8 @@ export function QuizAttemptDoneSection({
   assignmentId,
   canStartNew = true,
   resultsPageHref,
+  allowHistoryDetailLinks = true,
+  canViewLatestAttemptDetail = true,
 }: QuizAttemptDoneSectionProps) {
   const [history, setHistory] = useState<QuizAttemptHistoryItem[]>(attemptHistory);
   const [isReloading, setIsReloading] = useState(false);
@@ -376,20 +388,31 @@ export function QuizAttemptDoneSection({
           formPublicId={formPublicId}
           rows={history}
           title="Các bài đã làm"
+          description={
+            allowHistoryDetailLinks ? undefined : QUIZ_RESULT_DETAIL_LOCKED_DESCRIPTION
+          }
           vertical
           showScore
           highlightAttemptId={latestAttemptId}
           onRefresh={onRefreshHistory}
+          allowDetailLinks={allowHistoryDetailLinks}
         />
 
         {/* Action buttons */}
         <Space wrap>
-          {submitResult.attemptPublicId ? (
+          {submitResult.attemptPublicId && canViewLatestAttemptDetail ? (
             <Link
               href={`/quiz-test/${formPublicId}/attempts/${submitResult.attemptPublicId}`}
             >
               <Button type="primary">Xem chi tiết lần vừa nộp</Button>
             </Link>
+          ) : null}
+          {submitResult.attemptPublicId && !canViewLatestAttemptDetail ? (
+            <Alert
+              type="info"
+              showIcon
+              message="Chưa thể xem chi tiết đáp án. Hãy làm hết lượt hoặc đạt 100% câu đúng."
+            />
           ) : null}
           {canStartNew ? (
             <Button color="green" variant="solid" onClick={onOpenConfirmStart}>

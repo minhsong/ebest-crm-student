@@ -12,10 +12,11 @@ import { loadAssignmentQuizActionStateWithAccess } from '@/lib/quiz-assignment-a
 import {
   fetchGatewayAssignmentQuizStats,
   historyItemsFromGatewayStats,
-} from '@/lib/quiz-gateway-assignment-stats';
+} from '@/lib/quiz-gateway-stats';
 import { fetchQuizStartEligibility } from '@/lib/quiz-assignment-crm';
 import type { QuizRuntimeAccess } from '@/lib/quiz-runtime-access';
 import { pinAssignmentQuizRuntimeAccess } from '@/lib/quiz-runtime-access';
+import { QUIZ_RESULT_DETAIL_LOCKED_DESCRIPTION } from '@/features/quiz-test/lib/quiz-result-view-policy';
 
 type Props = {
   formPublicId: string;
@@ -31,6 +32,7 @@ export function QuizAssignmentResultsClient({ formPublicId, assignmentId, access
   const [canStart, setCanStart] = useState(false);
   const [startReason, setStartReason] = useState<string | null>(null);
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
+  const [canViewDetail, setCanViewDetail] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,6 +64,7 @@ export function QuizAssignmentResultsClient({ formPublicId, assignmentId, access
       setCanStart(action.canStart);
       setStartReason(action.startBlockReason);
       setAttemptsRemaining(action.eligibility?.attemptsRemaining ?? null);
+      setCanViewDetail(action.canViewResults);
 
       if (action.submittedAttempts.length === 0 && !action.canStart) {
         setError(action.startBlockReason ?? 'Chưa có lần làm bài để xem.');
@@ -152,9 +155,14 @@ export function QuizAssignmentResultsClient({ formPublicId, assignmentId, access
             formPublicId={formPublicId}
             rows={attempts}
             title="Các lần làm bài"
-            description="Chọn một lần để xem đáp án, điểm từng câu và giải thích (theo đề đã freeze khi làm bài)."
+            description={
+              canViewDetail
+                ? 'Chọn một lần để xem đáp án, điểm từng câu và giải thích (theo đề đã freeze khi làm bài).'
+                : QUIZ_RESULT_DETAIL_LOCKED_DESCRIPTION
+            }
             vertical
             showScore
+            allowDetailLinks={canViewDetail}
             onRefresh={refreshHistory}
           />
         ) : (

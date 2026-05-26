@@ -1,9 +1,18 @@
-export type QuizEligibilityFromCrm = {
+/** Eligibility xem chi tiết đáp án — SSOT cho assignment & practice. */
+export type QuizResultEligibility = {
   submittedCount: number;
   maxAttempts: number | null;
   attemptsRemaining: number | null;
   hasPerfectScore: boolean;
 };
+
+/** @deprecated Dùng QuizResultEligibility */
+export type QuizEligibilityFromCrm = QuizResultEligibility;
+
+export type QuizAttemptEligibilityStats = Pick<
+  QuizResultEligibility,
+  'submittedCount' | 'hasPerfectScore' | 'maxAttempts' | 'attemptsRemaining'
+>;
 
 export type CanViewResultReason =
   | 'eligible'
@@ -11,106 +20,145 @@ export type CanViewResultReason =
   | 'not_all_attempts_used'
   | 'no_perfect_score';
 
-export type CanViewResultData = {
+export type CanViewResultData = QuizResultEligibility & {
   canView: boolean;
   reason: CanViewResultReason;
+  /** Alias submittedCount — dùng trên UI cũ */
   attemptsUsed: number;
-  maxAttempts: number | null;
-  attemptsRemaining: number | null;
-  hasPerfectScore: boolean;
-  submittedCount: number;
 };
 
 export type CanViewResultInput = {
-  accessMode: 'assignment' | 'practice';
-  attemptStatus: string;
-  hasGradingItems: boolean;
-  eligibility?: QuizEligibilityFromCrm | null;
-  submittedAttemptsCount?: number;
+  eligibility?: QuizResultEligibility | null;
 };
 
+export const QUIZ_RESULT_DETAIL_LOCKED_DESCRIPTION =
+  'Xem chi tiết đáp án khi hết lượt làm bài hoặc đạt 100% câu đúng.';
+
+export const QUIZ_RESULT_DETAIL_LOCKED_TITLE =
+  'Chưa đủ điều kiện xem chi tiết đáp án (hết lượt hoặc đạt 100%)';
+
 /**
- * Quyết định hiển thị chi tiết đáp án trên trang xem kết quả (pure — không gọi API).
+ * Ưu tiên max bài tập (assignment); ôn luyện chỉ dùng max từ đề / authorize.
  */
-export function computeCanViewResultDetails(input: CanViewResultInput): CanViewResultData {
-  const submitted =
-    input.attemptStatus === 'submitted' || input.attemptStatus === 'expired';
-  const maxAttempts = input.eligibility?.maxAttempts ?? null;
-  const submittedCount =
-    input.eligibility?.submittedCount ?? input.submittedAttemptsCount ?? 0;
-  const attemptsRemaining =
-    input.eligibility?.attemptsRemaining ??
-    (maxAttempts != null ? Math.max(0, maxAttempts - submittedCount) : null);
-  const hasPerfectScore = Boolean(input.eligibility?.hasPerfectScore);
-
-  if (input.accessMode === 'assignment' && submitted) {
-    return {
-      canView: true,
-      reason: 'eligible',
-      attemptsUsed: submittedCount,
-      maxAttempts,
-      attemptsRemaining,
-      hasPerfectScore,
-      submittedCount,
-    };
+export function resolveQuizMaxAttempts(
+  assignmentMax?: number | null,
+  formMax?: number | null,
+): number | null {
+  if (assignmentMax !== undefined && assignmentMax !== null) {
+    return assignmentMax;
   }
-
-  if (submitted && input.hasGradingItems) {
-    return {
-      canView: true,
-      reason: 'eligible',
-      attemptsUsed: submittedCount,
-      maxAttempts,
-      attemptsRemaining,
-      hasPerfectScore,
-      submittedCount,
-    };
+  if (formMax !== undefined) {
+    return formMax ?? null;
   }
+  return null;
+}
 
-  if (submittedCount === 0) {
-    return {
-      canView: false,
-      reason: 'no_attempts',
-      attemptsUsed: 0,
-      maxAttempts,
-      attemptsRemaining,
-      hasPerfectScore,
-      submittedCount,
-    };
-  }
+export function computeAttemptsRemaining(
+  maxAttempts: number | null,
+  submittedCount: number,
+): number | null {
+  if (maxAttempts == null) return null;
+  return Math.max(0, maxAttempts - submittedCount);
+}
 
-  if (maxAttempts != null) {
-    if (submittedCount >= maxAttempts || hasPerfectScore) {
-      return {
-        canView: true,
-        reason: 'eligible',
-        attemptsUsed: submittedCount,
-        maxAttempts,
-        attemptsRemaining,
-        hasPerfectScore,
-        submittedCount,
-      };
-    }
-    return {
-      canView: false,
-      reason: 'not_all_attempts_used',
-      attemptsUsed: submittedCount,
-      maxAttempts,
-      attemptsRemaining,
-      hasPerfectScore,
-      submittedCount,
-    };
-  }
-
+export function buildQuizResultEligibility(input: {
+  submittedCount: number;
+  hasPerfectScore: boolean;
+  maxAttempts: number | null;
+  attemptsRemaining?: number | null;
+}): QuizResultEligibility {
   return {
-    canView: submittedCount > 0,
-    reason: submittedCount > 0 ? 'eligible' : 'no_attempts',
-    attemptsUsed: submittedCount,
+    submittedCount: input.submittedCount,
+    hasPerfectScore: input.hasPerfectScore,
+    maxAttempts: input.maxAttempts,
+    attemptsRemaining:
+      input.attemptsRemaining ??
+      computeAttemptsRemaining(input.maxAttempts, input.submittedCount),
+  };
+}
+
+export function buildQuizEligibilityFromGatewayStats(
+  stats: QuizAttemptEligibilityStats | null,
+  options: {
+    channel: 'assignment' | 'practice';
+    maxAttemptsHint?: number | null;
+  },
+): QuizResultEligibility | null {
+  if (!stats) return null;
+
+  const maxAttempts =
+    options.channel === 'assignment'
+      ? resolveQuizMaxAttempts(options.maxAttemptsHint, stats.maxAttempts)
+      : resolveQuizMaxAttempts(
+          undefined,
+          options.maxAttemptsHint ?? stats.maxAttempts,
+        );
+
+  return buildQuizResultEligibility({
+    submittedCount: stats.submittedCount,
+    hasPerfectScore: stats.hasPerfectScore,
+    maxAttempts,
+    attemptsRemaining: stats.attemptsRemaining,
+  });
+}
+
+/**
+ * Được xem chi tiết đáp án khi đã nộp ≥ 1 lần và (hết lượt hoặc đạt 100% / đủ câu đúng).
+ */
+export function isQuizResultDetailEligible(
+  eligibility: Pick<
+    QuizResultEligibility,
+    'submittedCount' | 'maxAttempts' | 'hasPerfectScore'
+  > | null,
+): boolean {
+  if (!eligibility || eligibility.submittedCount <= 0) {
+    return false;
+  }
+  if (eligibility.hasPerfectScore) {
+    return true;
+  }
+  const max = eligibility.maxAttempts;
+  return max != null && eligibility.submittedCount >= max;
+}
+
+export function computeCanViewResultDetails(
+  input: CanViewResultInput,
+): CanViewResultData {
+  const eligibility = input.eligibility;
+  const submittedCount = eligibility?.submittedCount ?? 0;
+  const maxAttempts = eligibility?.maxAttempts ?? null;
+  const attemptsRemaining =
+    eligibility?.attemptsRemaining ??
+    computeAttemptsRemaining(maxAttempts, submittedCount);
+  const hasPerfectScore = Boolean(eligibility?.hasPerfectScore);
+
+  const base = {
+    submittedCount,
     maxAttempts,
     attemptsRemaining,
     hasPerfectScore,
-    submittedCount,
+    attemptsUsed: submittedCount,
   };
+
+  if (submittedCount === 0) {
+    return { ...base, canView: false, reason: 'no_attempts' };
+  }
+
+  const normalized = buildQuizResultEligibility({
+    submittedCount,
+    hasPerfectScore,
+    maxAttempts,
+    attemptsRemaining,
+  });
+
+  if (isQuizResultDetailEligible(normalized)) {
+    return { ...base, canView: true, reason: 'eligible' };
+  }
+
+  const reason: CanViewResultReason =
+    maxAttempts != null ? 'not_all_attempts_used' : 'no_perfect_score';
+
+  return { ...base, canView: false, reason };
 }
 
 export function getCannotViewResultMessage(
@@ -120,10 +168,15 @@ export function getCannotViewResultMessage(
   const attemptsRemaining = data.attemptsRemaining ?? 0;
   const hasLimit = data.maxAttempts !== null;
 
+  if (reason === 'no_attempts') {
+    return 'Bạn chưa làm bài nào. Hãy bắt đầu làm bài để xem kết quả chi tiết nha!';
+  }
+
+  if (reason === 'no_perfect_score') {
+    return 'Để xem kết quả chi tiết, bạn cần đạt điểm tuyệt đối (100% câu đúng). Hãy làm lại và cố gắng nhé!';
+  }
+
   if (!hasLimit) {
-    if (reason === 'no_attempts') {
-      return 'Bạn chưa làm bài nào. Hãy bắt đầu làm bài để xem kết quả chi tiết nha!';
-    }
     return '';
   }
 

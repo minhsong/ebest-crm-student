@@ -119,6 +119,8 @@ export function useQuizAttemptRuntime({
   // Refs for async callbacks
   const autoSubmitTriggeredRef = useRef(false);
   const quizSocketRef = useRef<Socket | null>(null);
+  /** Luôn có đáp án mới nhất khi nộp bài (tránh closure React lệch câu vừa chọn). */
+  const answersRef = useRef<Record<string, string | string[]>>({});
 
   // ============================================================================
   // Form Loading
@@ -169,11 +171,11 @@ export function useQuizAttemptRuntime({
             const merged = mergeAttemptWithFormPublishedDuration(resumed, data);
             autoSubmitTriggeredRef.current = false;
             setAttempt(merged);
-            setAnswers(
-              normalizeAttemptAnswers(
-                (rawAttempt as { answersByFormItemId?: unknown })?.answersByFormItemId,
-              ),
+            const resumedAnswers = normalizeAttemptAnswers(
+              (rawAttempt as { answersByFormItemId?: unknown })?.answersByFormItemId,
             );
+            answersRef.current = resumedAnswers;
+            setAnswers(resumedAnswers);
             setListeningRemaining(
               normalizeListeningMap(
                 (rawAttempt as { remainingPlaysByListeningUnit?: unknown })
@@ -190,6 +192,7 @@ export function useQuizAttemptRuntime({
           const attemptId = String(state.attempt?.attemptPublicId ?? '');
           setAttempt(null);
           setAnswers({});
+          answersRef.current = {};
           setRemainingSeconds(REMAINING_UNSET);
           setListeningRemaining({});
           setSubmitResult({
@@ -216,6 +219,7 @@ export function useQuizAttemptRuntime({
       // Reset to ready state
       setAttempt(null);
       setAnswers({});
+      answersRef.current = {};
       setSubmitResult(null);
       setRemainingSeconds(REMAINING_UNSET);
       setListeningRemaining({});
@@ -275,17 +279,23 @@ export function useQuizAttemptRuntime({
   );
 
   const patchAnswersImmediately = useCallback(
-    async (attemptPublicId: string, map: Record<string, string | string[]>) => {
+    async (
+      attemptPublicId: string,
+      map?: Record<string, string | string[]>,
+    ) => {
+      const payload = map ?? answersRef.current;
       const url = quizRuntimePublicUrl(`attempts/${attemptPublicId}/answers`);
       const { ok } = await fetchQuizRuntimeJson(url, {
         method: 'PATCH',
-        body: JSON.stringify({ answersByFormItemId: map }),
+        body: JSON.stringify({ answersByFormItemId: payload }),
       });
       if (!ok) {
         antdMessage.warning(
           'Không lưu nháp được — kiểm tra mạng hoặc phiên làm bài đã hết hạn.',
         );
+        return false;
       }
+      return true;
     },
     [],
   );
@@ -322,7 +332,13 @@ export function useQuizAttemptRuntime({
                   : null,
             }
           : practiceMode
-            ? { mode: 'practice' as const }
+            ? {
+                mode: 'practice' as const,
+                quizMaxAttempts:
+                  stored?.mode === 'practice'
+                    ? (stored.quizMaxAttempts ?? null)
+                    : null,
+              }
             : undefined;
       const startBody = snapshot
         ? JSON.stringify({ participantSnapshot: snapshot })
@@ -353,7 +369,10 @@ export function useQuizAttemptRuntime({
       );
       autoSubmitTriggeredRef.current = false;
       setRemainingSeconds(syncRemainingFromAttempt(mergedStart));
-      if (!data.resumed) setAnswers({});
+      if (!data.resumed) {
+        setAnswers({});
+        answersRef.current = {};
+      }
       setPhase('attempting');
     } catch (e) {
       setErrMsg(e instanceof Error ? e.message : 'Không tạo phiên làm bài được.');
@@ -370,6 +389,7 @@ export function useQuizAttemptRuntime({
       if (!attempt?.attemptPublicId) return;
       setAnswers((prev) => {
         const next = { ...prev, [formItemId]: value };
+        answersRef.current = next;
         persistAnswersRealtime(next, attempt.attemptPublicId);
         return next;
       });
@@ -392,8 +412,14 @@ export function useQuizAttemptRuntime({
     setPhase('submitting');
     setErrMsg(null);
 
-    // Persist final answers
-    await patchAnswersImmediately(attemptId, answers);
+    const finalAnswers = { ...answersRef.current, ...answers };
+    answersRef.current = finalAnswers;
+
+    const saved = await patchAnswersImmediately(attemptId, finalAnswers);
+    if (!saved) {
+      setPhase('attempting');
+      return;
+    }
 
     const url = quizRuntimePublicUrl(`attempts/${attemptId}/submit`);
 

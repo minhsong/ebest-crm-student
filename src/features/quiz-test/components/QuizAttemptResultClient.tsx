@@ -175,12 +175,7 @@ export function QuizAttemptResultClient({
     );
   }
 
-  const attemptSubmitted =
-    attempt?.status === 'submitted' || attempt?.status === 'expired';
-  const hasGradingItems =
-    Array.isArray(attempt?.grading?.items) && attempt.grading.items.length > 0;
-  const canViewDetails =
-    canViewData?.canView === true || hasGradingItems || attemptSubmitted;
+  const canViewDetails = canViewData?.canView === true;
   const cannotViewReason = canViewData?.reason ?? null;
   const showCannotViewAlert = !canViewDetails && canViewData !== null;
 

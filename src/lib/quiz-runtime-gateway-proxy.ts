@@ -308,6 +308,24 @@ async function handleGetAssignmentQuizStats(
   return proxyResponse(res);
 }
 
+async function handleGetPracticeQuizStats(
+  ctx: RouteContext,
+  segments: string[],
+): Promise<NextResponse> {
+  const formId = segments[1];
+  const res = await fetch(
+    internalStudentUrl(
+      ctx.baseUrl,
+      `forms/${formId}/practice-quiz-stats${gatewayQueryWithCustomerId(ctx)}`,
+    ),
+    {
+      headers: { ...ctx.headers, ...ctx.serviceAuth },
+      cache: 'no-store',
+    },
+  );
+  return proxyResponse(res);
+}
+
 async function handleGetAttemptById(ctx: RouteContext, segments: string[]): Promise<NextResponse> {
   const attemptId = segments[1];
   const qInner = gatewayQueryWithCustomerId(ctx);
@@ -490,6 +508,13 @@ function createRouteMap(): Map<string, RouteDefinition> {
     pattern: '/forms/:uuid/assignment-quiz-stats',
     segments: ['forms', 'uuid', 'assignment-quiz-stats'],
     handler: async (ctx, segs) => handleGetAssignmentQuizStats(ctx, segs),
+  });
+
+  routes.set(buildRouteKey('GET', ['forms', 'uuid', 'practice-quiz-stats']), {
+    method: 'GET',
+    pattern: '/forms/:uuid/practice-quiz-stats',
+    segments: ['forms', 'uuid', 'practice-quiz-stats'],
+    handler: async (ctx, segs) => handleGetPracticeQuizStats(ctx, segs),
   });
 
   // PATCH /attempts/:uuid/answers

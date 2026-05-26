@@ -58,16 +58,8 @@ export function useQuizAttemptResultPage(
 
   const canViewData: CanViewResultData | null = useMemo(() => {
     if (!bundle) return null;
-    const hasGradingItems =
-      Array.isArray(bundle.attempt.grading?.items) &&
-      bundle.attempt.grading.items.length > 0;
-    const attemptStatus = bundle.attempt.status ?? '';
     return computeCanViewResultDetails({
-      accessMode: bundle.access.mode,
-      attemptStatus,
-      hasGradingItems,
       eligibility: bundle.eligibility,
-      submittedAttemptsCount: bundle.eligibility?.submittedCount,
     });
   }, [bundle]);
 

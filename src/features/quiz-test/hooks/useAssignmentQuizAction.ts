@@ -14,6 +14,7 @@ const EMPTY: AssignmentQuizActionState = {
   eligibility: null,
   submittedAttempts: [],
   canViewResults: false,
+  canViewResultDetail: false,
   resultsPageHref: '',
 };
 

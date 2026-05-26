@@ -6,6 +6,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import type { QuizAttemptHistoryItem } from '@/features/quiz-test/types';
+import { QUIZ_RESULT_DETAIL_LOCKED_TITLE } from '@/features/quiz-test/lib/quiz-result-view-policy';
 import {
   getAttemptHistoryRowLabel,
   getHistoryScoreText,
@@ -26,6 +27,8 @@ export type QuizAttemptHistoryListProps = {
   highlightAttemptId?: string | null;
   /** Callback để refresh danh sách - trả về data mới để update state */
   onRefresh?: () => Promise<QuizAttemptHistoryItem[]>;
+  /** false: không link sang trang chi tiết (chưa đủ điều kiện xem đáp án) */
+  allowDetailLinks?: boolean;
 };
 
 /**
@@ -43,6 +46,7 @@ export function QuizAttemptHistoryList({
   showScore = false,
   highlightAttemptId,
   onRefresh,
+  allowDetailLinks = true,
 }: QuizAttemptHistoryListProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -102,6 +106,45 @@ export function QuizAttemptHistoryList({
           const isLatest = row.attemptPublicId === latestAttemptId;
           const isHighlighted = row.attemptPublicId === highlightAttemptId;
 
+          const rowLabel = (
+            <Space size={4}>
+              {row.status === 'submitted' ? (
+                <CheckCircleFilled className="text-green-500 text-xs" />
+              ) : row.status === 'expired' ? (
+                <ClockCircleOutlined className="text-red-500 text-xs" />
+              ) : (
+                <ClockCircleOutlined className="text-gray-400 text-xs" />
+              )}
+              <span>
+                {getAttemptHistoryRowLabel(row.status)} · {toViDateTime(row.startedAt)}
+              </span>
+              {showScore && (
+                <span className="text-xs opacity-75">{getHistoryScoreText(row)}</span>
+              )}
+              {isLatest && (
+                <Tag color="blue" className="m-0 text-[10px] px-1 py-0">
+                  Mới nhất
+                </Tag>
+              )}
+            </Space>
+          );
+
+          if (!allowDetailLinks) {
+            return (
+              <Button
+                key={row.attemptPublicId}
+                size="small"
+                disabled
+                className={vertical ? 'w-full text-left' : undefined}
+                type={isHighlighted ? 'primary' : 'default'}
+                danger={row.status === 'expired'}
+                title={QUIZ_RESULT_DETAIL_LOCKED_TITLE}
+              >
+                {rowLabel}
+              </Button>
+            );
+          }
+
           return (
             <Link
               key={row.attemptPublicId}
@@ -113,33 +156,7 @@ export function QuizAttemptHistoryList({
                 type={isHighlighted ? 'primary' : 'default'}
                 danger={row.status === 'expired'}
               >
-                <Space size={4}>
-                  {/* Status icon */}
-                  {row.status === 'submitted' ? (
-                    <CheckCircleFilled className="text-green-500 text-xs" />
-                  ) : row.status === 'expired' ? (
-                    <ClockCircleOutlined className="text-red-500 text-xs" />
-                  ) : (
-                    <ClockCircleOutlined className="text-gray-400 text-xs" />
-                  )}
-
-                  {/* Status label & time */}
-                  <span>
-                    {getAttemptHistoryRowLabel(row.status)} · {toViDateTime(row.startedAt)}
-                  </span>
-
-                  {/* Score */}
-                  {showScore && (
-                    <span className="text-xs opacity-75">{getHistoryScoreText(row)}</span>
-                  )}
-
-                  {/* Badge for latest attempt */}
-                  {isLatest && (
-                    <Tag color="blue" className="m-0 text-[10px] px-1 py-0">
-                      Mới nhất
-                    </Tag>
-                  )}
-                </Space>
+                {rowLabel}
               </Button>
             </Link>
           );

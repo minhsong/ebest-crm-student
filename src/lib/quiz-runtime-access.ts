@@ -161,7 +161,10 @@ async function resolveQuizRuntimeAccessUncached(
         const auth = await authorizeForm(fid, intent, { mode: 'practice' });
         const access = auth ? accessFromAuthorize(auth) : null;
         if (access) {
-          setQuizFormContext(fid, { mode: 'practice' });
+          setQuizFormContext(fid, {
+        mode: 'practice',
+        quizMaxAttempts: access.effectiveMaxAttempts,
+      });
           return access;
         }
       }
@@ -183,7 +186,10 @@ async function resolveQuizRuntimeAccessUncached(
     const auth = await authorizeForm(fid, intent, { mode: 'practice' });
     const access = auth ? accessFromAuthorize(auth) : null;
     if (access) {
-      setQuizFormContext(fid, { mode: 'practice' });
+      setQuizFormContext(fid, {
+        mode: 'practice',
+        quizMaxAttempts: access.effectiveMaxAttempts,
+      });
       return access;
     }
   }
@@ -198,7 +204,10 @@ async function resolveQuizRuntimeAccessUncached(
         quizMaxAttempts: access.effectiveMaxAttempts,
       });
     } else {
-      setQuizFormContext(fid, { mode: 'practice' });
+      setQuizFormContext(fid, {
+        mode: 'practice',
+        quizMaxAttempts: access.effectiveMaxAttempts,
+      });
     }
   }
   return access;

@@ -5,59 +5,74 @@ import { fetchQuizRuntimeJson } from '@/features/quiz-test/lib/quiz-runtime-http
 import { quizRuntimePublicUrl } from '@/features/quiz-test/quiz-gateway-browser';
 import type { QuizPublishedFormPayload } from '@/features/quiz-test/types';
 import type { QuizRuntimeAccess } from '@/lib/quiz-runtime-access';
-import type { QuizEligibilityFromCrm } from '@/features/quiz-test/lib/quiz-result-view-policy';
+import {
+  buildQuizResultEligibility,
+  isQuizResultDetailEligible,
+  type QuizAttemptEligibilityStats,
+  type QuizResultEligibility,
+} from '@/features/quiz-test/lib/quiz-result-view-policy';
 
 export type QuizAttemptReviewBundleResponse = {
   access: QuizRuntimeAccess;
   formPayload: QuizPublishedFormPayload;
   attempt: QuizAttemptResultSnapshot;
-  assignmentStats: {
-    submittedCount: number;
-    hasPerfectScore: boolean;
-    maxAttempts: number | null;
-    attemptsRemaining: number | null;
-  } | null;
+  /** SSOT mới — assignment hoặc practice */
+  quizAttemptStats?: QuizAttemptEligibilityStats | null;
+  /** @deprecated Dùng quizAttemptStats */
+  assignmentStats?: QuizAttemptEligibilityStats | null;
+  /** @deprecated Dùng quizAttemptStats */
+  practiceStats?: QuizAttemptEligibilityStats | null;
 };
 
 export type QuizAttemptResultBundle = {
   access: QuizRuntimeAccess;
   formPayload: QuizPublishedFormPayload;
   attempt: QuizAttemptResultSnapshot;
-  eligibility: QuizEligibilityFromCrm | null;
+  eligibility: QuizResultEligibility | null;
   assignmentAction: AssignmentQuizActionState | null;
 };
 
+function statsFromBundle(
+  data: QuizAttemptReviewBundleResponse,
+): QuizAttemptEligibilityStats | null {
+  return (
+    data.quizAttemptStats ?? data.assignmentStats ?? data.practiceStats ?? null
+  );
+}
+
 function eligibilityFromStats(
-  stats: QuizAttemptReviewBundleResponse['assignmentStats'],
-): QuizEligibilityFromCrm | null {
+  stats: QuizAttemptEligibilityStats | null,
+): QuizResultEligibility | null {
   if (!stats) return null;
-  return {
+  return buildQuizResultEligibility({
     submittedCount: stats.submittedCount,
     maxAttempts: stats.maxAttempts,
-    attemptsRemaining: stats.attemptsRemaining,
     hasPerfectScore: stats.hasPerfectScore,
-  };
+    attemptsRemaining: stats.attemptsRemaining,
+  });
 }
 
 function assignmentActionFromStats(
   formPublicId: string,
-  stats: QuizAttemptReviewBundleResponse['assignmentStats'],
+  stats: QuizAttemptEligibilityStats | null,
 ): AssignmentQuizActionState | null {
   if (!stats) return null;
-  const resultsPageHref = buildAssignmentResultsHref(formPublicId);
-  const canViewResults = stats.submittedCount > 0;
+
+  const eligibility = eligibilityFromStats(stats);
+  const canViewResultDetail = isQuizResultDetailEligible(eligibility);
   const canStart =
-    stats.attemptsRemaining === null ||
-    (stats.attemptsRemaining != null && stats.attemptsRemaining > 0);
+    stats.attemptsRemaining === null || stats.attemptsRemaining > 0;
+
   return {
     loading: false,
     error: null,
     canStart,
     startBlockReason: canStart ? null : 'Đã hết số lần làm bài.',
-    eligibility: eligibilityFromStats(stats),
+    eligibility,
     submittedAttempts: [],
-    canViewResults,
-    resultsPageHref,
+    canViewResultDetail,
+    canViewResults: canViewResultDetail,
+    resultsPageHref: buildAssignmentResultsHref(formPublicId),
   };
 }
 
@@ -82,17 +97,17 @@ export async function fetchQuizAttemptResultBundle(
   }
 
   const data = res.data;
-  const access: QuizRuntimeAccess = {
-    mode: data.access.mode,
-    assignmentId: data.access.assignmentId,
-    practiceMode: data.access.practiceMode,
-  };
+  const stats = statsFromBundle(data);
 
   return {
-    access,
+    access: {
+      mode: data.access.mode,
+      assignmentId: data.access.assignmentId,
+      practiceMode: data.access.practiceMode,
+    },
     formPayload: data.formPayload,
     attempt: data.attempt as QuizAttemptResultSnapshot,
-    eligibility: eligibilityFromStats(data.assignmentStats),
-    assignmentAction: assignmentActionFromStats(formPublicId, data.assignmentStats),
+    eligibility: eligibilityFromStats(stats),
+    assignmentAction: assignmentActionFromStats(formPublicId, stats),
   };
 }

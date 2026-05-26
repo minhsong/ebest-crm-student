@@ -1,30 +1,34 @@
+import {
+  buildQuizEligibilityFromGatewayStats,
+  buildQuizResultEligibility,
+  isQuizResultDetailEligible,
+  type QuizResultEligibility,
+} from '@/features/quiz-test/lib/quiz-result-view-policy';
 import { fetchQuizStartEligibility } from '@/lib/quiz-assignment-crm';
 import type { QuizAttemptHistoryItem } from '@/features/quiz-test/types';
 import {
-  fetchGatewayAssignmentQuizStats,
+  fetchGatewayQuizStats,
   historyItemsFromGatewayStats,
-} from '@/lib/quiz-gateway-assignment-stats';
+} from '@/lib/quiz-gateway-stats';
 import { getQuizFormContext } from '@/lib/quiz-form-context';
 import {
   pinAssignmentQuizRuntimeAccess,
   type QuizRuntimeAccess,
 } from '@/lib/quiz-runtime-access';
 
-export type AssignmentQuizEligibility = {
-  submittedCount: number;
-  maxAttempts: number | null;
-  attemptsRemaining: number | null;
-  hasPerfectScore: boolean;
-};
+/** @deprecated Dùng QuizResultEligibility */
+export type AssignmentQuizEligibility = QuizResultEligibility;
 
 export type AssignmentQuizActionState = {
   loading: boolean;
   error: string | null;
   canStart: boolean;
   startBlockReason: string | null;
-  eligibility: AssignmentQuizEligibility | null;
+  eligibility: QuizResultEligibility | null;
   submittedAttempts: QuizAttemptHistoryItem[];
-  /** Có ít nhất một lần đã nộp để xem lại */
+  /** Đủ điều kiện xem chi tiết đáp án / trang kết quả */
+  canViewResultDetail: boolean;
+  /** @deprecated Dùng canViewResultDetail */
   canViewResults: boolean;
   resultsPageHref: string;
 };
@@ -38,6 +42,20 @@ export function buildAttemptResultHref(
   attemptPublicId: string,
 ): string {
   return `/quiz-test/${encodeURIComponent(formPublicId)}/attempts/${encodeURIComponent(attemptPublicId)}`;
+}
+
+function actionStateFromEligibility(
+  partial: Omit<
+    AssignmentQuizActionState,
+    'canViewResultDetail' | 'canViewResults'
+  > & { eligibility: QuizResultEligibility | null },
+): AssignmentQuizActionState {
+  const canViewResultDetail = isQuizResultDetailEligible(partial.eligibility);
+  return {
+    ...partial,
+    canViewResultDetail,
+    canViewResults: canViewResultDetail,
+  };
 }
 
 /**
@@ -72,11 +90,11 @@ export async function loadAssignmentQuizActionStateWithAccess(
   try {
     const [startGate, stats] = await Promise.all([
       fetchQuizStartEligibility(assignmentId),
-      fetchGatewayAssignmentQuizStats(
-        formPublicId,
+      fetchGatewayQuizStats(formPublicId, {
+        channel: 'assignment',
         assignmentId,
-        quizMaxAttemptsHint,
-      ),
+        maxAttemptsHint: quizMaxAttemptsHint,
+      }),
     ]);
 
     const submittedAttempts = stats
@@ -85,38 +103,74 @@ export async function loadAssignmentQuizActionStateWithAccess(
 
     const submittedCount = stats?.submittedCount ?? submittedAttempts.length;
     const maxAttempts = stats?.maxAttempts ?? quizMaxAttemptsHint ?? null;
-    const attemptsRemaining =
-      stats?.attemptsRemaining ??
-      (maxAttempts != null ? Math.max(0, maxAttempts - submittedCount) : null);
 
-    const canStart = startGate.allowed === true;
-    const exhausted =
-      maxAttempts != null && submittedCount >= maxAttempts;
-    const canViewResults = submittedCount > 0;
+    const eligibility = buildQuizResultEligibility({
+      submittedCount,
+      maxAttempts,
+      hasPerfectScore: Boolean(stats?.hasPerfectScore),
+      attemptsRemaining: stats?.attemptsRemaining,
+    });
 
-    return {
+    return actionStateFromEligibility({
       loading: false,
       error: null,
-      canStart,
-      startBlockReason: canStart ? null : startGate.reason,
-      eligibility: {
-        submittedCount,
-        maxAttempts,
-        attemptsRemaining,
-        hasPerfectScore: Boolean(stats?.hasPerfectScore),
-      },
+      canStart: startGate.allowed === true,
+      startBlockReason: startGate.allowed ? null : startGate.reason,
+      eligibility,
       submittedAttempts,
-      canViewResults,
       resultsPageHref,
-    };
+    });
   } catch (e) {
-    return {
+    return actionStateFromEligibility({
       loading: false,
       error: e instanceof Error ? e.message : 'Không tải được trạng thái bài làm.',
       canStart: false,
       startBlockReason: null,
       eligibility: null,
       submittedAttempts: [],
+      resultsPageHref,
+    });
+  }
+}
+
+/** Ôn luyện — cùng quy tắc xem chi tiết với bài tập. */
+export async function loadPracticeQuizActionState(
+  formPublicId: string,
+  practiceMaxAttemptsHint?: number | null,
+): Promise<
+  Pick<
+    AssignmentQuizActionState,
+    'eligibility' | 'submittedAttempts' | 'canViewResultDetail' | 'canViewResults' | 'resultsPageHref'
+  >
+> {
+  const resultsPageHref = buildAssignmentResultsHref(formPublicId);
+
+  try {
+    const stats = await fetchGatewayQuizStats(formPublicId, {
+      channel: 'practice',
+      maxAttemptsHint: practiceMaxAttemptsHint,
+    });
+    const eligibility = buildQuizEligibilityFromGatewayStats(stats, {
+      channel: 'practice',
+      maxAttemptsHint: practiceMaxAttemptsHint,
+    });
+    const submittedAttempts = stats
+      ? historyItemsFromGatewayStats(formPublicId, stats)
+      : [];
+    const canViewResultDetail = isQuizResultDetailEligible(eligibility);
+
+    return {
+      eligibility,
+      submittedAttempts,
+      canViewResultDetail,
+      canViewResults: canViewResultDetail,
+      resultsPageHref,
+    };
+  } catch {
+    return {
+      eligibility: null,
+      submittedAttempts: [],
+      canViewResultDetail: false,
       canViewResults: false,
       resultsPageHref,
     };
