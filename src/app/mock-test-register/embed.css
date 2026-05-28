@@ -1,0 +1,132 @@
+/**
+ * Widget đăng ký thi thử — nhúng iframe WordPress.
+ * Chỉ style vùng nội dung, không layout portal đầy đủ.
+ */
+.ebest-mock-test-embed-root {
+	width: 100%;
+	margin: 0;
+	padding: 0;
+	background: transparent;
+	min-height: 0;
+}
+
+.ebest-mock-test-widget {
+	width: 100%;
+	max-width: 100%;
+	padding: 16px;
+	background: #ffffff;
+	border: 1px solid #e5e7eb;
+	border-radius: 12px;
+	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.ebest-mock-test-widget .ant-form-item {
+	margin-bottom: 16px;
+}
+
+.ebest-mock-test-widget .ant-form-item-label > label {
+	font-size: 14px;
+}
+
+/* Mobile: 1 cột full width; md+: 2 cột; xl+: 4 cột */
+.ebest-mock-test-widget .mock-test-select-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 10px;
+	width: 100%;
+}
+
+@media (min-width: 768px) {
+	.ebest-mock-test-widget .mock-test-select-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (min-width: 1280px) {
+	.ebest-mock-test-widget .mock-test-select-grid {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+	}
+}
+
+.ebest-mock-test-widget .mock-test-select-card {
+	cursor: pointer;
+	border-radius: 10px;
+}
+
+.ebest-mock-test-widget .mock-test-select-card:not(.ant-card-hoverable) {
+	cursor: pointer;
+}
+
+.ebest-mock-test-widget .phone-input {
+	width: 100%;
+}
+
+.ebest-mock-test-widget .PhoneInputInput {
+	width: 100%;
+	min-height: 32px;
+	padding: 4px 11px;
+	font-size: 14px;
+	line-height: 1.5715;
+	border: 1px solid #d9d9d9;
+	border-radius: 6px;
+	transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.ebest-mock-test-widget .PhoneInputInput:focus {
+	border-color: #4096ff;
+	outline: 0;
+	box-shadow: 0 0 0 2px rgba(5, 145, 255, 0.1);
+}
+
+@media (max-width: 767px) {
+	.ebest-mock-test-widget {
+		padding: 12px;
+		border-radius: 10px;
+	}
+
+	.ebest-mock-test-widget .ant-form-item {
+		margin-bottom: 12px;
+	}
+
+	.ebest-mock-test-widget .ant-form-item-label > label {
+		font-size: 13px;
+	}
+
+	.ebest-mock-test-widget .ant-btn-lg {
+		height: 42px;
+		font-size: 14px;
+	}
+
+	.ebest-mock-test-widget .mock-test-select-grid {
+		gap: 8px;
+	}
+
+	.ebest-mock-test-widget .mock-test-select-card {
+		border-radius: 8px;
+	}
+
+	.ebest-mock-test-widget .PhoneInputInput {
+		min-height: 36px;
+		padding: 6px 11px;
+		font-size: 14px;
+	}
+
+	.ant-modal {
+		max-width: calc(100vw - 24px);
+		margin: 12px auto;
+	}
+}
+
+.ebest-mock-test-widget .mock-test-merge-your-info {
+	padding: 8px 10px;
+	border-radius: 8px;
+	background: rgba(0, 0, 0, 0.02);
+	border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.ebest-mock-test-widget .ant-radio-wrapper {
+	align-items: flex-start;
+	width: 100%;
+	margin-inline-end: 0;
+	padding: 6px 0;
+}
