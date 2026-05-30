@@ -6,6 +6,8 @@ import type { MediaReviewComment, PronunciationReviewCatalog } from '../../types
 import {
   buildCatalogMaps,
   formatIntonationArrows,
+  getFinalSoundDisplayLabel,
+  getIpaDisplayLabel,
 } from '../../pronunciation-utils';
 import { INTONATION_ARROW_COLOR } from '../../media-review-styles';
 import { FeedbackColumn } from './FeedbackColumn';
@@ -35,7 +37,7 @@ export function buildFeedbackColumnNodes(
             const item = maps.ipa.get(code);
             return (
               <Tag key={code} color="blue" style={{ margin: 0 }}>
-                {item?.correctionLabel ?? item?.label ?? code}
+                {getIpaDisplayLabel(item, code)}
               </Tag>
             );
           })}
@@ -56,7 +58,10 @@ export function buildFeedbackColumnNodes(
             </Text>
             {item.linkSound ? (
               <Text type="secondary" style={{ fontSize: 12 }}>
-                ({item.linkSound})
+                ({getFinalSoundDisplayLabel(
+                  maps.finalSounds.get(item.linkSound),
+                  item.linkSound,
+                )})
               </Text>
             ) : null}
           </div>
@@ -73,7 +78,7 @@ export function buildFeedbackColumnNodes(
             const item = maps.finalSounds.get(code);
             return (
               <Tag key={code} color="geekblue" style={{ margin: 0 }}>
-                {item?.label ?? code}
+                {getFinalSoundDisplayLabel(item, code)}
               </Tag>
             );
           })}
