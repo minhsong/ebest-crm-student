@@ -49,7 +49,7 @@ export function PublicMockTestTagGroupPicker({
 	};
 
 	if (!tags.length) {
-		return <span className="text-sm text-gray-500">Chưa có lựa chọn.</span>;
+		return <span className="mock-test-hint-text text-sm">Chưa có lựa chọn.</span>;
 	}
 
 	return (

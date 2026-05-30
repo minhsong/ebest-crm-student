@@ -109,3 +109,35 @@ export function buildDashboardPageMetadata({
     },
   };
 }
+
+/**
+ * Widget nhúng iframe (WordPress): noindex, canonical trỏ landing chính — tránh trùng SERP.
+ */
+export function buildEmbedPageMetadata({
+  title,
+  description,
+  path = '',
+  canonicalUrl,
+}: {
+  title: string;
+  description: string;
+  path?: string;
+  canonicalUrl: string;
+}): Metadata {
+  const base = buildPageMetadata({ title, description, path });
+  return {
+    ...base,
+    robots: {
+      index: false,
+      follow: true,
+      googleBot: { index: false, follow: true },
+    },
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      ...base.openGraph,
+      url: canonicalUrl,
+    },
+  };
+}

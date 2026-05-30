@@ -29,6 +29,7 @@ export interface PublicMockTestFormValues {
 	tagsByCategory?: Record<string, number | number[]>;
 	universityOther?: string;
 	consultationNote?: string;
+	expectedScore?: number;
 }
 
 export interface PublicRegistrationTagOption {
@@ -62,6 +63,7 @@ export interface PublicRegisterPayload {
 	universityTagId?: number;
 	universityOther?: string;
 	consultationNote?: string;
+	expectedScore?: number;
 }
 
 export interface PublicRegisterResponse {

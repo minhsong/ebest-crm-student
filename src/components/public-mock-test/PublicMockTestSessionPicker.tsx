@@ -2,7 +2,7 @@
 
 import { Form } from 'antd';
 import type { PublicLocationGroup } from '@/lib/public-mock-test/types';
-import { formatDateTimeDisplay } from '@/lib/date-formatter';
+import { formatMockTestSessionSchedule } from '@/lib/date-formatter';
 import { publicMockTestFormRules } from '@/lib/public-mock-test/validation';
 import { MockTestSelectableCard } from './MockTestSelectableCard';
 
@@ -64,12 +64,7 @@ export function PublicMockTestSessionPicker({
 					<div className="mock-test-select-grid">
 						{sessions.map((s) => {
 							const selected = selectedSessionId === s.id;
-							const subtitle = [
-								formatDateTimeDisplay(s.scheduledStartAt),
-								s.code ? `Mã: ${s.code}` : '',
-							]
-								.filter(Boolean)
-								.join(' · ');
+							const subtitle = formatMockTestSessionSchedule(s.scheduledStartAt);
 							return (
 								<MockTestSelectableCard
 									key={s.id}

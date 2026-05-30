@@ -1,8 +1,10 @@
 'use client';
 
-import { Alert, Button, Form, Input } from 'antd';
+import { Alert, Button, Form, Input, Typography } from 'antd';
 import { PhoneInputField } from '@/components/phone-input';
 import { publicMockTestFormRules } from '@/lib/public-mock-test/validation';
+
+const { Text } = Typography;
 
 interface Props {
 	submitting?: boolean;
@@ -15,6 +17,9 @@ export function PublicMockTestContactFields({
 }: Props) {
 	return (
 		<>
+			<Text strong className="mock-test-section-title">
+				Thông tin liên hệ
+			</Text>
 			<Form.Item
 				name="displayName"
 				label="Họ và tên"

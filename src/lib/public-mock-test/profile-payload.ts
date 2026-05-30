@@ -30,5 +30,9 @@ export function collectPublicProfilePayload(values: PublicMockTestFormValues) {
 		universityTagId,
 		universityOther: values.universityOther?.trim() || undefined,
 		consultationNote: values.consultationNote?.trim() || undefined,
+		expectedScore:
+			values.expectedScore != null && Number.isFinite(Number(values.expectedScore))
+				? Math.round(Number(values.expectedScore))
+				: undefined,
 	};
 }

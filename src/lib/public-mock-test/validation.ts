@@ -12,6 +12,8 @@ const LIMITS = {
 	primaryPhone: 32,
 	universityOther: 200,
 	consultationNote: 500,
+	expectedScoreMax: 990,
+	expectedScoreMin: 10,
 } as const;
 
 
@@ -66,4 +68,24 @@ export const publicMockTestFormRules = {
 		},
 	] as Rule[],
 	universityOther: [{ max: LIMITS.universityOther, message: `Tối đa ${LIMITS.universityOther} ký tự` }] as Rule[],
+	expectedScore: [
+		{
+			validator: (_, value) => {
+				if (value == null || value === '') return Promise.resolve();
+				const n = Number(value);
+				if (!Number.isFinite(n)) {
+					return Promise.reject(new Error('Điểm kỳ vọng không hợp lệ'));
+				}
+				const rounded = Math.round(n);
+				if (rounded < LIMITS.expectedScoreMin || rounded > LIMITS.expectedScoreMax) {
+					return Promise.reject(
+						new Error(
+							`Điểm kỳ vọng từ ${LIMITS.expectedScoreMin} đến ${LIMITS.expectedScoreMax}`,
+						),
+					);
+				}
+				return Promise.resolve();
+			},
+		},
+	] as Rule[],
 };

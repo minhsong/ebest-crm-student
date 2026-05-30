@@ -11,13 +11,44 @@
 }
 
 .ebest-mock-test-widget {
-	width: 100%;
 	max-width: 100%;
 	padding: 16px;
 	background: #ffffff;
 	border: 1px solid #e5e7eb;
 	border-radius: 12px;
 	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+	color: #0f172a;
+}
+
+/* Tiêu đề & mô tả — tương phản cao trên nền trắng */
+.ebest-mock-test-widget .mock-test-page-title.ant-typography {
+	color: #0f172a !important;
+	margin-bottom: 4px !important;
+}
+
+.ebest-mock-test-widget .mock-test-intro-text {
+	display: block;
+	margin-bottom: 16px;
+	font-size: 14px;
+	line-height: 1.5;
+	color: #0f172a;
+	font-weight: 500;
+}
+
+/* Gợi ý thao tác — xanh dương đậm, dễ đọc */
+.ebest-mock-test-widget .mock-test-hint-text {
+	display: block;
+	font-size: 14px;
+	line-height: 1.5;
+	color: #1d4ed8;
+	font-weight: 500;
+}
+
+.ebest-mock-test-widget .mock-test-section-title {
+	display: block;
+	margin-bottom: 8px;
+	color: #0f172a;
+	font-weight: 600;
 }
 
 .ebest-mock-test-widget .ant-form-item {
@@ -26,6 +57,34 @@
 
 .ebest-mock-test-widget .ant-form-item-label > label {
 	font-size: 14px;
+	font-weight: 600;
+	color: #0f172a !important;
+}
+
+/* Ghi chú dưới field — xanh dương */
+.ebest-mock-test-widget .ant-form-item-extra {
+	color: #1d4ed8 !important;
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+/* Nhãn optional của Ant — đỏ đậm cho phần bắt buộc ngầm */
+.ebest-mock-test-widget .ant-form-item-label > label.ant-form-item-required:not(.ant-form-item-required-mark-optional)::before {
+	color: #b91c1c !important;
+}
+
+.ebest-mock-test-widget .ant-form-item-label > label .ant-form-item-optional {
+	color: #64748b !important;
+	font-weight: 500;
+}
+
+.ebest-mock-test-widget .mock-test-meta-text {
+	color: #334155;
+	font-size: 14px;
+}
+
+.ebest-mock-test-widget .mock-test-meta-text.text-xs {
+	font-size: 12px;
 }
 
 /* Mobile: 1 cột full width; md+: 2 cột; xl+: 4 cột */

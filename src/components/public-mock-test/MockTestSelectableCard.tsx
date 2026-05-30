@@ -57,12 +57,13 @@ export function MockTestSelectableCard({
 			{subtitle ? (
 				<Text
 					style={{
-						color: selected ? token.colorTextLightSolid : token.colorTextSecondary,
-						opacity: selected ? 0.9 : 1,
+						color: selected ? token.colorTextLightSolid : '#334155',
+						opacity: selected ? 0.92 : 1,
 						display: 'block',
 						fontSize: token.fontSizeSM,
 						marginTop: token.marginXXS,
 						lineHeight: token.lineHeightSM,
+						fontWeight: 500,
 					}}
 				>
 					{subtitle}
