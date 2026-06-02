@@ -14,6 +14,7 @@ import {
   inferMediaKind,
   isMediaPlayable,
 } from '@/components/media-review';
+import { StudentOpenInNewTabLink } from '@/components/ui/StudentOpenInNewTabLink';
 import type { StudentSubmissionAttachment } from '@/types/student-assignment-detail';
 
 const { Text } = Typography;
@@ -87,15 +88,12 @@ export function StudentSubmissionReviewList({
                     {submissionLocked && hasComments ? 'Nghe lại' : 'Phát'}
                   </Button>
                 ) : (
-                  <Button
-                    size="small"
-                    icon={<ExportOutlined />}
+                  <StudentOpenInNewTabLink
                     href={a.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    icon={<ExportOutlined />}
                   >
                     Mở
-                  </Button>
+                  </StudentOpenInNewTabLink>
                 )}
               </Space>
             </Flex>

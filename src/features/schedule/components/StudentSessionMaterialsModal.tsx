@@ -28,6 +28,8 @@ import {
   sessionMaterialPrimaryActionLabel,
   sessionMaterialSupportsInlinePlay,
 } from '@/lib/media-play-utils';
+import { resolveStudentSessionMaterialOpenHref } from '@/lib/session-material-open-url';
+import { StudentOpenInNewTabLink } from '@/components/ui/StudentOpenInNewTabLink';
 import { StudentMediaPlayModal } from '@/features/schedule/components/StudentMediaPlayModal';
 
 const { Text, Paragraph } = Typography;
@@ -192,28 +194,6 @@ export function StudentSessionMaterialsModal({
     [sessionId, resolveAccessUrl],
   );
 
-  const openInNewTab = useCallback(
-    async (m: StudentSessionMaterial) => {
-      if (sessionId == null) return;
-      try {
-        if (m.materialType === 'link' || m.materialType === 'youtube') {
-          const u = m.current?.externalUrl?.trim();
-          if (u) {
-            window.open(u, '_blank', 'noopener,noreferrer');
-            return;
-          }
-        }
-        const url = await resolveAccessUrl(m.id);
-        if (url) {
-          window.open(url, '_blank', 'noopener,noreferrer');
-        }
-      } catch {
-        // noop — user có thể thử Phát nếu là media
-      }
-    },
-    [sessionId, resolveAccessUrl],
-  );
-
   const modalTitle = sessionTitle?.trim()
     ? `Tài liệu buổi: ${sessionTitle.trim()}`
     : 'Tài liệu buổi học';
@@ -255,6 +235,10 @@ export function StudentSessionMaterialsModal({
                 SESSION_MATERIAL_TYPE_LABEL[m.materialType] ?? m.materialType;
               const canPlay = sessionMaterialSupportsInlinePlay(m);
               const primaryLabel = sessionMaterialPrimaryActionLabel(m);
+              const openHref =
+                sessionId != null
+                  ? resolveStudentSessionMaterialOpenHref(sessionId, m)
+                  : null;
               return (
                 <Card
                   key={m.id}
@@ -287,12 +271,14 @@ export function StudentSessionMaterialsModal({
                           {primaryLabel}
                         </Button>
                       ) : null}
-                      <Button
-                        icon={<ExportOutlined />}
-                        onClick={() => void openInNewTab(m)}
-                      >
-                        {sessionMaterialOpenInNewTabLabel(m)}
-                      </Button>
+                      {openHref ? (
+                        <StudentOpenInNewTabLink
+                          href={openHref}
+                          icon={<ExportOutlined />}
+                        >
+                          {sessionMaterialOpenInNewTabLabel(m)}
+                        </StudentOpenInNewTabLink>
+                      ) : null}
                     </Space>
                   </Flex>
                   {m.description?.trim() ? (

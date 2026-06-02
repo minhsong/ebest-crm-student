@@ -51,6 +51,7 @@ import {
   assignmentAttachmentSupportsImagePreview,
   assignmentAttachmentSupportsPlay,
 } from '@/lib/media-play-utils';
+import { StudentOpenInNewTabLink } from '@/components/ui/StudentOpenInNewTabLink';
 import { StudentMediaPlayModal } from '@/features/schedule/components/StudentMediaPlayModal';
 import { StudentSubmissionMediaReviewModal } from '@/features/schedule/components/StudentSubmissionMediaReviewModal';
 import { StudentTeacherFeedbackCard } from '@/features/schedule/components/StudentTeacherFeedbackCard';
@@ -724,15 +725,12 @@ export function StudentAssignmentDetailModal({
                               Phát
                             </Button>
                           ) : (
-                            <Button
-                              size="small"
-                              icon={<ExportOutlined />}
+                            <StudentOpenInNewTabLink
                               href={a.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              icon={<ExportOutlined />}
                             >
                               Mở
-                            </Button>
+                            </StudentOpenInNewTabLink>
                           )}
                         </Space>
                       </Flex>
@@ -835,15 +833,12 @@ export function StudentAssignmentDetailModal({
                             </Button>
                           ) : null}
                           {url ? (
-                            <Button
-                              size="small"
+                            <StudentOpenInNewTabLink
+                              href={url}
                               icon={<ExportOutlined />}
-                              href={item.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
                             >
                               {assignmentAttachmentOpenTabLabel(item)}
-                            </Button>
+                            </StudentOpenInNewTabLink>
                           ) : null}
                         </Space>
                       </Flex>
