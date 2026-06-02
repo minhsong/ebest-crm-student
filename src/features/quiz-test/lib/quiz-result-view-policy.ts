@@ -6,9 +6,6 @@ export type QuizResultEligibility = {
   hasPerfectScore: boolean;
 };
 
-/** @deprecated Dùng QuizResultEligibility */
-export type QuizEligibilityFromCrm = QuizResultEligibility;
-
 export type QuizAttemptEligibilityStats = Pick<
   QuizResultEligibility,
   'submittedCount' | 'hasPerfectScore' | 'maxAttempts' | 'attemptsRemaining'
@@ -98,7 +95,7 @@ export function buildQuizEligibilityFromGatewayStats(
     submittedCount: stats.submittedCount,
     hasPerfectScore: stats.hasPerfectScore,
     maxAttempts,
-    attemptsRemaining: stats.attemptsRemaining,
+    attemptsRemaining: computeAttemptsRemaining(maxAttempts, stats.submittedCount),
   });
 }
 
@@ -161,6 +158,24 @@ export function computeCanViewResultDetails(
   return { ...base, canView: false, reason };
 }
 
+/** SSOT: eligibility → canView + message reason (dùng mọi màn quiz). */
+export type QuizResultViewState = {
+  eligibility: QuizResultEligibility | null;
+  canViewData: CanViewResultData;
+  canViewResultDetail: boolean;
+};
+
+export function buildQuizResultViewState(
+  eligibility: QuizResultEligibility | null,
+): QuizResultViewState {
+  const canViewData = computeCanViewResultDetails({ eligibility });
+  return {
+    eligibility,
+    canViewData,
+    canViewResultDetail: canViewData.canView,
+  };
+}
+
 export function getCannotViewResultMessage(
   reason: CanViewResultReason,
   data: CanViewResultData,
@@ -181,7 +196,42 @@ export function getCannotViewResultMessage(
   }
 
   if (attemptsRemaining > 0) {
-    return `Để xem kết quả chi tiết, bạn phải đạt điểm tuyệt đối hoặc đã cố gắng hết sức. Bạn vẫn còn ${attemptsRemaining} lần thử nữa để đạt điểm cao hơn, hãy cố gắng lên và thử lại nha!`;
+    return `Để xem kết quả chi tiết, bạn phải đạt điểm tuyệt đối hoặc đã cố gắng hết sức. Bạn vẫn còn ${attemptsRemaining} lần thử nữa (tối đa ${data.maxAttempts} lần) — hãy cố gắng lên và thử lại nha!`;
   }
-  return 'Bạn đã sử dụng hết các lần thử. Hãy cố gắng hơn ở những bài tiếp theo nhé!';
+  return `Bạn đã sử dụng hết ${data.maxAttempts} lần làm bài. Hãy cố gắng hơn ở những bài tiếp theo nhé!`;
+}
+
+/** Một dòng tóm tắt lượt làm — hiển thị trên màn ready/done/results. */
+export function formatQuizAttemptQuotaSummary(
+  eligibility: QuizResultEligibility | null | undefined,
+): string | null {
+  if (!eligibility) return null;
+  const { maxAttempts, submittedCount, attemptsRemaining } = eligibility;
+  if (maxAttempts == null) {
+    return `Đã nộp ${submittedCount} lần · Không giới hạn số lần làm.`;
+  }
+  const remaining =
+    attemptsRemaining ??
+    computeAttemptsRemaining(maxAttempts, submittedCount);
+  return `Đã nộp ${submittedCount}/${maxAttempts} lần · Còn ${remaining ?? 0} lượt làm.`;
+}
+
+/** Mô tả điều kiện xem chi tiết + quota (khi chưa đủ điều kiện). */
+export function describeQuizResultDetailLocked(
+  eligibility: QuizResultEligibility | null | undefined,
+): string {
+  const quota = formatQuizAttemptQuotaSummary(eligibility);
+  const view = computeCanViewResultDetails({ eligibility });
+  if (view.canView) {
+    return quota ?? QUIZ_RESULT_DETAIL_LOCKED_DESCRIPTION;
+  }
+  const reasonMsg = getCannotViewResultMessage(view.reason, view);
+  if (reasonMsg && quota) {
+    return `${reasonMsg} ${quota}`;
+  }
+  if (reasonMsg) return reasonMsg;
+  if (quota) {
+    return `${QUIZ_RESULT_DETAIL_LOCKED_DESCRIPTION} ${quota}`;
+  }
+  return QUIZ_RESULT_DETAIL_LOCKED_DESCRIPTION;
 }

@@ -32,24 +32,24 @@ export type AssignmentListRowAction =
 
 /**
  * Nút danh sách /assignments — chỉ dùng field từ GET overview/sessions (không gọi Gateway/CRM thêm).
- * - QUIZ + chưa có điểm CRM → Làm bài (link quiz + assignmentId).
+ * - QUIZ + còn được làm thêm (chưa chấm, hoặc quizMaxAttempts null/>1) → Làm bài.
  * - Còn lại → Chi tiết (modal).
  */
 export function deriveAssignmentListRowAction(
   row: AssignmentOverviewRow,
 ): AssignmentListRowAction {
   const formPublicId = row.testQuizFormPublicId?.trim();
-  if (
-    formPublicId &&
-    isQuizAssignmentWithLinkedForm(row) &&
-    !assignmentHasGradedSummary(row)
-  ) {
-    return {
-      kind: 'quiz_start',
-      formPublicId,
-      assignmentId: row.assignmentId,
-      quizMaxAttempts: row.quizMaxAttempts,
-    };
+  if (formPublicId && isQuizAssignmentWithLinkedForm(row)) {
+    const max = row.quizMaxAttempts;
+    const mayRetryAfterGrade = max == null || max > 1;
+    if (!assignmentHasGradedSummary(row) || mayRetryAfterGrade) {
+      return {
+        kind: 'quiz_start',
+        formPublicId,
+        assignmentId: row.assignmentId,
+        quizMaxAttempts: row.quizMaxAttempts,
+      };
+    }
   }
   return { kind: 'detail' };
 }

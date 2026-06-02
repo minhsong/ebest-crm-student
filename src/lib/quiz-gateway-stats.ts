@@ -18,9 +18,6 @@ export type GatewayQuizAttemptStats = QuizAttemptEligibilityStats & {
   }>;
 };
 
-/** @deprecated Dùng GatewayQuizAttemptStats */
-export type GatewayAssignmentQuizStats = GatewayQuizAttemptStats;
-
 function appendMaxAttemptsQuery(
   sp: URLSearchParams,
   paramName: 'quizMaxAttempts' | 'practiceMaxAttempts',
@@ -66,28 +63,6 @@ export async function fetchGatewayQuizStats(
     `${quizRuntimePublicUrl(path)}?${sp.toString()}`,
   );
   return res.ok && res.data ? res.data : null;
-}
-
-export async function fetchGatewayAssignmentQuizStats(
-  formPublicId: string,
-  assignmentId: number,
-  quizMaxAttempts?: number | null,
-): Promise<GatewayQuizAttemptStats | null> {
-  return fetchGatewayQuizStats(formPublicId, {
-    channel: 'assignment',
-    assignmentId,
-    maxAttemptsHint: quizMaxAttempts,
-  });
-}
-
-export async function fetchGatewayPracticeQuizStats(
-  formPublicId: string,
-  practiceMaxAttempts?: number | null,
-): Promise<GatewayQuizAttemptStats | null> {
-  return fetchGatewayQuizStats(formPublicId, {
-    channel: 'practice',
-    maxAttemptsHint: practiceMaxAttempts,
-  });
 }
 
 export function historyItemsFromGatewayStats(

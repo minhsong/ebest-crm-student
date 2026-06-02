@@ -5,7 +5,7 @@ import { useQuizDeliveryContext } from '@/features/quiz-test/hooks/useQuizDelive
 import { setQuizFormContext } from '@/lib/quiz-form-context';
 import { Alert, Card, Skeleton } from 'antd';
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 
 type Props = {
   formPublicId: string;
@@ -24,7 +24,7 @@ export function QuizAttemptEntryClient({
   const { access, loading, error, assignmentId, practiceMode } =
     useQuizDeliveryContext(formPublicId, { preferPractice });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!access) return;
     if (access.mode === 'assignment' && access.assignmentId != null) {
       setQuizFormContext(formPublicId, {
@@ -65,6 +65,9 @@ export function QuizAttemptEntryClient({
       formPublicId={formPublicId}
       assignmentId={assignmentId}
       practiceMode={practiceMode}
+      effectiveMaxAttempts={
+        access.mode === 'assignment' ? access.effectiveMaxAttempts : undefined
+      }
       initialSectionId={initialSectionId}
       initialQuestionKey={initialQuestionKey}
     />

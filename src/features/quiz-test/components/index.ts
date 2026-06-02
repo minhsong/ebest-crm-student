@@ -17,5 +17,4 @@ export { QuizAttemptResultHeader } from './QuizAttemptResultHeader';
 
 export { useQuizAttemptRuntime } from './useQuizAttemptRuntime';
 export type { QuizAttemptPhase } from './useQuizAttemptRuntime';
-export { useQuizAttemptResultData } from './useQuizAttemptResultData';
 export type { QuizAttemptResultSnapshot } from '@/features/quiz-test/types/quiz-attempt-result';

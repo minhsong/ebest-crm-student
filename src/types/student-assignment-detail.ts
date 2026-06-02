@@ -68,6 +68,10 @@ export interface StudentAssignmentDetail {
   testQuizFormPublicId?: string | null;
   /** Số lần làm tối đa; null = không giới hạn. */
   quizMaxAttempts?: number | null;
+  /** Số lần đã nộp (QUIZ + Test form). */
+  quizSubmittedCount?: number | null;
+  /** Lượt làm còn lại; null = không giới hạn. */
+  quizAttemptsRemaining?: number | null;
   submission?: {
     submittedAt?: string | null;
     submittedNote?: string | null;

@@ -1,16 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { fetchQuizAttemptResultBundle } from '@/lib/quiz-attempt-result-bundle';
 import type { QuizAttemptResultBundle } from '@/lib/quiz-attempt-result-bundle';
-import {
-  buildCorrectByFormItemId,
-  buildGradingPerItem,
-} from '@/features/quiz-test/lib/quiz-runtime-view';
-import {
-  computeCanViewResultDetails,
-  type CanViewResultData,
-} from '@/features/quiz-test/lib/quiz-result-view-policy';
+import { useQuizReviewViewModel } from '@/features/quiz-test/hooks/useQuizReviewViewModel';
 import { getCannotViewResultMessage } from '@/features/quiz-test/lib/quiz-result-view-policy';
 
 export function useQuizAttemptResultPage(
@@ -46,28 +39,20 @@ export function useQuizAttemptResultPage(
     void reload();
   }, [reload]);
 
-  const correctByFormItemId = useMemo(
-    () => buildCorrectByFormItemId(bundle?.attempt.grading?.items),
-    [bundle?.attempt.grading?.items],
+  const reviewViewModel = useQuizReviewViewModel(
+    bundle?.formPayload && bundle?.attempt
+      ? { formPayload: bundle.formPayload, attempt: bundle.attempt }
+      : null,
   );
 
-  const gradingPerItem = useMemo(
-    () => buildGradingPerItem(bundle?.attempt.grading?.items),
-    [bundle?.attempt.grading?.items],
-  );
-
-  const canViewData: CanViewResultData | null = useMemo(() => {
-    if (!bundle) return null;
-    return computeCanViewResultDetails({
-      eligibility: bundle.eligibility,
-    });
-  }, [bundle]);
+  const canViewData = bundle?.viewState.canViewData ?? null;
 
   return {
     loading,
     error,
     reload,
     bundle,
+    reviewViewModel,
     formPayload: bundle?.formPayload ?? null,
     attempt: bundle?.attempt ?? null,
     access: bundle?.access ?? null,
@@ -75,8 +60,6 @@ export function useQuizAttemptResultPage(
       bundle?.access.mode === 'assignment' ? bundle.access.assignmentId : undefined,
     practiceMode: bundle?.access.practiceMode ?? false,
     assignmentAction: bundle?.assignmentAction ?? null,
-    correctByFormItemId,
-    gradingPerItem,
     canViewData,
     getCannotViewResultMessage,
   };

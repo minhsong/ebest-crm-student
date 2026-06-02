@@ -11,10 +11,6 @@ export type QuizPublishedFormSummary = {
   updatedAt: string | null;
 };
 
-export type QuizListResponse = {
-  items: QuizPublishedFormSummary[];
-};
-
 export type QuizFormItemPayload = {
   formItemId: number | string;
   order?: number;

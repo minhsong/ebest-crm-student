@@ -16,7 +16,11 @@ import type {
 import { Alert, Button, Card, Checkbox, Divider, Space, Tag, Typography } from 'antd';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { QUIZ_RESULT_DETAIL_LOCKED_DESCRIPTION } from '@/features/quiz-test/lib/quiz-result-view-policy';
+import {
+  describeQuizResultDetailLocked,
+  type QuizResultEligibility,
+} from '@/features/quiz-test/lib/quiz-result-view-policy';
+import { QuizAttemptQuotaSummary } from '@/features/quiz-test/components/QuizAttemptQuotaSummary';
 
 // ==================== Types ====================
 type CommonMetaProps = {
@@ -38,6 +42,7 @@ type QuizAttemptReadySectionProps = CommonMetaProps & {
   resultsPageHref?: string | null;
   startBlockReason?: string | null;
   allowHistoryDetailLinks?: boolean;
+  eligibility?: QuizResultEligibility | null;
 };
 
 type QuizAttemptConfirmSectionProps = CommonMetaProps & {
@@ -58,6 +63,7 @@ type QuizAttemptDoneSectionProps = CommonMetaProps & {
   resultsPageHref?: string | null;
   allowHistoryDetailLinks?: boolean;
   canViewLatestAttemptDetail?: boolean;
+  eligibility?: QuizResultEligibility | null;
 };
 
 // ==================== Ready Section ====================
@@ -76,7 +82,12 @@ export function QuizAttemptReadySection({
   resultsPageHref,
   startBlockReason,
   allowHistoryDetailLinks = true,
+  eligibility,
 }: QuizAttemptReadySectionProps) {
+  const lockedHistoryDescription = allowHistoryDetailLinks
+    ? undefined
+    : describeQuizResultDetailLocked(eligibility);
+
   return (
     <Card>
       <Space direction="vertical" size="middle" className="w-full max-w-3xl">
@@ -137,6 +148,8 @@ export function QuizAttemptReadySection({
         {/* Error message */}
         {errMsg ? <Alert type="error" message={errMsg} /> : null}
 
+        <QuizAttemptQuotaSummary eligibility={eligibility} />
+
         {!canStartNew && startBlockReason ? (
           <Alert type="info" showIcon message={startBlockReason} />
         ) : null}
@@ -151,7 +164,7 @@ export function QuizAttemptReadySection({
           description={
             allowHistoryDetailLinks
               ? 'Bấm từng dòng để xem đáp án, điểm và giải thích.'
-              : QUIZ_RESULT_DETAIL_LOCKED_DESCRIPTION
+              : lockedHistoryDescription
           }
           showScore
           allowDetailLinks={allowHistoryDetailLinks}
@@ -163,6 +176,9 @@ export function QuizAttemptReadySection({
             attemptHistory.some((a) => a.status === 'submitted' || a.status === 'expired') ? (
               <Button color="green" variant="solid" size="large" onClick={onOpenConfirmStart}>
                 Làm bài mới
+                {eligibility?.attemptsRemaining != null && eligibility.attemptsRemaining > 0
+                  ? ` (${eligibility.attemptsRemaining} lượt còn lại)`
+                  : ''}
               </Button>
             ) : (
               <Button type="primary" size="large" onClick={onOpenConfirmStart}>
@@ -290,6 +306,7 @@ export function QuizAttemptDoneSection({
   resultsPageHref,
   allowHistoryDetailLinks = true,
   canViewLatestAttemptDetail = true,
+  eligibility,
 }: QuizAttemptDoneSectionProps) {
   const [history, setHistory] = useState<QuizAttemptHistoryItem[]>(attemptHistory);
   const [isReloading, setIsReloading] = useState(false);
@@ -328,6 +345,9 @@ export function QuizAttemptDoneSection({
 
   // Determine latest attempt ID for highlighting
   const latestAttemptId = history[0]?.attemptPublicId ?? null;
+  const lockedHistoryDescription = allowHistoryDetailLinks
+    ? undefined
+    : describeQuizResultDetailLocked(eligibility);
 
   return (
     <Card>
@@ -381,6 +401,8 @@ export function QuizAttemptDoneSection({
           </Typography.Paragraph>
         ) : null}
 
+        <QuizAttemptQuotaSummary eligibility={eligibility} />
+
         <Divider style={{ margin: '8px 0' }} />
 
         {/* History with highlight for current/latest attempt */}
@@ -388,9 +410,7 @@ export function QuizAttemptDoneSection({
           formPublicId={formPublicId}
           rows={history}
           title="Các bài đã làm"
-          description={
-            allowHistoryDetailLinks ? undefined : QUIZ_RESULT_DETAIL_LOCKED_DESCRIPTION
-          }
+          description={lockedHistoryDescription}
           vertical
           showScore
           highlightAttemptId={latestAttemptId}
@@ -411,12 +431,16 @@ export function QuizAttemptDoneSection({
             <Alert
               type="info"
               showIcon
-              message="Chưa thể xem chi tiết đáp án. Hãy làm hết lượt hoặc đạt 100% câu đúng."
+              message="Chưa thể xem chi tiết đáp án"
+              description={describeQuizResultDetailLocked(eligibility)}
             />
           ) : null}
           {canStartNew ? (
             <Button color="green" variant="solid" onClick={onOpenConfirmStart}>
               Làm bài mới
+              {eligibility?.attemptsRemaining != null && eligibility.attemptsRemaining > 0
+                ? ` (${eligibility.attemptsRemaining} lượt còn lại)`
+                : ''}
             </Button>
           ) : null}
           {resultsPageHref ? (

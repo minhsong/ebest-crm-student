@@ -243,6 +243,18 @@ export function normalizeStudentAssignmentDetail(
         : o.quizMaxAttempts === null
           ? null
           : undefined,
+    quizSubmittedCount:
+      typeof o.quizSubmittedCount === 'number'
+        ? o.quizSubmittedCount
+        : o.quizSubmittedCount === null
+          ? null
+          : undefined,
+    quizAttemptsRemaining:
+      typeof o.quizAttemptsRemaining === 'number'
+        ? o.quizAttemptsRemaining
+        : o.quizAttemptsRemaining === null
+          ? null
+          : undefined,
     submission: parseSubmission(o.submission),
     result: {
       resultStatus:

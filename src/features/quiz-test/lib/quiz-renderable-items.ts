@@ -120,6 +120,31 @@ export function buildQuizRenderableBlocks(
   return out;
 }
 
+/** Catalog v2: items chỉ là ref (kind/crmQuestionId) — cần examSnapshot sau startAttempt. */
+export function isCatalogV2RefOnlyFormPayload(
+  formPayload: QuizPublishedFormPayload | null | undefined,
+): boolean {
+  const rawItems = Array.isArray(formPayload?.items) ? formPayload!.items! : [];
+  if (!rawItems.length) return false;
+  return rawItems.every((raw) => {
+    if (!raw || typeof raw !== 'object') return true;
+    const row = raw as Record<string, unknown>;
+    if (row.questionSnapshot) return false;
+    return (
+      row.kind === 'question' ||
+      row.kind === 'bundle' ||
+      row.crmQuestionId != null ||
+      row.crmBundleId != null
+    );
+  });
+}
+
+export function countExpandableQuizBlocks(
+  formPayload: QuizPublishedFormPayload | null | undefined,
+): number {
+  return buildQuizRenderableBlocks(formPayload).length;
+}
+
 /** Lọc block theo một section; không có `sections` hoặc `sectionId` null → trả toàn bộ. */
 export function filterRenderableBlocksBySectionId(
   formPayload: QuizPublishedFormPayload | null | undefined,
@@ -133,10 +158,12 @@ export function filterRenderableBlocksBySectionId(
   const sec = sections.find((s) => Number(s.sectionId) === sectionId);
   const rawIds = Array.isArray(sec?.formItemIds) ? sec!.formItemIds! : [];
   const idSet = new Set(rawIds.map((x) => Number(x)).filter((n) => Number.isFinite(n)));
-  if (!idSet.size) return [];
-  return allBlocks.filter((b) => {
+  if (!idSet.size) return allBlocks;
+  const filtered = allBlocks.filter((b) => {
     if (b.kind === 'single') return idSet.has(Number(b.item.formItemId));
     return idSet.has(b.parentFormItemId);
   });
+  if (filtered.length === 0 && allBlocks.length > 0) return allBlocks;
+  return filtered;
 }
 

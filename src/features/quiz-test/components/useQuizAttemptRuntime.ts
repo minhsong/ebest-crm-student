@@ -126,28 +126,28 @@ export function useQuizAttemptRuntime({
   // Form Loading
   // ============================================================================
 
+  const fetchFormPayload = useCallback(async (): Promise<QuizPublishedFormPayload> => {
+    const url = quizRuntimePublicUrl(`forms/${formPublicId}${querySuffix}`);
+    const { ok, status, data } = await fetchQuizRuntimeJson<
+      QuizPublishedFormPayload & { message?: string }
+    >(url);
+
+    if (!ok) {
+      const msg =
+        typeof (data as { message?: string })?.message === 'string'
+          ? (data as { message: string }).message
+          : `HTTP ${String(status)}`;
+      throw new Error(msg);
+    }
+
+    return data;
+  }, [formPublicId, querySuffix]);
+
   const loadForm = useCallback(async () => {
     setPhase('loading_form');
     setErrMsg(null);
 
-    const url = quizRuntimePublicUrl(`forms/${formPublicId}${querySuffix}`);
-
     try {
-      const { ok, status, data } = await fetchQuizRuntimeJson<
-        QuizPublishedFormPayload & { message?: string }
-      >(url);
-
-      if (!ok) {
-        const msg =
-          typeof (data as { message?: string })?.message === 'string'
-            ? (data as { message: string }).message
-            : `HTTP ${String(status)}`;
-        throw new Error(msg);
-      }
-
-      setFormPayload(data);
-
-      // Fetch active attempt and history in parallel
       const [active, historyRes] = await Promise.all([
         fetchQuizRuntimeJson<QuizAttemptStateResponse>(
           quizRuntimePublicUrl(`forms/${formPublicId}/active-attempt${querySuffix}`),
@@ -159,6 +159,19 @@ export function useQuizAttemptRuntime({
 
       const nextHistory = normalizeQuizAttemptHistoryItems(historyRes.data?.items);
       setAttemptHistory(nextHistory);
+
+      const resumeInProgress =
+        active.ok &&
+        active.data &&
+        typeof active.data === 'object' &&
+        (active.data as QuizAttemptStateResponse).state === 'in_progress';
+
+      // Sau startAttempt / resume: Gateway trả layout đầy đủ từ examSnapshot (catalog v2).
+      let data = await fetchFormPayload();
+      if (resumeInProgress) {
+        data = await fetchFormPayload();
+      }
+      setFormPayload(data);
 
       // Handle active attempt state
       if (active.ok && active.data && typeof active.data === 'object') {
@@ -228,7 +241,7 @@ export function useQuizAttemptRuntime({
       setErrMsg(e instanceof Error ? e.message : 'Không tải được đề.');
       setPhase('error');
     }
-  }, [formPublicId, querySuffix]);
+  }, [fetchFormPayload, formPublicId, querySuffix]);
 
   useEffect(() => {
     void loadForm();
@@ -359,7 +372,11 @@ export function useQuizAttemptRuntime({
         );
       }
 
-      const mergedStart = mergeAttemptWithFormPublishedDuration(data, formPayload);
+      // Catalog v2: layout đầy đủ chỉ có trên attempt sau start — tải lại form (có examSnapshot).
+      const layoutForm = await fetchFormPayload();
+      setFormPayload(layoutForm);
+
+      const mergedStart = mergeAttemptWithFormPublishedDuration(data, layoutForm);
       setAttempt(mergedStart);
       setListeningRemaining(
         normalizeListeningMap(
@@ -378,7 +395,7 @@ export function useQuizAttemptRuntime({
       setErrMsg(e instanceof Error ? e.message : 'Không tạo phiên làm bài được.');
       setPhase('confirm_start');
     }
-  }, [assignmentId, formPayload, formPublicId, practiceMode, querySuffix]);
+  }, [assignmentId, fetchFormPayload, formPayload, formPublicId, practiceMode, querySuffix]);
 
   // ============================================================================
   // Answer Change Handler

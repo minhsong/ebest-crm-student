@@ -1,83 +1,32 @@
 import type { AssignmentQuizActionState } from '@/lib/quiz-assignment-action';
-import { buildAssignmentResultsHref } from '@/lib/quiz-assignment-action';
+import {
+  buildAssignmentResultsHref,
+  buildAssignmentQuizActionFromEligibility,
+} from '@/lib/quiz-assignment-action';
 import type { QuizAttemptResultSnapshot } from '@/features/quiz-test/types/quiz-attempt-result';
 import { fetchQuizRuntimeJson } from '@/features/quiz-test/lib/quiz-runtime-http';
 import { quizRuntimePublicUrl } from '@/features/quiz-test/quiz-gateway-browser';
 import type { QuizPublishedFormPayload } from '@/features/quiz-test/types';
 import type { QuizRuntimeAccess } from '@/lib/quiz-runtime-access';
-import {
-  buildQuizResultEligibility,
-  isQuizResultDetailEligible,
-  type QuizAttemptEligibilityStats,
-  type QuizResultEligibility,
-} from '@/features/quiz-test/lib/quiz-result-view-policy';
+import type { QuizResultViewState } from '@/features/quiz-test/lib/quiz-result-view-policy';
+import { resolveQuizResultViewState } from '@/lib/quiz-runtime-eligibility';
 
 export type QuizAttemptReviewBundleResponse = {
   access: QuizRuntimeAccess;
   formPayload: QuizPublishedFormPayload;
   attempt: QuizAttemptResultSnapshot;
-  /** SSOT mới — assignment hoặc practice */
-  quizAttemptStats?: QuizAttemptEligibilityStats | null;
-  /** @deprecated Dùng quizAttemptStats */
-  assignmentStats?: QuizAttemptEligibilityStats | null;
-  /** @deprecated Dùng quizAttemptStats */
-  practiceStats?: QuizAttemptEligibilityStats | null;
 };
 
 export type QuizAttemptResultBundle = {
   access: QuizRuntimeAccess;
   formPayload: QuizPublishedFormPayload;
   attempt: QuizAttemptResultSnapshot;
-  eligibility: QuizResultEligibility | null;
+  viewState: QuizResultViewState;
   assignmentAction: AssignmentQuizActionState | null;
 };
 
-function statsFromBundle(
-  data: QuizAttemptReviewBundleResponse,
-): QuizAttemptEligibilityStats | null {
-  return (
-    data.quizAttemptStats ?? data.assignmentStats ?? data.practiceStats ?? null
-  );
-}
-
-function eligibilityFromStats(
-  stats: QuizAttemptEligibilityStats | null,
-): QuizResultEligibility | null {
-  if (!stats) return null;
-  return buildQuizResultEligibility({
-    submittedCount: stats.submittedCount,
-    maxAttempts: stats.maxAttempts,
-    hasPerfectScore: stats.hasPerfectScore,
-    attemptsRemaining: stats.attemptsRemaining,
-  });
-}
-
-function assignmentActionFromStats(
-  formPublicId: string,
-  stats: QuizAttemptEligibilityStats | null,
-): AssignmentQuizActionState | null {
-  if (!stats) return null;
-
-  const eligibility = eligibilityFromStats(stats);
-  const canViewResultDetail = isQuizResultDetailEligible(eligibility);
-  const canStart =
-    stats.attemptsRemaining === null || stats.attemptsRemaining > 0;
-
-  return {
-    loading: false,
-    error: null,
-    canStart,
-    startBlockReason: canStart ? null : 'Đã hết số lần làm bài.',
-    eligibility,
-    submittedAttempts: [],
-    canViewResultDetail,
-    canViewResults: canViewResultDetail,
-    resultsPageHref: buildAssignmentResultsHref(formPublicId),
-  };
-}
-
 /**
- * Một request Gateway (Mongo SSOT) — không gọi CRM để render kết quả.
+ * Một request Gateway (layout + attempt) + SSOT eligibility từ CRM/Gateway stats.
  */
 export async function fetchQuizAttemptResultBundle(
   formPublicId: string,
@@ -97,17 +46,35 @@ export async function fetchQuizAttemptResultBundle(
   }
 
   const data = res.data;
-  const stats = statsFromBundle(data);
+  const assignmentIdHint =
+    data.access.mode === 'assignment' && data.access.assignmentId != null
+      ? data.access.assignmentId
+      : undefined;
+
+  const resolved = await resolveQuizResultViewState(formPublicId, {
+    attemptPublicId,
+    assignmentIdHint,
+    preferPractice: data.access.practiceMode,
+  });
+
+  const access = resolved.access ?? data.access;
+  const assignmentAction =
+    access.mode === 'assignment' && access.assignmentId != null
+      ? buildAssignmentQuizActionFromEligibility(
+          formPublicId,
+          resolved.eligibility,
+        )
+      : null;
 
   return {
-    access: {
-      mode: data.access.mode,
-      assignmentId: data.access.assignmentId,
-      practiceMode: data.access.practiceMode,
-    },
+    access,
     formPayload: data.formPayload,
     attempt: data.attempt as QuizAttemptResultSnapshot,
-    eligibility: eligibilityFromStats(stats),
-    assignmentAction: assignmentActionFromStats(formPublicId, stats),
+    viewState: {
+      eligibility: resolved.eligibility,
+      canViewData: resolved.canViewData,
+      canViewResultDetail: resolved.canViewResultDetail,
+    },
+    assignmentAction,
   };
 }

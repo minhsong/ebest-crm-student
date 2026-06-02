@@ -1,62 +1,27 @@
-import {
-  buildQuizEligibilityFromGatewayStats,
-  buildQuizResultEligibility,
-  isQuizResultDetailEligible,
-  type QuizResultEligibility,
-} from '@/features/quiz-test/lib/quiz-result-view-policy';
-import { fetchQuizStartEligibility } from '@/lib/quiz-assignment-crm';
-import type { QuizAttemptHistoryItem } from '@/features/quiz-test/types';
-import {
-  fetchGatewayQuizStats,
-  historyItemsFromGatewayStats,
-} from '@/lib/quiz-gateway-stats';
 import { getQuizFormContext } from '@/lib/quiz-form-context';
 import {
-  pinAssignmentQuizRuntimeAccess,
-  type QuizRuntimeAccess,
-} from '@/lib/quiz-runtime-access';
+  assignmentActionStateFromSnapshot,
+} from '@/lib/quiz-assignment-action.builders';
+import { fetchAssignmentQuizSnapshot, fetchPracticeQuizSnapshot } from '@/lib/quiz-assignment-action.loader';
+import type { AssignmentQuizActionState } from '@/lib/quiz-assignment-action.types';
+import { pinAssignmentQuizRuntimeAccess, type QuizRuntimeAccess } from '@/lib/quiz-runtime-access';
+import { buildAssignmentResultsHref } from '@/lib/quiz-assignment-action.builders';
 
-/** @deprecated Dùng QuizResultEligibility */
-export type AssignmentQuizEligibility = QuizResultEligibility;
+export type {
+  AssignmentQuizEligibility,
+  AssignmentQuizActionState,
+  AssignmentQuizSnapshot,
+} from '@/lib/quiz-assignment-action.types';
 
-export type AssignmentQuizActionState = {
-  loading: boolean;
-  error: string | null;
-  canStart: boolean;
-  startBlockReason: string | null;
-  eligibility: QuizResultEligibility | null;
-  submittedAttempts: QuizAttemptHistoryItem[];
-  /** Đủ điều kiện xem chi tiết đáp án / trang kết quả */
-  canViewResultDetail: boolean;
-  /** @deprecated Dùng canViewResultDetail */
-  canViewResults: boolean;
-  resultsPageHref: string;
-};
+export {
+  buildAssignmentResultsHref,
+  buildAssignmentQuizActionFromEligibility,
+} from '@/lib/quiz-assignment-action.builders';
 
-export function buildAssignmentResultsHref(formPublicId: string): string {
-  return `/quiz-test/${encodeURIComponent(formPublicId)}/results`;
-}
-
-export function buildAttemptResultHref(
-  formPublicId: string,
-  attemptPublicId: string,
-): string {
-  return `/quiz-test/${encodeURIComponent(formPublicId)}/attempts/${encodeURIComponent(attemptPublicId)}`;
-}
-
-function actionStateFromEligibility(
-  partial: Omit<
-    AssignmentQuizActionState,
-    'canViewResultDetail' | 'canViewResults'
-  > & { eligibility: QuizResultEligibility | null },
-): AssignmentQuizActionState {
-  const canViewResultDetail = isQuizResultDetailEligible(partial.eligibility);
-  return {
-    ...partial,
-    canViewResultDetail,
-    canViewResults: canViewResultDetail,
-  };
-}
+export {
+  fetchAssignmentQuizSnapshot,
+  fetchPracticeQuizSnapshot,
+} from '@/lib/quiz-assignment-action.loader';
 
 /**
  * Trạng thái nút Làm bài / Xem kết quả cho bài tập QUIZ.
@@ -64,18 +29,29 @@ function actionStateFromEligibility(
 export async function loadAssignmentQuizActionState(
   formPublicId: string,
   assignmentId: number,
+  maxAttemptsHint?: number | null,
 ): Promise<AssignmentQuizActionState> {
-  pinAssignmentQuizRuntimeAccess(formPublicId, assignmentId);
+  if (maxAttemptsHint !== undefined) {
+    pinAssignmentQuizRuntimeAccess(formPublicId, assignmentId, {
+      quizMaxAttempts: maxAttemptsHint,
+    });
+  } else {
+    pinAssignmentQuizRuntimeAccess(formPublicId, assignmentId);
+  }
+
   const stored = getQuizFormContext(formPublicId);
-  const quizMaxAttempts =
-    stored?.mode === 'assignment' && stored.assignmentId === assignmentId
-      ? stored.quizMaxAttempts
-      : undefined;
+  const hint =
+    maxAttemptsHint !== undefined
+      ? maxAttemptsHint
+      : stored?.mode === 'assignment' && stored.assignmentId === assignmentId
+        ? stored.quizMaxAttempts
+        : undefined;
+
   return loadAssignmentQuizActionStateWithAccess(
     formPublicId,
     assignmentId,
     null,
-    quizMaxAttempts,
+    hint,
   );
 }
 
@@ -85,51 +61,29 @@ export async function loadAssignmentQuizActionStateWithAccess(
   _access: QuizRuntimeAccess | null,
   quizMaxAttemptsHint?: number | null,
 ): Promise<AssignmentQuizActionState> {
-  const resultsPageHref = buildAssignmentResultsHref(formPublicId);
-
   try {
-    const [startGate, stats] = await Promise.all([
-      fetchQuizStartEligibility(assignmentId),
-      fetchGatewayQuizStats(formPublicId, {
-        channel: 'assignment',
-        assignmentId,
-        maxAttemptsHint: quizMaxAttemptsHint,
-      }),
-    ]);
-
-    const submittedAttempts = stats
-      ? historyItemsFromGatewayStats(formPublicId, stats)
-      : [];
-
-    const submittedCount = stats?.submittedCount ?? submittedAttempts.length;
-    const maxAttempts = stats?.maxAttempts ?? quizMaxAttemptsHint ?? null;
-
-    const eligibility = buildQuizResultEligibility({
-      submittedCount,
-      maxAttempts,
-      hasPerfectScore: Boolean(stats?.hasPerfectScore),
-      attemptsRemaining: stats?.attemptsRemaining,
+    const snapshot = await fetchAssignmentQuizSnapshot({
+      formPublicId,
+      assignmentId,
+      maxAttemptsHint: quizMaxAttemptsHint,
     });
-
-    return actionStateFromEligibility({
-      loading: false,
-      error: null,
-      canStart: startGate.allowed === true,
-      startBlockReason: startGate.allowed ? null : startGate.reason,
-      eligibility,
-      submittedAttempts,
-      resultsPageHref,
-    });
+    return assignmentActionStateFromSnapshot(formPublicId, snapshot);
   } catch (e) {
-    return actionStateFromEligibility({
-      loading: false,
-      error: e instanceof Error ? e.message : 'Không tải được trạng thái bài làm.',
-      canStart: false,
-      startBlockReason: null,
-      eligibility: null,
-      submittedAttempts: [],
-      resultsPageHref,
-    });
+    return assignmentActionStateFromSnapshot(
+      formPublicId,
+      {
+        canStart: false,
+        startBlockReason: null,
+        eligibility: null,
+        submittedAttempts: [],
+        canViewResultDetail: false,
+        canViewResults: false,
+      },
+      {
+        loading: false,
+        error: e instanceof Error ? e.message : 'Không tải được trạng thái bài làm.',
+      },
+    );
   }
 }
 
@@ -146,26 +100,11 @@ export async function loadPracticeQuizActionState(
   const resultsPageHref = buildAssignmentResultsHref(formPublicId);
 
   try {
-    const stats = await fetchGatewayQuizStats(formPublicId, {
-      channel: 'practice',
-      maxAttemptsHint: practiceMaxAttemptsHint,
-    });
-    const eligibility = buildQuizEligibilityFromGatewayStats(stats, {
-      channel: 'practice',
-      maxAttemptsHint: practiceMaxAttemptsHint,
-    });
-    const submittedAttempts = stats
-      ? historyItemsFromGatewayStats(formPublicId, stats)
-      : [];
-    const canViewResultDetail = isQuizResultDetailEligible(eligibility);
-
-    return {
-      eligibility,
-      submittedAttempts,
-      canViewResultDetail,
-      canViewResults: canViewResultDetail,
-      resultsPageHref,
-    };
+    const snapshot = await fetchPracticeQuizSnapshot(
+      formPublicId,
+      practiceMaxAttemptsHint,
+    );
+    return { ...snapshot, resultsPageHref };
   } catch {
     return {
       eligibility: null,

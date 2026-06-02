@@ -21,6 +21,7 @@ const EMPTY: AssignmentQuizActionState = {
 export function useAssignmentQuizAction(
   formPublicId: string | null | undefined,
   assignmentId: number | null | undefined,
+  maxAttemptsHint?: number | null,
 ) {
   const [state, setState] = useState<AssignmentQuizActionState>(EMPTY);
 
@@ -32,9 +33,9 @@ export function useAssignmentQuizAction(
       return;
     }
     setState((s) => ({ ...s, loading: true, error: null }));
-    const next = await loadAssignmentQuizActionState(fid, aid);
+    const next = await loadAssignmentQuizActionState(fid, aid, maxAttemptsHint);
     setState(next);
-  }, [formPublicId, assignmentId]);
+  }, [formPublicId, assignmentId, maxAttemptsHint]);
 
   useEffect(() => {
     void reload();

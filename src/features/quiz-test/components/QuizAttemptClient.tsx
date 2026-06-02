@@ -13,6 +13,7 @@ import {
 } from '@/features/quiz-test/lib/quiz-form-meta';
 import {
   buildQuizRenderableBlocks,
+  countExpandableQuizBlocks,
   filterRenderableBlocksBySectionId,
   type QuizRenderableBlock,
 } from '@/features/quiz-test/lib/quiz-renderable-items';
@@ -60,6 +61,7 @@ export function QuizAttemptClient({
   formPublicId,
   assignmentId,
   practiceMode,
+  effectiveMaxAttempts,
   initialSummary,
   initialSectionId,
   initialQuestionKey,
@@ -68,6 +70,8 @@ export function QuizAttemptClient({
   /** Từ query `?assignmentId=` khi vào đề từ bài tập — đồng bộ điểm sau submit. */
   assignmentId?: number;
   practiceMode?: boolean;
+  /** Giới hạn lượt làm (từ authorize) — tránh race với quiz form context. */
+  effectiveMaxAttempts?: number | null;
   initialSummary?: QuizPublishedFormSummary | null;
   /** Từ query `?section=` — id section CRM. */
   initialSectionId?: number;
@@ -115,7 +119,14 @@ export function QuizAttemptClient({
   const assignmentAction = useAssignmentQuizAction(
     assignmentId != null ? formPublicId : null,
     assignmentId,
+    effectiveMaxAttempts,
   );
+
+  useEffect(() => {
+    if (phase === 'done' && assignmentId != null) {
+      void assignmentAction.reload();
+    }
+  }, [assignmentId, assignmentAction.reload, phase]);
 
   const { allowDetailLinks: allowHistoryDetailLinks } = useQuizResultViewGate(
     formPublicId,
@@ -169,6 +180,13 @@ export function QuizAttemptClient({
   const visibleBlocks = useMemo(
     () => filterRenderableBlocksBySectionId(formPayload, renderBlocks, activeSectionId),
     [activeSectionId, formPayload, renderBlocks],
+  );
+
+  const quizContentMissing = useMemo(
+    () =>
+      (phase === 'attempting' || phase === 'submitting') &&
+      countExpandableQuizBlocks(formPayload) === 0,
+    [formPayload, phase],
   );
 
   const visibleStarts = useMemo(
@@ -346,6 +364,7 @@ export function QuizAttemptClient({
         }
         startBlockReason={assignmentAction.startBlockReason}
         allowHistoryDetailLinks={allowHistoryDetailLinks}
+        eligibility={assignmentAction.eligibility}
       />
     );
   }
@@ -392,12 +411,28 @@ export function QuizAttemptClient({
         }
         allowHistoryDetailLinks={allowHistoryDetailLinks}
         canViewLatestAttemptDetail={allowHistoryDetailLinks}
+        eligibility={assignmentAction.eligibility}
       />
     );
   }
 
   return (
-    <QuizAttemptTakingSection
+    <>
+      {quizContentMissing ? (
+        <Alert
+          className="mb-3"
+          type="error"
+          showIcon
+          message="Không tải được nội dung câu hỏi"
+          description="Phiên làm bài đã mở nhưng đề chưa có dữ liệu câu hỏi (catalog v2). Thử tải lại trang; nếu vẫn trống, báo quản trị kiểm tra sync đề lên Gateway."
+          action={
+            <Button size="small" onClick={() => void loadForm()}>
+              Tải lại
+            </Button>
+          }
+        />
+      ) : null}
+      <QuizAttemptTakingSection
       title={title}
       formPayload={formPayload}
       formTagKeys={formTagKeys}
@@ -421,5 +456,6 @@ export function QuizAttemptClient({
       onNavigateToBlock={navigateToBlock}
       onListeningNavLock={setListeningNavLocked}
     />
+    </>
   );
 }

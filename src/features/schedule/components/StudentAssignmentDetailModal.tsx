@@ -60,6 +60,7 @@ import { sortComments } from '@/components/media-review';
 import { isMediaSpeakingExercise } from '@/lib/speaking-assignment';
 import { StudentSubmissionAudioRecorder } from '@/features/schedule/components/StudentSubmissionAudioRecorder';
 import { isAllowedStudentSubmissionMime } from '@/lib/student-submission-mime';
+import { QuizAssignmentUiMessages } from '@/lib/quiz-assignment-ui-messages';
 
 const { Text, Title } = Typography;
 const STUDENT_SUBMISSION_MAX_BYTES = 50 * 1024 * 1024;
@@ -262,9 +263,40 @@ export function StudentAssignmentDetailModal({
     );
   }, [detail]);
 
+  const quizAttemptSummary = useMemo(() => {
+    if (!detail || !isQuizWithLinkedForm) return null;
+    const max = detail.quizMaxAttempts ?? null;
+    const remaining = detail.quizAttemptsRemaining ?? null;
+    const submitted = detail.quizSubmittedCount ?? null;
+    if (max != null && remaining != null) {
+      return QuizAssignmentUiMessages.attemptsRemaining(remaining, max);
+    }
+    if (max != null && typeof submitted === 'number') {
+      return `Đã làm ${submitted}/${max} lượt.`;
+    }
+    if (max != null) {
+      return `Tối đa ${max} lượt làm bài.`;
+    }
+    return QuizAssignmentUiMessages.attemptsUnlimited;
+  }, [detail, isQuizWithLinkedForm]);
+
   const canSubmit = detail?.learningAccess?.canSubmit !== false;
   const canStartQuiz = detail?.learningAccess?.canStartQuiz !== false;
   const readOnlyReason = detail?.learningAccess?.readOnlyReason ?? null;
+
+  const quizCardDescription = useMemo(() => {
+    if (!detail) return '';
+    if (canStartQuiz) {
+      const hasPriorAttempt =
+        (detail.quizSubmittedCount ?? 0) > 0 ||
+        detail.result?.resultStatus === CRM_ASSIGNMENT_RESULT_STATUS.GRADED;
+      return hasPriorAttempt
+        ? `${QuizAssignmentUiMessages.quizRetakeHint}${quizAttemptSummary ? ` ${quizAttemptSummary}` : ''}`
+        : `${QuizAssignmentUiMessages.quizIntro}${quizAttemptSummary ? ` ${quizAttemptSummary}` : ''}`;
+    }
+    if (quizAttemptSummary) return quizAttemptSummary;
+    return 'Xem lại các lần làm qua «Xem kết quả».';
+  }, [canStartQuiz, detail, quizAttemptSummary]);
 
   const deadlinePassed = useMemo(() => {
     if (!detail?.deadline) return false;
@@ -532,7 +564,7 @@ export function StudentAssignmentDetailModal({
             )}
           </Descriptions>
 
-          {readOnlyReason ? (
+          {readOnlyReason && !(isQuizWithLinkedForm && canStartQuiz) ? (
             <Alert type="warning" showIcon message={readOnlyReason} />
           ) : deadlinePassed ? (
             <Alert
@@ -549,10 +581,7 @@ export function StudentAssignmentDetailModal({
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600 }}>Làm bài trắc nghiệm</div>
                   <Text type="secondary" style={{ fontSize: token.fontSize }}>
-                    {detail.result?.resultStatus ===
-                    CRM_ASSIGNMENT_RESULT_STATUS.GRADED
-                      ? 'Bài tập đã chấm điểm. Xem lại các lần làm qua «Xem kết quả». Ôn luyện (nếu có) chỉ tại menu Ôn luyện.'
-                      : 'Làm bài qua bài tập lớp — sau khi nộp, điểm được đồng bộ về đây.'}
+                    {quizCardDescription}
                   </Text>
                 </div>
                 <AssignmentQuizActionButtons

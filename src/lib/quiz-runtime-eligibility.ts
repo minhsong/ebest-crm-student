@@ -1,10 +1,12 @@
 import {
   buildQuizEligibilityFromGatewayStats,
-  isQuizResultDetailEligible,
+  buildQuizResultViewState,
   type QuizResultEligibility,
+  type QuizResultViewState,
 } from '@/features/quiz-test/lib/quiz-result-view-policy';
 import { fetchGatewayQuizStats } from '@/lib/quiz-gateway-stats';
 import type { QuizRuntimeAccess } from '@/lib/quiz-runtime-access';
+import { resolveQuizRuntimeAccess } from '@/lib/quiz-runtime-access';
 
 async function fetchCrmAssignmentEligibilityFallback(
   formPublicId: string,
@@ -60,5 +62,36 @@ export async function fetchQuizEligibilityForAccess(
 export function canViewQuizResultDetail(
   eligibility: QuizResultEligibility | null,
 ): boolean {
-  return isQuizResultDetailEligible(eligibility);
+  return buildQuizResultViewState(eligibility).canViewResultDetail;
+}
+
+/**
+ * SSOT: resolve access (CRM authorize) + eligibility (Gateway stats + max hint) → view state.
+ */
+export async function resolveQuizResultViewState(
+  formPublicId: string,
+  options?: {
+    access?: QuizRuntimeAccess | null;
+    attemptPublicId?: string;
+    assignmentIdHint?: number;
+    preferPractice?: boolean;
+  },
+): Promise<QuizResultViewState & { access: QuizRuntimeAccess | null }> {
+  const access =
+    options?.access ??
+    (await resolveQuizRuntimeAccess(formPublicId, {
+      attemptPublicId: options?.attemptPublicId,
+      assignmentIdHint: options?.assignmentIdHint,
+      preferPractice: options?.preferPractice,
+      intent: 'access',
+    }));
+
+  if (!access) {
+    const empty = buildQuizResultViewState(null);
+    return { ...empty, access: null };
+  }
+
+  const eligibility = await fetchQuizEligibilityForAccess(formPublicId, access);
+  const view = buildQuizResultViewState(eligibility);
+  return { ...view, access };
 }
