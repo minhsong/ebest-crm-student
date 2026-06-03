@@ -45,11 +45,11 @@
 
 Trang `QuizAttemptResultClient` gọi riêng: `useQuizAttemptResultData`, `useQuizDeliveryContext`, `useAssignmentQuizAction`, `useCanViewResultDetails` — mỗi hook có thể `resolveQuizRuntimeAccess` + history + eligibility.
 
-### Sau (2026-05 — Mongo SSOT)
+### Sau (2026-06 — Mongo SSOT)
 
-1. **`GET attempts/{attemptPublicId}/review-bundle`** (Gateway): một response gồm `formPayload` (từ `formLayoutSnapshot` freeze lúc start), `attempt` + `grading`, `access`, `assignmentStats` (đếm lượt từ Mongo).
+1. **`GET attempts/{attemptPublicId}/review-bundle`** (Gateway): một response gồm `formPayload` (ghép `examSnapshot.layout` slim + `quiz_question_results`), `attempt` + `grading`, `access`, `assignmentStats`.
 2. **Không** gọi CRM `quiz-eligibility` / `result-layout` / GET attempt trùng trên trang chi tiết.
-3. **`formLayoutSnapshot`** trên `quiz_attempt_results` — freeze toàn bộ đề khi `startAttempt` (`buildFrozenFormLayoutSnapshot`).
+3. **`examSnapshot`** trên `quiz_attempt_results` — layout slim + `grading.rules` pin lúc start; nội dung câu + `studentAnswer` SSOT tại `quiz_question_results`.
 4. **BFF authorize cache 60s** — proxy `forms/*` không lặp CRM; `review-bundle` chỉ verify ownership qua `customerId`.
 5. **Danh sách lần làm** (trang `/quiz-test/.../results` hoặc modal chi tiết bài): `assignment-quiz-stats` + `quiz-start-eligibility` qua `AssignmentQuizActionButtons` — **không** dùng trên list lớp.
 6. **`/assignments` (danh sách lớp)**: **một** `GET overview/sessions`; nút từ `deriveAssignmentListRowAction` + `AssignmentOverviewRowActions` — **không** gọi eligibility/stats theo từng dòng (D14).
@@ -64,8 +64,8 @@ Trang `QuizAttemptResultClient` gọi riêng: `useQuizAttemptResultData`, `useQu
 
 Khi chuyển `in_progress` → `submitted`, Gateway **luôn chấm lại mọi câu** từ snapshot mới nhất:
 
-- Module: `ebest-social-gateway/src/quiz-grading/quiz-grading.utils.ts` (`gradeAllQuestionsOnSubmit`, `mergeAnswersForSubmitGrading`).
-- `submitAttempt` gộp `answersByFormItemId` trên DB + `studentAnswer` từng câu (sau PATCH realtime), không chỉ closure React trên portal.
+- Module: `ebest-social-gateway/src/quiz-grading/quiz-grading.utils.ts` (`gradeAllQuestionsOnSubmit`).
+- `submitAttempt` chấm từ `examSnapshot.grading.rules` + `studentAnswer` trên `quiz_question_results` (sau PATCH realtime), không chỉ closure React trên portal.
 - Portal: `answersRef` + `await patchAnswersImmediately` trước `POST submit`.
 
 Sau `POST attempts/:id/submit` thành công (bài tập có `assignmentId`):
