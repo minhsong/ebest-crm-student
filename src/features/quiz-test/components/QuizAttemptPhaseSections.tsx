@@ -16,11 +16,11 @@ import type {
 import { Alert, Button, Card, Checkbox, Divider, Space, Tag, Typography } from 'antd';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { QuizAttemptQuotaSummary } from '@/features/quiz-test/components/QuizAttemptQuotaSummary';
 import {
   describeQuizResultDetailLocked,
   type QuizResultEligibility,
 } from '@/features/quiz-test/lib/quiz-result-view-policy';
-import { QuizAttemptQuotaSummary } from '@/features/quiz-test/components/QuizAttemptQuotaSummary';
 
 // ==================== Types ====================
 type CommonMetaProps = {
@@ -62,7 +62,6 @@ type QuizAttemptDoneSectionProps = CommonMetaProps & {
   canStartNew?: boolean;
   resultsPageHref?: string | null;
   allowHistoryDetailLinks?: boolean;
-  canViewLatestAttemptDetail?: boolean;
   eligibility?: QuizResultEligibility | null;
 };
 
@@ -84,8 +83,8 @@ export function QuizAttemptReadySection({
   allowHistoryDetailLinks = true,
   eligibility,
 }: QuizAttemptReadySectionProps) {
-  const lockedHistoryDescription = allowHistoryDetailLinks
-    ? undefined
+  const detailAnswersLockedHint = allowHistoryDetailLinks
+    ? null
     : describeQuizResultDetailLocked(eligibility);
 
   return (
@@ -161,13 +160,9 @@ export function QuizAttemptReadySection({
             (a) => a.status === 'submitted' || a.status === 'expired',
           )}
           title="Các lần làm trước"
-          description={
-            allowHistoryDetailLinks
-              ? 'Bấm từng dòng để xem đáp án, điểm và giải thích.'
-              : lockedHistoryDescription
-          }
+          description="Bấm từng lần làm để xem thông tin và kết quả bài của bạn."
           showScore
-          allowDetailLinks={allowHistoryDetailLinks}
+          detailAnswersLockedHint={detailAnswersLockedHint}
         />
 
         {/* Start / xem kết quả */}
@@ -305,7 +300,6 @@ export function QuizAttemptDoneSection({
   canStartNew = true,
   resultsPageHref,
   allowHistoryDetailLinks = true,
-  canViewLatestAttemptDetail = true,
   eligibility,
 }: QuizAttemptDoneSectionProps) {
   const [history, setHistory] = useState<QuizAttemptHistoryItem[]>(attemptHistory);
@@ -345,8 +339,8 @@ export function QuizAttemptDoneSection({
 
   // Determine latest attempt ID for highlighting
   const latestAttemptId = history[0]?.attemptPublicId ?? null;
-  const lockedHistoryDescription = allowHistoryDetailLinks
-    ? undefined
+  const detailAnswersLockedHint = allowHistoryDetailLinks
+    ? null
     : describeQuizResultDetailLocked(eligibility);
 
   return (
@@ -410,31 +404,16 @@ export function QuizAttemptDoneSection({
           formPublicId={formPublicId}
           rows={history}
           title="Các bài đã làm"
-          description={lockedHistoryDescription}
+          description="Bấm từng lần làm để xem thông tin và kết quả bài của bạn."
           vertical
           showScore
           highlightAttemptId={latestAttemptId}
           onRefresh={onRefreshHistory}
-          allowDetailLinks={allowHistoryDetailLinks}
+          detailAnswersLockedHint={detailAnswersLockedHint}
         />
 
         {/* Action buttons */}
         <Space wrap>
-          {submitResult.attemptPublicId && canViewLatestAttemptDetail ? (
-            <Link
-              href={`/quiz-test/${formPublicId}/attempts/${submitResult.attemptPublicId}`}
-            >
-              <Button type="primary">Xem chi tiết lần vừa nộp</Button>
-            </Link>
-          ) : null}
-          {submitResult.attemptPublicId && !canViewLatestAttemptDetail ? (
-            <Alert
-              type="info"
-              showIcon
-              message="Chưa thể xem chi tiết đáp án"
-              description={describeQuizResultDetailLocked(eligibility)}
-            />
-          ) : null}
           {canStartNew ? (
             <Button color="green" variant="solid" onClick={onOpenConfirmStart}>
               Làm bài mới

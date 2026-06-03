@@ -94,14 +94,12 @@ export function QuizAssignmentResultsClient({
             formPublicId={formPublicId}
             rows={attempts}
             title="Các lần làm bài"
-            description={
-              canViewDetail
-                ? 'Chọn một lần để xem đáp án, điểm từng câu và giải thích (theo đề đã freeze khi làm bài).'
-                : describeQuizResultDetailLocked(eligibility)
-            }
+            description="Bấm từng lần làm để xem thông tin và kết quả bài của bạn."
             vertical
             showScore
-            allowDetailLinks={canViewDetail}
+            detailAnswersLockedHint={
+              canViewDetail ? null : describeQuizResultDetailLocked(eligibility)
+            }
             onRefresh={refreshHistory}
           />
         ) : (

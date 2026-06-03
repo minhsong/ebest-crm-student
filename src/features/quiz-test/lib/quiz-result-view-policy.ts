@@ -31,6 +31,9 @@ export type CanViewResultInput = {
 export const QUIZ_RESULT_DETAIL_LOCKED_DESCRIPTION =
   'Xem chi tiết đáp án khi hết lượt làm bài hoặc đạt 100% câu đúng.';
 
+export const QUIZ_RESULT_DETAIL_LOCKED_SHORT_LABEL =
+  'Chưa thể xem chi tiết đáp án';
+
 export const QUIZ_RESULT_DETAIL_LOCKED_TITLE =
   'Chưa đủ điều kiện xem chi tiết đáp án (hết lượt hoặc đạt 100%)';
 
@@ -219,8 +222,10 @@ export function formatQuizAttemptQuotaSummary(
 /** Mô tả điều kiện xem chi tiết + quota (khi chưa đủ điều kiện). */
 export function describeQuizResultDetailLocked(
   eligibility: QuizResultEligibility | null | undefined,
+  options?: { includeQuota?: boolean },
 ): string {
-  const quota = formatQuizAttemptQuotaSummary(eligibility);
+  const includeQuota = options?.includeQuota !== false;
+  const quota = includeQuota ? formatQuizAttemptQuotaSummary(eligibility) : null;
   const view = computeCanViewResultDetails({ eligibility });
   if (view.canView) {
     return quota ?? QUIZ_RESULT_DETAIL_LOCKED_DESCRIPTION;

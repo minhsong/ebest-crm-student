@@ -12,7 +12,7 @@ type AssignmentActionSlice = Pick<
 >;
 
 /**
- * Cổng UI: có được link / xem chi tiết đáp án hay không (assignment hoặc practice).
+ * Cổng UI: đáp án chi tiết đã mở hay chưa (icon cảnh báo trên list — link attempt luôn bật).
  */
 export function useQuizResultViewGate(
   formPublicId: string,

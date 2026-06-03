@@ -410,7 +410,6 @@ export function QuizAttemptClient({
             : null
         }
         allowHistoryDetailLinks={allowHistoryDetailLinks}
-        canViewLatestAttemptDetail={allowHistoryDetailLinks}
         eligibility={assignmentAction.eligibility}
       />
     );

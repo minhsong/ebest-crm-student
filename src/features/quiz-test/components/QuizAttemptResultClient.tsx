@@ -2,6 +2,7 @@
 
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { QuizAttemptResultHeader } from '@/features/quiz-test/components/QuizAttemptResultHeader';
+import { QuizResultDetailLockedHint } from '@/features/quiz-test/components/QuizResultDetailLockedHint';
 import { QuizReviewQuestionsPanel } from '@/features/quiz-test/components/QuizReviewQuestionsPanel';
 import {
   findSectionIdForAnchorKey,
@@ -10,7 +11,8 @@ import {
 } from '@/features/quiz-test/lib/quiz-section-navigation';
 import { useQuizAttemptResultPage } from '@/features/quiz-test/hooks/useQuizAttemptResultPage';
 import { buildAssignmentResultsHref } from '@/lib/quiz-assignment-action';
-import { Alert, Button, Card, Skeleton, Space } from 'antd';
+import { buildQuizResultEligibility } from '@/features/quiz-test/lib/quiz-result-view-policy';
+import { Alert, Button, Card, Skeleton, Space, Typography } from 'antd';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -33,7 +35,6 @@ export function QuizAttemptResultClient({
     assignmentAction,
     reviewViewModel,
     canViewData,
-    getCannotViewResultMessage,
   } = useQuizAttemptResultPage(formPublicId, attemptPublicId);
 
   const questionKey = useMemo(() => {
@@ -115,8 +116,15 @@ export function QuizAttemptResultClient({
   }
 
   const canViewDetails = canViewData?.canView === true;
-  const cannotViewReason = canViewData?.reason ?? null;
-  const showCannotViewAlert = !canViewDetails && canViewData !== null;
+  const showCannotViewHint = !canViewDetails && canViewData !== null;
+  const lockedEligibility = canViewData
+    ? buildQuizResultEligibility({
+        submittedCount: canViewData.submittedCount,
+        hasPerfectScore: canViewData.hasPerfectScore,
+        maxAttempts: canViewData.maxAttempts,
+        attemptsRemaining: canViewData.attemptsRemaining,
+      })
+    : null;
 
   return (
     <Card>
@@ -138,18 +146,8 @@ export function QuizAttemptResultClient({
           grading={reviewViewModel.attempt.grading}
         />
 
-        {showCannotViewAlert && cannotViewReason && canViewData ? (
-          <Alert
-            type="warning"
-            message={
-              <span>
-                <strong>Chưa thể xem chi tiết kết quả</strong>
-                <br />
-                {getCannotViewResultMessage(cannotViewReason, canViewData)}
-              </span>
-            }
-            showIcon
-          />
+        {showCannotViewHint ? (
+          <QuizResultDetailLockedHint eligibility={lockedEligibility} />
         ) : null}
 
         {canViewDetails ? (
@@ -159,12 +157,10 @@ export function QuizAttemptResultClient({
             onCollapseActiveKeysChange={setSectionKeysForAnchor}
           />
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            <p>
-              {canViewData && cannotViewReason
-                ? getCannotViewResultMessage(cannotViewReason, canViewData)
-                : 'Hãy cố gắng hết sức để xem kết quả chi tiết nhé!'}
-            </p>
+          <div className="py-8 text-center">
+            <Typography.Text type="secondary">
+              Nội dung đáp án chi tiết sẽ hiển thị khi bạn đủ điều kiện.
+            </Typography.Text>
           </div>
         )}
 

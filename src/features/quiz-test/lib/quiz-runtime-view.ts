@@ -201,23 +201,53 @@ export function buildGradingPerItem(
 export function getHistoryScoreText(
   row: QuizAttemptHistoryItem,
 ): string {
-  // First try gradingSummary (from detailed response)
+  const parsed = parseHistoryScore(row);
+  if (!parsed) return '';
+  const { correct, total, percent } = parsed;
+  if (percent != null) {
+    return ` · ${correct}/${total} (${percent}%)`;
+  }
+  return ` · Điểm: ${correct}/${total}`;
+}
+
+/** Điểm cho card lịch sử — correct/total + %. */
+export function parseHistoryScore(
+  row: QuizAttemptHistoryItem,
+): { correct: number; total: number; percent: number | null } | null {
   const summary = row.gradingSummary;
-  if (summary && Number.isFinite(Number(summary.totalQuestions)) && Number.isFinite(Number(summary.correctCount))) {
-    return ` · Điểm: ${Number(summary.correctCount)}/${Number(summary.totalQuestions)}`;
+  if (
+    summary &&
+    Number.isFinite(Number(summary.totalQuestions)) &&
+    Number.isFinite(Number(summary.correctCount))
+  ) {
+    const total = Number(summary.totalQuestions);
+    const correct = Number(summary.correctCount);
+    const percent =
+      total > 0
+        ? Math.round((correct / total) * 100)
+        : Number.isFinite(Number(summary.accuracy))
+          ? Math.round(Number(summary.accuracy))
+          : null;
+    return { correct, total, percent };
   }
 
-  // Fallback to top-level correctCount and totalQuestions (from list response)
   const correctCount = Number(row.correctCount);
   const totalQuestions = Number(row.totalQuestions);
-  if (Number.isFinite(correctCount) && Number.isFinite(totalQuestions)) {
-    const accuracy =
-      totalQuestions > 0
-        ? Math.round((correctCount / totalQuestions) * 100)
-        : 0;
-    return ` · ${correctCount}/${totalQuestions} (${accuracy}%)`;
+  if (Number.isFinite(correctCount) && Number.isFinite(totalQuestions) && totalQuestions > 0) {
+    return {
+      correct: correctCount,
+      total: totalQuestions,
+      percent: Math.round((correctCount / totalQuestions) * 100),
+    };
   }
 
-  return '';
+  return null;
+}
+
+export function historyScoreTagColor(percent: number | null): string {
+  if (percent == null) return 'default';
+  if (percent >= 80) return 'success';
+  if (percent >= 50) return 'gold';
+  return 'error';
 }
 
