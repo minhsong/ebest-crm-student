@@ -1,7 +1,5 @@
 /** @deprecated Dùng `student-submission-policy` */
 export {
   EXTERNAL_LINK_SUBMISSION_MAX_BYTES,
-  STUDENT_SUBMISSION_MAX_BYTES,
   isAllowedExternalLinkSubmissionMime,
-  isAllowedStudentSubmissionMime,
 } from './student-submission-policy';

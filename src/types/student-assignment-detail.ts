@@ -64,6 +64,8 @@ export interface StudentAssignmentDetail {
   courseSessionTitle: string | null;
   studentUploadEnabled?: boolean;
   studentUploadMaxFiles?: number;
+  /** URL trang làm bài (external_link) */
+  externalLinkActivityUrl?: string | null;
   /** Bài QUIZ gắn Test form — UUID đề (Gateway). */
   testQuizFormPublicId?: string | null;
   /** Số lần làm tối đa; null = không giới hạn. */
@@ -75,6 +77,7 @@ export interface StudentAssignmentDetail {
   submission?: {
     submittedAt?: string | null;
     submittedNote?: string | null;
+    submittedExternalUrl?: string | null;
     attachments?: StudentSubmissionAttachment[];
   };
   result: {

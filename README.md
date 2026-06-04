@@ -89,3 +89,6 @@ Tạo `.env.local` từ `.env.local.example` và cấu hình:
 - [IMPLEMENTATION_TRACKING_SCOPE_DELIVERY.md](../ebest-crm-api/docs/modules/test-quiz/archive/IMPLEMENTATION_TRACKING_SCOPE_DELIVERY.md) — checklist triển khai
 - [TEST_QUIZ_TECHNICAL_SPEC_MVP.md](../ebest-crm-api/docs/modules/test-quiz/runtime/TEST_QUIZ_TECHNICAL_SPEC_MVP.md) — runtime, grading
 - [ASSIGNMENT_TEST_ONLINE_LINK_SPEC.md](../ebest-crm-api/docs/modules/assignments/ASSIGNMENT_TEST_ONLINE_LINK_SPEC.md) — sync `assignment_result`
+- [STUDENT_PORTAL_SUBMISSIONS_SPEC.md](../ebest-crm-api/docs/modules/assignments/STUDENT_PORTAL_SUBMISSIONS_SPEC.md) — nộp file/thu âm
+- [EXTERNAL_LINK_EXERCISE_SPEC.md](../ebest-crm-api/docs/modules/assignments/EXTERNAL_LINK_EXERCISE_SPEC.md) — bài link ngoài
+- [docs/STUDENT_ASSIGNMENT_SUBMISSION.md](./docs/STUDENT_ASSIGNMENT_SUBMISSION.md) — map code portal (policy, modal, BFF)

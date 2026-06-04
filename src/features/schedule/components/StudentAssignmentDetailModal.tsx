@@ -27,6 +27,7 @@ import {
   MessageOutlined,
   BookOutlined,
   CheckSquareOutlined,
+  LinkOutlined,
   EyeOutlined,
   PlayCircleOutlined,
   DeleteOutlined,
@@ -59,29 +60,45 @@ import { StudentSubmissionReviewList } from '@/features/schedule/components/Stud
 import { sortComments } from '@/components/media-review';
 import { isMediaSpeakingExercise } from '@/lib/speaking-assignment';
 import { StudentSubmissionAudioRecorder } from '@/features/schedule/components/StudentSubmissionAudioRecorder';
-import { isAllowedStudentSubmissionMime } from '@/lib/student-submission-mime';
+import {
+  getFileInputAccept,
+  getSubmissionMaxBytes,
+  getSubmissionMaxBytesLabel,
+  isExternalLinkExerciseType,
+  isSubmissionMimeAllowed,
+} from '@/lib/student-submission-policy';
 import { QuizAssignmentUiMessages } from '@/lib/quiz-assignment-ui-messages';
 
 const { Text, Title } = Typography;
-const STUDENT_SUBMISSION_MAX_BYTES = 50 * 1024 * 1024;
-
 const SUBMISSION_MIME_REJECT_DETAIL =
   'có định dạng không được phép (chỉ hỗ trợ âm thanh, ảnh, video).';
 
-function assertSubmissionFilesMimeAllowed(files: File[]): boolean {
+function assertSubmissionFilesMimeAllowed(
+  files: File[],
+  externalLinkImageOnly: boolean,
+): boolean {
   for (const f of files) {
-    if (!isAllowedStudentSubmissionMime(f.type)) {
-      message.error(`File "${f.name}" ${SUBMISSION_MIME_REJECT_DETAIL}`);
+    if (!isSubmissionMimeAllowed(f.type, externalLinkImageOnly)) {
+      message.error(
+        externalLinkImageOnly
+          ? `File "${f.name}" không phải ảnh (chỉ jpg, png, …).`
+          : `File "${f.name}" ${SUBMISSION_MIME_REJECT_DETAIL}`,
+      );
       return false;
     }
   }
   return true;
 }
 
-function assertSubmissionFilesSizeAllowed(files: File[]): boolean {
+function assertSubmissionFilesSizeAllowed(
+  files: File[],
+  externalLinkImageOnly: boolean,
+): boolean {
+  const maxBytes = getSubmissionMaxBytes(externalLinkImageOnly);
+  const label = getSubmissionMaxBytesLabel(externalLinkImageOnly);
   for (const f of files) {
-    if (f.size > STUDENT_SUBMISSION_MAX_BYTES) {
-      message.error(`File "${f.name}" vượt quá 50MB.`);
+    if (f.size > maxBytes) {
+      message.error(`File "${f.name}" vượt quá ${label}.`);
       return false;
     }
   }
@@ -109,6 +126,7 @@ export function StudentAssignmentDetailModal({
     string | null
   >(null);
   const [submissionNote, setSubmissionNote] = useState('');
+  const [externalSubmissionUrl, setExternalSubmissionUrl] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [playOpen, setPlayOpen] = useState(false);
@@ -198,6 +216,10 @@ export function StudentAssignmentDetailModal({
     const normalized = normalizeStudentAssignmentDetail(data);
     if (normalized) {
       setDetail(normalized);
+      setExternalSubmissionUrl(
+        normalized.submission?.submittedExternalUrl?.trim() ?? '',
+      );
+      setSubmissionNote(normalized.submission?.submittedNote?.trim() ?? '');
       setError(null);
       return;
     }
@@ -219,6 +241,7 @@ export function StudentAssignmentDetailModal({
     setError(null);
     setLoading(true);
     setSubmissionNote('');
+    setExternalSubmissionUrl('');
 
     void (async () => {
       try {
@@ -262,6 +285,11 @@ export function StudentAssignmentDetailModal({
       pub.length > 0
     );
   }, [detail]);
+
+  const isExternalLinkExercise = useMemo(
+    () => isExternalLinkExerciseType(detail?.exerciseType),
+    [detail?.exerciseType],
+  );
 
   const quizAttemptSummary = useMemo(() => {
     if (!detail || !isQuizWithLinkedForm) return null;
@@ -313,6 +341,7 @@ export function StudentAssignmentDetailModal({
     if (t === 'speaking') return <MessageOutlined aria-hidden />;
     if (t === 'homework') return <BookOutlined aria-hidden />;
     if (t === 'quiz') return <CheckSquareOutlined aria-hidden />;
+    if (t === 'external_link') return <LinkOutlined aria-hidden />;
     return <AppstoreOutlined aria-hidden />;
   }, [detail?.exerciseType]);
 
@@ -329,8 +358,9 @@ export function StudentAssignmentDetailModal({
     async (files: File[]): Promise<boolean> => {
       if (!files.length || assignmentId == null) return false;
 
-      if (!assertSubmissionFilesMimeAllowed(files)) return false;
-      if (!assertSubmissionFilesSizeAllowed(files)) return false;
+      const imageOnly = isExternalLinkExerciseType(detail?.exerciseType);
+      if (!assertSubmissionFilesMimeAllowed(files, imageOnly)) return false;
+      if (!assertSubmissionFilesSizeAllowed(files, imageOnly)) return false;
 
       const hasExisting = submissionAttachmentCount > 0;
       if (hasExisting) {
@@ -397,6 +427,7 @@ export function StudentAssignmentDetailModal({
       loadDetail,
       submissionAttachmentCount,
       submissionNote,
+      detail?.exerciseType,
     ],
   );
 
@@ -408,6 +439,58 @@ export function StudentAssignmentDetailModal({
   const handlePickFile = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
+
+  const handleSubmitExternalLink = useCallback(async () => {
+    if (assignmentId == null) return;
+    const url = externalSubmissionUrl.trim();
+    if (!url) {
+      message.warning('Vui lòng nhập link bài làm / kết quả.');
+      return;
+    }
+    const hasExisting = Boolean(
+      detail?.submission?.submittedExternalUrl?.trim(),
+    );
+    if (hasExisting) {
+      const ok = window.confirm(
+        'Bạn đang nộp lại link. Link cũ sẽ được thay thế. Tiếp tục?',
+      );
+      if (!ok) return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetchWithAuth(
+        `/api/assignments/${assignmentId}/submission/link`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url,
+            note: submissionNote.trim() || undefined,
+          }),
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          typeof data?.message === 'string' ? data.message : 'Nộp link thất bại.';
+        message.error(msg);
+        return;
+      }
+      message.success('Đã nộp link bài tập.');
+      await loadDetail();
+    } catch {
+      message.error('Lỗi mạng. Vui lòng thử lại.');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [
+    assignmentId,
+    detail?.submission?.submittedExternalUrl,
+    externalSubmissionUrl,
+    fetchWithAuth,
+    loadDetail,
+    submissionNote,
+  ]);
 
   const handleDeleteSubmissionAttachment = useCallback(
     async (attachmentId: string) => {
@@ -471,7 +554,7 @@ export function StudentAssignmentDetailModal({
       ref={fileInputRef}
       type="file"
       multiple={maxUploadFiles > 1}
-      accept="audio/*,image/*,video/*"
+      accept={getFileInputAccept(isExternalLinkExercise)}
       style={{ display: 'none' }}
       onChange={handleFileSelected}
     />
@@ -593,7 +676,106 @@ export function StudentAssignmentDetailModal({
             </Card>
           ) : null}
 
-          {canSubmit && detail.studentUploadEnabled && !isQuizWithLinkedForm ? (
+          {isExternalLinkExercise && detail.externalLinkActivityUrl ? (
+            <Card size="small">
+              <Flex justify="space-between" align="center" gap="middle" wrap>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>Làm bài trên trang ngoài</div>
+                  <Text type="secondary" style={{ fontSize: token.fontSize }}>
+                    {detail.studentUploadEnabled
+                      ? 'Mở link làm bài, sau đó chụp ảnh kết quả và nộp bên dưới.'
+                      : 'Mở link làm bài, sau đó nộp link kết quả ở mục bên dưới.'}
+                  </Text>
+                </div>
+                <Button
+                  type="primary"
+                  href={detail.externalLinkActivityUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Mở trang làm bài
+                </Button>
+              </Flex>
+            </Card>
+          ) : null}
+
+          {canSubmit &&
+          isExternalLinkExercise &&
+          detail.studentUploadEnabled &&
+          !isQuizWithLinkedForm ? (
+            <Card size="small">
+              <Flex justify="space-between" align="center" gap="middle" wrap>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>Nộp ảnh kết quả</div>
+                  <Text type="secondary" style={{ fontSize: token.fontSize }}>
+                    Chỉ ảnh (jpg, png, …), tối đa {maxUploadFiles} ảnh/lần, mỗi
+                    ảnh dưới 2MB.
+                  </Text>
+                  <Input.TextArea
+                    value={submissionNote}
+                    onChange={(e) => setSubmissionNote(e.target.value)}
+                    rows={2}
+                    maxLength={500}
+                    placeholder="Ghi chú (tuỳ chọn)"
+                    style={{ marginTop: token.marginSM }}
+                    disabled={submitting}
+                    autoSize={{ minRows: 2, maxRows: 4 }}
+                  />
+                </div>
+                <Button
+                  type="primary"
+                  loading={submitting}
+                  onClick={handlePickFile}
+                >
+                  Chọn ảnh
+                </Button>
+              </Flex>
+            </Card>
+          ) : null}
+
+          {canSubmit &&
+          isExternalLinkExercise &&
+          !detail.studentUploadEnabled &&
+          !isQuizWithLinkedForm ? (
+            <Card size="small">
+              <Flex vertical gap="middle">
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: token.marginXS }}>
+                    Nộp link kết quả
+                  </div>
+                  <Input
+                    value={externalSubmissionUrl}
+                    onChange={(e) => setExternalSubmissionUrl(e.target.value)}
+                    placeholder="https://..."
+                    disabled={submitting}
+                  />
+                </div>
+                <Input.TextArea
+                  value={submissionNote}
+                  onChange={(e) => setSubmissionNote(e.target.value)}
+                  rows={2}
+                  maxLength={500}
+                  placeholder="Ghi chú (tuỳ chọn)"
+                  disabled={submitting}
+                  autoSize={{ minRows: 2, maxRows: 4 }}
+                />
+                <Button
+                  type="primary"
+                  loading={submitting}
+                  onClick={() => void handleSubmitExternalLink()}
+                >
+                  {detail.submission?.submittedExternalUrl
+                    ? 'Cập nhật link'
+                    : 'Nộp link'}
+                </Button>
+              </Flex>
+            </Card>
+          ) : null}
+
+          {canSubmit &&
+          detail.studentUploadEnabled &&
+          !isQuizWithLinkedForm &&
+          !isExternalLinkExercise ? (
             <Card size="small">
               <Flex justify="space-between" align="center" gap="middle" wrap>
                 <div style={{ minWidth: 0 }}>
@@ -653,6 +835,46 @@ export function StudentAssignmentDetailModal({
                 </Space>
               ) : null}
             </Card>
+          ) : null}
+
+          {isExternalLinkExercise &&
+          detail.submission?.submittedExternalUrl?.trim() ? (
+            <div>
+              <Title
+                level={5}
+                style={{
+                  marginTop: token.marginSM,
+                  marginBottom: token.marginXS,
+                }}
+              >
+                Link đã nộp
+              </Title>
+              {detail.submission.submittedAt ? (
+                <Text type="secondary" style={{ fontSize: token.fontSize }}>
+                  Nộp lúc:{' '}
+                  {new Date(detail.submission.submittedAt).toLocaleString(
+                    'vi-VN',
+                  )}
+                </Text>
+              ) : null}
+              <div style={{ marginTop: token.marginXS }}>
+                <a
+                  href={detail.submission.submittedExternalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {detail.submission.submittedExternalUrl}
+                </a>
+              </div>
+              {detail.submission.submittedNote ? (
+                <Text
+                  type="secondary"
+                  style={{ fontSize: token.fontSize, display: 'block' }}
+                >
+                  Ghi chú: {detail.submission.submittedNote}
+                </Text>
+              ) : null}
+            </div>
           ) : null}
 
           {detail.submission?.attachments?.length ? (
