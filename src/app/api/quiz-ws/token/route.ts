@@ -9,7 +9,7 @@ import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
 export async function GET() {
   const token = getStudentAccessTokenFromCookie();
   if (!token) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }
 
   return NextResponse.json(

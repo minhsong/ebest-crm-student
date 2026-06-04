@@ -7,6 +7,8 @@ import type { AssignmentQuizSnapshot } from '@/lib/quiz-assignment-action.types'
 import {
   assignmentSnapshotFromEligibility,
 } from '@/lib/quiz-assignment-action.builders';
+import { mergeAssignmentQuizEligibility } from '@/lib/quiz-assignment-eligibility-merge';
+import { fetchCrmAssignmentQuizEligibility } from '@/lib/quiz-crm-assignment-eligibility';
 import {
   fetchGatewayQuizStats,
   historyItemsFromGatewayStats,
@@ -24,22 +26,27 @@ export async function fetchAssignmentQuizSnapshot(
 ): Promise<AssignmentQuizSnapshot> {
   const { formPublicId, assignmentId, maxAttemptsHint } = params;
 
-  const [startGate, stats] = await Promise.all([
+  const [startGate, stats, crmEligibility] = await Promise.all([
     fetchQuizStartEligibility(assignmentId),
     fetchGatewayQuizStats(formPublicId, {
       channel: 'assignment',
       assignmentId,
       maxAttemptsHint,
     }),
+    fetchCrmAssignmentQuizEligibility(formPublicId, assignmentId),
   ]);
 
   const submittedAttempts = stats
     ? historyItemsFromGatewayStats(formPublicId, stats)
     : [];
 
-  const eligibility = buildQuizEligibilityFromGatewayStats(stats, {
-    channel: 'assignment',
-    maxAttemptsHint,
+  const eligibility = mergeAssignmentQuizEligibility({
+    crm: crmEligibility,
+    gatewayStats: stats,
+    maxSources: {
+      crm: crmEligibility?.maxAttempts ?? maxAttemptsHint,
+      gateway: stats?.maxAttempts,
+    },
   });
 
   return assignmentSnapshotFromEligibility(eligibility, {
@@ -65,6 +72,7 @@ export async function fetchPracticeQuizSnapshot(
   const eligibility = buildQuizEligibilityFromGatewayStats(stats, {
     channel: 'practice',
     maxAttemptsHint: practiceMaxAttemptsHint,
+    attemptRows: stats?.items,
   });
   const view = buildQuizResultViewState(eligibility);
   const submittedAttempts = stats

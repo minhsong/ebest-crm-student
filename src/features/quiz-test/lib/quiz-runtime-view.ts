@@ -1,5 +1,6 @@
 import type {
   QuizAttemptHistoryItem,
+  QuizAttemptTimerSlice,
   StartAttemptResponse,
 } from '@/features/quiz-test/types';
 import type { QuizRenderableBlock } from '@/features/quiz-test/lib/quiz-renderable-items';
@@ -29,28 +30,81 @@ export function formatCountdownHhMmSs(totalSeconds: number): string {
   return `${hh}:${mm}:${ss}`;
 }
 
+function deadlineMsFromAttempt(attempt: StartAttemptResponse): number | null {
+  const fromDeadline =
+    typeof attempt.deadlineAt === 'string' && attempt.deadlineAt.trim()
+      ? new Date(attempt.deadlineAt).getTime()
+      : NaN;
+  if (Number.isFinite(fromDeadline)) return fromDeadline;
+
+  const durationSec = Math.max(0, Math.floor(Number(attempt.durationSeconds ?? 0)));
+  const startedMs = new Date(attempt.startedAt).getTime();
+  if (!Number.isFinite(startedMs) || durationSec <= 0) return null;
+  return startedMs + durationSec * 1000;
+}
+
+export function applyServerTimerSlice(
+  attempt: StartAttemptResponse,
+  timer: QuizAttemptTimerSlice | null | undefined,
+): StartAttemptResponse {
+  if (!timer || typeof timer !== 'object') return attempt;
+  return {
+    ...attempt,
+    startedAt: timer.startedAt || attempt.startedAt,
+    durationSeconds: timer.durationSeconds ?? attempt.durationSeconds,
+    deadlineAt: timer.deadlineAt,
+    expiresAt: timer.expiresAt ?? attempt.expiresAt,
+    timer,
+  };
+}
+
+export function remainingSecondsFromTimer(
+  timer: QuizAttemptTimerSlice | null | undefined,
+): number | null {
+  if (!timer || typeof timer.remainingSeconds !== 'number') return null;
+  if (!Number.isFinite(timer.remainingSeconds)) return null;
+  return Math.max(0, Math.floor(timer.remainingSeconds));
+}
+
 export function getAttemptTimerValidity(
   attempt: StartAttemptResponse | null,
 ): AttemptTimerValid | AttemptTimerInvalid {
   if (!attempt) return { ok: false };
   const durationSec = Math.max(0, Math.floor(Number(attempt.durationSeconds ?? 0)));
-  const startedMs = new Date(attempt.startedAt).getTime();
-  if (!Number.isFinite(startedMs) || durationSec <= 0) return { ok: false };
-  return { ok: true, deadlineMs: startedMs + durationSec * 1000, durationSec };
+  const deadlineMs = deadlineMsFromAttempt(attempt);
+  if (deadlineMs == null || durationSec <= 0) return { ok: false };
+  return { ok: true, deadlineMs, durationSec };
 }
 
 export function syncRemainingFromAttempt(attempt: StartAttemptResponse): number {
+  const fromSlice = remainingSecondsFromTimer(attempt.timer);
+  if (fromSlice != null) return fromSlice;
+
   const v = getAttemptTimerValidity(attempt);
   if (!v.ok) return REMAINING_UNSET;
   return Math.max(0, Math.ceil((v.deadlineMs - Date.now()) / 1000));
 }
 
 export function normalizeAttemptAnswers(payload: unknown): Record<string, string | string[]> {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return {};
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {};
   const out: Record<string, string | string[]> = {};
   for (const [k, v] of Object.entries(payload as Record<string, unknown>)) {
-    if (Array.isArray(v)) out[k] = v.map(String);
-    else if (v != null) out[k] = String(v);
+    if (Array.isArray(v)) {
+      out[k] = v.map(String);
+      continue;
+    }
+    if (v && typeof v === 'object') {
+      const row = v as Record<string, unknown>;
+      if (Array.isArray(row.selectedOptionIds) && row.selectedOptionIds.length) {
+        out[k] = row.selectedOptionIds.map(String);
+        continue;
+      }
+      if (typeof row.textAnswer === 'string' && row.textAnswer.trim()) {
+        out[k] = row.textAnswer.trim();
+        continue;
+      }
+    }
+    if (v != null && String(v) !== '') out[k] = String(v);
   }
   return out;
 }
@@ -130,7 +184,20 @@ export function toValidAttemptPayload(
     typeof p.startedAt === 'string' ? p.startedAt.trim() : '';
   const expiresAt =
     typeof p.expiresAt === 'string' ? p.expiresAt.trim() : '';
-  if (!attemptPublicId || !startedAt || !expiresAt) return null;
+  const deadlineAt =
+    typeof p.deadlineAt === 'string' ? p.deadlineAt.trim() : '';
+  if (!attemptPublicId || !startedAt) return null;
+  if (!deadlineAt && !expiresAt) return null;
+
+  const timerRaw = p.timer;
+  const timer =
+    timerRaw &&
+    typeof timerRaw === 'object' &&
+    !Array.isArray(timerRaw) &&
+    typeof (timerRaw as QuizAttemptTimerSlice).deadlineAt === 'string'
+      ? (timerRaw as QuizAttemptTimerSlice)
+      : undefined;
+
   return {
     attemptPublicId,
     formPublicId:
@@ -139,7 +206,9 @@ export function toValidAttemptPayload(
         : fallbackFormPublicId,
     durationSeconds: Math.max(0, Math.floor(Number(p.durationSeconds ?? 0))),
     startedAt,
-    expiresAt,
+    deadlineAt: deadlineAt || timer?.deadlineAt,
+    expiresAt: expiresAt || timer?.expiresAt || deadlineAt,
+    timer,
     resumed: true,
   };
 }

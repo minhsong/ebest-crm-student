@@ -42,6 +42,8 @@ export type QuizAttemptTakingSectionProps = {
   /** Báo portal khi khóa/mở chuyển phần (URL) vì lượt nghe. */
   onListeningNavLock?: (locked: boolean) => void;
   backHref?: string;
+  /** Hết giờ / đang nộp — không cho sửa đáp án. */
+  answersLocked?: boolean;
 };
 
 export function QuizAttemptTakingSection({
@@ -67,6 +69,7 @@ export function QuizAttemptTakingSection({
   onNavigateToBlock,
   onListeningNavLock,
   backHref,
+  answersLocked = false,
 }: QuizAttemptTakingSectionProps) {
   const [outlineOpen, setOutlineOpen] = useState(true);
   const [listeningHighlightKey, setListeningHighlightKey] = useState<string | null>(null);
@@ -158,11 +161,21 @@ export function QuizAttemptTakingSection({
         <QuizFormMetaBlock
           compact
           formType={formPayload.type ?? null}
-          catalogKey={formPayload.catalogKey ?? null}
-          catalogPath={formPayload.catalogPath ?? null}
           tagKeys={formTagKeys}
         />
       </div>
+
+      {answersLocked ? (
+        <div className="px-4 md:px-6">
+          <Alert
+            className="mb-4"
+            type="info"
+            showIcon
+            message="Phiên làm bài đã kết thúc"
+            description="Hệ thống đang nộp bài và chuyển sang trang kết quả. Bạn không thể chỉnh sửa đáp án."
+          />
+        </div>
+      ) : null}
 
       {errMsg ? (
         <div className="px-4 md:px-6">
@@ -209,8 +222,8 @@ export function QuizAttemptTakingSection({
           renderBlocks={renderBlocks}
           blockStartIndexes={blockStartIndexes}
           answers={answers}
-          readOnly={false}
-          onAnswerChange={onAnswerChange}
+          readOnly={answersLocked}
+          onAnswerChange={answersLocked ? undefined : onAnswerChange}
           listeningRemaining={listeningRemaining}
           reportListeningCycle={reportListeningCycle}
           listeningHighlightKey={listeningHighlightKey}
@@ -219,8 +232,8 @@ export function QuizAttemptTakingSection({
       </Space>
 
       <QuizAttemptTakingFooter
-        submitting={submitting}
-        onSubmit={onSubmit}
+        submitting={submitting || answersLocked}
+        onSubmit={answersLocked ? () => undefined : onSubmit}
         sections={sections}
         activeSectionId={activeSectionId}
         onGoPrevSection={handleGoPrevSection}

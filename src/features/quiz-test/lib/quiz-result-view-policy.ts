@@ -11,6 +11,29 @@ export type QuizAttemptEligibilityStats = Pick<
   'submittedCount' | 'hasPerfectScore' | 'maxAttempts' | 'attemptsRemaining'
 >;
 
+export type AttemptScoreRow = {
+  score?: number | null;
+  correctCount?: number | null;
+  totalQuestions?: number | null;
+};
+
+/** SSOT — khớp Gateway `quiz-attempt-eligibility.util` (chỉ đếm câu, không %). */
+export function isAttemptRowPerfectScore(row: AttemptScoreRow): boolean {
+  const tc = Number(row.totalQuestions);
+  const cc = Number(row.correctCount);
+  if (!Number.isFinite(tc) || tc <= 0) return false;
+  if (!Number.isFinite(cc)) return false;
+  return cc === tc;
+}
+
+export function deriveHasPerfectScoreFromRows(
+  rows: AttemptScoreRow[] | undefined,
+  _fallbackFlag: boolean,
+): boolean {
+  if (!rows?.length) return false;
+  return rows.some((row) => isAttemptRowPerfectScore(row));
+}
+
 export type CanViewResultReason =
   | 'eligible'
   | 'no_attempts'
@@ -82,6 +105,7 @@ export function buildQuizEligibilityFromGatewayStats(
   options: {
     channel: 'assignment' | 'practice';
     maxAttemptsHint?: number | null;
+    attemptRows?: AttemptScoreRow[];
   },
 ): QuizResultEligibility | null {
   if (!stats) return null;
@@ -94,11 +118,37 @@ export function buildQuizEligibilityFromGatewayStats(
           options.maxAttemptsHint ?? stats.maxAttempts,
         );
 
+  const hasPerfectScore = deriveHasPerfectScoreFromRows(
+    options.attemptRows,
+    stats.hasPerfectScore,
+  );
+
   return buildQuizResultEligibility({
     submittedCount: stats.submittedCount,
-    hasPerfectScore: stats.hasPerfectScore,
+    hasPerfectScore,
     maxAttempts,
     attemptsRemaining: computeAttemptsRemaining(maxAttempts, stats.submittedCount),
+  });
+}
+
+/** Dev: log gate D41 — `localStorage.setItem('quizDebugD41','1')` */
+export function logQuizResultDetailGate(
+  label: string,
+  eligibility: QuizResultEligibility | null,
+  extra?: Record<string, unknown>,
+): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (window.localStorage?.getItem('quizDebugD41') !== '1') return;
+  } catch {
+    return;
+  }
+  const view = computeCanViewResultDetails({ eligibility });
+  console.debug(`[quiz D41] ${label}`, {
+    eligibility,
+    canView: view.canView,
+    reason: view.reason,
+    ...extra,
   });
 }
 

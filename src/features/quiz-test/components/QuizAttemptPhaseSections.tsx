@@ -122,8 +122,6 @@ export function QuizAttemptReadySection({
           <div className="mt-2">
             <QuizFormMetaBlock
               formType={formPayload.type ?? null}
-              catalogKey={formPayload.catalogKey ?? null}
-              catalogPath={formPayload.catalogPath ?? null}
               tagKeys={formTagKeys}
               durationSummary={durationSummary}
             />
@@ -160,8 +158,13 @@ export function QuizAttemptReadySection({
             (a) => a.status === 'submitted' || a.status === 'expired',
           )}
           title="Các lần làm trước"
-          description="Bấm từng lần làm để xem thông tin và kết quả bài của bạn."
+          description={
+            allowHistoryDetailLinks
+              ? 'Bấm từng lần làm để xem thông tin và kết quả bài của bạn.'
+              : 'Danh sách các lần đã nộp. Chi tiết đáp án mở khi hết lượt hoặc đạt 100%.'
+          }
           showScore
+          allowDetailLinks={allowHistoryDetailLinks}
           detailAnswersLockedHint={detailAnswersLockedHint}
         />
 
@@ -253,8 +256,6 @@ export function QuizAttemptConfirmSection({
             </Typography.Title>
             <QuizFormMetaBlock
               formType={formPayload.type ?? null}
-              catalogKey={formPayload.catalogKey ?? null}
-              catalogPath={formPayload.catalogPath ?? null}
               tagKeys={formTagKeys}
               durationSummary={durationSummary}
             />
@@ -381,8 +382,6 @@ export function QuizAttemptDoneSection({
         {/* Form info */}
         <QuizFormMetaBlock
           formType={formPayload.type ?? null}
-          catalogKey={formPayload.catalogKey ?? null}
-          catalogPath={formPayload.catalogPath ?? null}
           tagKeys={formTagKeys}
           durationSummary={durationSummary}
         />
@@ -404,11 +403,16 @@ export function QuizAttemptDoneSection({
           formPublicId={formPublicId}
           rows={history}
           title="Các bài đã làm"
-          description="Bấm từng lần làm để xem thông tin và kết quả bài của bạn."
+          description={
+            allowHistoryDetailLinks
+              ? 'Bấm từng lần làm để xem thông tin và kết quả bài của bạn.'
+              : 'Danh sách các lần đã nộp. Chi tiết đáp án mở khi hết lượt hoặc đạt 100%.'
+          }
           vertical
           showScore
           highlightAttemptId={latestAttemptId}
           onRefresh={onRefreshHistory}
+          allowDetailLinks={allowHistoryDetailLinks}
           detailAnswersLockedHint={detailAnswersLockedHint}
         />
 

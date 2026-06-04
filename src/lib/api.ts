@@ -62,8 +62,7 @@ export async function getProfileByToken(
     }
 
     return { data: payload, error: null };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : ERRORS.network;
-    return { data: null, error: msg };
+  } catch {
+    return { data: null, error: ERRORS.network };
   }
 }

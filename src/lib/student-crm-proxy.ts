@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getApiBaseUrl } from '@/lib/env';
 import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
+import { sanitizeApiErrorPayload } from '@/lib/student-safe-errors';
 
 export const STUDENT_CRM_API_PREFIX = '/api/v1/student';
 
@@ -34,10 +35,9 @@ export async function proxyStudentCrmGet(
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    return NextResponse.json(
-      typeof data?.message === 'string' ? { message: data.message } : data,
-      { status: res.status },
-    );
+    return NextResponse.json(sanitizeApiErrorPayload(data, res.status), {
+      status: res.status,
+    });
   }
   const payload = data?.result ?? data?.data ?? data;
   return NextResponse.json(payload ?? data);
@@ -87,10 +87,9 @@ export async function proxyStudentCrmRequest(
   const res = await fetch(url, init);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    return NextResponse.json(
-      typeof data?.message === 'string' ? { message: data.message } : data,
-      { status: res.status },
-    );
+    return NextResponse.json(sanitizeApiErrorPayload(data, res.status), {
+      status: res.status,
+    });
   }
   const payload = data?.result ?? data?.data ?? data;
   return NextResponse.json(payload ?? data);

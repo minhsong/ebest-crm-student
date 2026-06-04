@@ -8,7 +8,7 @@ import { Card, Skeleton } from 'antd';
 export function generateMetadata(): Metadata {
   return buildPageMetadata({
     title: 'Làm bài',
-    description: 'Màn làm bài — Quiz Runtime trên Social Gateway.',
+    description: 'Làm bài trắc nghiệm trực tuyến.',
     path: '/quiz-test',
   });
 }

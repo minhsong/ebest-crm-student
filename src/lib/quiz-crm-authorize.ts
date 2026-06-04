@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 
 import { getStudentAccessTokenFromRequest } from '@/lib/crm-student-me';
 import { getApiBaseUrl } from '@/lib/env';
+import { sanitizeStudentFacingMessage } from '@/lib/student-safe-errors';
 
 const STUDENT_BASE = '/api/v1/student';
 
@@ -56,18 +57,30 @@ export async function authorizeQuizViaCrm(
     });
     const json = (await res.json().catch(() => ({}))) as unknown;
     if (!res.ok) {
-      const msg =
+      const raw =
         json && typeof json === 'object' && 'message' in json
           ? String((json as { message: unknown }).message)
-          : 'Không thể xác thực quyền làm bài.';
-      return { allowed: false, reason: msg };
+          : undefined;
+      return {
+        allowed: false,
+        reason: sanitizeStudentFacingMessage(
+          raw,
+          'Không thể xác thực quyền làm bài. Vui lòng thử lại.',
+        ),
+      };
     }
     const inner = unwrapCrmPayload(json);
     if (inner && typeof inner === 'object' && 'allowed' in inner) {
       return inner as QuizAuthorizeResponse;
     }
-    return { allowed: false, reason: 'Phản hồi authorize không hợp lệ.' };
+    return {
+      allowed: false,
+      reason: 'Không thể xác thực quyền làm bài. Vui lòng thử lại.',
+    };
   } catch {
-    return { allowed: false, reason: 'Không gọi được CRM authorize.' };
+    return {
+      allowed: false,
+      reason: 'Không thể xác thực quyền làm bài. Vui lòng thử lại.',
+    };
   }
 }

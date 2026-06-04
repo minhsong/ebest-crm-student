@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unwrapCrmPayload } from '@/lib/crm-payload';
+import { sanitizeApiErrorPayload } from '@/lib/student-safe-errors';
 import { getApiBaseUrl } from '@/lib/env';
 import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
 
@@ -52,10 +54,9 @@ export async function GET(
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    return NextResponse.json(
-      data?.message ? { message: data.message } : data,
-      { status: res.status },
-    );
+    return NextResponse.json(sanitizeApiErrorPayload(data, res.status), {
+      status: res.status,
+    });
   }
-  return NextResponse.json(data ?? null);
+  return NextResponse.json(unwrapCrmPayload(data) ?? null);
 }

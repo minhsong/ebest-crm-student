@@ -1,0 +1,105 @@
+/**
+ * Thông báo an toàn cho học viên — không lộ env, URL nội bộ, lệnh dev, tên service.
+ * Chi tiết kỹ thuật chỉ ghi server log (xem logInternalApiError).
+ */
+
+const TECHNICAL_MESSAGE_PATTERNS: RegExp[] = [
+  /SOCIAL_GATEWAY|NEXT_PUBLIC_|CRM_API_URL|QUIZ_PORTAL/i,
+  /localhost|127\.0\.0\.1|0\.0\.0\.0/i,
+  /\bhttps?:\/\//i,
+  /npm\s+run|node_modules|ebest-[a-z-]+/i,
+  /\.env\b|SERVICE_TOKEN|BASE_URL/i,
+  /\bGET\s+\/|\bPOST\s+\/|internal\/student/i,
+  /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|fetch failed/i,
+  /Unsupported quiz-runtime|quiz-runtime path/i,
+  /\bHTTP\s+\d{3}\b/i,
+  /NestJS|MongoDB|TypeORM|mongoose/i,
+  /Social Gateway|Gateway\b.*\b3040/i,
+  /at\s+[\w.]+\s+\(/,
+  /Exception|stack trace/i,
+];
+
+const USER_MESSAGES = {
+  generic: 'Không thể xử lý yêu cầu. Vui lòng thử lại sau.',
+  network: 'Không thể kết nối dịch vụ làm bài. Vui lòng thử lại sau.',
+  unauthorized: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+  forbidden: 'Bạn không có quyền thực hiện thao tác này.',
+  notFound: 'Không tìm thấy dữ liệu yêu cầu.',
+  serverConfig: 'Hệ thống tạm thời chưa sẵn sàng. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.',
+  quizUnavailable:
+    'Không thể mở bài làm trực tuyến lúc này. Vui lòng thử lại sau.',
+  quizLoadFailed: 'Không tải được đề hoặc phiên làm bài. Vui lòng thử lại.',
+  quizSubmitFailed: 'Không nộp được bài. Vui lòng thử lại.',
+  wsUnavailable:
+    'Không kết nối được phiên làm bài thời gian thực. Vui lòng tải lại trang.',
+} as const;
+
+export type StudentSafeErrorKey = keyof typeof USER_MESSAGES;
+
+export function isTechnicalStudentMessage(raw: string): boolean {
+  const t = raw.trim();
+  if (!t) return true;
+  if (t.length > 280) return true;
+  return TECHNICAL_MESSAGE_PATTERNS.some((re) => re.test(t));
+}
+
+/** Chọn thông báo hiển thị; message nghiệp vụ (tiếng Việt) được giữ nếu không “technical”. */
+export function sanitizeStudentFacingMessage(
+  raw: string | undefined | null,
+  fallback: string = USER_MESSAGES.generic,
+): string {
+  if (raw == null) return fallback;
+  const t = String(raw).trim();
+  if (!t || isTechnicalStudentMessage(t)) return fallback;
+  return t;
+}
+
+export function studentMessageForHttpStatus(status: number): string {
+  if (status === 401) return USER_MESSAGES.unauthorized;
+  if (status === 403) return USER_MESSAGES.forbidden;
+  if (status === 404) return USER_MESSAGES.notFound;
+  if (status === 503 || status === 502 || status === 504) {
+    return USER_MESSAGES.network;
+  }
+  if (status >= 500) return USER_MESSAGES.serverConfig;
+  return USER_MESSAGES.generic;
+}
+
+/** JSON trả về client từ BFF — lỗi chỉ còn `{ message }` an toàn. */
+export function sanitizeApiErrorPayload(
+  data: unknown,
+  status: number,
+  fallback?: string,
+): { message: string } {
+  const base = fallback ?? studentMessageForHttpStatus(status);
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    const o = data as Record<string, unknown>;
+    const raw =
+      typeof o.message === 'string'
+        ? o.message
+        : typeof o.error === 'string'
+          ? o.error
+          : undefined;
+    return { message: sanitizeStudentFacingMessage(raw, base) };
+  }
+  return { message: base };
+}
+
+export function logInternalApiError(
+  context: string,
+  detail: unknown,
+): void {
+  if (process.env.NODE_ENV === 'production') {
+    const brief =
+      detail instanceof Error
+        ? detail.message
+        : typeof detail === 'string'
+          ? detail
+          : JSON.stringify(detail);
+    console.error(`[student-portal] ${context}: ${brief}`);
+  } else {
+    console.error(`[student-portal] ${context}`, detail);
+  }
+}
+
+export { USER_MESSAGES as STUDENT_SAFE_USER_MESSAGES };

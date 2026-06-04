@@ -1,4 +1,4 @@
-import type { QuizRuntimeAccess } from '@/lib/quiz-runtime-access';
+import type { QuizRuntimeAccess } from '@/lib/quiz-runtime-access.types';
 
 type CacheEntry = {
   access: QuizRuntimeAccess;

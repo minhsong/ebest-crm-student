@@ -21,6 +21,7 @@ import {
   findSectionIdForAnchorKey,
   isAnchorKeyInForm,
   quizAnchorDomId,
+  scrollQuizAttemptPageToTop,
 } from '@/features/quiz-test/lib/quiz-section-navigation';
 import {
   buildBlockStartIndexes,
@@ -44,7 +45,9 @@ import {
 import { APP_BRAND } from '@/lib/ui-constants';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { buildQuizAttemptResultHref } from '@/features/quiz-test/lib/quiz-attempt-deadline-close';
+import { shouldAutoNavigateToResultDetail } from '@/features/quiz-test/lib/quiz-attempt-session-lock';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 function blocksEqual(a: QuizRenderableBlock, b: QuizRenderableBlock): boolean {
   if (a.kind !== b.kind) return false;
@@ -114,13 +117,27 @@ export function QuizAttemptClient({
     listeningRemaining,
     reportListeningCycle,
     refreshHistory,
+    closeReason,
+    answersLocked,
+    sessionLocked,
   } = useQuizAttemptRuntime({ formPublicId, assignmentId, practiceMode });
 
+  const shouldLoadAssignmentAction =
+    assignmentId != null && (phase === 'ready' || phase === 'done');
+
   const assignmentAction = useAssignmentQuizAction(
-    assignmentId != null ? formPublicId : null,
-    assignmentId,
+    shouldLoadAssignmentAction ? formPublicId : null,
+    shouldLoadAssignmentAction ? assignmentId : null,
     effectiveMaxAttempts,
   );
+
+  const assignmentActionForGate = shouldLoadAssignmentAction
+    ? assignmentAction
+    : {
+        loading: false,
+        canViewResultDetail: false,
+        canViewResults: false,
+      };
 
   useEffect(() => {
     if (phase === 'done' && assignmentId != null) {
@@ -128,12 +145,20 @@ export function QuizAttemptClient({
     }
   }, [assignmentId, assignmentAction.reload, phase]);
 
+  useEffect(() => {
+    if (phase !== 'done' || !submitResult?.attemptPublicId?.trim()) return;
+    if (!shouldAutoNavigateToResultDetail(closeReason)) return;
+    router.replace(
+      buildQuizAttemptResultHref(formPublicId, submitResult.attemptPublicId.trim()),
+    );
+  }, [closeReason, formPublicId, phase, router, submitResult?.attemptPublicId]);
+
   const { allowDetailLinks: allowHistoryDetailLinks } = useQuizResultViewGate(
     formPublicId,
     {
       assignmentId,
       practiceMode,
-      assignmentAction,
+      assignmentAction: assignmentActionForGate,
     },
   );
   const assignmentHistoryForList = useMemo(() => {
@@ -198,9 +223,23 @@ export function QuizAttemptClient({
     [blockStartIndexes, renderBlocks, visibleBlocks],
   );
 
+  const prevSectionIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (phase !== 'attempting' && phase !== 'submitting') {
+      prevSectionIdRef.current = null;
+      return;
+    }
+    if (activeSectionId == null || !Number.isFinite(activeSectionId)) return;
+    if (prevSectionIdRef.current === activeSectionId) return;
+    prevSectionIdRef.current = activeSectionId;
+    scrollQuizAttemptPageToTop();
+  }, [activeSectionId, phase]);
+
   const onSectionChange = useCallback(
     (sectionId: number) => {
       if (listeningNavLocked) return;
+      scrollQuizAttemptPageToTop();
       const params = new URLSearchParams(searchParams.toString());
       params.set('section', String(sectionId));
       if (questionKey) {
@@ -423,7 +462,7 @@ export function QuizAttemptClient({
           type="error"
           showIcon
           message="Không tải được nội dung câu hỏi"
-          description="Phiên làm bài đã mở nhưng đề chưa có dữ liệu câu hỏi (catalog v2). Thử tải lại trang; nếu vẫn trống, báo quản trị kiểm tra sync đề lên Gateway."
+          description="Phiên làm bài đã mở nhưng chưa tải được nội dung câu hỏi. Vui lòng tải lại trang hoặc liên hệ giáo vụ nếu lỗi lặp lại."
           action={
             <Button size="small" onClick={() => void loadForm()}>
               Tải lại
@@ -445,6 +484,7 @@ export function QuizAttemptClient({
       onAnswerChange={onAnswerChange}
       onSubmit={handleSubmit}
       submitting={phase === 'submitting'}
+      answersLocked={answersLocked || sessionLocked}
       sections={sectionList}
       activeSectionId={activeSectionId}
       onSectionChange={onSectionChange}

@@ -6,7 +6,12 @@ import { ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { QuizAttemptHistoryList } from '@/features/quiz-test/components/QuizAttemptHistoryList';
 import { QuizAttemptQuotaSummary } from '@/features/quiz-test/components/QuizAttemptQuotaSummary';
 import { useQuizAssignmentResults } from '@/features/quiz-test/hooks/useQuizAssignmentResults';
-import { describeQuizResultDetailLocked } from '@/features/quiz-test/lib/quiz-result-view-policy';
+import {
+  computeCanViewResultDetails,
+  describeQuizResultDetailLocked,
+  logQuizResultDetailGate,
+} from '@/features/quiz-test/lib/quiz-result-view-policy';
+import { useMemo, useEffect } from 'react';
 import type { QuizRuntimeAccess } from '@/lib/quiz-runtime-access';
 import { pinAssignmentQuizRuntimeAccess } from '@/lib/quiz-runtime-access';
 
@@ -29,10 +34,30 @@ export function QuizAssignmentResultsClient({
     attempts,
     canStart,
     startBlockReason,
-    canViewDetail,
+    canViewDetail: canViewDetailFromAction,
     attemptsRemaining,
     refreshHistory,
   } = useQuizAssignmentResults(formPublicId, assignmentId, access);
+
+  const canViewDetail = useMemo(
+    () => computeCanViewResultDetails({ eligibility }).canView,
+    [eligibility],
+  );
+
+  useEffect(() => {
+    logQuizResultDetailGate('assignment-results', eligibility, {
+      canViewDetailFromAction,
+      canViewDetailRecomputed: canViewDetail,
+      assignmentId,
+      effectiveMaxAttempts: access.effectiveMaxAttempts,
+    });
+  }, [
+    assignmentId,
+    access.effectiveMaxAttempts,
+    canViewDetail,
+    canViewDetailFromAction,
+    eligibility,
+  ]);
 
   if (loading) {
     return (
@@ -94,9 +119,14 @@ export function QuizAssignmentResultsClient({
             formPublicId={formPublicId}
             rows={attempts}
             title="Các lần làm bài"
-            description="Bấm từng lần làm để xem thông tin và kết quả bài của bạn."
+            description={
+              canViewDetail
+                ? 'Bấm từng lần làm để xem thông tin và kết quả bài của bạn.'
+                : 'Danh sách các lần đã nộp. Chi tiết đáp án mở khi hết lượt hoặc đạt 100%.'
+            }
             vertical
             showScore
+            allowDetailLinks={canViewDetail}
             detailAnswersLockedHint={
               canViewDetail ? null : describeQuizResultDetailLocked(eligibility)
             }

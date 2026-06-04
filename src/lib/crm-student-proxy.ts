@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
 import { STUDENT_API } from '@/lib/student-api';
+import { sanitizeStudentFacingMessage } from '@/lib/student-safe-errors';
 
 const JSON_HEADERS: HeadersInit = {
   'Content-Type': 'application/json',
@@ -33,7 +34,9 @@ function errorMessageFromCrmPayload(
   fallback: string,
 ): string {
   const msg = data.message;
-  if (typeof msg === 'string' && msg.trim()) return msg;
+  if (typeof msg === 'string' && msg.trim()) {
+    return sanitizeStudentFacingMessage(msg, fallback);
+  }
   const errors = data.errors;
   if (errors && typeof errors === 'object' && !Array.isArray(errors)) {
     const e = errors as Record<string, unknown>;

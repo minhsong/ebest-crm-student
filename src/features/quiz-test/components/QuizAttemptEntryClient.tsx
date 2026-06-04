@@ -2,14 +2,17 @@
 
 import { QuizAttemptClient } from '@/features/quiz-test/components/QuizAttemptClient';
 import { useQuizDeliveryContext } from '@/features/quiz-test/hooks/useQuizDeliveryContext';
-import { setQuizFormContext } from '@/lib/quiz-form-context';
+import { getQuizFormContext } from '@/lib/quiz-form-context';
+import {
+  peekActiveQuizResumeAccess,
+  type ActiveQuizResumePeek,
+} from '@/lib/quiz-resume-access';
 import { Alert, Card, Skeleton } from 'antd';
 import Link from 'next/link';
-import { useLayoutEffect } from 'react';
+import { useLayoutEffect, useState } from 'react';
 
 type Props = {
   formPublicId: string;
-  /** Mở từ menu ôn luyện */
   preferPractice?: boolean;
   initialSectionId?: number;
   initialQuestionKey?: string | null;
@@ -21,23 +24,43 @@ export function QuizAttemptEntryClient({
   initialSectionId,
   initialQuestionKey,
 }: Props) {
-  const { access, loading, error, assignmentId, practiceMode } =
-    useQuizDeliveryContext(formPublicId, { preferPractice });
+  const [assignmentIdHint] = useState(() => {
+    if (preferPractice) return undefined;
+    const ctx = getQuizFormContext(formPublicId);
+    return ctx?.mode === 'assignment' ? ctx.assignmentId : undefined;
+  });
+
+  const [resumePeek, setResumePeek] = useState<ActiveQuizResumePeek | 'pending'>(
+    'pending',
+  );
 
   useLayoutEffect(() => {
-    if (!access) return;
-    if (access.mode === 'assignment' && access.assignmentId != null) {
-      setQuizFormContext(formPublicId, {
-        mode: 'assignment',
-        assignmentId: access.assignmentId,
-        quizMaxAttempts: access.effectiveMaxAttempts,
-      });
-    } else if (access.practiceMode) {
-      setQuizFormContext(formPublicId, { mode: 'practice' });
+    if (preferPractice) {
+      setResumePeek({ inProgress: false, state: null, access: null });
+      return;
     }
-  }, [access, formPublicId]);
+    let cancelled = false;
+    void peekActiveQuizResumeAccess(formPublicId).then((peek) => {
+      if (!cancelled) setResumePeek(peek);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [formPublicId, preferPractice]);
 
-  if (loading) {
+  const resumeActive = resumePeek !== 'pending' && resumePeek.inProgress;
+  const needDeliveryContext = resumePeek !== 'pending' && !resumeActive;
+
+  const { access, loading, error, assignmentId, practiceMode } =
+    useQuizDeliveryContext(formPublicId, {
+      preferPractice,
+      assignmentIdHint,
+      enabled: needDeliveryContext,
+    });
+
+  const finalAccess = resumeActive ? resumePeek.access : access;
+
+  if (resumePeek === 'pending' || (needDeliveryContext && loading)) {
     return (
       <Card>
         <Skeleton active paragraph={{ rows: 8 }} />
@@ -45,7 +68,7 @@ export function QuizAttemptEntryClient({
     );
   }
 
-  if (error || !access) {
+  if (!finalAccess && !resumeActive) {
     return (
       <Card>
         <Alert
@@ -53,20 +76,34 @@ export function QuizAttemptEntryClient({
           showIcon
           message={error ?? 'Không mở được đề thi.'}
         />
-        <Link href={preferPractice ? '/practice-quizzes' : '/assignments'} className="mt-4 inline-block">
+        <Link
+          href={preferPractice ? '/practice-quizzes' : '/assignments'}
+          className="mt-4 inline-block"
+        >
           Quay lại danh sách
         </Link>
       </Card>
     );
   }
 
+  const resolvedAssignmentId =
+    finalAccess?.mode === 'assignment'
+      ? finalAccess.assignmentId
+      : resumeActive
+        ? assignmentIdHint
+        : assignmentId;
+  const resolvedPracticeMode =
+    finalAccess?.practiceMode ?? practiceMode ?? preferPractice ?? false;
+
   return (
     <QuizAttemptClient
       formPublicId={formPublicId}
-      assignmentId={assignmentId}
-      practiceMode={practiceMode}
+      assignmentId={resolvedAssignmentId}
+      practiceMode={resolvedPracticeMode}
       effectiveMaxAttempts={
-        access.mode === 'assignment' ? access.effectiveMaxAttempts : undefined
+        finalAccess?.mode === 'assignment'
+          ? finalAccess.effectiveMaxAttempts
+          : undefined
       }
       initialSectionId={initialSectionId}
       initialQuestionKey={initialQuestionKey}

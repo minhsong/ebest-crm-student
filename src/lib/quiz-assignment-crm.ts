@@ -1,3 +1,5 @@
+import { sanitizeStudentFacingMessage } from '@/lib/student-safe-errors';
+
 /**
  * Gọi BFF Next → CRM student API cho luồng bài tập QUIZ (eligibility, đồng bộ điểm).
  * Một nơi gom URL + parse response — tránh trùng logic giữa hook quiz và component.
@@ -36,10 +38,10 @@ export async function fetchQuizStartEligibility(
   if (data.allowed === true) {
     return { allowed: true };
   }
-  const reason =
-    typeof data.reason === 'string' && data.reason
-      ? data.reason
-      : 'Không được phép làm bài.';
+  const reason = sanitizeStudentFacingMessage(
+    typeof data.reason === 'string' ? data.reason : undefined,
+    'Không được phép làm bài.',
+  );
   return { allowed: false, reason };
 }
 

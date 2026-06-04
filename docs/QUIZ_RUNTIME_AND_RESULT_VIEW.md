@@ -1,9 +1,9 @@
 # Student Portal — Quiz runtime, kết quả & tối ưu request
 
-> **Cập nhật:** 2026-05-20  
+> **Cập nhật:** 2026-06-03  
 > **Tracker:** [QUIZ_WORK_TRACKER.md](../../ebest-crm-api/docs/modules/test-quiz/QUIZ_WORK_TRACKER.md)  
-> **Canonical CRM/Gateway:** [TEST_FORM_SCOPE_DELIVERY_AND_ACCESS.md](../../ebest-crm-api/docs/modules/test-quiz/TEST_FORM_SCOPE_DELIVERY_AND_ACCESS.md)  
-> **CRM xem kết quả lớp:** [QUIZ_STUDENT_RESULT_LOGIC.md](../../ebest-crm-api/docs/modules/test-quiz/QUIZ_STUDENT_RESULT_LOGIC.md)
+> **Canonical CRM/Gateway:** [TEST_FORM_SCOPE_DELIVERY_AND_ACCESS.md](../../ebest-crm-api/docs/modules/test-quiz/business/TEST_FORM_SCOPE_DELIVERY_AND_ACCESS.md)  
+> **CRM xem kết quả lớp:** [QUIZ_STUDENT_RESULT_LOGIC.md](../../ebest-crm-api/docs/modules/test-quiz/business/QUIZ_STUDENT_RESULT_LOGIC.md)
 
 ---
 
@@ -47,14 +47,15 @@ Trang `QuizAttemptResultClient` gọi riêng: `useQuizAttemptResultData`, `useQu
 
 ### Sau (2026-06 — Mongo SSOT)
 
-1. **`GET attempts/{attemptPublicId}/review-bundle`** (Gateway): một response gồm `formPayload` (ghép `examSnapshot.layout` slim + `quiz_question_results`), `attempt` + `grading`, `access`, `assignmentStats`.
-2. **Không** gọi CRM `quiz-eligibility` / `result-layout` / GET attempt trùng trên trang chi tiết.
-3. **`examSnapshot`** trên `quiz_attempt_results` — layout slim + `grading.rules` pin lúc start; nội dung câu + `studentAnswer` SSOT tại `quiz_question_results`.
-4. **BFF authorize cache 60s** — proxy `forms/*` không lặp CRM; `review-bundle` chỉ verify ownership qua `customerId`.
-5. **Danh sách lần làm** (trang `/quiz-test/.../results` hoặc modal chi tiết bài): `assignment-quiz-stats` + `quiz-start-eligibility` qua `AssignmentQuizActionButtons` — **không** dùng trên list lớp.
-6. **`/assignments` (danh sách lớp)**: **một** `GET overview/sessions`; nút từ `deriveAssignmentListRowAction` + `AssignmentOverviewRowActions` — **không** gọi eligibility/stats theo từng dòng (D14).
+1. **`GET attempts/{attemptPublicId}/review-bundle`** (Gateway): một response gồm `formPayload`, `attempt` + `grading`, `access`, `quizAttemptStats` (alias `assignmentStats` / `practiceStats`).
+2. Portal `fetchQuizAttemptResultBundle`: dùng **stats embed** cho gate xem đáp án (D41) — **không** gọi thêm `assignment-quiz-stats` / CRM eligibility khi có stats.
+3. **Không** gọi CRM `quiz-eligibility` / GET attempt trùng trên trang chi tiết kết quả.
+4. **`examSnapshot`** trên `quiz_attempt_results` — layout slim + `grading.rules` pin lúc start; nội dung câu + `studentAnswer` SSOT tại `quiz_question_results`.
+5. **BFF authorize cache 60s** — proxy `forms/*` không lặp CRM; `review-bundle` chỉ verify ownership qua `customerId`.
+6. **Danh sách lần làm** (trang `/quiz-test/.../results` hoặc modal chi tiết bài): `assignment-quiz-stats` + `quiz-start-eligibility` qua `AssignmentQuizActionButtons` — **không** dùng trên list lớp.
+7. **`/assignments` (danh sách lớp)**: **một** `GET overview/sessions`; nút từ `deriveAssignmentListRowAction` + `AssignmentOverviewRowActions` — **không** gọi eligibility/stats theo từng dòng (D14).
 
-**API & troubleshooting:** [QUIZ_API_AND_OPS_REFERENCE.md](../../ebest-crm-api/docs/modules/test-quiz/QUIZ_API_AND_OPS_REFERENCE.md).
+**API & troubleshooting:** [QUIZ_API_AND_OPS_REFERENCE.md](../../ebest-crm-api/docs/modules/test-quiz/runtime/QUIZ_API_AND_OPS_REFERENCE.md).
 
 ---
 
@@ -66,7 +67,8 @@ Khi chuyển `in_progress` → `submitted`, Gateway **luôn chấm lại mọi c
 
 - Module: `ebest-social-gateway/src/quiz-grading/quiz-grading.utils.ts` (`gradeAllQuestionsOnSubmit`).
 - `submitAttempt` chấm từ `examSnapshot.grading.rules` + `studentAnswer` trên `quiz_question_results` (sau PATCH realtime), không chỉ closure React trên portal.
-- Portal: `answersRef` + `await patchAnswersImmediately` trước `POST submit`.
+- Portal: `answersRef` + `await patchAnswersImmediately` trước `POST submit` (body kèm `answersByFormItemId`).
+- Gateway `submitAttempt`: nếu có `answersByFormItemId` → `patchAnswers` rồi `gradeAllQuestionsOnSubmit` trên **toàn bộ** question rows; khóa WS khi `submitting`.
 
 Sau `POST attempts/:id/submit` thành công (bài tập có `assignmentId`):
 
@@ -76,6 +78,13 @@ Sau `POST attempts/:id/submit` thành công (bài tập có `assignmentId`):
 CRM `upsertQuizGradedSync` chỉ cập nhật khi `submittedAt` attempt **≥** bản ghi hiện có — tránh race hai đường sync hoặc retry muộn ghi đè lần mới hơn.
 
 **Quy tắc điểm trên lớp:** luôn phản ánh **lần nộp gần nhất** (không lấy điểm cao nhất). Spec: [ASSIGNMENT_TEST_ONLINE_LINK_SPEC.md §10.5](../../ebest-crm-api/docs/modules/assignments/ASSIGNMENT_TEST_ONLINE_LINK_SPEC.md).
+
+### Timer & hết giờ (2026-06-03)
+
+- **SSOT:** server — [QUIZ_RUNTIME_TIMER_AND_EXPIRE.md](../../ebest-crm-api/docs/modules/test-quiz/runtime/QUIZ_RUNTIME_TIMER_AND_EXPIRE.md).
+- **Mục tiêu:** auto-submit + chấm tại `deadlineAt` trên Gateway; Portal đồng bộ countdown qua WS khi reconnect tab.
+- **As-built:** countdown client + auto-submit khi tab active; server scheduler chỉ `expired` tại `expiresAt` (chưa chấm) — tracker **R4/R5**.
+- **Nháp đáp án:** Mongo `quiz_question_results` (không Redis). Pattern `quiz:attempt:*` trên Gateway chỉ dọn ephemeral khi finalize.
 
 ---
 
@@ -96,18 +105,22 @@ File: `src/lib/assignment-list-row-actions.ts`, `src/lib/assignment-quiz-ui.ts`.
 
 ---
 
-## 4. Quyền xem chi tiết đáp án (học viên)
+## 4. Quyền xem chi tiết đáp án (học viên) — **D41 / SSOT**
+
+> **Quyết định đã chốt:** không phân biệt assignment vs practice cho rule xem đáp án.  
+> Tracker cũ ghi nhầm “assignment đã nộp → luôn xem” — **không** áp dụng.
 
 Logic pure trong `quiz-result-view-policy.ts`:
 
 | Kênh | Quy tắc (thống nhất) |
 |------|----------------------|
-| **Assignment** & **Practice** | Chỉ xem chi tiết đáp án khi: (1) `submittedCount >= maxAttempts` (hết lượt), **hoặc** (2) có lần đạt **100%** / đủ câu đúng (`hasPerfectScore`). Còn lượt và chưa đạt tuyệt đối → ẩn đáp án, thông báo khuyến khích làm tiếp. |
+| **Assignment** & **Practice** | Chỉ xem chi tiết đáp án khi thỏa **một trong hai**: (1) `submittedCount >= maxAttempts` (**hết lượt thử**), **hoặc** (2) `hasPerfectScore` (**có bài 100%**). Còn lượt và chưa 100% → ẩn đáp án. |
 | **maxAttempts** | Bài tập: ưu tiên `quizMaxAttempts` từ assignment (authorize / snapshot). Ôn luyện: `practiceMaxAttempts` trên đề publish (authorize / snapshot). Không giới hạn (`null`): chỉ mở chi tiết khi `hasPerfectScore`. |
 
 | Module | Vai trò |
 |--------|---------|
 | `quiz-result-view-policy.ts` | SSOT pure: `isQuizResultDetailEligible`, `buildQuizEligibilityFromGatewayStats`, `resolveQuizMaxAttempts` |
+| `QuizAttemptHistoryList` | `allowDetailLinks={false}` khi chưa đủ D41 — **không** bọc `Link` tới `/attempts/{id}` |
 | `quiz-runtime-eligibility.ts` | `fetchQuizEligibilityForAccess` — gọi Gateway (+ CRM fallback assignment) |
 | `quiz-gateway-stats.ts` | `fetchGatewayQuizStats({ channel })` |
 | `useQuizResultViewGate` | Hook UI: `allowDetailLinks` cho list / nút |

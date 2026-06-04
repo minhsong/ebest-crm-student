@@ -16,12 +16,4 @@ export function buildStudentCrmUrl(path: string): string | null {
   return `${base.replace(/\/$/, '')}${p}`;
 }
 
-/** CRM thường bọc { result } — trả payload trong. */
-export function unwrapCrmPayload<T = unknown>(data: unknown): T {
-  if (data != null && typeof data === 'object') {
-    const o = data as Record<string, unknown>;
-    if (o.result != null) return o.result as T;
-    if (o.data != null) return o.data as T;
-  }
-  return data as T;
-}
+export { unwrapCrmPayload } from '@/lib/crm-payload';

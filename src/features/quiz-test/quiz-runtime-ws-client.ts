@@ -16,6 +16,9 @@ export const QUIZ_WS = {
   LISTENING_CYCLE_DONE: 'quiz:listening:cycleDone',
   LISTENING_CYCLE_ACK: 'quiz:listening:cycleAck',
   LISTENING_STATE_SYNC: 'quiz:listening:stateSync',
+  TIMER_SYNC: 'quiz:timer:sync',
+  TIMER_SYNC_ACK: 'quiz:timer:syncAck',
+  ATTEMPT_CLOSED: 'quiz:attempt:closed',
   ERROR: 'quiz:error',
 } as const;
 
@@ -35,9 +38,7 @@ export async function fetchQuizWsAccessToken(): Promise<string | null> {
 export function connectQuizRuntimeSocket(accessToken: string): Socket {
   const origin = getQuizGatewayWsOrigin();
   if (!origin) {
-    throw new Error(
-      'Thiếu NEXT_PUBLIC_SOCIAL_GATEWAY_WS_ORIGIN (ví dụ http://127.0.0.1:3040).',
-    );
+    throw new Error('Không kết nối được phiên làm bài. Vui lòng tải lại trang.');
   }
   const path = getQuizGatewaySocketIoPath();
   return io(`${origin}${NAMESPACE_PATH}`, {

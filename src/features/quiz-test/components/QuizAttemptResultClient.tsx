@@ -15,6 +15,7 @@ import { buildQuizResultEligibility } from '@/features/quiz-test/lib/quiz-result
 import { Alert, Button, Card, Skeleton, Space, Typography } from 'antd';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 type Props = {
   formPublicId: string;
@@ -27,6 +28,7 @@ export function QuizAttemptResultClient({
   attemptPublicId,
   initialQuestionKey,
 }: Props) {
+  const router = useRouter();
   const {
     error,
     loading,
@@ -89,6 +91,17 @@ export function QuizAttemptResultClient({
     return () => window.clearTimeout(timer);
   }, [loading, questionKey, reviewViewModel]);
 
+  /** Không đủ điều kiện D41 — chuyển về danh sách lần làm (hook phải trước mọi return). */
+  useEffect(() => {
+    if (loading) return;
+    if (!canViewData || canViewData.canView) return;
+    const back =
+      assignmentId != null && assignmentId >= 1
+        ? `/quiz-test/${encodeURIComponent(formPublicId)}/results`
+        : `/quiz-test/${encodeURIComponent(formPublicId)}`;
+    router.replace(back);
+  }, [assignmentId, canViewData, formPublicId, loading, router]);
+
   if (loading) {
     return (
       <Card>
@@ -116,7 +129,7 @@ export function QuizAttemptResultClient({
   }
 
   const canViewDetails = canViewData?.canView === true;
-  const showCannotViewHint = !canViewDetails && canViewData !== null;
+  const detailLocked = !canViewDetails && canViewData !== null;
   const lockedEligibility = canViewData
     ? buildQuizResultEligibility({
         submittedCount: canViewData.submittedCount,
@@ -125,6 +138,26 @@ export function QuizAttemptResultClient({
         attemptsRemaining: canViewData.attemptsRemaining,
       })
     : null;
+
+  if (detailLocked) {
+    return (
+      <Card>
+        <Space direction="vertical" size="middle" className="w-full">
+          <Link href={!practiceMode ? '/assignments' : '/practice-quizzes'}>
+            <Button type="default" icon={<ArrowLeftOutlined />} size="small">
+              {!practiceMode ? 'Bài tập' : 'Ôn luyện'}
+            </Button>
+          </Link>
+          <QuizResultDetailLockedHint eligibility={lockedEligibility} />
+          {assignmentId != null && assignmentId >= 1 ? (
+            <Link href={buildAssignmentResultsHref(formPublicId)}>
+              <Button type="default">Quay lại danh sách lần làm</Button>
+            </Link>
+          ) : null}
+        </Space>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -145,24 +178,11 @@ export function QuizAttemptResultClient({
           attemptSubmittedAt={reviewViewModel.attempt.submittedAt}
           grading={reviewViewModel.attempt.grading}
         />
-
-        {showCannotViewHint ? (
-          <QuizResultDetailLockedHint eligibility={lockedEligibility} />
-        ) : null}
-
-        {canViewDetails ? (
-          <QuizReviewQuestionsPanel
-            viewModel={reviewViewModel}
-            collapseActiveKeys={sectionKeysForAnchor}
-            onCollapseActiveKeysChange={setSectionKeysForAnchor}
-          />
-        ) : (
-          <div className="py-8 text-center">
-            <Typography.Text type="secondary">
-              Nội dung đáp án chi tiết sẽ hiển thị khi bạn đủ điều kiện.
-            </Typography.Text>
-          </div>
-        )}
+        <QuizReviewQuestionsPanel
+          viewModel={reviewViewModel}
+          collapseActiveKeys={sectionKeysForAnchor}
+          onCollapseActiveKeysChange={setSectionKeysForAnchor}
+        />
 
         <Space wrap>
           {assignmentId != null && assignmentId >= 1 ? (

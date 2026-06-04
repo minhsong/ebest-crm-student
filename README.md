@@ -85,7 +85,7 @@ Tạo `.env.local` từ `.env.local.example` và cấu hình:
 
 **Đọc canonical (không copy logic sang repo này):**
 
-- **[TEST_FORM_SCOPE_DELIVERY_AND_ACCESS.md](../ebest-crm-api/docs/modules/test-quiz/TEST_FORM_SCOPE_DELIVERY_AND_ACCESS.md)** ⭐ — phạm vi khóa/buổi, bài tập vs ôn luyện, menu Portal, authorize
-- [IMPLEMENTATION_TRACKING_SCOPE_DELIVERY.md](../ebest-crm-api/docs/modules/test-quiz/IMPLEMENTATION_TRACKING_SCOPE_DELIVERY.md) — checklist triển khai
-- [TEST_QUIZ_TECHNICAL_SPEC_MVP.md](../ebest-crm-api/docs/modules/test-quiz/TEST_QUIZ_TECHNICAL_SPEC_MVP.md) — runtime, grading
+- **[TEST_FORM_SCOPE_DELIVERY_AND_ACCESS.md](../ebest-crm-api/docs/modules/test-quiz/business/TEST_FORM_SCOPE_DELIVERY_AND_ACCESS.md)** ⭐ — phạm vi khóa/buổi, bài tập vs ôn luyện, menu Portal, authorize
+- [IMPLEMENTATION_TRACKING_SCOPE_DELIVERY.md](../ebest-crm-api/docs/modules/test-quiz/archive/IMPLEMENTATION_TRACKING_SCOPE_DELIVERY.md) — checklist triển khai
+- [TEST_QUIZ_TECHNICAL_SPEC_MVP.md](../ebest-crm-api/docs/modules/test-quiz/runtime/TEST_QUIZ_TECHNICAL_SPEC_MVP.md) — runtime, grading
 - [ASSIGNMENT_TEST_ONLINE_LINK_SPEC.md](../ebest-crm-api/docs/modules/assignments/ASSIGNMENT_TEST_ONLINE_LINK_SPEC.md) — sync `assignment_result`

@@ -90,10 +90,6 @@ export function buildQuizRenderableBlocks(
             child.content && typeof child.content === 'object'
               ? (child.content as Record<string, unknown>)
               : undefined,
-          taxonomyRefs:
-            child.taxonomyRefs && typeof child.taxonomyRefs === 'object'
-              ? child.taxonomyRefs
-              : null,
         },
       });
     }
@@ -118,25 +114,6 @@ export function buildQuizRenderableBlocks(
     }
   }
   return out;
-}
-
-/** Catalog v2: items chỉ là ref (kind/crmQuestionId) — cần examSnapshot sau startAttempt. */
-export function isCatalogV2RefOnlyFormPayload(
-  formPayload: QuizPublishedFormPayload | null | undefined,
-): boolean {
-  const rawItems = Array.isArray(formPayload?.items) ? formPayload!.items! : [];
-  if (!rawItems.length) return false;
-  return rawItems.every((raw) => {
-    if (!raw || typeof raw !== 'object') return true;
-    const row = raw as Record<string, unknown>;
-    if (row.questionSnapshot) return false;
-    return (
-      row.kind === 'question' ||
-      row.kind === 'bundle' ||
-      row.crmQuestionId != null ||
-      row.crmBundleId != null
-    );
-  });
 }
 
 export function countExpandableQuizBlocks(

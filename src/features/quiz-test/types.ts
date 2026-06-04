@@ -2,9 +2,8 @@ export type QuizPublishedFormSummary = {
   formPublicId: string;
   crmFormId: number;
   name: string | null;
-  catalogKey: string | null;
-  /** Breadcrumb từ CRM khi đã sync runtime (ưu tiên hiển thị thay cho catalogKey). */
-  catalogPath?: string | null;
+  tagCodes: string[];
+  tagCategories: string[];
   type: string | null;
   durationSeconds: number;
   publishedAt: string | null;
@@ -14,6 +13,9 @@ export type QuizPublishedFormSummary = {
 export type QuizFormItemPayload = {
   formItemId: number | string;
   order?: number;
+  /** Postgres section PK — có trên examSnapshot.layout.items sau startAttempt. */
+  sectionId?: number;
+  sectionOrderNo?: number | null;
   sourceQuestionId: number | null;
   sourceGroupId: number | null;
   optionOrder?: string[] | null;
@@ -22,9 +24,7 @@ export type QuizFormItemPayload = {
     code?: string | null;
     questionType?: string | null;
     content?: Record<string, unknown>;
-    /** Gom tag cấp câu (CRM preview) để hiển thị meta đề học viên. */
-    taxonomyRefs?: { tagKeys?: string[] } | Record<string, unknown> | null;
-    /** Quiz Tag System mới - tags với full path */
+    /** Tags câu (Quiz Tag System). */
     tags?: Array<{
       id: number;
       code?: string;
@@ -40,7 +40,6 @@ export type QuizBundleChildPayload = {
   code?: string | null;
   questionType?: string | null;
   content?: Record<string, unknown>;
-  taxonomyRefs?: { tagKeys?: string[] } | Record<string, unknown> | null;
 };
 
 export type QuizGroupBundlePayload = {
@@ -62,9 +61,9 @@ export type QuizPublishedFormPayload = {
   formPublicId: string;
   crmFormId: number;
   name?: string;
-  catalogKey?: string;
-  catalogPath?: string | null;
   type?: string;
+  tagCodes?: string[];
+  tagCategories?: string[];
   durationSeconds?: number;
   instructions?: string | null;
   items?: QuizFormItemPayload[];
@@ -74,14 +73,27 @@ export type QuizPublishedFormPayload = {
   blueprint?: Record<string, unknown>;
 };
 
+/** Đồng bộ từ Gateway WS/API — SSOT countdown. */
+export type QuizAttemptTimerSlice = {
+  serverNow: string;
+  startedAt: string;
+  durationSeconds: number;
+  deadlineAt: string;
+  expiresAt: string | null;
+  remainingSeconds: number;
+};
+
 export type StartAttemptResponse = {
   attemptPublicId: string;
   formPublicId: string;
+  /** Hạn làm bài (auto-submit server). */
+  deadlineAt?: string;
   expiresAt: string;
   durationSeconds: number;
   startedAt: string;
   resumed?: boolean;
-  /** Lượt phát còn lại: key `section:<sectionId>` = min(repeat) trong phần; legacy có thể còn key formItemId. */
+  timer?: QuizAttemptTimerSlice;
+  /** Lượt phát còn lại: key `section:<sectionId>`. */
   remainingPlaysByListeningUnit?: Record<string, number>;
 };
 

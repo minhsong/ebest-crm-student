@@ -26,6 +26,8 @@ export type QuizAttemptHistoryListProps = {
   showScore?: boolean;
   highlightAttemptId?: string | null;
   onRefresh?: () => Promise<QuizAttemptHistoryItem[]>;
+  /** false = không điều hướng tới trang chi tiết đáp án (D41). */
+  allowDetailLinks?: boolean;
   detailAnswersLockedHint?: string | null;
 };
 
@@ -60,10 +62,12 @@ export function QuizAttemptHistoryList({
   showScore = false,
   highlightAttemptId,
   onRefresh,
+  allowDetailLinks = false,
   detailAnswersLockedHint = null,
 }: QuizAttemptHistoryListProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const answersLocked = Boolean(detailAnswersLockedHint?.trim());
+  const answersLocked =
+    !allowDetailLinks || Boolean(detailAnswersLockedHint?.trim());
 
   const sortedRows = useMemo(() => {
     return [...rows].sort((a, b) => {
@@ -142,29 +146,7 @@ export function QuizAttemptHistoryList({
               <ClockCircleOutlined className="text-lg text-[var(--ant-color-text-heading)]" />
             );
 
-          return (
-            <Link
-              key={row.attemptPublicId}
-              href={href}
-              className="group block w-full no-underline text-inherit"
-              aria-label={`Xem chi tiết bài làm ${toViDateTime(row.startedAt)}`}
-            >
-              <Card
-                hoverable
-                size="small"
-                className={attemptCardClassName(row.status, isHighlighted)}
-                styles={{
-                  body: {
-                    padding: '16px 18px',
-                    background:
-                      row.status === 'expired'
-                        ? 'var(--ant-color-error-bg)'
-                        : isHighlighted
-                          ? 'var(--ant-color-primary-bg)'
-                          : 'var(--ant-color-bg-container)',
-                  },
-                }}
-              >
+          const cardInner = (
                 <div className="flex items-stretch gap-4 min-h-[5.5rem]">
                   {/* Trái: tình trạng + thời gian */}
                   <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
@@ -239,7 +221,61 @@ export function QuizAttemptHistoryList({
                     )}
                   </div>
                 </div>
-              </Card>
+          );
+
+          const card = (
+            <Card
+              hoverable={!answersLocked}
+              size="small"
+              className={`${attemptCardClassName(row.status, isHighlighted)}${
+                answersLocked ? ' cursor-not-allowed opacity-[0.92]' : ''
+              }`}
+              styles={{
+                body: {
+                  padding: '16px 18px',
+                  background:
+                    row.status === 'expired'
+                      ? 'var(--ant-color-error-bg)'
+                      : isHighlighted
+                        ? 'var(--ant-color-primary-bg)'
+                        : 'var(--ant-color-bg-container)',
+                },
+              }}
+            >
+              {cardInner}
+            </Card>
+          );
+
+          if (answersLocked) {
+            return (
+              <Tooltip
+                key={row.attemptPublicId}
+                title={
+                  detailAnswersLockedHint?.trim() ||
+                  'Chưa đủ điều kiện xem chi tiết đáp án (hết lượt hoặc đạt 100%).'
+                }
+                placement="top"
+                styles={{ root: { maxWidth: 420 } }}
+              >
+                <div
+                  className="block w-full"
+                  role="presentation"
+                  aria-label={`Lần làm ${toViDateTime(row.startedAt)} — chưa xem được chi tiết đáp án`}
+                >
+                  {card}
+                </div>
+              </Tooltip>
+            );
+          }
+
+          return (
+            <Link
+              key={row.attemptPublicId}
+              href={href}
+              className="group block w-full no-underline text-inherit"
+              aria-label={`Xem chi tiết bài làm ${toViDateTime(row.startedAt)}`}
+            >
+              {card}
             </Link>
           );
         })}

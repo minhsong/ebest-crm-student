@@ -12,7 +12,7 @@ type AssignmentActionSlice = Pick<
 >;
 
 /**
- * Cổng UI: đáp án chi tiết đã mở hay chưa (icon cảnh báo trên list — link attempt luôn bật).
+ * Cổng UI: được phép mở trang chi tiết đáp án (D41 — hết lượt hoặc 100%).
  */
 export function useQuizResultViewGate(
   formPublicId: string,

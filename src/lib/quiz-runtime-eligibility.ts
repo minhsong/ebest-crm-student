@@ -4,45 +4,47 @@ import {
   type QuizResultEligibility,
   type QuizResultViewState,
 } from '@/features/quiz-test/lib/quiz-result-view-policy';
+import { resolveAssignmentQuizMaxAttempts } from '@/features/quiz-test/lib/quiz-max-attempts-resolve';
+import { mergeAssignmentQuizEligibility } from '@/lib/quiz-assignment-eligibility-merge';
+import { fetchCrmAssignmentQuizEligibility } from '@/lib/quiz-crm-assignment-eligibility';
 import { fetchGatewayQuizStats } from '@/lib/quiz-gateway-stats';
 import type { QuizRuntimeAccess } from '@/lib/quiz-runtime-access';
 import { resolveQuizRuntimeAccess } from '@/lib/quiz-runtime-access';
-
-async function fetchCrmAssignmentEligibilityFallback(
-  formPublicId: string,
-  assignmentId: number,
-): Promise<QuizResultEligibility | null> {
-  const res = await fetch(
-    `/api/assignments/quiz-eligibility/${encodeURIComponent(formPublicId)}?assignmentId=${assignmentId}`,
-    {
-      credentials: 'include',
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-    },
-  );
-  if (!res.ok) return null;
-  return (await res.json()) as QuizResultEligibility;
-}
+import { getQuizFormContext } from '@/lib/quiz-form-context';
 
 /**
- * Tải eligibility từ Gateway (Mongo SSOT), fallback CRM chỉ cho assignment.
+ * Tải eligibility: assignment = CRM max + Gateway counts; practice = Gateway + hint.
  */
 export async function fetchQuizEligibilityForAccess(
   formPublicId: string,
   access: QuizRuntimeAccess,
 ): Promise<QuizResultEligibility | null> {
   if (access.mode === 'assignment' && access.assignmentId != null) {
-    const stats = await fetchGatewayQuizStats(formPublicId, {
-      channel: 'assignment',
-      assignmentId: access.assignmentId,
-      maxAttemptsHint: access.effectiveMaxAttempts,
+    const assignmentId = access.assignmentId;
+    const stored = getQuizFormContext(formPublicId);
+    const sessionMax =
+      stored?.mode === 'assignment' && stored.assignmentId === assignmentId
+        ? stored.quizMaxAttempts
+        : undefined;
+
+    const [stats, crmEligibility] = await Promise.all([
+      fetchGatewayQuizStats(formPublicId, {
+        channel: 'assignment',
+        assignmentId,
+        maxAttemptsHint: access.effectiveMaxAttempts,
+      }),
+      fetchCrmAssignmentQuizEligibility(formPublicId, assignmentId),
+    ]);
+
+    return mergeAssignmentQuizEligibility({
+      crm: crmEligibility,
+      gatewayStats: stats,
+      maxSources: {
+        crm: crmEligibility?.maxAttempts ?? access.effectiveMaxAttempts,
+        session: sessionMax,
+        gateway: stats?.maxAttempts,
+      },
     });
-    const fromGateway = buildQuizEligibilityFromGatewayStats(stats, {
-      channel: 'assignment',
-      maxAttemptsHint: access.effectiveMaxAttempts,
-    });
-    if (fromGateway) return fromGateway;
-    return fetchCrmAssignmentEligibilityFallback(formPublicId, access.assignmentId);
   }
 
   if (access.mode === 'practice') {
@@ -94,4 +96,24 @@ export async function resolveQuizResultViewState(
   const eligibility = await fetchQuizEligibilityForAccess(formPublicId, access);
   const view = buildQuizResultViewState(eligibility);
   return { ...view, access };
+}
+
+/** Gắn effectiveMaxAttempts từ CRM/session trước khi gọi stats Gateway. */
+export function enrichAssignmentRuntimeAccess(
+  formPublicId: string,
+  access: QuizRuntimeAccess,
+  assignmentId: number,
+): QuizRuntimeAccess {
+  if (access.mode !== 'assignment') return access;
+  const stored = getQuizFormContext(formPublicId);
+  const sessionMax =
+    stored?.mode === 'assignment' && stored.assignmentId === assignmentId
+      ? stored.quizMaxAttempts
+      : undefined;
+  const effectiveMaxAttempts = resolveAssignmentQuizMaxAttempts({
+    crm: access.effectiveMaxAttempts,
+    session: sessionMax,
+  });
+  if (effectiveMaxAttempts === access.effectiveMaxAttempts) return access;
+  return { ...access, effectiveMaxAttempts };
 }

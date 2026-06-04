@@ -14,20 +14,29 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Socket } from 'socket.io-client';
 import type {
   QuizAttemptHistoryItem,
-  QuizAttemptStateResponse,
+  QuizAttemptTimerSlice,
   QuizPublishedFormPayload,
   StartAttemptResponse,
   SubmitAttemptResponse,
 } from '@/features/quiz-test/types';
 import { quizRuntimePublicUrl } from '@/features/quiz-test/quiz-gateway-browser';
-import { fetchQuizRuntimeJson } from '@/features/quiz-test/lib/quiz-runtime-http';
+import {
+  fetchQuizRuntimeJson,
+  quizRuntimeErrorMessage,
+} from '@/features/quiz-test/lib/quiz-runtime-http';
 import {
   fetchQuizStartEligibility,
   postQuizResultSync,
 } from '@/lib/quiz-assignment-crm';
 import { QuizAssignmentUiMessages } from '@/lib/quiz-assignment-ui-messages';
-import { normalizeQuizAttemptHistoryItems } from '@/features/quiz-test/lib/quiz-attempt-history';
 import {
+  getHistoryAssignmentId,
+  normalizeQuizAttemptHistoryItems,
+} from '@/features/quiz-test/lib/quiz-attempt-history';
+import { pinAssignmentQuizRuntimeAccess } from '@/lib/quiz-runtime-access';
+import { fetchActiveQuizAttemptState, invalidateActiveQuizAttemptCache } from '@/lib/quiz-resume-access';
+import {
+  applyServerTimerSlice,
   normalizeAttemptAnswers,
   toValidAttemptPayload,
   syncRemainingFromAttempt,
@@ -40,23 +49,30 @@ import {
   QUIZ_WS,
   connectQuizRuntimeSocket,
   fetchQuizWsAccessToken,
-  normalizeAnswersWsPayload,
 } from '@/features/quiz-test/quiz-runtime-ws-client';
+import {
+  isQuizAttemptMutationBlockedResponse,
+  pollAttemptUntilTerminal,
+  submitResponseFromAttemptSnapshot,
+} from '@/features/quiz-test/lib/quiz-attempt-deadline-close';
+import {
+  isQuizAttemptEditingLocked,
+  QUIZ_ATTEMPT_DEADLINE_USER_MESSAGE,
+  type QuizAttemptCloseReason,
+} from '@/features/quiz-test/lib/quiz-attempt-session-lock';
+import {
+  sanitizeStudentFacingMessage,
+  STUDENT_SAFE_USER_MESSAGES,
+} from '@/lib/student-safe-errors';
+import { useQuizAttemptDeadlineClose } from '@/features/quiz-test/lib/useQuizAttemptDeadlineClose';
 import { message as antdMessage } from 'antd';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type QuizAttemptPhase =
-  | 'loading_form'
-  | 'ready'
-  | 'confirm_start'
-  | 'starting'
-  | 'attempting'
-  | 'submitting'
-  | 'done'
-  | 'error';
+export type { QuizAttemptPhase } from '@/features/quiz-test/lib/quiz-attempt-session-lock';
+import type { QuizAttemptPhase } from '@/features/quiz-test/lib/quiz-attempt-session-lock';
 
 type UseQuizAttemptRuntimeArgs = {
   formPublicId: string;
@@ -115,29 +131,53 @@ export function useQuizAttemptRuntime({
   const [remainingSeconds, setRemainingSeconds] = useState<number>(REMAINING_UNSET);
   const [rulesAcknowledged, setRulesAcknowledged] = useState(false);
   const [listeningRemaining, setListeningRemaining] = useState<Record<string, number>>({});
+  /** Hết giờ / đang nộp — khóa sửa đáp án trên UI. */
+  const [sessionLocked, setSessionLocked] = useState(false);
+  const [closeReason, setCloseReason] = useState<QuizAttemptCloseReason>(null);
 
   // Refs for async callbacks
   const autoSubmitTriggeredRef = useRef(false);
+  const resetDeadlineCloseRef = useRef<() => void>(() => undefined);
+
+  const applyServerTimerToAttempt = useCallback(
+    (timer: unknown, status?: string) => {
+      const t =
+        timer && typeof timer === 'object' && !Array.isArray(timer)
+          ? (timer as QuizAttemptTimerSlice)
+          : null;
+      if (t) {
+        setAttempt((prev) => {
+          if (!prev) return prev;
+          const next = applyServerTimerSlice(prev, t);
+          setRemainingSeconds(syncRemainingFromAttempt(next));
+          return next;
+        });
+      }
+      if (status === 'submitted') {
+        autoSubmitTriggeredRef.current = true;
+      }
+    },
+    [],
+  );
   const quizSocketRef = useRef<Socket | null>(null);
   /** Luôn có đáp án mới nhất khi nộp bài (tránh closure React lệch câu vừa chọn). */
   const answersRef = useRef<Record<string, string | string[]>>({});
+  const phaseRef = useRef<QuizAttemptPhase>(phase);
+  phaseRef.current = phase;
 
   // ============================================================================
   // Form Loading
   // ============================================================================
 
-  const fetchFormPayload = useCallback(async (): Promise<QuizPublishedFormPayload> => {
-    const url = quizRuntimePublicUrl(`forms/${formPublicId}${querySuffix}`);
+  const fetchFormPayload = useCallback(async (opts?: { resume?: boolean }): Promise<QuizPublishedFormPayload> => {
+    const suffix = opts?.resume ? '' : querySuffix;
+    const url = quizRuntimePublicUrl(`forms/${formPublicId}${suffix}`);
     const { ok, status, data } = await fetchQuizRuntimeJson<
       QuizPublishedFormPayload & { message?: string }
     >(url);
 
     if (!ok) {
-      const msg =
-        typeof (data as { message?: string })?.message === 'string'
-          ? (data as { message: string }).message
-          : `HTTP ${String(status)}`;
-      throw new Error(msg);
+      throw new Error(quizRuntimeErrorMessage(status, data, 'load'));
     }
 
     return data;
@@ -148,88 +188,102 @@ export function useQuizAttemptRuntime({
     setErrMsg(null);
 
     try {
-      const [active, historyRes] = await Promise.all([
-        fetchQuizRuntimeJson<QuizAttemptStateResponse>(
-          quizRuntimePublicUrl(`forms/${formPublicId}/active-attempt${querySuffix}`),
-        ),
-        fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
-          quizRuntimePublicUrl(`forms/${formPublicId}/attempts${querySuffix}`),
-        ),
-      ]);
+      const activeState = await fetchActiveQuizAttemptState(formPublicId);
+      const resumeInProgress = activeState?.state === 'in_progress';
+      const rawAttempt =
+        resumeInProgress && activeState?.attempt
+          ? (activeState.attempt as Record<string, unknown>)
+          : null;
 
-      const nextHistory = normalizeQuizAttemptHistoryItems(historyRes.data?.items);
-      setAttemptHistory(nextHistory);
-
-      const resumeInProgress =
-        active.ok &&
-        active.data &&
-        typeof active.data === 'object' &&
-        (active.data as QuizAttemptStateResponse).state === 'in_progress';
-
-      // Sau startAttempt / resume: Gateway trả layout đầy đủ từ examSnapshot (catalog v2).
-      let data = await fetchFormPayload();
-      if (resumeInProgress) {
-        data = await fetchFormPayload();
+      if (rawAttempt) {
+        const aidFromAttempt = getHistoryAssignmentId(rawAttempt);
+        if (aidFromAttempt != null && aidFromAttempt >= 1 && assignmentId == null) {
+          pinAssignmentQuizRuntimeAccess(formPublicId, aidFromAttempt);
+        }
       }
+
+      let data: QuizPublishedFormPayload;
+      let nextHistory: QuizAttemptHistoryItem[] = [];
+
+      if (resumeInProgress) {
+        data = await fetchFormPayload({ resume: true });
+        void fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
+          quizRuntimePublicUrl(`forms/${formPublicId}/attempts`),
+        ).then((res) => {
+          if (res.ok && res.data) {
+            setAttemptHistory(normalizeQuizAttemptHistoryItems(res.data.items));
+          }
+        });
+      } else {
+        const [historyRes, loaded] = await Promise.all([
+          fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
+            quizRuntimePublicUrl(`forms/${formPublicId}/attempts${querySuffix}`),
+          ),
+          fetchFormPayload(),
+        ]);
+        data = loaded;
+        nextHistory = normalizeQuizAttemptHistoryItems(historyRes.data?.items);
+      }
+
+      setAttemptHistory(nextHistory);
       setFormPayload(data);
 
-      // Handle active attempt state
-      if (active.ok && active.data && typeof active.data === 'object') {
-        const state = active.data as QuizAttemptStateResponse;
-
-        if (state.state === 'in_progress') {
-          const rawAttempt = state.attempt;
-          const resumed = toValidAttemptPayload(rawAttempt, formPublicId);
-          if (resumed) {
-            const merged = mergeAttemptWithFormPublishedDuration(resumed, data);
-            autoSubmitTriggeredRef.current = false;
-            setAttempt(merged);
-            const resumedAnswers = normalizeAttemptAnswers(
-              (rawAttempt as { answersByFormItemId?: unknown })?.answersByFormItemId,
-            );
-            answersRef.current = resumedAnswers;
-            setAnswers(resumedAnswers);
-            setListeningRemaining(
-              normalizeListeningMap(
-                (rawAttempt as { remainingPlaysByListeningUnit?: unknown })
-                  ?.remainingPlaysByListeningUnit,
-              ),
-            );
-            setRemainingSeconds(syncRemainingFromAttempt(merged));
-            setPhase('attempting');
-            return;
+      if (resumeInProgress && rawAttempt) {
+        const resumed = toValidAttemptPayload(rawAttempt, formPublicId);
+        if (resumed) {
+          let merged = mergeAttemptWithFormPublishedDuration(resumed, data);
+          const rawTimer = rawAttempt.timer;
+          if (rawTimer) {
+            merged = applyServerTimerSlice(merged, rawTimer as QuizAttemptTimerSlice);
           }
-        }
-
-        if (state.state === 'closed') {
-          const attemptId = String(state.attempt?.attemptPublicId ?? '');
-          setAttempt(null);
-          setAnswers({});
-          answersRef.current = {};
-          setRemainingSeconds(REMAINING_UNSET);
-          setListeningRemaining({});
-          setSubmitResult({
-            ok: true,
-            attemptPublicId: attemptId,
-            status: String(state.attempt?.status ?? state.reason),
-            submittedAt:
-              typeof state.attempt?.submittedAt === 'string'
-                ? state.attempt.submittedAt
-                : null,
-            answersByFormItemId: state.attempt?.answersByFormItemId,
-            grading: state.attempt?.grading,
-          });
-          setErrMsg(
-            state.reason === 'expired'
-              ? 'Bài làm đã đóng do hết thời gian.'
-              : 'Bài làm đã được nộp trước đó.',
+          autoSubmitTriggeredRef.current = false;
+          resetDeadlineCloseRef.current();
+          setSessionLocked(false);
+          setCloseReason(null);
+          setAttempt(merged);
+          const resumedAnswers = normalizeAttemptAnswers(
+            rawAttempt.answersByFormItemId,
           );
-          setPhase('done');
+          answersRef.current = resumedAnswers;
+          setAnswers(resumedAnswers);
+          setListeningRemaining(
+            normalizeListeningMap(rawAttempt.remainingPlaysByListeningUnit),
+          );
+          setRemainingSeconds(syncRemainingFromAttempt(merged));
+          setPhase('attempting');
           return;
         }
       }
 
-      // Reset to ready state
+      if (activeState?.state === 'closed') {
+        const attemptId = String(activeState.attempt?.attemptPublicId ?? '');
+        setAttempt(null);
+        setAnswers({});
+        answersRef.current = {};
+        setRemainingSeconds(REMAINING_UNSET);
+        setListeningRemaining({});
+        setSubmitResult({
+          ok: true,
+          attemptPublicId: attemptId,
+          status: String(activeState.attempt?.status ?? activeState.reason),
+          submittedAt:
+            typeof activeState.attempt?.submittedAt === 'string'
+              ? activeState.attempt.submittedAt
+              : null,
+          answersByFormItemId: activeState.attempt?.answersByFormItemId,
+          grading: activeState.attempt?.grading,
+        });
+        setSessionLocked(true);
+        setCloseReason(activeState.reason === 'expired' ? 'deadline' : 'manual');
+        setErrMsg(
+          activeState.reason === 'expired'
+            ? 'Bài làm đã đóng do hết thời gian.'
+            : 'Bài làm đã được nộp trước đó.',
+        );
+        setPhase('done');
+        return;
+      }
+
       setAttempt(null);
       setAnswers({});
       answersRef.current = {};
@@ -238,14 +292,101 @@ export function useQuizAttemptRuntime({
       setListeningRemaining({});
       setPhase('ready');
     } catch (e) {
-      setErrMsg(e instanceof Error ? e.message : 'Không tải được đề.');
+      setErrMsg(
+        sanitizeStudentFacingMessage(
+          e instanceof Error ? e.message : null,
+          STUDENT_SAFE_USER_MESSAGES.quizLoadFailed,
+        ),
+      );
       setPhase('error');
     }
-  }, [fetchFormPayload, formPublicId, querySuffix]);
+  }, [applyServerTimerToAttempt, assignmentId, fetchFormPayload, formPublicId, querySuffix]);
 
-  useEffect(() => {
-    void loadForm();
-  }, [loadForm]);
+  const refreshHistory = useCallback(async () => {
+    const historyUrl = quizRuntimePublicUrl(`forms/${formPublicId}/attempts${querySuffix}`);
+    try {
+      const historyRes = await fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
+        historyUrl,
+      );
+      if (historyRes.ok && historyRes.data) {
+        const nextHistory = normalizeQuizAttemptHistoryItems(historyRes.data.items);
+        setAttemptHistory(nextHistory);
+        return nextHistory;
+      }
+    } catch {
+      // Silently fail on refresh
+    }
+    return [];
+  }, [formPublicId, querySuffix]);
+
+  // ============================================================================
+  // Submit Attempt
+  // ============================================================================
+
+  const disconnectQuizSocket = useCallback(() => {
+    const s = quizSocketRef.current;
+    if (s) {
+      s.removeAllListeners();
+      s.disconnect();
+    }
+    quizSocketRef.current = null;
+  }, []);
+
+  const finalizeAttemptSubmitted = useCallback(
+    async (
+      submitted: SubmitAttemptResponse,
+      userMessage: string | null,
+      reason: QuizAttemptCloseReason,
+    ) => {
+      autoSubmitTriggeredRef.current = true;
+      setSessionLocked(true);
+      setCloseReason(reason);
+      disconnectQuizSocket();
+      setSubmitResult(submitted);
+      setErrMsg(userMessage);
+      if (userMessage) {
+        antdMessage.warning(userMessage);
+      }
+
+      void refreshHistory();
+      invalidateActiveQuizAttemptCache(formPublicId);
+
+      if (
+        assignmentId != null &&
+        Number.isFinite(assignmentId) &&
+        assignmentId >= 1 &&
+        submitted?.attemptPublicId?.trim()
+      ) {
+        try {
+          const syncOk = await postQuizResultSync(
+            assignmentId,
+            submitted.attemptPublicId.trim(),
+          );
+          if (!syncOk) {
+            antdMessage.warning(
+              QuizAssignmentUiMessages.syncScoreToAssignmentFailed,
+            );
+          }
+        } catch {
+          antdMessage.warning(QuizAssignmentUiMessages.syncNetworkError);
+        }
+      }
+
+      setPhase('done');
+    },
+    [assignmentId, disconnectQuizSocket, formPublicId, refreshHistory],
+  );
+
+  const lockAttemptSession = useCallback(
+    (message: string | null) => {
+      setSessionLocked(true);
+      if (message) setErrMsg(message);
+    },
+    [],
+  );
+
+  const runDeadlineCloseFlowRef = useRef<(attemptId: string) => void>(() => undefined);
+  const markServerClosedRef = useRef<() => void>(() => undefined);
 
   // ============================================================================
   // Answer Persistence
@@ -253,42 +394,58 @@ export function useQuizAttemptRuntime({
 
   const persistAnswersRealtime = useCallback(
     (next: Record<string, string | string[]>, attemptPublicId: string) => {
+      if (sessionLocked) return;
+      const p = phaseRef.current;
+      if (p === 'submitting' || p === 'done') return;
+
+      const patchRest = async () => {
+        const url = quizRuntimePublicUrl(`attempts/${attemptPublicId}/answers`);
+        const { ok, status, data } = await fetchQuizRuntimeJson(url, {
+          method: 'PATCH',
+          body: JSON.stringify({ answersByFormItemId: next }),
+        });
+        if (!ok) {
+          if (isQuizAttemptMutationBlockedResponse(status, data)) {
+            lockAttemptSession(
+              'Phiên làm bài đã kết thúc. Không thể thay đổi đáp án.',
+            );
+            markServerClosedRef.current();
+            void runDeadlineCloseFlowRef.current(attemptPublicId);
+            return;
+          }
+          antdMessage.warning(
+            'Không lưu nháp được — kiểm tra mạng hoặc phiên làm bài đã hết hạn.',
+          );
+        }
+      };
+
       const sock = quizSocketRef.current;
       if (sock?.connected) {
         sock.emit(
           QUIZ_WS.PATCH_ANSWERS,
           { attemptPublicId, answersByFormItemId: next },
           (ack: unknown) => {
-            const a = ack as { event?: string };
-            if (a?.event === QUIZ_WS.ERROR) {
-              const url = quizRuntimePublicUrl(`attempts/${attemptPublicId}/answers`);
-              void fetch(url, {
-                credentials: 'include',
-                method: 'PATCH',
-                headers: {
-                  'Content-Type': 'application/json',
-                  Accept: 'application/json',
-                },
-                body: JSON.stringify({ answersByFormItemId: next }),
-              }).catch(() => undefined);
+            const a = ack as { event?: string; data?: { message?: string } };
+            if (a?.event === QUIZ_WS.ANSWERS_ACK) return;
+            if (
+              a?.event === QUIZ_WS.ERROR &&
+              /deadline|not in progress|expired/i.test(String(a.data?.message ?? ''))
+            ) {
+              lockAttemptSession(
+                'Phiên làm bài đã kết thúc. Không thể thay đổi đáp án.',
+              );
+              markServerClosedRef.current();
+              void runDeadlineCloseFlowRef.current(attemptPublicId);
+              return;
             }
+            void patchRest();
           },
         );
         return;
       }
-      // REST fallback
-      const url = quizRuntimePublicUrl(`attempts/${attemptPublicId}/answers`);
-      void fetch(url, {
-        credentials: 'include',
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({ answersByFormItemId: next }),
-      }).catch(() => undefined);
+      void patchRest();
     },
-    [],
+    [lockAttemptSession, sessionLocked],
   );
 
   const patchAnswersImmediately = useCallback(
@@ -296,13 +453,22 @@ export function useQuizAttemptRuntime({
       attemptPublicId: string,
       map?: Record<string, string | string[]>,
     ) => {
+      if (sessionLocked) return false;
       const payload = map ?? answersRef.current;
       const url = quizRuntimePublicUrl(`attempts/${attemptPublicId}/answers`);
-      const { ok } = await fetchQuizRuntimeJson(url, {
+      const { ok, status, data } = await fetchQuizRuntimeJson(url, {
         method: 'PATCH',
         body: JSON.stringify({ answersByFormItemId: payload }),
       });
       if (!ok) {
+        if (isQuizAttemptMutationBlockedResponse(status, data)) {
+          lockAttemptSession(
+            'Phiên làm bài đã kết thúc. Không thể thay đổi đáp án.',
+          );
+          markServerClosedRef.current();
+          void runDeadlineCloseFlowRef.current(attemptPublicId);
+          return false;
+        }
         antdMessage.warning(
           'Không lưu nháp được — kiểm tra mạng hoặc phiên làm bài đã hết hạn.',
         );
@@ -310,8 +476,83 @@ export function useQuizAttemptRuntime({
       }
       return true;
     },
-    [],
+    [lockAttemptSession, sessionLocked],
   );
+
+  const handleSubmit = useCallback(async () => {
+    const attemptId = attempt?.attemptPublicId?.trim();
+    if (!attemptId) {
+      setErrMsg('Không tìm thấy phiên làm bài hợp lệ để nộp.');
+      setPhase('ready');
+      return;
+    }
+
+    setPhase('submitting');
+    setErrMsg(null);
+    lockAttemptSession(null);
+    disconnectQuizSocket();
+
+    const finalAnswers = { ...answersRef.current, ...answers };
+    answersRef.current = finalAnswers;
+
+    const saved = await patchAnswersImmediately(attemptId, finalAnswers);
+    if (!saved) {
+      setSessionLocked(false);
+      setPhase('attempting');
+      return;
+    }
+
+    const url = quizRuntimePublicUrl(`attempts/${attemptId}/submit`);
+
+    try {
+      const { ok, status, data } = await fetchQuizRuntimeJson<
+        SubmitAttemptResponse & { message?: string }
+      >(url, {
+        method: 'POST',
+        body: JSON.stringify({ answersByFormItemId: finalAnswers }),
+      });
+
+      if (!ok) {
+        throw new Error(quizRuntimeErrorMessage(status, data, 'submit'));
+      }
+
+      await finalizeAttemptSubmitted(
+        data as SubmitAttemptResponse,
+        null,
+        'manual',
+      );
+    } catch (e) {
+      setErrMsg(
+        sanitizeStudentFacingMessage(
+          e instanceof Error ? e.message : null,
+          STUDENT_SAFE_USER_MESSAGES.quizSubmitFailed,
+        ),
+      );
+      setSessionLocked(false);
+      setPhase('attempting');
+    }
+  }, [
+    answers,
+    attempt,
+    disconnectQuizSocket,
+    finalizeAttemptSubmitted,
+    lockAttemptSession,
+    patchAnswersImmediately,
+  ]);
+
+  const {
+    handleServerAttemptClosed,
+    runDeadlineCloseFlow,
+    resetDeadlineCloseState,
+    markServerClosed,
+    deadlineWaitMessage,
+  } = useQuizAttemptDeadlineClose({
+    finalizeSubmitted: finalizeAttemptSubmitted,
+    requestSubmitFallback: handleSubmit,
+  });
+  resetDeadlineCloseRef.current = resetDeadlineCloseState;
+  runDeadlineCloseFlowRef.current = runDeadlineCloseFlow;
+  markServerClosedRef.current = markServerClosed;
 
   // ============================================================================
   // Start Attempt
@@ -325,7 +566,6 @@ export function useQuizAttemptRuntime({
     const url = quizRuntimePublicUrl(`forms/${formPublicId}/attempts${querySuffix}`);
 
     try {
-      // Check eligibility if from assignment
       if (assignmentId != null && assignmentId >= 1) {
         const gate = await fetchQuizStartEligibility(assignmentId);
         if (!gate.allowed) {
@@ -333,7 +573,6 @@ export function useQuizAttemptRuntime({
         }
       }
 
-      // Start attempt
       const stored = getQuizFormContext(formPublicId);
       const snapshot =
         assignmentId != null && assignmentId >= 1
@@ -365,14 +604,11 @@ export function useQuizAttemptRuntime({
       });
 
       if (!ok) {
-        throw new Error(
-          typeof (data as { message?: string })?.message === 'string'
-            ? (data as { message: string }).message
-            : `HTTP ${status}`,
-        );
+        throw new Error(quizRuntimeErrorMessage(status, data, 'start'));
       }
 
-      // Catalog v2: layout đầy đủ chỉ có trên attempt sau start — tải lại form (có examSnapshot).
+      invalidateActiveQuizAttemptCache(formPublicId);
+
       const layoutForm = await fetchFormPayload();
       setFormPayload(layoutForm);
 
@@ -385,6 +621,9 @@ export function useQuizAttemptRuntime({
         ),
       );
       autoSubmitTriggeredRef.current = false;
+      resetDeadlineCloseRef.current();
+      setSessionLocked(false);
+      setCloseReason(null);
       setRemainingSeconds(syncRemainingFromAttempt(mergedStart));
       if (!data.resumed) {
         setAnswers({});
@@ -392,18 +631,20 @@ export function useQuizAttemptRuntime({
       }
       setPhase('attempting');
     } catch (e) {
-      setErrMsg(e instanceof Error ? e.message : 'Không tạo phiên làm bài được.');
+      setErrMsg(
+        sanitizeStudentFacingMessage(
+          e instanceof Error ? e.message : null,
+          STUDENT_SAFE_USER_MESSAGES.quizLoadFailed,
+        ),
+      );
       setPhase('confirm_start');
     }
   }, [assignmentId, fetchFormPayload, formPayload, formPublicId, practiceMode, querySuffix]);
 
-  // ============================================================================
-  // Answer Change Handler
-  // ============================================================================
-
   const onAnswerChange = useCallback(
     (formItemId: string, value: string | string[]) => {
       if (!attempt?.attemptPublicId) return;
+      if (isQuizAttemptEditingLocked(phase, sessionLocked)) return;
       setAnswers((prev) => {
         const next = { ...prev, [formItemId]: value };
         answersRef.current = next;
@@ -411,83 +652,12 @@ export function useQuizAttemptRuntime({
         return next;
       });
     },
-    [attempt, persistAnswersRealtime],
+    [attempt, persistAnswersRealtime, phase, sessionLocked],
   );
 
-  // ============================================================================
-  // Submit Attempt
-  // ============================================================================
-
-  const handleSubmit = useCallback(async () => {
-    const attemptId = attempt?.attemptPublicId?.trim();
-    if (!attemptId) {
-      setErrMsg('Không tìm thấy phiên làm bài hợp lệ để nộp.');
-      setPhase('ready');
-      return;
-    }
-
-    setPhase('submitting');
-    setErrMsg(null);
-
-    const finalAnswers = { ...answersRef.current, ...answers };
-    answersRef.current = finalAnswers;
-
-    const saved = await patchAnswersImmediately(attemptId, finalAnswers);
-    if (!saved) {
-      setPhase('attempting');
-      return;
-    }
-
-    const url = quizRuntimePublicUrl(`attempts/${attemptId}/submit`);
-
-    try {
-      const { ok, data } = await fetchQuizRuntimeJson<SubmitAttemptResponse & { message?: string }>(
-        url,
-        { method: 'POST' },
-      );
-
-      if (!ok) {
-        throw new Error(
-          typeof (data as { message?: string })?.message === 'string'
-            ? (data as { message: string }).message
-            : 'Nộp bài thất bại',
-        );
-      }
-
-      const submitted = data as SubmitAttemptResponse;
-      setSubmitResult(submitted);
-
-      // Refresh history
-      void refreshHistory();
-
-      // Sync score to assignment (lần làm gần nhất → assignment_result)
-      if (
-        assignmentId != null &&
-        Number.isFinite(assignmentId) &&
-        assignmentId >= 1 &&
-        submitted?.attemptPublicId?.trim()
-      ) {
-        try {
-          const syncOk = await postQuizResultSync(
-            assignmentId,
-            submitted.attemptPublicId.trim(),
-          );
-          if (!syncOk) {
-            antdMessage.warning(
-              QuizAssignmentUiMessages.syncScoreToAssignmentFailed,
-            );
-          }
-        } catch {
-          antdMessage.warning(QuizAssignmentUiMessages.syncNetworkError);
-        }
-      }
-
-      setPhase('done');
-    } catch (e) {
-      setErrMsg(e instanceof Error ? e.message : 'Nộp bài thất bại');
-      setPhase('attempting');
-    }
-  }, [answers, assignmentId, attempt, patchAnswersImmediately]);
+  useEffect(() => {
+    void loadForm();
+  }, [loadForm]);
 
   // ============================================================================
   // Timer Logic
@@ -503,35 +673,39 @@ export function useQuizAttemptRuntime({
     }
 
     // Calculate initial tick
-    const tick = () => {
-      const remaining = Math.max(0, Math.ceil((timerValidity.deadlineMs - Date.now()) / 1000));
-      return remaining;
-    };
+    const tick = () => syncRemainingFromAttempt(attempt);
 
     setRemainingSeconds(tick());
 
-    // Start countdown interval
     const intervalId = setInterval(() => {
-      const remaining = tick();
-      setRemainingSeconds(remaining);
-      if (remaining <= 0) clearInterval(intervalId);
+      setRemainingSeconds((prev) => {
+        if (!Number.isFinite(prev) || prev === REMAINING_UNSET) return prev;
+        const next = Math.max(0, prev - 1);
+        return next;
+      });
     }, 1000);
 
     return () => clearInterval(intervalId);
   }, [attempt, phase]);
 
-  // Auto-submit on timeout
+  // Hết giờ: khóa UI ngay, chờ server (WS / poll) rồi chuyển trang chi tiết.
   useEffect(() => {
-    if (phase !== 'attempting' || !attempt) return;
+    if (phase !== 'attempting' || !attempt?.attemptPublicId) return;
     if (!getAttemptTimerValidity(attempt).ok) return;
     if (!Number.isFinite(remainingSeconds) || remainingSeconds === REMAINING_UNSET) return;
     if (remainingSeconds > 0 || autoSubmitTriggeredRef.current) return;
 
     autoSubmitTriggeredRef.current = true;
-    setErrMsg('Hết giờ làm bài. Hệ thống đang tự động nộp bài.');
-    antdMessage.warning('Đã hết giờ, hệ thống tự động nộp bài.');
-    void handleSubmit();
-  }, [attempt, handleSubmit, phase, remainingSeconds]);
+    lockAttemptSession(deadlineWaitMessage);
+    void runDeadlineCloseFlow(attempt.attemptPublicId);
+  }, [
+    attempt,
+    deadlineWaitMessage,
+    lockAttemptSession,
+    phase,
+    remainingSeconds,
+    runDeadlineCloseFlow,
+  ]);
 
   // ============================================================================
   // WebSocket Connection
@@ -565,10 +739,18 @@ export function useQuizAttemptRuntime({
             answersByFormItemId?: Record<string, unknown>;
           };
           if (p?.attemptPublicId !== attemptId) return;
-          setAnswers((prev) => ({
-            ...prev,
-            ...normalizeAnswersWsPayload(p.answersByFormItemId),
-          }));
+          setAnswers((prev) => {
+            const merged = {
+              ...prev,
+              ...normalizeAttemptAnswers(p.answersByFormItemId),
+            };
+            answersRef.current = merged;
+            return merged;
+          });
+        });
+
+        sock.on(QUIZ_WS.ATTEMPT_CLOSED, (payload: unknown) => {
+          void handleServerAttemptClosed(payload, attemptId);
         });
 
         // Listening state sync
@@ -581,25 +763,65 @@ export function useQuizAttemptRuntime({
           setListeningRemaining(normalizeListeningMap(p.remainingPlaysByListeningUnit));
         });
 
-        // Join attempt room
         const sendJoin = () => {
           sock.emit(QUIZ_WS.JOIN, { attemptPublicId: attemptId }, (ack: unknown) => {
             const a = ack as {
               event?: string;
-              data?: { snapshot?: { answersByFormItemId?: Record<string, unknown> } };
+              data?: {
+                snapshot?: {
+                  answersByFormItemId?: Record<string, unknown>;
+                  timer?: unknown;
+                  status?: string;
+                };
+              };
             };
-            const raw = a?.data?.snapshot?.answersByFormItemId;
-            if (a?.event === QUIZ_WS.JOINED && raw && typeof raw === 'object' && !Array.isArray(raw)) {
-              setAnswers((prev) => ({
-                ...normalizeAnswersWsPayload(raw as Record<string, unknown>),
-                ...prev,
-              }));
+            const snap = a?.data?.snapshot;
+            if (a?.event !== QUIZ_WS.JOINED || !snap) return;
+
+            const raw = snap.answersByFormItemId;
+            if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+              setAnswers((prev) => {
+                const merged = {
+                  ...normalizeAttemptAnswers(raw),
+                  ...prev,
+                };
+                answersRef.current = merged;
+                return merged;
+              });
+            }
+            applyServerTimerToAttempt(snap.timer, snap.status);
+            if (snap.status === 'submitted' || snap.status === 'expired') {
+              void (async () => {
+                const terminal = await pollAttemptUntilTerminal(attemptId, {
+                  maxMs: 5000,
+                });
+                if (!terminal) return;
+                const submitted = submitResponseFromAttemptSnapshot(terminal.snapshot);
+                if (submitted) {
+                  await finalizeAttemptSubmitted(
+                    submitted,
+                    QUIZ_ATTEMPT_DEADLINE_USER_MESSAGE,
+                    'deadline',
+                  );
+                }
+              })();
             }
           });
         };
 
-        if (sock.connected) sendJoin();
+        if (sock.connected) {
+          sendJoin();
+        }
         sock.on('connect', sendJoin);
+        sock.on(QUIZ_WS.TIMER_SYNC_ACK, (payload: unknown) => {
+          const p = payload as {
+            attemptPublicId?: string;
+            timer?: unknown;
+            status?: string;
+          };
+          if (p?.attemptPublicId !== attemptId) return;
+          applyServerTimerToAttempt(p.timer, p.status);
+        });
       } catch {
         /* REST autosave fallback */
       }
@@ -616,7 +838,53 @@ export function useQuizAttemptRuntime({
       }
       quizSocketRef.current = null;
     };
-  }, [phase, attempt?.attemptPublicId]);
+  }, [
+    applyServerTimerToAttempt,
+    finalizeAttemptSubmitted,
+    handleServerAttemptClosed,
+    phase,
+    attempt?.attemptPublicId,
+  ]);
+
+  useEffect(() => {
+    if (phase !== 'attempting' || !attempt?.attemptPublicId) return;
+
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      const sock = quizSocketRef.current;
+      if (!sock?.connected) return;
+      sock.emit(QUIZ_WS.TIMER_SYNC, { attemptPublicId: attempt.attemptPublicId }, (ack: unknown) => {
+        const a = ack as {
+          event?: string;
+          data?: { timer?: unknown; status?: string };
+        };
+        if (a?.event === QUIZ_WS.TIMER_SYNC_ACK) {
+          applyServerTimerToAttempt(a.data?.timer, a.data?.status);
+          if (
+            a.data?.status === 'submitted' ||
+            a.data?.status === 'expired'
+          ) {
+            const aid = attempt.attemptPublicId;
+            void (async () => {
+              const terminal = await pollAttemptUntilTerminal(aid, { maxMs: 5000 });
+              if (!terminal) return;
+              const submitted = submitResponseFromAttemptSnapshot(terminal.snapshot);
+              if (submitted) {
+                await finalizeAttemptSubmitted(
+                  submitted,
+                  QUIZ_ATTEMPT_DEADLINE_USER_MESSAGE,
+                  'deadline',
+                );
+              }
+            })();
+          }
+        }
+      });
+    };
+
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [applyServerTimerToAttempt, attempt?.attemptPublicId, finalizeAttemptSubmitted, phase]);
 
   // ============================================================================
   // UI Actions
@@ -647,26 +915,11 @@ export function useQuizAttemptRuntime({
     [attempt?.attemptPublicId],
   );
 
-  const refreshHistory = useCallback(async () => {
-    const historyUrl = quizRuntimePublicUrl(`forms/${formPublicId}/attempts${querySuffix}`);
-    try {
-      const historyRes = await fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
-        historyUrl,
-      );
-      if (historyRes.ok && historyRes.data) {
-        const nextHistory = normalizeQuizAttemptHistoryItems(historyRes.data.items);
-        setAttemptHistory(nextHistory);
-        return nextHistory;
-      }
-    } catch {
-      // Silently fail on refresh
-    }
-    return [];
-  }, [formPublicId, querySuffix]);
-
   // ============================================================================
   // Return
   // ============================================================================
+
+  const answersLocked = isQuizAttemptEditingLocked(phase, sessionLocked);
 
   return {
     // State
@@ -680,6 +933,9 @@ export function useQuizAttemptRuntime({
     remainingSeconds,
     rulesAcknowledged,
     listeningRemaining,
+    sessionLocked,
+    closeReason,
+    answersLocked,
     // Setters
     setRulesAcknowledged,
     setPhase,

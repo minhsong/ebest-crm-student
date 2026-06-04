@@ -49,8 +49,6 @@ export function QuizAttemptResultHeader({
       </Typography.Title>
       <QuizFormMetaBlock
         formType={formPayload.type ?? null}
-        catalogKey={formPayload.catalogKey ?? null}
-        catalogPath={formPayload.catalogPath ?? null}
         tagKeys={formTagKeys}
         durationSummary={durationSummary}
       />

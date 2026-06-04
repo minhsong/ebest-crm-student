@@ -3,6 +3,7 @@
 import { QuizAssignmentResultsClient } from '@/features/quiz-test/components/QuizAssignmentResultsClient';
 import { useQuizDeliveryContext } from '@/features/quiz-test/hooks/useQuizDeliveryContext';
 import { getQuizFormContext } from '@/lib/quiz-form-context';
+import { enrichAssignmentRuntimeAccess } from '@/lib/quiz-runtime-eligibility';
 import { Alert, Card, Skeleton } from 'antd';
 import Link from 'next/link';
 
@@ -46,11 +47,17 @@ export function QuizAssignmentResultsEntryClient({ formPublicId }: Props) {
     );
   }
 
+  const enrichedAccess = enrichAssignmentRuntimeAccess(
+    formPublicId,
+    access,
+    assignmentId,
+  );
+
   return (
     <QuizAssignmentResultsClient
       formPublicId={formPublicId}
       assignmentId={assignmentId}
-      access={access}
+      access={enrichedAccess}
     />
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { QuizAttemptHistoryItem } from '@/features/quiz-test/types';
 import type { QuizResultEligibility } from '@/features/quiz-test/lib/quiz-result-view-policy';
 import {
@@ -9,6 +9,8 @@ import {
 import type { AssignmentQuizActionState } from '@/lib/quiz-assignment-action.types';
 import { fetchAssignmentQuizSnapshot } from '@/lib/quiz-assignment-action.loader';
 import { fetchQuizFormDisplayName } from '@/lib/quiz-form-display';
+import { resolveAssignmentQuizMaxAttempts } from '@/features/quiz-test/lib/quiz-max-attempts-resolve';
+import { getQuizFormContext } from '@/lib/quiz-form-context';
 import type { QuizRuntimeAccess } from '@/lib/quiz-runtime-access';
 import { pinAssignmentQuizRuntimeAccess } from '@/lib/quiz-runtime-access';
 
@@ -54,7 +56,16 @@ export function useQuizAssignmentResults(
     action: null,
   });
 
-  const maxAttemptsHint = access.effectiveMaxAttempts;
+  const maxAttemptsHint = useMemo(() => {
+    const stored = getQuizFormContext(formPublicId);
+    return resolveAssignmentQuizMaxAttempts({
+      crm: access.effectiveMaxAttempts,
+      session:
+        stored?.mode === 'assignment' && stored.assignmentId === assignmentId
+          ? stored.quizMaxAttempts
+          : undefined,
+    });
+  }, [access.effectiveMaxAttempts, assignmentId, formPublicId]);
 
   const loadSnapshot = useCallback(async () => {
     pinAssignmentQuizRuntimeAccess(formPublicId, assignmentId, {

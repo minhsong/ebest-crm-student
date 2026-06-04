@@ -1,18 +1,57 @@
 /**
- * Quiz Runtime Gateway Proxy
- * Server-side proxy for Quiz Runtime API - routes requests to Social Gateway
+ * Quiz runtime BFF — proxy server-side (không lộ URL/token ra browser).
  */
+import {
+  logInternalApiError,
+  sanitizeApiErrorPayload,
+  STUDENT_SAFE_USER_MESSAGES,
+} from '@/lib/student-safe-errors';
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-import { resolveStudentCustomerIdViaCrmMe } from '@/lib/crm-student-me';
+import {
+  resolveStudentCustomerIdViaCrmMe,
+  resolveStudentMeViaCrm,
+} from '@/lib/crm-student-me';
+import {
+  dedupeInflight,
+  setTtlCache,
+  type TtlCacheEntry,
+} from '@/lib/crm-inflight-cache';
+import type { QuizAuthorizeResponse } from '@/lib/quiz-crm-authorize';
 import { authorizeQuizViaCrm } from '@/lib/quiz-crm-authorize';
 import {
   buildQuizAuthorizeCacheKey,
-  getCachedQuizAuthorize,
-  setCachedQuizAuthorize,
+  resolveQuizAuthorizeCached,
 } from '@/lib/quiz-bff-authorize-cache';
+
+function buildParticipantSnapshotForStart(
+  bodySnapshot: Record<string, unknown> | undefined,
+  auth: QuizAuthorizeResponse,
+  studentDisplayName?: string,
+): Record<string, unknown> {
+  const snapshot: Record<string, unknown> = { ...(bodySnapshot ?? {}) };
+  if (auth.allowed && auth.mode === 'practice') {
+    snapshot.mode = 'practice';
+  } else if (auth.allowed && auth.mode === 'assignment') {
+    snapshot.mode = 'assignment';
+  }
+  const ctxAuth = auth.allowed ? auth.context : undefined;
+  if (ctxAuth && typeof ctxAuth === 'object') {
+    if (ctxAuth.assignmentId != null) snapshot.assignmentId = ctxAuth.assignmentId;
+    if (ctxAuth.classId != null) snapshot.classId = ctxAuth.classId;
+    if (ctxAuth.courseId != null) snapshot.courseId = ctxAuth.courseId;
+    if (ctxAuth.courseSessionId != null) {
+      snapshot.courseSessionId = ctxAuth.courseSessionId;
+    }
+  }
+  snapshot.authorizedAt = new Date().toISOString();
+  if (studentDisplayName) {
+    snapshot.studentDisplayName = studentDisplayName;
+  }
+  return snapshot;
+}
 
 // ============================================================================
 // Types & Interfaces
@@ -68,7 +107,13 @@ function internalStudentUrl(baseUrl: string, subPath: string): string {
 
 async function proxyResponse(upstream: Response): Promise<NextResponse> {
   const data = await upstream.json().catch(() => ({}));
-  return NextResponse.json(data, { status: upstream.status });
+  if (upstream.ok) {
+    return NextResponse.json(data, { status: upstream.status });
+  }
+  return NextResponse.json(
+    sanitizeApiErrorPayload(data, upstream.status, STUDENT_SAFE_USER_MESSAGES.quizUnavailable),
+    { status: upstream.status },
+  );
 }
 
 function parseJsonBody<T>(request: NextRequest): Promise<T | null> {
@@ -205,8 +250,14 @@ async function handleCreateAttempt(
   } = {
     customerId: ctx.customerId,
   };
-  if (body?.participantSnapshot) {
-    requestBody.participantSnapshot = body.participantSnapshot;
+  const me = await resolveStudentMeViaCrm(request);
+  const snapshot = buildParticipantSnapshotForStart(
+    body?.participantSnapshot,
+    auth,
+    me?.displayName,
+  );
+  if (Object.keys(snapshot).length > 0) {
+    requestBody.participantSnapshot = snapshot;
   }
   if (auth.portalAuthorizeToken) {
     requestBody.portalAuthorizeToken = auth.portalAuthorizeToken;
@@ -387,12 +438,29 @@ async function handleListeningCycle(
 /**
  * POST /attempts/:id/submit - Submit attempt
  */
-async function handleSubmitAttempt(ctx: RouteContext, segments: string[]): Promise<NextResponse> {
+async function handleSubmitAttempt(
+  ctx: RouteContext,
+  segments: string[],
+  request: NextRequest,
+): Promise<NextResponse> {
   const attemptId = segments[1];
+  const body: Record<string, unknown> = { customerId: ctx.customerId };
+  try {
+    const clientBody = (await request.json()) as Record<string, unknown>;
+    if (
+      clientBody?.answersByFormItemId &&
+      typeof clientBody.answersByFormItemId === 'object' &&
+      !Array.isArray(clientBody.answersByFormItemId)
+    ) {
+      body.answersByFormItemId = clientBody.answersByFormItemId;
+    }
+  } catch {
+    /* body rỗng — chỉ customerId */
+  }
   const res = await fetch(internalStudentUrl(ctx.baseUrl, `attempts/${attemptId}/submit`), {
     method: 'POST',
     headers: { ...ctx.headers, ...ctx.serviceAuth },
-    body: JSON.stringify({ customerId: ctx.customerId }),
+    body: JSON.stringify(body),
   });
   return proxyResponse(res);
 }
@@ -538,7 +606,7 @@ function createRouteMap(): Map<string, RouteDefinition> {
     method: 'POST',
     pattern: '/attempts/:uuid/submit',
     segments: ['attempts', 'uuid', 'submit'],
-    handler: async (ctx, segs) => handleSubmitAttempt(ctx, segs),
+    handler: async (ctx, segs, req) => handleSubmitAttempt(ctx, segs, req),
   });
 
   return routes;
@@ -598,6 +666,71 @@ function formPublicIdFromSegments(segments: string[]): string | null {
   return id;
 }
 
+type ActiveAttemptPeekState = 'in_progress' | 'other' | 'none';
+
+const BFF_RESUME_PEEK_TTL_MS = 5_000;
+const bffResumePeekInflight = new Map<string, Promise<ActiveAttemptPeekState>>();
+const bffResumePeekCache = new Map<string, TtlCacheEntry<ActiveAttemptPeekState>>();
+
+function bffResumePeekKey(customerId: number, formPublicId: string): string {
+  return `${customerId}:${formPublicId}`;
+}
+
+async function peekGatewayActiveAttemptState(
+  ctx: RouteContext,
+  formPublicId: string,
+): Promise<ActiveAttemptPeekState> {
+  const key = bffResumePeekKey(ctx.customerId, formPublicId);
+  const cached = bffResumePeekCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
+
+  return dedupeInflight(bffResumePeekInflight, key, async () => {
+    const res = await fetch(
+      internalStudentUrl(
+        ctx.baseUrl,
+        `forms/${formPublicId}/active-attempt?customerId=${ctx.customerId}`,
+      ),
+      {
+        headers: { ...ctx.headers, ...ctx.serviceAuth },
+        cache: 'no-store',
+      },
+    );
+    let state: ActiveAttemptPeekState = 'none';
+    if (res.ok) {
+      const data = (await res.json().catch(() => null)) as { state?: string } | null;
+      if (data?.state === 'in_progress') state = 'in_progress';
+      else if (data?.state) state = 'other';
+    }
+    setTtlCache(bffResumePeekCache, key, state, BFF_RESUME_PEEK_TTL_MS);
+    return state;
+  });
+}
+
+/**
+ * Resume: attempt in_progress trên Mongo — chỉ cần /student/me, không CRM authorize.
+ */
+async function shouldSkipQuizAuthorizeForFormRoute(
+  ctx: RouteContext,
+  segments: string[],
+): Promise<boolean> {
+  if (segments[0] !== 'forms' || segments.length < 2) return false;
+  const formId = segments[1];
+  if (!isUuid(formId)) return false;
+
+  if (segments.length === 3 && segments[2] === 'active-attempt') {
+    return true;
+  }
+
+  const isFormLayout = segments.length === 2;
+  const isAttemptHistory = segments.length === 3 && segments[2] === 'attempts';
+  if (!isFormLayout && !isAttemptHistory) return false;
+
+  const peek = await peekGatewayActiveAttemptState(ctx, formId);
+  return peek === 'in_progress';
+}
+
 async function assertQuizAuthorizedForForm(
   request: NextRequest,
   formPublicId: string,
@@ -619,19 +752,14 @@ async function assertQuizAuthorizedForForm(
     assignmentId,
     assignmentId != null ? undefined : mode,
   );
-  let result = getCachedQuizAuthorize(cacheKey);
-  if (!result) {
-    const fetched = await authorizeQuizViaCrm(request, {
+  const result = await resolveQuizAuthorizeCached(cacheKey, () =>
+    authorizeQuizViaCrm(request, {
       formPublicId,
       assignmentId,
       mode: assignmentId != null ? undefined : mode,
       intent: 'access',
-    });
-    if (fetched) {
-      setCachedQuizAuthorize(cacheKey, fetched);
-      result = fetched;
-    }
-  }
+    }),
+  );
 
   if (result === null) {
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
@@ -656,12 +784,10 @@ export async function proxyQuizRuntimeToGateway(
   // Validate gateway configuration
   const cfg = getGatewayConfig();
   if (!cfg) {
+    logInternalApiError('quiz-runtime-proxy', 'missing gateway config');
     return NextResponse.json(
-      {
-        message:
-          'Quiz gateway chưa cấu hình. Đặt SOCIAL_GATEWAY_BASE_URL và SOCIAL_GATEWAY_SERVICE_TOKEN trên server Portal.',
-      },
-      { status: 500 },
+      { message: STUDENT_SAFE_USER_MESSAGES.serverConfig },
+      { status: 503 },
     );
   }
 
@@ -669,10 +795,7 @@ export async function proxyQuizRuntimeToGateway(
   const customerId = await resolveStudentCustomerIdViaCrmMe(request);
   if (customerId === null) {
     return NextResponse.json(
-      {
-        message:
-          'Chưa đăng nhập, phiên không hợp lệ, hoặc không gọi được CRM GET /student/me (kiểm tra CRM_API_URL).',
-      },
+      { message: STUDENT_SAFE_USER_MESSAGES.unauthorized },
       { status: 401 },
     );
   }
@@ -698,7 +821,12 @@ export async function proxyQuizRuntimeToGateway(
     segments[2] === 'review-bundle';
 
   const formPublicId = formPublicIdFromSegments(segments);
-  if (formPublicId && !isReviewBundle) {
+  const skipAuthorize =
+    formPublicId != null &&
+    !isReviewBundle &&
+    (await shouldSkipQuizAuthorizeForFormRoute(ctx, segments));
+
+  if (formPublicId && !isReviewBundle && !skipAuthorize) {
     const deny = await assertQuizAuthorizedForForm(request, formPublicId, customerId);
     if (deny) return deny;
   }
@@ -706,14 +834,42 @@ export async function proxyQuizRuntimeToGateway(
   // Find matching route
   const route = matchRoute(ROUTE_MAP, request.method, segments);
   if (!route) {
+    logInternalApiError('quiz-runtime-proxy', {
+      method: request.method,
+      path: segments.join('/'),
+    });
     return NextResponse.json(
-      { message: 'Unsupported quiz-runtime path or method.' },
+      { message: STUDENT_SAFE_USER_MESSAGES.notFound },
       { status: 404 },
     );
   }
 
-  // Execute route handler
-  return route.handler(ctx, segments, request);
+  try {
+    return await route.handler(ctx, segments, request);
+  } catch (err) {
+    const causeCode =
+      err instanceof Error &&
+      err.cause &&
+      typeof err.cause === 'object' &&
+      'code' in err.cause
+        ? String((err.cause as { code?: unknown }).code)
+        : '';
+    if (
+      causeCode === 'ECONNREFUSED' ||
+      (err instanceof TypeError && err.message.includes('fetch failed'))
+    ) {
+      logInternalApiError('quiz-runtime-proxy:upstream', err);
+      return NextResponse.json(
+        { message: STUDENT_SAFE_USER_MESSAGES.quizUnavailable },
+        { status: 503 },
+      );
+    }
+    logInternalApiError('quiz-runtime-proxy:handler', err);
+    return NextResponse.json(
+      { message: STUDENT_SAFE_USER_MESSAGES.quizUnavailable },
+      { status: 500 },
+    );
+  }
 }
 
 // Export individual handlers for testing
