@@ -88,6 +88,25 @@ CRM `upsertQuizGradedSync` chỉ cập nhật khi `submittedAt` attempt **≥** 
 
 ---
 
+## 3.1.1 Listening — nộp bài sớm (2026-06)
+
+| Khóa | Quy tắc |
+|------|---------|
+| **Nộp bài** | Mở sau khi nghe **xong ≥1 vòng** audio của phần (cả chuỗi track trong section). |
+| **Chuyển phần** | Vẫn cần nghe **hết lượt** còn lại (`remainingPlaysByListeningUnit`). |
+
+| File | Vai trò |
+|------|---------|
+| `lib/quiz-listening-rules.ts` | SSOT semantics §10.1/§10.6; `buildRemainingPlaysByListeningUnitFromForm` |
+| `lib/quiz-section-listening-locks.ts` | Pure: `computeSectionListeningLocks`, tooltip constants |
+| `lib/quiz-section-listening-queue.ts` | `buildSectionListeningQueue`, `flattenSectionListeningQueue` |
+| `QuizSectionListeningOrchestrator.tsx` | Autoplay section + `onLocksChange` |
+| `QuizAttemptTakingFooter.tsx` | `listeningSubmitLocked` tách khỏi `listeningNavLocked` |
+
+Gateway vẫn trừ lượt theo từng vòng phát; server **không** chặn submit khi còn lượt nghe.
+
+---
+
 ## 3.2 Trang `/assignments` — nút hành động
 
 | Hàm / component | Vai trò |

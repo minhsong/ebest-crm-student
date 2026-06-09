@@ -3,6 +3,7 @@
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { QuizAttemptQuestionBlocks } from '@/features/quiz-test/components/QuizAttemptQuestionBlocks';
 import { QuizAttemptSectionToolbar } from '@/features/quiz-test/components/QuizAttemptSectionToolbar';
+import { QuizSectionInstructionsBlock } from '@/features/quiz-test/components/QuizSectionInstructionsBlock';
 import { QuizAttemptTakingFooter } from '@/features/quiz-test/components/QuizAttemptTakingFooter';
 import { QuizAttemptTimerBar } from '@/features/quiz-test/components/QuizAttemptTimerBar';
 import { QuizSectionOutlineDrawer } from '@/features/quiz-test/components/QuizSectionOutlineDrawer';
@@ -11,7 +12,11 @@ import { QuizSectionListeningOrchestrator } from '@/features/quiz-test/component
 import type { QuizRenderableBlock } from '@/features/quiz-test/lib/quiz-renderable-items';
 import { buildSectionListeningQueue } from '@/features/quiz-test/lib/quiz-section-listening-queue';
 import { quizAnchorDomId } from '@/features/quiz-test/lib/quiz-section-navigation';
-import { quizSectionListeningStorageKey } from '@/features/quiz-test/lib/quiz-section-listening-key';
+import {
+  getSectionListeningQuotaFromForm,
+  quizSectionListeningStorageKey,
+} from '@/features/quiz-test/lib/quiz-listening-rules';
+import type { SectionListeningLocks } from '@/features/quiz-test/lib/quiz-section-listening-locks';
 import { getAttemptTimerValidity } from '@/features/quiz-test/lib/quiz-runtime-view';
 import type { QuizPublishedFormPayload, QuizFormSectionPayload, StartAttemptResponse } from '@/features/quiz-test/types';
 import { Alert, Button, Card, Space, Typography } from 'antd';
@@ -74,6 +79,7 @@ export function QuizAttemptTakingSection({
   const [outlineOpen, setOutlineOpen] = useState(true);
   const [listeningHighlightKey, setListeningHighlightKey] = useState<string | null>(null);
   const [listeningNavLocked, setListeningNavLocked] = useState(false);
+  const [listeningSubmitLocked, setListeningSubmitLocked] = useState(false);
 
   // Auto-scroll to the highlighted question when audio is playing
   useEffect(() => {
@@ -94,6 +100,11 @@ export function QuizAttemptTakingSection({
   const multiSection = Boolean(
     sections && sections.length > 1 && typeof activeSectionId === 'number',
   );
+
+  const activeSectionMeta = useMemo(() => {
+    if (!sections?.length || typeof activeSectionId !== 'number') return null;
+    return sections.find((s) => s.sectionId === activeSectionId) ?? null;
+  }, [activeSectionId, sections]);
 
   const handleGoPrevSection = useCallback(() => {
     if (listeningNavLocked) return;
@@ -129,18 +140,25 @@ export function QuizAttemptTakingSection({
   const useSectionListeningPlayer =
     queueHasListening && hasSectionListeningQuota && !!reportListeningCycle;
 
+  const sectionListeningQuotaMax = useMemo(
+    () => getSectionListeningQuotaFromForm(formPayload, effectiveListeningSectionId),
+    [formPayload, effectiveListeningSectionId],
+  );
+
   useEffect(() => {
     if (!useSectionListeningPlayer) {
       setListeningNavLocked(false);
+      setListeningSubmitLocked(false);
       setListeningHighlightKey(null);
       onListeningNavLock?.(false);
     }
   }, [useSectionListeningPlayer, onListeningNavLock]);
 
-  const handleListeningNavLock = useCallback(
-    (locked: boolean) => {
-      setListeningNavLocked(locked);
-      onListeningNavLock?.(locked);
+  const handleListeningLocksChange = useCallback(
+    ({ navLocked, submitLocked }: SectionListeningLocks) => {
+      setListeningNavLocked(navLocked);
+      setListeningSubmitLocked(submitLocked);
+      onListeningNavLock?.(navLocked);
     },
     [onListeningNavLock],
   );
@@ -207,15 +225,17 @@ export function QuizAttemptTakingSection({
       ) : null}
 
       <Space direction="vertical" size="large" className="w-full px-4 pb-6 md:px-6">
+        <QuizSectionInstructionsBlock section={activeSectionMeta} />
         {useSectionListeningPlayer ? (
           <QuizSectionListeningOrchestrator
             key={sectionListeningStorageKeyStr}
             sectionId={effectiveListeningSectionId}
             renderBlocks={renderBlocks}
             listeningRemaining={listeningRemaining ?? {}}
+            sectionQuotaMax={sectionListeningQuotaMax}
             reportListeningCycle={reportListeningCycle!}
             onHighlightKeyChange={setListeningHighlightKey}
-            onNavLockChange={handleListeningNavLock}
+            onLocksChange={handleListeningLocksChange}
           />
         ) : null}
         <QuizAttemptQuestionBlocks
@@ -239,6 +259,7 @@ export function QuizAttemptTakingSection({
         onGoPrevSection={handleGoPrevSection}
         onGoNextSection={handleGoNextSection}
         listeningNavLocked={listeningNavLocked}
+        listeningSubmitLocked={listeningSubmitLocked}
       />
     </Card>
   );

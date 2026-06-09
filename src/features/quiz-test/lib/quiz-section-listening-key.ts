@@ -1,4 +1,2 @@
-/** Khớp `quizSectionListeningStorageKey` trên gateway (`quiz-listening.util.ts`). */
-export function quizSectionListeningStorageKey(sectionId: number): string {
-  return `section:${sectionId}`;
-}
+/** @deprecated Import từ `quiz-listening-rules` */
+export { quizSectionListeningStorageKey } from '@/features/quiz-test/lib/quiz-listening-rules';

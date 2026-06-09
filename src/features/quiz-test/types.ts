@@ -54,6 +54,7 @@ export type QuizFormSectionPayload = {
   sectionId: number;
   order: number;
   title?: string | null;
+  instructions?: string | null;
   formItemIds?: number[];
 };
 

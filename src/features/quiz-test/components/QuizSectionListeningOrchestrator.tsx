@@ -1,34 +1,26 @@
 'use client';
 
 import type { QuizRenderableBlock } from '@/features/quiz-test/lib/quiz-renderable-items';
-import { buildSectionListeningQueue } from '@/features/quiz-test/lib/quiz-section-listening-queue';
-import { quizSectionListeningStorageKey } from '@/features/quiz-test/lib/quiz-section-listening-key';
+import {
+  computeSectionListeningLocks,
+  getSectionListeningStatusSuffix,
+  hasHeardSectionListeningAtLeastOnce,
+  type SectionListeningLocks,
+} from '@/features/quiz-test/lib/quiz-section-listening-locks';
+import { quizSectionListeningStorageKey } from '@/features/quiz-test/lib/quiz-listening-rules';
+import { flattenSectionListeningQueue } from '@/features/quiz-test/lib/quiz-section-listening-queue';
 import { Alert } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
-type FlatSeg = { url: string; highlightKey: string };
-
-function flattenQueue(blocks: QuizRenderableBlock[]): FlatSeg[] {
-  const q = buildSectionListeningQueue(blocks);
-  const out: FlatSeg[] = [];
-  for (const item of q) {
-    for (const t of item.tracks) {
-      const url = typeof t.url === 'string' && t.url.trim() ? t.url.trim() : '';
-      if (!url) continue;
-      out.push({ url, highlightKey: item.highlightKey });
-    }
-  }
-  return out;
-}
 
 export type QuizSectionListeningOrchestratorProps = {
   sectionId: number;
   renderBlocks: QuizRenderableBlock[];
   listeningRemaining: Record<string, number>;
+  /** Lượt nghe tối đa của section (từ đề) — dùng tính đã nghe khi resume. */
+  sectionQuotaMax?: number | null;
   reportListeningCycle: (formItemKey: string) => Promise<void>;
   onHighlightKeyChange: (key: string | null) => void;
-  /** `true` khi chưa hết lượt section (theo server) hoặc đang phát chuỗi audio. */
-  onNavLockChange: (locked: boolean) => void;
+  onLocksChange: (locks: SectionListeningLocks) => void;
 };
 
 /**
@@ -39,44 +31,78 @@ export function QuizSectionListeningOrchestrator({
   sectionId,
   renderBlocks,
   listeningRemaining,
+  sectionQuotaMax,
   reportListeningCycle,
   onHighlightKeyChange,
-  onNavLockChange,
+  onLocksChange,
 }: QuizSectionListeningOrchestratorProps) {
-  const flat = useMemo(() => flattenQueue(renderBlocks), [renderBlocks]);
+  const flat = useMemo(
+    () => flattenSectionListeningQueue(renderBlocks),
+    [renderBlocks],
+  );
   const sectionKey = quizSectionListeningStorageKey(sectionId);
   const sectionRem = listeningRemaining[sectionKey];
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [segIndex, setSegIndex] = useState(0);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [playbackBusy, setPlaybackBusy] = useState(false);
+  const [localCyclesCompleted, setLocalCyclesCompleted] = useState(0);
   const roundClosedRef = useRef(false);
   const reportRef = useRef(reportListeningCycle);
   reportRef.current = reportListeningCycle;
   const highlightRef = useRef(onHighlightKeyChange);
   highlightRef.current = onHighlightKeyChange;
-  const navRef = useRef(onNavLockChange);
-  navRef.current = onNavLockChange;
+  const locksRef = useRef(onLocksChange);
+  locksRef.current = onLocksChange;
+
+  const hasQueue = flat.length > 0;
+  const hasServerQuota =
+    typeof sectionRem === 'number' && Number.isFinite(sectionRem);
+  const active = hasQueue && hasServerQuota && sectionRem > 0;
+
+  const heardAtLeastOnce = hasHeardSectionListeningAtLeastOnce({
+    hasQueue,
+    hasServerQuota,
+    sectionQuotaMax,
+    sectionRem: hasServerQuota ? sectionRem : 0,
+    localCyclesCompleted,
+  });
+
+  useEffect(() => {
+    setLocalCyclesCompleted(0);
+  }, [sectionKey]);
 
   useEffect(() => {
     return () => {
-      navRef.current(false);
+      locksRef.current({ navLocked: false, submitLocked: false });
       highlightRef.current(null);
     };
   }, []);
 
-  const hasServerQuota = typeof sectionRem === 'number' && Number.isFinite(sectionRem);
-  const active = flat.length > 0 && hasServerQuota && sectionRem > 0;
-
   useEffect(() => {
-    if (!flat.length || !hasServerQuota) {
-      navRef.current(false);
+    if (!hasQueue || !hasServerQuota) {
+      locksRef.current({ navLocked: false, submitLocked: false });
       highlightRef.current(null);
       return;
     }
-    const locked = sectionRem > 0 || playbackBusy;
-    navRef.current(locked);
-  }, [flat.length, hasServerQuota, sectionRem, playbackBusy]);
+    locksRef.current(
+      computeSectionListeningLocks({
+        hasQueue,
+        hasServerQuota,
+        sectionRem,
+        sectionQuotaMax,
+        localCyclesCompleted,
+        playbackBusy,
+      }),
+    );
+  }, [
+    hasQueue,
+    hasServerQuota,
+    sectionRem,
+    sectionQuotaMax,
+    localCyclesCompleted,
+    playbackBusy,
+  ]);
 
   const resetRound = useCallback(() => {
     roundClosedRef.current = false;
@@ -86,12 +112,12 @@ export function QuizSectionListeningOrchestrator({
 
   const prevRemRef = useRef<number | undefined>(undefined);
   useEffect(() => {
-    if (!flat.length) return;
+    if (!hasQueue) return;
     if (prevRemRef.current !== sectionRem) {
       prevRemRef.current = sectionRem;
       resetRound();
     }
-  }, [flat.length, sectionRem, resetRound]);
+  }, [hasQueue, sectionRem, resetRound]);
 
   useEffect(() => {
     if (!active) {
@@ -130,6 +156,7 @@ export function QuizSectionListeningOrchestrator({
       if (!roundClosedRef.current) {
         roundClosedRef.current = true;
         highlightRef.current(null);
+        setLocalCyclesCompleted((n) => n + 1);
         void (async () => {
           try {
             await reportRef.current(sectionKey);
@@ -143,20 +170,21 @@ export function QuizSectionListeningOrchestrator({
     return () => el.removeEventListener('ended', onEnded);
   }, [active, flat.length, segIndex, sectionKey]);
 
-  if (!flat.length) return null;
-
-  if (!hasServerQuota) {
+  if (!hasQueue || !hasServerQuota) {
     return null;
   }
+
+  const statusSuffix = getSectionListeningStatusSuffix(
+    sectionRem,
+    heardAtLeastOnce,
+  );
 
   return (
     <div className="mb-4 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
       <div className="text-sm text-neutral-700">
         Phần nghe: audio sẽ phát lần lượt theo thứ tự câu. Còn{' '}
         <strong>{Math.max(0, sectionRem)}</strong> lượt phát cả chuỗi.
-        {sectionRem > 0
-          ? ' Hoàn thành hết lượt mới chuyển phần khác.'
-          : null}
+        {statusSuffix}
       </div>
       <audio ref={audioRef} preload="auto" className="sr-only h-0 w-0" aria-hidden />
       {autoplayBlocked ? (

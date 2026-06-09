@@ -28,3 +28,23 @@ export function buildSectionListeningQueue(blocks: QuizRenderableBlock[]): Secti
   }
   return out;
 }
+
+export type FlatSectionListeningSegment = {
+  url: string;
+  highlightKey: string;
+};
+
+/** Phẳng hóa queue thành danh sách segment (một track = một phần tử). */
+export function flattenSectionListeningQueue(
+  blocks: QuizRenderableBlock[],
+): FlatSectionListeningSegment[] {
+  const out: FlatSectionListeningSegment[] = [];
+  for (const item of buildSectionListeningQueue(blocks)) {
+    for (const t of item.tracks) {
+      const url = typeof t.url === 'string' && t.url.trim() ? t.url.trim() : '';
+      if (!url) continue;
+      out.push({ url, highlightKey: item.highlightKey });
+    }
+  }
+  return out;
+}

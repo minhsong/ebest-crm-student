@@ -1,5 +1,9 @@
 'use client';
 
+import {
+  LISTENING_NAV_LOCKED_TOOLTIP,
+  LISTENING_SUBMIT_LOCKED_TOOLTIP,
+} from '@/features/quiz-test/lib/quiz-section-listening-locks';
 import type { QuizFormSectionPayload } from '@/features/quiz-test/types';
 import { App, Button, Divider, Space, Tooltip, Typography } from 'antd';
 import { useMemo } from 'react';
@@ -13,6 +17,8 @@ export type QuizAttemptTakingFooterProps = {
   onGoNextSection?: () => void;
   /** Khóa chuyển phần khi chưa xong lượt nghe của phần hiện tại. */
   listeningNavLocked?: boolean;
+  /** Khóa nộp bài khi chưa nghe xong ít nhất một vòng audio (nếu có). */
+  listeningSubmitLocked?: boolean;
 };
 
 /** Chân trang làm bài: section không cuối → Trước/Tiếp; section cuối → Trước (nếu có) + Nộp bài; một phần → chỉ Nộp bài. */
@@ -24,6 +30,7 @@ export function QuizAttemptTakingFooter({
   onGoPrevSection,
   onGoNextSection,
   listeningNavLocked,
+  listeningSubmitLocked = false,
 }: QuizAttemptTakingFooterProps) {
   const { modal } = App.useApp();
 
@@ -67,11 +74,7 @@ export function QuizAttemptTakingFooter({
           {multiSection ? (
             <>
               <Tooltip
-                title={
-                  listeningNavLocked
-                    ? 'Hoàn thành hết lượt phần nghe của phần này trước khi chuyển.'
-                    : undefined
-                }
+                title={listeningNavLocked ? LISTENING_NAV_LOCKED_TOOLTIP : undefined}
               >
                 <span>
                   <Button
@@ -86,9 +89,7 @@ export function QuizAttemptTakingFooter({
               {isLast ? (
                 <Tooltip
                   title={
-                    listeningNavLocked
-                      ? 'Hoàn thành hết lượt phần nghe của phần này trước khi nộp bài.'
-                      : undefined
+                    listeningSubmitLocked ? LISTENING_SUBMIT_LOCKED_TOOLTIP : undefined
                   }
                 >
                   <span>
@@ -96,7 +97,7 @@ export function QuizAttemptTakingFooter({
                       type="primary"
                       size="large"
                       loading={submitting}
-                      disabled={listeningNavLocked}
+                      disabled={listeningSubmitLocked}
                       onClick={requestSubmit}
                     >
                       Nộp bài
@@ -105,11 +106,7 @@ export function QuizAttemptTakingFooter({
                 </Tooltip>
               ) : (
                 <Tooltip
-                  title={
-                    listeningNavLocked
-                      ? 'Hoàn thành hết lượt phần nghe của phần này trước khi chuyển.'
-                      : undefined
-                  }
+                  title={listeningNavLocked ? LISTENING_NAV_LOCKED_TOOLTIP : undefined}
                 >
                   <span>
                     <Button
@@ -127,9 +124,7 @@ export function QuizAttemptTakingFooter({
           ) : (
             <Tooltip
               title={
-                listeningNavLocked
-                  ? 'Hoàn thành hết lượt phần nghe trước khi nộp bài.'
-                  : undefined
+                listeningSubmitLocked ? LISTENING_SUBMIT_LOCKED_TOOLTIP : undefined
               }
             >
               <span>
@@ -137,7 +132,7 @@ export function QuizAttemptTakingFooter({
                   type="primary"
                   size="large"
                   loading={submitting}
-                  disabled={listeningNavLocked}
+                  disabled={listeningSubmitLocked}
                   onClick={requestSubmit}
                 >
                   Nộp bài

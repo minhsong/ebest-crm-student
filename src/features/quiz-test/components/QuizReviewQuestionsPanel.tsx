@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Collapse } from 'antd';
 import { QuizAttemptQuestionBlocks } from '@/features/quiz-test/components/QuizAttemptQuestionBlocks';
+import { QuizSectionInstructionsBlock } from '@/features/quiz-test/components/QuizSectionInstructionsBlock';
 import { filterRenderableBlocksBySectionId } from '@/features/quiz-test/lib/quiz-renderable-items';
 import { buildBlockStartIndexes } from '@/features/quiz-test/lib/quiz-runtime-view';
 import type { QuizReviewViewModel } from '@/features/quiz-test/lib/quiz-review-view-model';
@@ -67,17 +68,21 @@ export function QuizReviewQuestionsPanel({
   };
 
   if (sectionsOrdered.length <= 1) {
+    const loneSection = sectionsOrdered[0];
     return (
-      <QuizAttemptQuestionBlocks
-        renderBlocks={renderBlocks}
-        blockStartIndexes={blockStartIndexes}
-        answers={answers}
-        readOnly
-        correctByFormItemId={correctByFormItemId}
-        gradingPerItem={gradingPerItem}
-        showExplanation={showExplanationOnReview}
-        embedListeningPlayer={embedListeningPlayer}
-      />
+      <div className="space-y-3">
+        <QuizSectionInstructionsBlock section={loneSection} />
+        <QuizAttemptQuestionBlocks
+          renderBlocks={renderBlocks}
+          blockStartIndexes={blockStartIndexes}
+          answers={answers}
+          readOnly
+          correctByFormItemId={correctByFormItemId}
+          gradingPerItem={gradingPerItem}
+          showExplanation={showExplanationOnReview}
+          embedListeningPlayer={embedListeningPlayer}
+        />
+      </div>
     );
   }
 
@@ -97,16 +102,19 @@ export function QuizReviewQuestionsPanel({
           key: String(sec.sectionId),
           label: sec.title?.trim() || `Phần ${sec.order + 1}`,
           children: (
-            <QuizAttemptQuestionBlocks
-              renderBlocks={blocks}
-              blockStartIndexes={idx}
-              answers={answers}
-              readOnly
-              correctByFormItemId={correctByFormItemId}
-              gradingPerItem={gradingPerItem}
-              showExplanation={showExplanationOnReview}
-              embedListeningPlayer={embedListeningPlayer}
-            />
+            <div className="space-y-3">
+              <QuizSectionInstructionsBlock section={sec} />
+              <QuizAttemptQuestionBlocks
+                renderBlocks={blocks}
+                blockStartIndexes={idx}
+                answers={answers}
+                readOnly
+                correctByFormItemId={correctByFormItemId}
+                gradingPerItem={gradingPerItem}
+                showExplanation={showExplanationOnReview}
+                embedListeningPlayer={embedListeningPlayer}
+              />
+            </div>
           ),
         };
       })}
