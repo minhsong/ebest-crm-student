@@ -6,6 +6,7 @@ import { PlayCircleOutlined } from '@ant-design/icons';
 import type { AssignmentOverviewRow } from '@/lib/assignments-overview-grouping';
 import {
   buildQuizStartHref,
+  buildVocabularyDrillStartHref,
   deriveAssignmentListRowAction,
 } from '@/lib/assignment-list-row-actions';
 import { pinAssignmentQuizRuntimeAccess } from '@/lib/quiz-runtime-access';
@@ -13,6 +14,7 @@ import { pinAssignmentQuizRuntimeAccess } from '@/lib/quiz-runtime-access';
 type Props = {
   row: AssignmentOverviewRow;
   onOpenDetail: () => void;
+  canInteract?: boolean;
   size?: 'small' | 'middle';
 };
 
@@ -22,9 +24,21 @@ type Props = {
 export function AssignmentOverviewRowActions({
   row,
   onOpenDetail,
+  canInteract = true,
   size = 'small',
 }: Props) {
-  const action = deriveAssignmentListRowAction(row);
+  const action = deriveAssignmentListRowAction(row, { canInteract });
+
+  if (action.kind === 'vocabulary_drill_start') {
+    const href = buildVocabularyDrillStartHref(action.classId, action.assignmentId);
+    return (
+      <Link href={href} prefetch={false}>
+        <Button type="primary" size={size} icon={<PlayCircleOutlined />}>
+          Làm bài
+        </Button>
+      </Link>
+    );
+  }
 
   if (action.kind === 'quiz_start') {
     const href = buildQuizStartHref(action.formPublicId, action.assignmentId);

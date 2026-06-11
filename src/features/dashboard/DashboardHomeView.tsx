@@ -161,6 +161,7 @@ export function DashboardHomeView() {
                   row={m.row}
                   stripedDim={i % 2 === 0}
                   classCode={m.classCode}
+                  classId={m.classId}
                 />
               ))}
             </Space>

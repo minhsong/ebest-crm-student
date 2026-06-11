@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Button, Tabs, Tag } from 'antd';
+import { Button, Tabs, Tag, Alert } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { PageHeader, PageCard } from '@/components/layout';
 import { useAuth } from '@/contexts/auth-context';
@@ -16,6 +16,7 @@ import {
   ClassAttendanceTab,
   ClassChecklistsTab,
   ClassSessionsTab,
+  ClassVocabularyTab,
   classDetailTitleFromOverview,
   type ChecklistStatusFilter,
   type StudentClassAssignmentsRow,
@@ -148,13 +149,21 @@ export default function StudentClassDetailPage() {
     <>
       <PageHeader
         title={classLabel}
-        description="Xem buổi học, bài tập, checklist và điểm danh của lớp."
+        description={
+          overview?.canInteract === false
+            ? 'Lớp chỉ xem lại — bài tập và từ vựng không thể tương tác mới.'
+            : 'Xem buổi học, bài tập, checklist và điểm danh của lớp.'
+        }
         leading={
           <Link href="/classes">
             <Button icon={<ArrowLeftOutlined />}>Quay lại</Button>
           </Link>
         }
       />
+
+      {overview?.canInteract === false && overview.readOnlyReason ? (
+        <Alert type="info" showIcon message={overview.readOnlyReason} className="mb-4" />
+      ) : null}
 
       <PageCard>
         <Tabs
@@ -166,6 +175,13 @@ export default function StudentClassDetailPage() {
               label: 'Các buổi học',
               children: (
                 <ClassSessionsTab loading={overviewLoading} overview={overview} />
+              ),
+            },
+            {
+              key: 'vocabulary',
+              label: 'Từ vựng',
+              children: (
+                <ClassVocabularyTab loading={overviewLoading} overview={overview} />
               ),
             },
             {

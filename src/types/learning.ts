@@ -1,0 +1,263 @@
+export type LearningMasteryState = 'new' | 'exposed' | 'learning';
+
+export interface LearningHubClass {
+	classId: number;
+	className: string;
+	courseId: number;
+	interactionMode?: 'interactive' | 'read_only';
+	readOnlyReason?: string | null;
+}
+
+export interface LearningHubTodaySession {
+	classSessionId: number;
+	classId: number;
+	className: string;
+	title: string;
+	assetCount: number;
+}
+
+export interface LearningHubWeekStats {
+	weekStart: string;
+	weekEventCount: number;
+	weekUniqueAssetsSeen: number;
+	weekQuizAttempts: number;
+	weekDrillScore?: number;
+	weekDrillPlays?: number;
+}
+
+export interface LearningAssignmentDueItem {
+	assignmentId: number;
+	title: string;
+	deadline: string;
+	className: string;
+	sessionTitle: string;
+	resultStatus: number | null;
+}
+
+export type LearningRecommendationType =
+	| 'assignment_due'
+	| 'flashcard_session'
+	| 'review_assets'
+	| 'vocabulary_drill_practice'
+	| 'resume_attempt';
+
+export type LearningRecommendationAction =
+	| { type: 'assignment_due'; route: '/assignments'; assignmentId: number }
+	| {
+			type: 'flashcard_session';
+			route: '/learning/flashcard';
+			classId: number;
+			classSessionId: number;
+	  }
+	| {
+			type: 'review_assets';
+			route: string;
+			assetIds: number[];
+			classId?: number;
+			classSessionId?: number;
+	  }
+	| {
+			type: 'vocabulary_drill_practice';
+			route: string;
+			classId: number;
+	  }
+	| { type: 'resume_attempt'; route: string; attemptPublicId: string };
+
+export interface LearningRecommendationItem {
+	type: LearningRecommendationType;
+	priority: number;
+	title: string;
+	reason: string;
+	action: LearningRecommendationAction;
+}
+
+export interface LearningHubPayload {
+	recommendations: LearningRecommendationItem[];
+	assignmentsDue: LearningAssignmentDueItem[];
+	todaySession: LearningHubTodaySession | null;
+	weekStats: LearningHubWeekStats;
+	classes: LearningHubClass[];
+	context?: {
+		hasActiveEnrollment: boolean;
+		hasViewableClasses?: boolean;
+		messageCode: 'NO_ACTIVE_ENROLLMENT' | 'NO_ENROLLMENT' | null;
+	};
+}
+
+export interface LearningVocabularyLearningAccess {
+	mode: 'interactive' | 'read_only';
+	canRecordEvents: boolean;
+	readOnlyReason: string | null;
+}
+
+export interface LearningVocabularySessionListItem {
+	classSessionId: number;
+	title: string;
+	scheduledDate: string;
+	assetCount: number;
+}
+
+export interface LearningVocabularySessionsPayload {
+	classId: number;
+	learningAccess: LearningVocabularyLearningAccess;
+	sessions: LearningVocabularySessionListItem[];
+}
+
+export interface LearningProgressSummary {
+	assetId: number;
+	masteryState: LearningMasteryState;
+	masteryLabel: string;
+	firstSeenAt: string | null;
+	lastSeenAt: string | null;
+	timesSeen: number;
+	knownCount: number;
+	unknownCount: number;
+	accuracyRate: number | null;
+	lastQuizAt: string | null;
+}
+
+export interface LearningVocabularyItem {
+	order: number;
+	asset: {
+		id: number;
+		assetType: string;
+		word: string;
+		translation?: string;
+		meanings?: string[];
+		ipaUk?: string;
+		ipaUs?: string;
+		example?: string;
+		exampleTranslation?: string;
+		audioUkUrl?: string;
+		audioUsUrl?: string;
+		imageUrl?: string;
+		status: string;
+	};
+	progress: LearningProgressSummary;
+}
+
+export interface LearningVocabularyPayload {
+	source: string;
+	classSessionId: number;
+	classId: number;
+	courseSessionId: number | null;
+	learningAccess?: LearningVocabularyLearningAccess;
+	items: LearningVocabularyItem[];
+}
+
+export type LearningEventType =
+	| 'asset.viewed'
+	| 'asset.audio_played'
+	| 'asset.reviewed'
+	| 'activity.started'
+	| 'activity.completed';
+
+export type LearningEventSource = 'self_study' | 'practice' | 'assignment';
+
+export type SelfRating = 'known' | 'unknown';
+
+export interface LearningEventItem {
+	eventType: LearningEventType;
+	source: LearningEventSource;
+	occurredAt?: string;
+	clientOccurredAt?: string;
+	studySessionId?: string;
+	classId?: number;
+	courseSessionId?: number;
+	classSessionId?: number;
+	assetId?: number;
+	payload?: Record<string, unknown>;
+}
+
+export interface VocabularyPoolEntry {
+	assetId: number;
+	word: string;
+	translation?: string;
+	effectiveTier: 'required' | 'extended';
+}
+
+export interface VocabularyPoolPayload {
+	classId: number;
+	courseId: number | null;
+	practiceEnabled: boolean;
+	poolSize: number;
+	requiredCount: number;
+	extendedCount: number;
+	minPoolSize: number;
+	entries: VocabularyPoolEntry[];
+	learningAccess?: LearningVocabularyLearningAccess;
+}
+
+export interface DrillQuestionClient {
+	questionId: string;
+	prompt: string;
+	promptType: 'meaning' | 'audio';
+	promptAudioUrl?: string;
+	options: Array<{ id: string; label: string; assetId: number }>;
+}
+
+export interface WeakWordRow {
+	assetId: number;
+	word: string;
+	wrongCount: number;
+	attemptCount: number;
+}
+
+export interface WeakWordsPayload {
+	classId: number;
+	rows: WeakWordRow[];
+}
+
+export interface DrillSessionClient {
+	playId: string;
+	gameMode: string;
+	scoreInRun: number;
+	status: string;
+	question: DrillQuestionClient;
+}
+
+export interface DrillAnswerResult {
+	playId: string;
+	correct: boolean;
+	scoreInRun: number;
+	status: string;
+	completed: boolean;
+	nextQuestion?: DrillQuestionClient;
+}
+
+export interface AssignmentDrillContextPayload {
+  assignmentId: number;
+  classId: number;
+  title: string;
+  minimumScore: number;
+  gameMode: string;
+  assignmentPoolSize: number;
+  unlockPoolSize: number;
+  bestScore: number;
+  assignmentComplete: boolean;
+  canPlay: boolean;
+  learningAccess?: LearningVocabularyLearningAccess;
+  config?: {
+    wordScopeMode: 'class_pool' | 'custom_selection';
+  };
+}
+
+export interface DrillLeaderboardRow {
+	rank: number;
+	customerId: number;
+	displayName: string;
+	score: number;
+	playCount: number;
+}
+
+export interface DrillLeaderboardPayload {
+	classId: number;
+	courseId: number | null;
+	scope: 'class' | 'course';
+	period: 'week' | 'month' | 'all';
+	periodLabel: string;
+	rows: DrillLeaderboardRow[];
+	self: { rank: number | null; score: number; playCount: number } | null;
+	hidden?: boolean;
+	hiddenReason?: string;
+}

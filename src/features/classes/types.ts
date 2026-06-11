@@ -2,6 +2,7 @@ import type { OverviewClassSessions } from '@/types/overview-sessions';
 
 export type StudentClassDetailTabKey =
   | 'sessions'
+  | 'vocabulary'
   | 'assignments'
   | 'checklists'
   | 'attendance';

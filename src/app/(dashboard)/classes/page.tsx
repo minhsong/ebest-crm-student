@@ -14,7 +14,19 @@ interface ClassItem {
   courseName: string;
   enrollmentDate?: string;
   schedule?: Array<{ dayCode: number; time: string }>;
+  classStatus?: number;
+  interactionMode?: 'interactive' | 'read_only';
+  canInteract?: boolean;
 }
+
+const CLASS_STATUS_LABEL: Record<number, string> = {
+  1: 'Dự mở',
+  2: 'Sẵn sàng',
+  3: 'Đang học',
+  4: 'Đã học',
+  5: 'Đã hủy',
+  6: 'Tạm dừng',
+};
 
 const DAY_LABELS: Record<number, string> = {
   0: 'CN', 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7',
@@ -54,6 +66,21 @@ export default function MyClassesPage() {
       ),
     },
     { title: 'Khóa học', dataIndex: 'courseName', key: 'courseName' },
+    {
+      title: 'Trạng thái',
+      key: 'status',
+      width: 140,
+      render: (_: unknown, row: ClassItem) => {
+        const label =
+          CLASS_STATUS_LABEL[row.classStatus ?? 0] ??
+          (row.canInteract === false ? 'Chỉ xem' : '—');
+        const color =
+          row.interactionMode === 'interactive' || row.canInteract !== false
+            ? 'processing'
+            : 'default';
+        return <Tag color={color}>{label}</Tag>;
+      },
+    },
     { title: 'Ngày ghi danh', dataIndex: 'enrollmentDate', key: 'enrollmentDate', width: 120, render: (v: string) => v || '—' },
     {
       title: 'Lịch học',
@@ -73,7 +100,7 @@ export default function MyClassesPage() {
         title="Lớp học của tôi"
         description={
           <>
-            Danh sách lớp bạn đang theo học.{' '}
+            Danh sách lớp bạn đang và đã học. Lớp đã kết thúc chỉ xem lại bài tập và từ vựng.{' '}
             <Link href="/schedule" className="text-blue-600 hover:underline">
               Xem lịch buổi học theo ngày
             </Link>

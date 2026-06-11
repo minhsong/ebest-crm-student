@@ -65,12 +65,12 @@ export function studentMessageForHttpStatus(status: number): string {
   return USER_MESSAGES.generic;
 }
 
-/** JSON trả về client từ BFF — lỗi chỉ còn `{ message }` an toàn. */
+/** JSON trả về client từ BFF — lỗi chỉ còn `{ message }` an toàn (+ `code` nghiệp vụ nếu có). */
 export function sanitizeApiErrorPayload(
   data: unknown,
   status: number,
   fallback?: string,
-): { message: string } {
+): { message: string; code?: string } {
   const base = fallback ?? studentMessageForHttpStatus(status);
   if (data && typeof data === 'object' && !Array.isArray(data)) {
     const o = data as Record<string, unknown>;
@@ -80,7 +80,12 @@ export function sanitizeApiErrorPayload(
         : typeof o.error === 'string'
           ? o.error
           : undefined;
-    return { message: sanitizeStudentFacingMessage(raw, base) };
+    const code =
+      typeof o.code === 'string' && /^[A-Z0-9_]+$/.test(o.code) ? o.code : undefined;
+    return {
+      message: sanitizeStudentFacingMessage(raw, base),
+      ...(code ? { code } : {}),
+    };
   }
   return { message: base };
 }

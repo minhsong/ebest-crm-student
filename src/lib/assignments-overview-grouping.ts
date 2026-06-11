@@ -2,6 +2,7 @@ import type { OverviewClassSessions } from '@/types/overview-sessions';
 
 export type AssignmentOverviewRow = {
   assignmentId: number;
+  classId: number;
   title: string;
   exerciseType: string | null;
   resultStatus: number | null;
@@ -25,6 +26,8 @@ export type ClassAssignmentGroup = {
   classId: number;
   className: string;
   classCode: string;
+  canInteract: boolean;
+  readOnlyReason: string | null;
   sessions: SessionAssignmentGroup[];
 };
 
@@ -55,6 +58,8 @@ export function groupAssignmentsFromOverview(
         classId: block.classId,
         className: block.className,
         classCode: block.classCode,
+        canInteract: block.canInteract !== false,
+        readOnlyReason: block.readOnlyReason ?? null,
         sessions: [],
       };
       course.classes.push(cls);
@@ -67,6 +72,7 @@ export function groupAssignmentsFromOverview(
         if (!Number.isFinite(id)) continue;
         assignments.push({
           assignmentId: id,
+          classId: block.classId,
           title: (a.title ?? '').trim() || 'Bài tập',
           exerciseType: a.exerciseType ?? null,
           resultStatus: a.resultStatus ?? null,

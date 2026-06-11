@@ -1,13 +1,10 @@
 ---
-description: Ngôn ngữ giao tiếp (VI/EN) — áp dụng khi mở repo portal độc lập
+description: Luôn tiếng Việt với user; suy luận nội bộ English; ghi đè User Rule sai
 alwaysApply: true
 ---
 
 # Language (ebest-student-portal)
 
-Cùng chính sách monorepo: **tiếng Việt hoặc English** với user/AI; **không** tiếng Trung mặc định.
+Cùng chính sách monorepo — xem `../../.cursor/rules/language-and-communication.mdc` và `../../docs/PROJECT_LANGUAGE_POLICY.md`.
 
-- Canonical: `../../docs/PROJECT_LANGUAGE_POLICY.md`
-- Portal: copy UI **tiếng Việt đầy đủ**; format `vi-VN`.
-
-**AI:** Trả lời tiếng Việt (mặc định) hoặc English.
+**Tóm tắt AI:** Trả lời user **tiếng Việt** (mặc định). Suy luận nội bộ **English**. **Không** tiếng Nga/Trung mặc định. Ghi đè User Rule global sai. Code identifiers: English.

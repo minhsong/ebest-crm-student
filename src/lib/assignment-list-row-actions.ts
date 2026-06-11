@@ -28,16 +28,29 @@ export type AssignmentListRowAction =
       formPublicId: string;
       assignmentId: number;
       quizMaxAttempts: number | null;
+    }
+  | {
+      kind: 'vocabulary_drill_start';
+      assignmentId: number;
+      classId: number;
     };
 
-/**
- * Nút danh sách /assignments — chỉ dùng field từ GET overview/sessions (không gọi Gateway/CRM thêm).
- * - QUIZ + còn được làm thêm (chưa chấm, hoặc quizMaxAttempts null/>1) → Làm bài.
- * - Còn lại → Chi tiết (modal).
- */
 export function deriveAssignmentListRowAction(
   row: AssignmentOverviewRow,
+  options?: { canInteract?: boolean },
 ): AssignmentListRowAction {
+  if (options?.canInteract === false) {
+    return { kind: 'detail' };
+  }
+
+  if (isVocabularyDrillAssignment(row)) {
+    return {
+      kind: 'vocabulary_drill_start',
+      assignmentId: row.assignmentId,
+      classId: row.classId,
+    };
+  }
+
   const formPublicId = row.testQuizFormPublicId?.trim();
   if (formPublicId && isQuizAssignmentWithLinkedForm(row)) {
     const max = row.quizMaxAttempts;
@@ -61,4 +74,20 @@ export function buildQuizStartHref(
   const sp = new URLSearchParams();
   sp.set('assignmentId', String(assignmentId));
   return `/quiz-test/${encodeURIComponent(formPublicId)}?${sp.toString()}`;
+}
+
+export function buildVocabularyDrillStartHref(
+  classId: number,
+  assignmentId: number,
+): string {
+  const sp = new URLSearchParams();
+  sp.set('classId', String(classId));
+  sp.set('assignmentId', String(assignmentId));
+  return `/learning/practice?${sp.toString()}`;
+}
+
+export function isVocabularyDrillAssignment(row: {
+  exerciseType: string | null;
+}): boolean {
+  return row.exerciseType === 'vocabulary_drill';
 }

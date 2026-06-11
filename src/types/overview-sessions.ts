@@ -46,6 +46,10 @@ export interface OverviewClassSessions {
   /** ClassStatus CRM: 2=READY, 3=IN_PROGRESS, … */
   classStatus: number;
   classStatusLabel: string;
+  /** interactive = tương tác mới; read_only = chỉ xem */
+  interactionMode?: 'interactive' | 'read_only';
+  canInteract?: boolean;
+  readOnlyReason?: string | null;
   /** Giáo viên chủ nhiệm (CRM) */
   homeroomTeacherDisplayName?: string | null;
   /** Giáo vụ / người hỗ trợ lớp */

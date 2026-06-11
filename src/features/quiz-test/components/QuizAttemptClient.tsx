@@ -366,7 +366,7 @@ export function QuizAttemptClient({
     return (
       <Card>
         <Space direction="vertical" size="middle" className="w-full">
-          <Link href={practiceMode ? '/practice-quizzes' : '/assignments'}>
+          <Link href={practiceMode ? '/learning' : '/assignments'}>
             <Button type="default" size="small" icon={<ArrowLeftOutlined />}>
               Danh sách đề
             </Button>
@@ -378,7 +378,7 @@ export function QuizAttemptClient({
     );
   }
 
-  const backHref = practiceMode ? '/practice-quizzes' : '/assignments';
+  const backHref = practiceMode ? '/learning' : '/assignments';
 
   if (phase === 'ready') {
     return (

@@ -77,7 +77,7 @@ export function QuizAttemptEntryClient({
           message={error ?? 'Không mở được đề thi.'}
         />
         <Link
-          href={preferPractice ? '/practice-quizzes' : '/assignments'}
+          href={preferPractice ? '/learning' : '/assignments'}
           className="mt-4 inline-block"
         >
           Quay lại danh sách

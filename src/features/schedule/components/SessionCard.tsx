@@ -10,6 +10,7 @@ import { SessionStatusTag } from '@/features/dashboard/components/SessionStatusT
 import { AttendanceCell } from '@/features/dashboard/components/AttendanceCell';
 import { StudentAssignmentDetailModal } from '@/features/schedule/components/StudentAssignmentDetailModal';
 import { StudentSessionMaterialsModal } from '@/features/schedule/components/StudentSessionMaterialsModal';
+import { SessionCardVocabularyActions } from '@/features/schedule/components/SessionCardVocabularyActions';
 import {
   assignmentResultShort,
   assignmentTypeIcon,
@@ -24,6 +25,8 @@ export type SessionCardProps = {
   stripedDim?: boolean;
   /** Mã lớp — hiển thị trong title (khi có). */
   classCode?: string;
+  /** Khi có — hiện link từ vựng buổi (nếu buổi có từ unlock). */
+  classId?: number;
 };
 
 const tagCellStyle: CSSProperties = { margin: 0, maxWidth: '100%' };
@@ -34,7 +37,7 @@ const squareTagStyle: CSSProperties = {
   paddingInline: 8,
 };
 
-function SessionCardInner({ row, stripedDim, classCode }: SessionCardProps) {
+function SessionCardInner({ row, stripedDim, classCode, classId }: SessionCardProps) {
   const { token } = theme.useToken();
   const labelColor = token.colorText;
   const [detailOpen, setDetailOpen] = useState(false);
@@ -117,6 +120,12 @@ function SessionCardInner({ row, stripedDim, classCode }: SessionCardProps) {
                 >
                   Tài liệu
                 </Button>
+                {classId ? (
+                  <SessionCardVocabularyActions
+                    classId={classId}
+                    classSessionId={row.sessionId}
+                  />
+                ) : null}
                 <SessionStatusTag
                   status={row.sessionStatus}
                   label={row.sessionStatusLabel}

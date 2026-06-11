@@ -46,7 +46,13 @@ export function AssignmentsCourseTree({ groups, onOpenAssignment }: Props) {
             >
               Lớp {cls.className}
               {cls.classCode ? ` · ${cls.classCode}` : ''}
+              {!cls.canInteract ? ' · Chỉ xem' : ''}
             </Text>
+            {!cls.canInteract && cls.readOnlyReason ? (
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                {cls.readOnlyReason}
+              </Text>
+            ) : null}
             <Space direction="vertical" size={token.margin} style={{ width: '100%' }}>
               {cls.sessions.map((session) => (
                 <SessionAssignmentsCard

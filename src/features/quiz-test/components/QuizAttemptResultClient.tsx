@@ -114,7 +114,7 @@ export function QuizAttemptResultClient({
     return (
       <Card>
         <Space direction="vertical">
-          <Link href={!practiceMode ? '/assignments' : '/practice-quizzes'}>
+          <Link href={!practiceMode ? '/assignments' : '/learning'}>
             <Button type="default" icon={<ArrowLeftOutlined />} size="small">
               {!practiceMode ? 'Bài tập' : 'Ôn luyện'}
             </Button>
@@ -143,7 +143,7 @@ export function QuizAttemptResultClient({
     return (
       <Card>
         <Space direction="vertical" size="middle" className="w-full">
-          <Link href={!practiceMode ? '/assignments' : '/practice-quizzes'}>
+          <Link href={!practiceMode ? '/assignments' : '/learning'}>
             <Button type="default" icon={<ArrowLeftOutlined />} size="small">
               {!practiceMode ? 'Bài tập' : 'Ôn luyện'}
             </Button>
@@ -162,7 +162,7 @@ export function QuizAttemptResultClient({
   return (
     <Card>
       <Space direction="vertical" size="middle" className="w-full">
-        <Link href={!practiceMode ? '/assignments' : '/practice-quizzes'}>
+        <Link href={!practiceMode ? '/assignments' : '/learning'}>
           <Button type="default" icon={<ArrowLeftOutlined />} size="small">
             {!practiceMode ? 'Bài tập' : 'Ôn luyện'}
           </Button>
@@ -203,7 +203,7 @@ export function QuizAttemptResultClient({
                   Làm bài mới
                 </Button>
               </Link>
-              <Link href="/practice-quizzes">
+              <Link href="/learning">
                 <Button type="default">Danh sách ôn luyện</Button>
               </Link>
             </>

@@ -13,8 +13,9 @@ import {
   LockOutlined,
   CalendarOutlined,
   QuestionCircleOutlined,
-  FormOutlined,
   FileDoneOutlined,
+  ReadOutlined,
+  FontSizeOutlined,
 } from '@ant-design/icons';
 
 export interface DashboardMenuClassItem {
@@ -59,6 +60,20 @@ export const DASHBOARD_MENU_ENTRIES: DashboardMenuEntry[] = [
   },
   {
     type: 'link',
+    key: 'learning',
+    path: '/learning',
+    label: 'Học tập',
+    icon: <ReadOutlined />,
+  },
+  {
+    type: 'link',
+    key: 'vocabulary',
+    path: '/learning/vocabulary',
+    label: 'Luyện từ vựng',
+    icon: <FontSizeOutlined />,
+  },
+  {
+    type: 'link',
     key: 'classes',
     path: '/classes',
     label: 'Lớp học của tôi',
@@ -84,13 +99,6 @@ export const DASHBOARD_MENU_ENTRIES: DashboardMenuEntry[] = [
     path: '/assignments',
     label: 'Bài tập',
     icon: <FileDoneOutlined />,
-  },
-  {
-    type: 'link',
-    key: 'practice-quizzes',
-    path: '/practice-quizzes',
-    label: 'Ôn luyện',
-    icon: <FormOutlined />,
   },
   { type: 'divider', key: 'divider-after-main' },
   {
@@ -196,10 +204,14 @@ const PATH_LABELS: Record<string, string> = {
   '/change-password': 'Đổi mật khẩu',
   '/classes': 'Lớp học của tôi',
   '/schedule': 'Lịch học',
+  '/learning': 'Học tập',
+  '/learning/vocabulary': 'Luyện từ vựng',
+  '/learning/flashcard': 'Flashcard',
   '/invoices': 'Hóa Đơn',
   '/qa': 'Hỏi đáp',
   '/assignments': 'Bài tập',
-  '/practice-quizzes': 'Ôn luyện',
+  '/learning/practice': 'Games Survival',
+  '/learning/leaderboard': 'Bảng xếp hạng',
   '/quiz-test': 'Làm bài',
 };
 

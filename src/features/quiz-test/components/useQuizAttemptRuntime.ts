@@ -374,7 +374,7 @@ export function useQuizAttemptRuntime({
 
       setPhase('done');
     },
-    [assignmentId, disconnectQuizSocket, formPublicId, refreshHistory],
+    [assignmentId, disconnectQuizSocket, formPublicId, practiceMode, refreshHistory],
   );
 
   const lockAttemptSession = useCallback(
