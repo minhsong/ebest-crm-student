@@ -32,6 +32,15 @@ export function VocabularyWordDetailPanel({
 	return (
 		<div className="vocab-word-detail">
 			<div className="vocab-word-detail__hero">
+				{asset.imageUrl?.trim() ? (
+					<div className="vocab-word-detail__image-wrap">
+						<img
+							src={asset.imageUrl}
+							alt={asset.word}
+							className="vocab-word-detail__image"
+						/>
+					</div>
+				) : null}
 				<div className="vocab-word-detail__hero-top">
 					<Title level={2} className="vocab-word-detail__word">
 						{asset.word}
@@ -41,15 +50,6 @@ export function VocabularyWordDetailPanel({
 						label={progress.masteryLabel}
 					/>
 				</div>
-				{asset.imageUrl ? (
-					<div className="vocab-word-detail__image-wrap">
-						<img
-							src={asset.imageUrl}
-							alt={asset.word}
-							className="vocab-word-detail__image"
-						/>
-					</div>
-				) : null}
 			</div>
 
 			<div className="vocab-word-detail__section">

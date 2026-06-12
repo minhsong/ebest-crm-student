@@ -26,24 +26,68 @@
 
 .session-vocabulary-word-card {
 	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: 0.35rem;
+	flex-direction: row;
+	align-items: stretch;
+	gap: 0;
 	width: 100%;
-	min-height: 7.5rem;
-	padding: 1rem 1.125rem;
+	min-height: 5.5rem;
+	padding: 0;
 	text-align: left;
 	border: 1px solid #d9d9d9;
 	border-radius: 12px;
 	background: #ffffff;
 	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 	cursor: pointer;
+	overflow: hidden;
 	transition:
 		border-color 0.2s ease,
 		box-shadow 0.22s ease,
 		transform 0.18s ease,
 		background-color 0.18s ease;
 	-webkit-tap-highlight-color: transparent;
+}
+
+.session-vocabulary-word-card--with-image {
+	min-height: 6.25rem;
+}
+
+.session-vocabulary-word-card__media {
+	flex: 0 0 5.5rem;
+	width: 5.5rem;
+	align-self: stretch;
+	overflow: hidden;
+	background: #fafafa;
+	border-right: 1px solid #f0f0f0;
+}
+
+@media (min-width: 640px) {
+	.session-vocabulary-word-card__media {
+		flex-basis: 6.25rem;
+		width: 6.25rem;
+	}
+}
+
+.session-vocabulary-word-card__image {
+	display: block;
+	width: 100%;
+	height: 100%;
+	min-height: 100%;
+	object-fit: cover;
+	object-position: center;
+}
+
+.session-vocabulary-word-card__body {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.35rem;
+	flex: 1;
+	min-width: 0;
+	padding: 0.75rem 1rem 0.875rem;
+}
+
+.session-vocabulary-word-card__body--full {
+	padding: 0.875rem 1.125rem 1rem;
 }
 
 .session-vocabulary-word-card:hover {
@@ -158,7 +202,7 @@
 }
 
 .vocab-word-detail__hero {
-	padding: 1.25rem 1.25rem 1rem;
+	padding: 0 0 1rem;
 	background: linear-gradient(180deg, #e6f4ff 0%, #ffffff 100%);
 	border-bottom: 1px solid #d6e4ff;
 }
@@ -169,14 +213,7 @@
 	align-items: flex-start;
 	justify-content: space-between;
 	gap: 0.75rem;
-}
-
-.vocab-word-detail__word {
-	margin: 0 !important;
-	color: #0958d9 !important;
-	font-weight: 700 !important;
-	line-height: 1.2 !important;
-	word-break: break-word;
+	padding: 1rem 1.25rem 0;
 }
 
 .vocab-word-detail__image-wrap {
@@ -184,20 +221,18 @@
 	align-items: center;
 	justify-content: center;
 	width: 100%;
-	max-height: 180px;
-	margin-top: 1rem;
-	padding: 0.75rem;
-	border-radius: 10px;
-	background: #ffffff;
-	border: 1px solid #d6e4ff;
+	max-height: 220px;
+	padding: 0;
+	background: #fafafa;
+	border-bottom: 1px solid #d6e4ff;
 }
 
 .vocab-word-detail__image {
 	display: block;
-	max-width: 100%;
-	max-height: 160px;
+	width: 100%;
+	max-height: 220px;
 	object-fit: contain;
-	border-radius: 6px;
+	border-radius: 0;
 }
 
 .vocab-word-detail__section {
@@ -309,13 +344,39 @@
 	border: 1px solid #002868 !important;
 }
 
+.vocab-word-detail__word {
+	margin: 0 !important;
+	color: #0958d9 !important;
+	font-weight: 700 !important;
+	line-height: 1.2 !important;
+	word-break: break-word;
+}
+
 .vocab-word-detail__ipa {
-	flex: 1;
+	flex: 0 1 auto;
 	min-width: 0;
 	text-align: left;
 	color: #262626;
 	font-size: 0.9375rem;
 	line-height: 1.4;
+}
+
+.vocab-word-detail__speaker {
+	flex-shrink: 0;
+	margin-inline-start: 0.125rem;
+}
+
+.vocab-word-detail__speaker--uk {
+	color: #012169 !important;
+}
+
+.vocab-word-detail__speaker--us {
+	color: #b22234 !important;
+}
+
+.vocab-word-detail__speaker-placeholder {
+	flex-shrink: 0;
+	width: 32px;
 }
 
 .vocab-word-detail__progress-grid {

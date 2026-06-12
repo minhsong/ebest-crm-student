@@ -45,12 +45,13 @@ const VARIANT_CLASS: Record<
 	detail: {
 		row: 'vocab-word-detail__pronunciation-row',
 		rowPlaying: (locale) => `vocab-word-detail__pronunciation-row--playing-${locale}`,
-		rowLocale: () => '',
+		rowLocale: (locale) => `vocab-word-detail__pronunciation-row--${locale}`,
 		tag: (locale) =>
 			`vocab-word-detail__locale-tag vocab-word-detail__locale-tag--${locale}`,
 		ipa: 'vocab-word-detail__ipa',
-		speaker: () => '',
-		speakerPlaceholder: '',
+		speaker: (locale) =>
+			`vocab-word-detail__speaker vocab-word-detail__speaker--${locale}`,
+		speakerPlaceholder: 'vocab-word-detail__speaker-placeholder',
 	},
 };
 
@@ -82,7 +83,7 @@ export function VocabularyPronunciationRow({
 			<Tag className={classes.tag(locale)} bordered={false}>
 				{label}
 			</Tag>
-			<span className={classes.ipa}>{ipa || '—'}</span>
+			{ipa ? <span className={classes.ipa}>{ipa}</span> : null}
 			{audioUrl ? (
 				<Button
 					type="text"
