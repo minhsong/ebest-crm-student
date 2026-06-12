@@ -88,12 +88,13 @@ CRM `upsertQuizGradedSync` chỉ cập nhật khi `submittedAt` attempt **≥** 
 
 ---
 
-## 3.1.1 Listening — nộp bài sớm (2026-06)
+## 3.1.1 Listening — nộp bài & chuyển phần (2026-06)
 
 | Khóa | Quy tắc |
 |------|---------|
-| **Nộp bài** | Mở sau khi nghe **xong ≥1 vòng** audio của phần (cả chuỗi track trong section). |
-| **Chuyển phần** | Vẫn cần nghe **hết lượt** còn lại (`remainingPlaysByListeningUnit`). |
+| **Nộp bài / Chuyển phần** | Mở sau khi nghe **xong ≥1 vòng** (hết chuỗi track trong section). |
+| **Rời section nghe** | User **chủ động chuyển phần** khi còn lượt → `POST listening-forfeit` → `remaining = 0`; quay lại **không** phát thêm. |
+| **Ở lại section** | Còn lượt (`remaining > 0`) → autoplay tiếp các vòng còn lại cho đến hết hoặc forfeit. |
 
 | File | Vai trò |
 |------|---------|

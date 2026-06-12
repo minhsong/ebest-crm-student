@@ -67,7 +67,7 @@ export function QuizAttemptTakingFooter({
           <Typography.Text type="secondary" className="text-sm">
             Phần {idx + 1}/{sorted.length}
             {sorted[idx]?.title?.trim() ? ` — ${sorted[idx].title.trim()}` : null}
-            {listeningNavLocked ? ' — Hoàn thành phần nghe để chuyển phần.' : null}
+            {listeningNavLocked ? ' — Nghe xong một lượt phần nghe để chuyển phần.' : null}
           </Typography.Text>
         ) : null}
         <Space wrap size="middle">

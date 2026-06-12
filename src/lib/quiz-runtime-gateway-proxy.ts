@@ -436,6 +436,31 @@ async function handleListeningCycle(
 }
 
 /**
+ * POST /attempts/:id/listening-forfeit - Forfeit remaining listens when leaving section
+ */
+async function handleListeningForfeit(
+  ctx: RouteContext,
+  segments: string[],
+  request: NextRequest,
+): Promise<NextResponse> {
+  const attemptId = segments[1];
+  const body = await parseJsonBody<{ formItemId?: string }>(request);
+
+  const res = await fetch(
+    internalStudentUrl(ctx.baseUrl, `attempts/${attemptId}/listening-forfeit`),
+    {
+      method: 'POST',
+      headers: { ...ctx.headers, ...ctx.serviceAuth },
+      body: JSON.stringify({
+        customerId: ctx.customerId,
+        formItemId: body?.formItemId ?? '',
+      }),
+    },
+  );
+  return proxyResponse(res);
+}
+
+/**
  * POST /attempts/:id/submit - Submit attempt
  */
 async function handleSubmitAttempt(
@@ -599,6 +624,14 @@ function createRouteMap(): Map<string, RouteDefinition> {
     pattern: '/attempts/:uuid/listening-cycle',
     segments: ['attempts', 'uuid', 'listening-cycle'],
     handler: async (ctx, segs, req) => handleListeningCycle(ctx, segs, req),
+  });
+
+  // POST /attempts/:uuid/listening-forfeit
+  routes.set(buildRouteKey('POST', ['attempts', 'uuid', 'listening-forfeit']), {
+    method: 'POST',
+    pattern: '/attempts/:uuid/listening-forfeit',
+    segments: ['attempts', 'uuid', 'listening-forfeit'],
+    handler: async (ctx, segs, req) => handleListeningForfeit(ctx, segs, req),
   });
 
   // POST /attempts/:uuid/submit

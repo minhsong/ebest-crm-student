@@ -116,6 +116,7 @@ export function QuizAttemptClient({
     openConfirmStart,
     listeningRemaining,
     reportListeningCycle,
+    maybeForfeitListeningOnLeaveSection,
     refreshHistory,
     closeReason,
     answersLocked,
@@ -237,8 +238,15 @@ export function QuizAttemptClient({
   }, [activeSectionId, phase]);
 
   const onSectionChange = useCallback(
-    (sectionId: number) => {
+    async (sectionId: number) => {
       if (listeningNavLocked) return;
+      if (
+        typeof activeSectionId === 'number' &&
+        Number.isFinite(activeSectionId) &&
+        activeSectionId !== sectionId
+      ) {
+        await maybeForfeitListeningOnLeaveSection(activeSectionId);
+      }
       scrollQuizAttemptPageToTop();
       const params = new URLSearchParams(searchParams.toString());
       params.set('section', String(sectionId));
@@ -250,11 +258,21 @@ export function QuizAttemptClient({
       }
       router.replace(`/quiz-test/${formPublicId}?${params.toString()}`, { scroll: false });
     },
-    [formPublicId, formPayload, listeningNavLocked, questionKey, renderBlocks, router, searchParams],
+    [
+      activeSectionId,
+      formPublicId,
+      formPayload,
+      listeningNavLocked,
+      maybeForfeitListeningOnLeaveSection,
+      questionKey,
+      renderBlocks,
+      router,
+      searchParams,
+    ],
   );
 
   const navigateToBlock = useCallback(
-    (sectionId: number | null, anchorKey: string) => {
+    async (sectionId: number | null, anchorKey: string) => {
       if (listeningNavLocked) {
         const effectiveTarget =
           sectionId != null && Number.isFinite(sectionId)
@@ -267,6 +285,15 @@ export function QuizAttemptClient({
         ) {
           return;
         }
+      }
+      if (
+        typeof activeSectionId === 'number' &&
+        Number.isFinite(activeSectionId) &&
+        sectionId != null &&
+        Number.isFinite(sectionId) &&
+        sectionId !== activeSectionId
+      ) {
+        await maybeForfeitListeningOnLeaveSection(activeSectionId);
       }
       const params = new URLSearchParams(searchParams.toString());
       if (sectionId != null && Number.isFinite(sectionId)) {
@@ -282,6 +309,7 @@ export function QuizAttemptClient({
       formPayload,
       formPublicId,
       listeningNavLocked,
+      maybeForfeitListeningOnLeaveSection,
       renderBlocks,
       router,
       searchParams,

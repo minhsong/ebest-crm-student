@@ -1,8 +1,8 @@
 /**
  * Khóa UI listening theo section — mirror quy tắc §10 (gateway / CRM).
  *
- * - **navLocked:** chưa nghe hết lượt còn lại → không chuyển phần.
- * - **submitLocked:** chưa nghe xong ≥1 vòng → không nộp bài.
+ * - **navLocked / submitLocked:** chưa nghe xong ≥1 vòng playlist section → không chuyển phần / nộp bài.
+ * - Sau ≥1 vòng: mở chuyển phần; nếu user rời section khi còn lượt → forfeit (remaining → 0, gateway).
  */
 
 export type SectionListeningLockInput = {
@@ -53,9 +53,10 @@ export function computeSectionListeningLocks(
   if (!input.hasQueue || !input.hasServerQuota) {
     return { navLocked: false, submitLocked: false };
   }
+  const heardOnce = hasHeardSectionListeningAtLeastOnce(input);
   return {
-    navLocked: input.sectionRem > 0 || input.playbackBusy,
-    submitLocked: !hasHeardSectionListeningAtLeastOnce(input),
+    navLocked: !heardOnce || input.playbackBusy,
+    submitLocked: !heardOnce || input.playbackBusy,
   };
 }
 
@@ -67,12 +68,12 @@ export function getSectionListeningStatusSuffix(
     return null;
   }
   return heardAtLeastOnce
-    ? ' Bạn có thể nộp bài; chuyển phần khác cần nghe hết lượt còn lại.'
-    : ' Nghe xong một lượt để mở nút Nộp bài; chuyển phần cần hết lượt nghe.';
+    ? ' Bạn có thể chuyển phần; lượt nghe còn lại sẽ hết nếu rời phần này.'
+    : ' Nghe xong một lượt (hết chuỗi audio) để chuyển phần hoặc nộp bài.';
 }
 
 export const LISTENING_SUBMIT_LOCKED_TOOLTIP =
-  'Nghe xong ít nhất một lượt phần nghe để nộp bài.';
+  'Nghe xong ít nhất một lượt phần nghe (hết chuỗi audio) để tiếp tục.';
 
 export const LISTENING_NAV_LOCKED_TOOLTIP =
-  'Hoàn thành hết lượt phần nghe của phần này trước khi chuyển.';
+  'Nghe xong ít nhất một lượt phần nghe (hết chuỗi audio) trước khi chuyển phần.';

@@ -19,6 +19,7 @@ import type {
   StartAttemptResponse,
   SubmitAttemptResponse,
 } from '@/features/quiz-test/types';
+import { quizSectionListeningStorageKey } from '@/features/quiz-test/lib/quiz-listening-rules';
 import { quizRuntimePublicUrl } from '@/features/quiz-test/quiz-gateway-browser';
 import {
   fetchQuizRuntimeJson,
@@ -131,6 +132,8 @@ export function useQuizAttemptRuntime({
   const [remainingSeconds, setRemainingSeconds] = useState<number>(REMAINING_UNSET);
   const [rulesAcknowledged, setRulesAcknowledged] = useState(false);
   const [listeningRemaining, setListeningRemaining] = useState<Record<string, number>>({});
+  const listeningRemainingRef = useRef<Record<string, number>>({});
+  listeningRemainingRef.current = listeningRemaining;
   /** Hết giờ / đang nộp — khóa sửa đáp án trên UI. */
   const [sessionLocked, setSessionLocked] = useState(false);
   const [closeReason, setCloseReason] = useState<QuizAttemptCloseReason>(null);
@@ -898,21 +901,70 @@ export function useQuizAttemptRuntime({
   const reportListeningCycle = useCallback(
     async (formItemId: string) => {
       const id = attempt?.attemptPublicId?.trim();
-      if (!id || !formItemId.trim()) return;
+      const key = formItemId.trim();
+      if (!id || !key) return;
+
+      const before = listeningRemainingRef.current[key];
+      if (typeof before !== 'number' || before <= 0) return;
+
+      setListeningRemaining((prev) => ({ ...prev, [key]: before - 1 }));
 
       const url = quizRuntimePublicUrl(`attempts/${id}/listening-cycle`);
       const { ok, data } = await fetchQuizRuntimeJson<{
         remainingPlaysByListeningUnit?: unknown;
       }>(url, {
         method: 'POST',
-        body: JSON.stringify({ formItemId: formItemId.trim() }),
+        body: JSON.stringify({ formItemId: key }),
       });
 
       if (ok) {
         setListeningRemaining(normalizeListeningMap(data?.remainingPlaysByListeningUnit));
+        return;
       }
+
+      setListeningRemaining((prev) => ({ ...prev, [key]: before }));
+      antdMessage.warning('Không cập nhật được lượt nghe — thử tải lại trang nếu lỗi lặp lại.');
     },
     [attempt?.attemptPublicId],
+  );
+
+  const forfeitListeningSection = useCallback(
+    async (formItemKey: string) => {
+      const id = attempt?.attemptPublicId?.trim();
+      const key = formItemKey.trim();
+      if (!id || !key) return;
+
+      const before = listeningRemainingRef.current[key];
+      if (typeof before !== 'number' || before <= 0) return;
+
+      setListeningRemaining((prev) => ({ ...prev, [key]: 0 }));
+
+      const url = quizRuntimePublicUrl(`attempts/${id}/listening-forfeit`);
+      const { ok, data } = await fetchQuizRuntimeJson<{
+        remainingPlaysByListeningUnit?: unknown;
+      }>(url, {
+        method: 'POST',
+        body: JSON.stringify({ formItemId: key }),
+      });
+
+      if (ok) {
+        setListeningRemaining(normalizeListeningMap(data?.remainingPlaysByListeningUnit));
+        return;
+      }
+
+      setListeningRemaining((prev) => ({ ...prev, [key]: before }));
+      antdMessage.warning('Không khóa lượt nghe còn lại — thử lại.');
+    },
+    [attempt?.attemptPublicId],
+  );
+
+  const maybeForfeitListeningOnLeaveSection = useCallback(
+    async (sectionId: number) => {
+      if (!Number.isFinite(sectionId)) return;
+      const key = quizSectionListeningStorageKey(sectionId);
+      await forfeitListeningSection(key);
+    },
+    [forfeitListeningSection],
   );
 
   // ============================================================================
@@ -946,6 +998,7 @@ export function useQuizAttemptRuntime({
     handleSubmit,
     openConfirmStart,
     reportListeningCycle,
+    maybeForfeitListeningOnLeaveSection,
     refreshHistory,
   };
 }

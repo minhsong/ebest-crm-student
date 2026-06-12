@@ -119,6 +119,20 @@ export function QuizSectionListeningOrchestrator({
     }
   }, [hasQueue, sectionRem, resetRound]);
 
+  const completePlaylistRound = useCallback(() => {
+    if (roundClosedRef.current) return;
+    roundClosedRef.current = true;
+    highlightRef.current(null);
+    setLocalCyclesCompleted((n) => n + 1);
+    void (async () => {
+      try {
+        await reportRef.current(sectionKey);
+      } finally {
+        setPlaybackBusy(false);
+      }
+    })();
+  }, [resetRound, sectionKey]);
+
   useEffect(() => {
     if (!active) {
       highlightRef.current(null);
@@ -148,27 +162,25 @@ export function QuizSectionListeningOrchestrator({
   useEffect(() => {
     const el = audioRef.current;
     if (!el || !active) return;
-    const onEnded = () => {
+
+    const advanceOrComplete = () => {
       if (segIndex < flat.length - 1) {
         setSegIndex((i) => i + 1);
         return;
       }
-      if (!roundClosedRef.current) {
-        roundClosedRef.current = true;
-        highlightRef.current(null);
-        setLocalCyclesCompleted((n) => n + 1);
-        void (async () => {
-          try {
-            await reportRef.current(sectionKey);
-          } finally {
-            setPlaybackBusy(false);
-          }
-        })();
-      }
+      completePlaylistRound();
     };
+
+    const onEnded = () => advanceOrComplete();
+    const onError = () => advanceOrComplete();
+
     el.addEventListener('ended', onEnded);
-    return () => el.removeEventListener('ended', onEnded);
-  }, [active, flat.length, segIndex, sectionKey]);
+    el.addEventListener('error', onError);
+    return () => {
+      el.removeEventListener('ended', onEnded);
+      el.removeEventListener('error', onError);
+    };
+  }, [active, completePlaylistRound, flat.length, segIndex]);
 
   if (!hasQueue || !hasServerQuota) {
     return null;
