@@ -4,9 +4,9 @@ import {
   LISTENING_NAV_LOCKED_TOOLTIP,
   LISTENING_SUBMIT_LOCKED_TOOLTIP,
 } from '@/features/quiz-test/lib/quiz-section-listening-locks';
+import { resolveQuizSectionNavMeta } from '@/features/quiz-test/lib/quiz-section-meta';
 import type { QuizFormSectionPayload } from '@/features/quiz-test/types';
 import { App, Button, Divider, Space, Tooltip, Typography } from 'antd';
-import { useMemo } from 'react';
 
 export type QuizAttemptTakingFooterProps = {
   submitting: boolean;
@@ -34,18 +34,10 @@ export function QuizAttemptTakingFooter({
 }: QuizAttemptTakingFooterProps) {
   const { modal } = App.useApp();
 
-  const sorted = useMemo(
-    () => [...(sections ?? [])].sort((a, b) => a.order - b.order),
-    [sections],
+  const { sorted, idx, multiSection, isFirst, isLast, active } = resolveQuizSectionNavMeta(
+    sections,
+    activeSectionId,
   );
-
-  const idx =
-    sorted.length && typeof activeSectionId === 'number'
-      ? sorted.findIndex((s) => s.sectionId === activeSectionId)
-      : -1;
-  const multiSection = sorted.length > 1 && idx >= 0;
-  const isFirst = idx <= 0;
-  const isLast = idx >= 0 && idx === sorted.length - 1;
 
   const requestSubmit = () => {
     modal.confirm({
@@ -66,7 +58,7 @@ export function QuizAttemptTakingFooter({
         {multiSection && idx >= 0 ? (
           <Typography.Text type="secondary" className="text-sm">
             Phần {idx + 1}/{sorted.length}
-            {sorted[idx]?.title?.trim() ? ` — ${sorted[idx].title.trim()}` : null}
+            {active?.title?.trim() ? ` — ${active.title.trim()}` : null}
             {listeningNavLocked ? ' — Nghe xong một lượt phần nghe để chuyển phần.' : null}
           </Typography.Text>
         ) : null}

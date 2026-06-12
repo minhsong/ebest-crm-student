@@ -117,6 +117,9 @@ export function QuizAttemptClient({
     listeningRemaining,
     reportListeningCycle,
     maybeForfeitListeningOnLeaveSection,
+    forfeitPriorListeningSections,
+    startManualListeningSection,
+    isManualListeningSectionStarted,
     refreshHistory,
     closeReason,
     answersLocked,
@@ -225,10 +228,12 @@ export function QuizAttemptClient({
   );
 
   const prevSectionIdRef = useRef<number | null>(null);
+  const sectionVisitRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (phase !== 'attempting' && phase !== 'submitting') {
       prevSectionIdRef.current = null;
+      sectionVisitRef.current = null;
       return;
     }
     if (activeSectionId == null || !Number.isFinite(activeSectionId)) return;
@@ -236,6 +241,16 @@ export function QuizAttemptClient({
     prevSectionIdRef.current = activeSectionId;
     scrollQuizAttemptPageToTop();
   }, [activeSectionId, phase]);
+
+  useEffect(() => {
+    if (phase !== 'attempting' && phase !== 'submitting') {
+      return;
+    }
+    if (activeSectionId == null || !Number.isFinite(activeSectionId)) return;
+    if (sectionVisitRef.current === activeSectionId) return;
+    sectionVisitRef.current = activeSectionId;
+    void forfeitPriorListeningSections(activeSectionId);
+  }, [activeSectionId, forfeitPriorListeningSections, phase]);
 
   const onSectionChange = useCallback(
     async (sectionId: number) => {
@@ -518,6 +533,8 @@ export function QuizAttemptClient({
       onSectionChange={onSectionChange}
       listeningRemaining={listeningRemaining}
       reportListeningCycle={reportListeningCycle}
+      startManualListeningSection={startManualListeningSection}
+      isManualListeningSectionStarted={isManualListeningSectionStarted}
       allRenderBlocks={renderBlocks}
       activeAnchorKey={questionKey}
       onNavigateToBlock={navigateToBlock}

@@ -1,11 +1,13 @@
 import type { QuizPublishedFormPayload } from '@/features/quiz-test/types';
 
 /**
- * Quy tắc listening (§10.1 / §10.6) — **cùng semantics** với: * - `ebest-crm-api/src/test-quiz/test-quiz-listening-section.helpers.ts`
- * - `ebest-social-gateway/src/quiz-runtime/quiz-listening.util.ts`
- *
- * Khi đổi logic đếm autoplay / repeatCount, cập nhật đồng thời cả ba nơi (hoặc tách package dùng chung).
+ * Quy tắc listening — **cùng semantics** SECTION_LISTENING_POLICY.md
+ * Mirror: ebest-crm-api/test-quiz-section-listening-policy.helpers.ts
+ *         ebest-social-gateway/quiz-listening.util.ts
  */
+
+/** Đếm ngược (giây) trước auto-play khi vào section nghe — chờ UI render + chuẩn bị. */
+export const SECTION_LISTENING_AUTO_START_COUNTDOWN_SECONDS = 10;
 
 export function getAudioItemsFromQuestionContent(content: unknown): unknown[] {
   if (!content || typeof content !== 'object' || Array.isArray(content)) return [];
@@ -15,10 +17,10 @@ export function getAudioItemsFromQuestionContent(content: unknown): unknown[] {
   return Array.isArray(audio) ? audio : [];
 }
 
-/**
- * Đơn vị “autoplay listening”: có ≥1 track audio và tồn tại phần tử `autoPlay !== false`
- * (mặc định coi như true khi thiếu field) — §10.1.
- */
+export function contentHasListeningAudio(content: unknown): boolean {
+  return getAudioItemsFromQuestionContent(content).length > 0;
+}
+
 export function listeningUnitHasAutoplayEligibleAudio(content: unknown): boolean {
   const arr = getAudioItemsFromQuestionContent(content);
   if (!arr.length) return false;
@@ -44,90 +46,201 @@ export function getListeningRepeatCountFromContent(content: unknown): number {
   return Math.min(1000, Math.floor(n));
 }
 
-/** Khớp gateway `quizSectionListeningStorageKey`. */
 export function quizSectionListeningStorageKey(sectionId: number): string {
   return `section:${sectionId}`;
 }
 
-function resolveSectionIdFromRow(row: Record<string, unknown>): number {
-  const sid = row.sectionId;
-  if (typeof sid === 'number' && Number.isFinite(sid)) return sid;
-  return 0;
+export function isKnownListeningRemaining(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
 }
 
-/**
- * Map `remainingPlaysByListeningUnit` khi start attempt — khớp gateway
- * `buildRemainingPlaysByListeningUnitFromForm`.
- */
-export function buildRemainingPlaysByListeningUnitFromForm(
-  form: QuizPublishedFormPayload | Record<string, unknown> | null | undefined,
-): Record<string, number> {
-  const out: Record<string, number> = {};
-  if (!form || typeof form !== 'object') return out;
+type PreviewLikeItem = {
+  formItemId: number;
+  sectionId?: number | null;
+  questionSnapshot?: { content?: unknown } | null;
+  sourceGroupId?: number | null;
+};
 
-  const rawItems = Array.isArray(form.items) ? form.items : [];
+type PreviewLikeGroupBundle = {
+  sourceGroupId: number;
+  bundleSnapshot?: { content?: unknown } | null;
+};
+
+type PublishedSectionRow = {
+  sectionId?: number;
+  listeningRepeatCount?: number | null;
+  listeningAutoPlay?: boolean | null;
+};
+
+function parsePreviewLikeItem(raw: Record<string, unknown>): PreviewLikeItem | null {
+  const sectionId = Number(raw.sectionId);
+  if (!Number.isFinite(sectionId)) return null;
+  return {
+    formItemId: Number(raw.formItemId),
+    sectionId,
+    questionSnapshot:
+      raw.questionSnapshot &&
+      typeof raw.questionSnapshot === 'object' &&
+      !Array.isArray(raw.questionSnapshot)
+        ? (raw.questionSnapshot as PreviewLikeItem['questionSnapshot'])
+        : undefined,
+    sourceGroupId: raw.sourceGroupId != null ? Number(raw.sourceGroupId) : null,
+  };
+}
+
+type FormListeningParseContext = {
+  bundleByGroupId: Map<number, PreviewLikeGroupBundle>;
+  sectionMetaById: Map<number, PublishedSectionRow>;
+  itemsBySection: Map<number, PreviewLikeItem[]>;
+};
+
+function parseFormListeningContext(
+  form: QuizPublishedFormPayload | Record<string, unknown> | null | undefined,
+): FormListeningParseContext {
+  const bundleByGroupId = new Map<number, PreviewLikeGroupBundle>();
+  const sectionMetaById = new Map<number, PublishedSectionRow>();
+  const itemsBySection = new Map<number, PreviewLikeItem[]>();
+
+  if (!form || typeof form !== 'object') {
+    return { bundleByGroupId, sectionMetaById, itemsBySection };
+  }
+
   const rawBundles = Array.isArray(form.groupBundles) ? form.groupBundles : [];
-  const bundleByGroupId = new Map<number, Record<string, unknown>>();
   for (const gb of rawBundles) {
     if (!gb || typeof gb !== 'object' || Array.isArray(gb)) continue;
-    const g = gb as Record<string, unknown>;
+    const g = gb as PreviewLikeGroupBundle;
     const gid = Number(g.sourceGroupId);
     if (!Number.isFinite(gid)) continue;
     bundleByGroupId.set(gid, g);
   }
 
-  type Acc = { sectionId: number; repeat: number };
-  const bySection = new Map<number, Acc[]>();
-
-  const pushListening = (sectionId: number, content: unknown) => {
-    if (!listeningUnitHasAutoplayEligibleAudio(content)) return;
-    const repeat = getListeningRepeatCountFromContent(content);
-    const arr = bySection.get(sectionId) ?? [];
-    arr.push({ sectionId, repeat });
-    bySection.set(sectionId, arr);
-  };
-
-  for (const raw of rawItems) {
+  const rawSections = Array.isArray(form.sections) ? form.sections : [];
+  for (const raw of rawSections) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
-    const row = raw as Record<string, unknown>;
-    const sectionId = resolveSectionIdFromRow(row);
-    const q =
-      row.questionSnapshot &&
-      typeof row.questionSnapshot === 'object' &&
-      !Array.isArray(row.questionSnapshot)
-        ? (row.questionSnapshot as Record<string, unknown>)
-        : null;
-    if (q) {
-      pushListening(sectionId, q.content);
-      continue;
-    }
-    const gid = Number(row.sourceGroupId);
-    if (!Number.isFinite(gid)) continue;
-    const g = bundleByGroupId.get(gid);
-    const snap = g?.bundleSnapshot;
-    const content =
-      snap && typeof snap === 'object' && !Array.isArray(snap)
-        ? (snap as Record<string, unknown>).content
-        : undefined;
-    pushListening(sectionId, content);
+    const s = raw as PublishedSectionRow;
+    const sid = Number(s.sectionId);
+    if (!Number.isFinite(sid)) continue;
+    sectionMetaById.set(sid, s);
   }
 
-  for (const [sectionId, accs] of bySection) {
-    if (!accs.length) continue;
-    out[quizSectionListeningStorageKey(sectionId)] = Math.min(
-      ...accs.map((a) => a.repeat),
-    );
+  const rawItems = Array.isArray(form.items) ? form.items : [];
+  for (const raw of rawItems) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+    const item = parsePreviewLikeItem(raw as Record<string, unknown>);
+    if (!item?.sectionId) continue;
+    const arr = itemsBySection.get(item.sectionId) ?? [];
+    arr.push(item);
+    itemsBySection.set(item.sectionId, arr);
+  }
+
+  return { bundleByGroupId, sectionMetaById, itemsBySection };
+}
+
+function getContentForPreviewRow(
+  row: PreviewLikeItem,
+  bundleByGroupId: Map<number, PreviewLikeGroupBundle>,
+): unknown | null {
+  if (row.questionSnapshot) return row.questionSnapshot.content ?? null;
+  const gid = Number(row.sourceGroupId);
+  if (!Number.isFinite(gid)) return null;
+  return bundleByGroupId.get(gid)?.bundleSnapshot?.content ?? null;
+}
+
+function collectAudioUnitContentsInSection(
+  sectionRows: PreviewLikeItem[],
+  bundleByGroupId: Map<number, PreviewLikeGroupBundle>,
+): unknown[] {
+  const out: unknown[] = [];
+  for (const row of sectionRows) {
+    const content = getContentForPreviewRow(row, bundleByGroupId);
+    if (contentHasListeningAudio(content)) out.push(content);
   }
   return out;
 }
 
-/** Lượt nghe tối đa của một section (null nếu không có autoplay). */
+function resolveSectionRepeatQuota(
+  sectionMeta: { listeningRepeatCount?: number | null },
+  audioUnitContents: unknown[],
+): number {
+  const raw = sectionMeta.listeningRepeatCount;
+  if (raw != null) {
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return Math.min(1000, Math.floor(n));
+  }
+  if (!audioUnitContents.length) return 1;
+  return Math.min(...audioUnitContents.map((c) => getListeningRepeatCountFromContent(c)));
+}
+
+function classifySectionKind(
+  sectionRows: PreviewLikeItem[],
+  bundleByGroupId: Map<number, PreviewLikeGroupBundle>,
+): 'exam' | 'listening' | 'invalid_mix' | 'invalid_empty' {
+  if (!sectionRows.length) return 'invalid_empty';
+  let withAudio = 0;
+  let withoutAudio = 0;
+  for (const row of sectionRows) {
+    const content = getContentForPreviewRow(row, bundleByGroupId);
+    if (contentHasListeningAudio(content)) withAudio += 1;
+    else withoutAudio += 1;
+  }
+  if (withAudio > 0 && withoutAudio > 0) return 'invalid_mix';
+  if (withAudio > 0) return 'listening';
+  return 'exam';
+}
+
+export function buildRemainingPlaysByListeningUnitFromForm(
+  form: QuizPublishedFormPayload | Record<string, unknown> | null | undefined,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  const { bundleByGroupId, sectionMetaById, itemsBySection } =
+    parseFormListeningContext(form);
+
+  for (const [sectionId, rows] of itemsBySection) {
+    const kind = classifySectionKind(rows, bundleByGroupId);
+    if (kind !== 'listening') continue;
+    const audioUnits = collectAudioUnitContentsInSection(rows, bundleByGroupId);
+    const meta = sectionMetaById.get(sectionId) ?? {};
+    out[quizSectionListeningStorageKey(sectionId)] = resolveSectionRepeatQuota(
+      meta,
+      audioUnits,
+    );
+  }
+
+  return out;
+}
+
 export function getSectionListeningQuotaFromForm(
   form: QuizPublishedFormPayload | Record<string, unknown> | null | undefined,
   sectionId: number,
 ): number | null {
-  const quota = buildRemainingPlaysByListeningUnitFromForm(form)[
-    quizSectionListeningStorageKey(sectionId)
-  ];
-  return typeof quota === 'number' ? quota : null;
+  const key = quizSectionListeningStorageKey(sectionId);
+  const v = buildRemainingPlaysByListeningUnitFromForm(form)[key];
+  return isKnownListeningRemaining(v) ? v : null;
 }
+
+export function resolveSectionPlaybackModeFromForm(
+  form: QuizPublishedFormPayload | Record<string, unknown> | null | undefined,
+  sectionId: number,
+): 'auto' | 'manual' | null {
+  const { bundleByGroupId, sectionMetaById, itemsBySection } =
+    parseFormListeningContext(form);
+  const rows = itemsBySection.get(sectionId) ?? [];
+  const kind = classifySectionKind(rows, bundleByGroupId);
+  if (kind !== 'listening') return null;
+
+  const sectionMeta = sectionMetaById.get(sectionId);
+  const sectionAutoPlay =
+    typeof sectionMeta?.listeningAutoPlay === 'boolean'
+      ? sectionMeta.listeningAutoPlay
+      : null;
+
+  const audioUnits = collectAudioUnitContentsInSection(rows, bundleByGroupId);
+  if (sectionAutoPlay === true) return 'auto';
+  if (sectionAutoPlay === false) return 'manual';
+  for (const content of audioUnits) {
+    if (!listeningUnitHasAutoplayEligibleAudio(content)) return 'manual';
+  }
+  return 'auto';
+}
+
+export type SectionPlaybackMode = 'auto' | 'manual';

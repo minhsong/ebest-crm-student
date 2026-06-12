@@ -30,7 +30,7 @@ export type QuizQuestionBundleCardProps = {
   gradingPerItem?: Record<string, QuizGradingPerItem | undefined>;
   listeningUnitKey?: string;
   listeningRemaining?: number;
-  reportListeningCycle?: (formItemKey: string) => Promise<void>;
+  reportListeningCycle?: (formItemKey: string) => Promise<boolean>;
   /** Anchor phần nhóm (formItemId hàng bundle) — scroll / URL. */
   bundleAnchorId?: string | null;
   listeningHighlight?: boolean;

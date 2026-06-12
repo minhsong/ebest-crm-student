@@ -44,7 +44,7 @@ export type QuizQuestionCardProps = {
   questionContent?: Record<string, unknown> | null;
   listeningUnitKey?: string;
   listeningRemaining?: number;
-  reportListeningCycle?: (formItemKey: string) => Promise<void>;
+  reportListeningCycle?: (formItemKey: string) => Promise<boolean>;
   /** `id` DOM để scroll từ URL `?question=` — §11.4. */
   scrollAnchorId?: string | null;
   /** Viền nổi khi section player đang phát audio của câu/bundle này. */

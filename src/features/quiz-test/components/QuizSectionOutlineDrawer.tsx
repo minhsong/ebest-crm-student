@@ -6,6 +6,11 @@ import {
   type QuizRenderableBlock,
 } from '@/features/quiz-test/lib/quiz-renderable-items';
 import { buildBlockStartIndexes } from '@/features/quiz-test/lib/quiz-runtime-view';
+import {
+  findQuizFormSection,
+  resolveQuizSectionNavMeta,
+  sortQuizFormSections,
+} from '@/features/quiz-test/lib/quiz-section-meta';
 import { Button, Drawer, Typography } from 'antd';
 import { useMemo } from 'react';
 
@@ -52,10 +57,10 @@ export function QuizSectionOutlineDrawer({
   navigationLocked,
   lockedSectionId,
 }: QuizSectionOutlineDrawerProps) {
-  const sections = useMemo((): QuizFormSectionPayload[] => {
-    const s = formPayload?.sections;
-    return Array.isArray(s) ? [...s].sort((a, b) => a.order - b.order) : [];
-  }, [formPayload?.sections]);
+  const sections = useMemo(
+    () => sortQuizFormSections(formPayload?.sections),
+    [formPayload?.sections],
+  );
 
   const starts = useMemo(() => buildBlockStartIndexes(allRenderBlocks), [allRenderBlocks]);
 
@@ -73,11 +78,13 @@ export function QuizSectionOutlineDrawer({
         const startIdx = gi >= 0 ? (starts[gi] ?? 0) : 0;
         const anchorKey =
           b.kind === 'single' ? String(b.item.formItemId) : String(b.parentFormItemId);
+        const secMeta = findQuizFormSection(sections, sectionId);
+        const { idx: sectionIdx } = resolveQuizSectionNavMeta(sections, sectionId);
         const secTitle =
           sectionId == null
             ? 'Toàn bài'
-            : sections.find((s) => Number(s.sectionId) === sectionId)?.title?.trim() ||
-              `Phần ${(sections.findIndex((s) => Number(s.sectionId) === sectionId) ?? 0) + 1}`;
+            : secMeta?.title?.trim() ||
+              `Phần ${sectionIdx >= 0 ? sectionIdx + 1 : 1}`;
         out.push({
           sectionId,
           sectionTitle: secTitle,

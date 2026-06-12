@@ -1,6 +1,6 @@
 import type { QuizRenderableBlock } from '@/features/quiz-test/lib/quiz-renderable-items';
 import { extractQuizAudioTracks, type QuizAudioTrack } from '@/features/quiz-test/lib/quiz-content-audio';
-import { listeningUnitHasAutoplayEligibleAudio } from '@/features/quiz-test/lib/quiz-listening-rules';
+import { contentHasListeningAudio } from '@/features/quiz-test/lib/quiz-listening-rules';
 
 export type SectionListeningQueueItem = {
   /** formItemId (câu đơn) hoặc parentFormItemId (bundle) — highlight + anchor. */
@@ -14,14 +14,14 @@ export function buildSectionListeningQueue(blocks: QuizRenderableBlock[]): Secti
   for (const b of blocks) {
     if (b.kind === 'single') {
       const content = b.item.questionSnapshot?.content;
-      if (!listeningUnitHasAutoplayEligibleAudio(content)) continue;
+      if (!contentHasListeningAudio(content)) continue;
       const tracks = extractQuizAudioTracks(content);
       if (!tracks.length) continue;
       out.push({ highlightKey: String(b.item.formItemId), tracks });
       continue;
     }
     const content = b.bundleContent;
-    if (!listeningUnitHasAutoplayEligibleAudio(content)) continue;
+    if (!contentHasListeningAudio(content)) continue;
     const tracks = extractQuizAudioTracks(content);
     if (!tracks.length) continue;
     out.push({ highlightKey: String(b.parentFormItemId), tracks });

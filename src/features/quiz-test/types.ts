@@ -56,6 +56,8 @@ export type QuizFormSectionPayload = {
   title?: string | null;
   instructions?: string | null;
   formItemIds?: number[];
+  listeningRepeatCount?: number | null;
+  listeningAutoPlay?: boolean | null;
 };
 
 export type QuizPublishedFormPayload = {

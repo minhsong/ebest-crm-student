@@ -10,3 +10,6 @@ export { useAssignmentQuizAction } from './useAssignmentQuizAction';
 export { useQuizResultViewGate } from './useQuizResultViewGate';
 export { useQuizDeliveryContext } from './useQuizDeliveryContext';
 export { useQuizReviewViewModel } from './useQuizReviewViewModel';
+export { useQuizAttemptStickyPin } from './useQuizAttemptStickyPin';
+export { useSectionListeningTaking } from './useSectionListeningTaking';
+export { useSectionListeningAutoStartCountdown } from './useSectionListeningAutoStartCountdown';

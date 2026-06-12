@@ -8,7 +8,8 @@ export { QuizAttemptDoneSection } from './QuizAttemptPhaseSections';
 
 export { QuizAttemptHistoryList } from './QuizAttemptHistoryList';
 export { QuizAttemptTakingSection } from './QuizAttemptTakingSection';
-export { QuizAttemptTimerBar } from './QuizAttemptTimerBar';
+export { QuizAttemptStickyStatusBar } from './QuizAttemptStickyStatusBar';
+export { QuizAttemptStatusCluster } from './QuizAttemptStatusCluster';
 export { QuizAttemptSectionToolbar } from './QuizAttemptSectionToolbar';
 export { QuizAttemptTakingFooter } from './QuizAttemptTakingFooter';
 export { QuizAttemptSubmitBar } from './QuizAttemptSubmitBar';

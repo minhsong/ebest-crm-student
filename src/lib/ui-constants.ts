@@ -22,6 +22,8 @@ export const CONTENT_MAX_WIDTH_WIDE = 960;
 
 /** Chiều cao header (px) – theo react-antd-admin */
 export const HEADER_HEIGHT = 48;
+/** Mép trên viewport khi pin timer/lượt nghe lúc scroll (px) — dưới top nav dashboard. */
+export const QUIZ_ATTEMPT_STICKY_VIEWPORT_TOP = 50;
 /** Chiều cao footer (px) – theo react-antd-admin */
 export const FOOTER_HEIGHT = 40;
 /** Chiều cao khối logo trong sidebar (px) — đủ cho logo ngang + tagline */

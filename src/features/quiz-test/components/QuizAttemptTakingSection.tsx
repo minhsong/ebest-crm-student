@@ -5,23 +5,18 @@ import { QuizAttemptQuestionBlocks } from '@/features/quiz-test/components/QuizA
 import { QuizAttemptSectionToolbar } from '@/features/quiz-test/components/QuizAttemptSectionToolbar';
 import { QuizSectionInstructionsBlock } from '@/features/quiz-test/components/QuizSectionInstructionsBlock';
 import { QuizAttemptTakingFooter } from '@/features/quiz-test/components/QuizAttemptTakingFooter';
-import { QuizAttemptTimerBar } from '@/features/quiz-test/components/QuizAttemptTimerBar';
+import { QuizAttemptStickyStatusBar } from '@/features/quiz-test/components/QuizAttemptStickyStatusBar';
 import { QuizSectionOutlineDrawer } from '@/features/quiz-test/components/QuizSectionOutlineDrawer';
 import { QuizFormMetaBlock } from '@/features/quiz-test/components/QuizFormMetaBlock';
 import { QuizSectionListeningOrchestrator } from '@/features/quiz-test/components/QuizSectionListeningOrchestrator';
+import { useSectionListeningTaking } from '@/features/quiz-test/hooks/useSectionListeningTaking';
 import type { QuizRenderableBlock } from '@/features/quiz-test/lib/quiz-renderable-items';
-import { buildSectionListeningQueue } from '@/features/quiz-test/lib/quiz-section-listening-queue';
 import { quizAnchorDomId } from '@/features/quiz-test/lib/quiz-section-navigation';
-import {
-  getSectionListeningQuotaFromForm,
-  quizSectionListeningStorageKey,
-} from '@/features/quiz-test/lib/quiz-listening-rules';
-import type { SectionListeningLocks } from '@/features/quiz-test/lib/quiz-section-listening-locks';
 import { getAttemptTimerValidity } from '@/features/quiz-test/lib/quiz-runtime-view';
 import type { QuizPublishedFormPayload, QuizFormSectionPayload, StartAttemptResponse } from '@/features/quiz-test/types';
 import { Alert, Button, Card, Space, Typography } from 'antd';
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export type QuizAttemptTakingSectionProps = {
   title: string;
@@ -40,14 +35,14 @@ export type QuizAttemptTakingSectionProps = {
   activeSectionId?: number | null;
   onSectionChange?: (sectionId: number) => void;
   listeningRemaining?: Record<string, number>;
-  reportListeningCycle?: (formItemKey: string) => Promise<void>;
+  reportListeningCycle?: (formItemKey: string) => Promise<boolean>;
+  startManualListeningSection?: (sectionId: number) => void;
+  isManualListeningSectionStarted?: (sectionId: number) => boolean;
   allRenderBlocks?: QuizRenderableBlock[];
   activeAnchorKey?: string | null;
   onNavigateToBlock?: (sectionId: number | null, anchorKey: string) => void;
-  /** Báo portal khi khóa/mở chuyển phần (URL) vì lượt nghe. */
   onListeningNavLock?: (locked: boolean) => void;
   backHref?: string;
-  /** Hết giờ / đang nộp — không cho sửa đáp án. */
   answersLocked?: boolean;
 };
 
@@ -69,6 +64,8 @@ export function QuizAttemptTakingSection({
   onSectionChange,
   listeningRemaining,
   reportListeningCycle,
+  startManualListeningSection,
+  isManualListeningSectionStarted,
   allRenderBlocks,
   activeAnchorKey,
   onNavigateToBlock,
@@ -77,18 +74,27 @@ export function QuizAttemptTakingSection({
   answersLocked = false,
 }: QuizAttemptTakingSectionProps) {
   const [outlineOpen, setOutlineOpen] = useState(true);
-  const [listeningHighlightKey, setListeningHighlightKey] = useState<string | null>(null);
-  const [listeningNavLocked, setListeningNavLocked] = useState(false);
-  const [listeningSubmitLocked, setListeningSubmitLocked] = useState(false);
 
-  // Auto-scroll to the highlighted question when audio is playing
+  const listening = useSectionListeningTaking({
+    formPayload,
+    sections,
+    activeSectionId,
+    renderBlocks,
+    listeningRemaining,
+    reportListeningCycle,
+    startManualListeningSection,
+    isManualListeningSectionStarted,
+    onSectionChange,
+    onListeningNavLock,
+  });
+
   useEffect(() => {
-    if (!listeningHighlightKey) return;
-    const el = document.getElementById(quizAnchorDomId(listeningHighlightKey));
+    if (!listening.listeningHighlightKey) return;
+    const el = document.getElementById(quizAnchorDomId(listening.listeningHighlightKey));
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, [listeningHighlightKey]);
+  }, [listening.listeningHighlightKey]);
 
   const showOutline =
     Boolean(onNavigateToBlock) &&
@@ -97,75 +103,21 @@ export function QuizAttemptTakingSection({
 
   const timerOk = !!(attempt && getAttemptTimerValidity(attempt).ok);
 
-  const multiSection = Boolean(
-    sections && sections.length > 1 && typeof activeSectionId === 'number',
-  );
-
-  const activeSectionMeta = useMemo(() => {
-    if (!sections?.length || typeof activeSectionId !== 'number') return null;
-    return sections.find((s) => s.sectionId === activeSectionId) ?? null;
-  }, [activeSectionId, sections]);
-
-  const handleGoPrevSection = useCallback(() => {
-    if (listeningNavLocked) return;
-    if (!sections?.length || typeof activeSectionId !== 'number') return;
-    const idx = sections.findIndex((s) => s.sectionId === activeSectionId);
-    const prev = idx > 0 ? sections[idx - 1] : null;
-    if (prev) onSectionChange?.(prev.sectionId);
-  }, [activeSectionId, listeningNavLocked, onSectionChange, sections]);
-
-  const handleGoNextSection = useCallback(() => {
-    if (listeningNavLocked) return;
-    if (!sections?.length || typeof activeSectionId !== 'number') return;
-    const idx = sections.findIndex((s) => s.sectionId === activeSectionId);
-    const next = idx >= 0 && idx < sections.length - 1 ? sections[idx + 1] : null;
-    if (next) onSectionChange?.(next.sectionId);
-  }, [activeSectionId, listeningNavLocked, onSectionChange, sections]);
-
-  const effectiveListeningSectionId =
-    typeof activeSectionId === 'number' && Number.isFinite(activeSectionId)
-      ? activeSectionId
-      : 0;
-
-  const sectionListeningStorageKeyStr = quizSectionListeningStorageKey(effectiveListeningSectionId);
-
-  const queueHasListening = useMemo(
-    () => buildSectionListeningQueue(renderBlocks).length > 0,
-    [renderBlocks],
-  );
-
-  const hasSectionListeningQuota =
-    typeof listeningRemaining?.[sectionListeningStorageKeyStr] === 'number';
-
-  const useSectionListeningPlayer =
-    queueHasListening && hasSectionListeningQuota && !!reportListeningCycle;
-
-  const sectionListeningQuotaMax = useMemo(
-    () => getSectionListeningQuotaFromForm(formPayload, effectiveListeningSectionId),
-    [formPayload, effectiveListeningSectionId],
-  );
-
-  useEffect(() => {
-    if (!useSectionListeningPlayer) {
-      setListeningNavLocked(false);
-      setListeningSubmitLocked(false);
-      setListeningHighlightKey(null);
-      onListeningNavLock?.(false);
-    }
-  }, [useSectionListeningPlayer, onListeningNavLock]);
-
-  const handleListeningLocksChange = useCallback(
-    ({ navLocked, submitLocked }: SectionListeningLocks) => {
-      setListeningNavLocked(navLocked);
-      setListeningSubmitLocked(submitLocked);
-      onListeningNavLock?.(navLocked);
-    },
-    [onListeningNavLock],
-  );
-
   return (
     <Card styles={{ body: { padding: 0 } }}>
-      {timerOk ? <QuizAttemptTimerBar remainingSeconds={remainingSeconds} /> : null}
+      <QuizAttemptStickyStatusBar
+        showTimer={timerOk}
+        remainingSeconds={remainingSeconds}
+        listeningRemainingPlays={
+          listening.useSectionListeningPlayer
+            ? listening.sectionListeningRemaining ?? 0
+            : null
+        }
+        listeningAutoStartCountdown={listening.listeningAutoStartCountdown}
+        listeningPlaybackBusy={listening.listeningPlaybackBusy}
+        showManualListenButton={listening.showManualListenButton}
+        onManualListenStart={listening.handleManualPlaybackStart}
+      />
 
       <div className="flex flex-col gap-3 px-4 pb-4 pt-4 md:px-6">
         <Link href={backHref ?? '/assignments'}>
@@ -202,11 +154,8 @@ export function QuizAttemptTakingSection({
       ) : null}
 
       <QuizAttemptSectionToolbar
-        multiSection={multiSection}
         showOutline={showOutline}
         outlineOpen={outlineOpen}
-        sections={sections}
-        activeSectionId={activeSectionId ?? null}
         onToggleOutline={() => setOutlineOpen((v) => !v)}
       />
 
@@ -219,23 +168,30 @@ export function QuizAttemptTakingSection({
           activeSectionId={activeSectionId ?? null}
           activeAnchorKey={activeAnchorKey ?? null}
           onNavigateToBlock={onNavigateToBlock}
-          navigationLocked={listeningNavLocked}
+          navigationLocked={listening.listeningNavLocked}
           lockedSectionId={activeSectionId ?? null}
         />
       ) : null}
 
       <Space direction="vertical" size="large" className="w-full px-4 pb-6 md:px-6">
-        <QuizSectionInstructionsBlock section={activeSectionMeta} />
-        {useSectionListeningPlayer ? (
+        <QuizSectionInstructionsBlock
+          section={listening.activeSectionMeta}
+          sectionHeading={listening.sectionInstructionsHeading}
+        />
+        {listening.useSectionListeningPlayer ? (
           <QuizSectionListeningOrchestrator
-            key={sectionListeningStorageKeyStr}
-            sectionId={effectiveListeningSectionId}
+            key={listening.sectionStorageKey}
+            sectionId={listening.effectiveSectionId}
             renderBlocks={renderBlocks}
             listeningRemaining={listeningRemaining ?? {}}
-            sectionQuotaMax={sectionListeningQuotaMax}
+            sectionQuotaMax={listening.sectionListeningQuotaMax}
+            playbackMode={listening.sectionPlaybackMode}
+            manualPlaybackStarted={listening.manualPlaybackStarted}
             reportListeningCycle={reportListeningCycle!}
-            onHighlightKeyChange={setListeningHighlightKey}
-            onLocksChange={handleListeningLocksChange}
+            onHighlightKeyChange={listening.setListeningHighlightKey}
+            onLocksChange={listening.handleListeningLocksChange}
+            onPlaybackBusyChange={listening.setListeningPlaybackBusy}
+            onAutoStartCountdownChange={listening.setListeningAutoStartCountdown}
           />
         ) : null}
         <QuizAttemptQuestionBlocks
@@ -246,8 +202,8 @@ export function QuizAttemptTakingSection({
           onAnswerChange={answersLocked ? undefined : onAnswerChange}
           listeningRemaining={listeningRemaining}
           reportListeningCycle={reportListeningCycle}
-          listeningHighlightKey={listeningHighlightKey}
-          embedListeningPlayer={!useSectionListeningPlayer}
+          listeningHighlightKey={listening.listeningHighlightKey}
+          embedListeningPlayer={!listening.useSectionListeningPlayer}
         />
       </Space>
 
@@ -256,10 +212,10 @@ export function QuizAttemptTakingSection({
         onSubmit={answersLocked ? () => undefined : onSubmit}
         sections={sections}
         activeSectionId={activeSectionId}
-        onGoPrevSection={handleGoPrevSection}
-        onGoNextSection={handleGoNextSection}
-        listeningNavLocked={listeningNavLocked}
-        listeningSubmitLocked={listeningSubmitLocked}
+        onGoPrevSection={listening.handleGoPrevSection}
+        onGoNextSection={listening.handleGoNextSection}
+        listeningNavLocked={listening.listeningNavLocked}
+        listeningSubmitLocked={listening.listeningSubmitLocked}
       />
     </Card>
   );

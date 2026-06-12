@@ -18,7 +18,7 @@ type QuizAttemptQuestionBlocksProps = {
   /** Detailed grading per item (includes correctOptionIds, selectedOptionIds) */
   gradingPerItem?: Record<string, QuizGradingPerItem | undefined>;
   listeningRemaining?: Record<string, number>;
-  reportListeningCycle?: (formItemKey: string) => Promise<void>;
+  reportListeningCycle?: (formItemKey: string) => Promise<boolean>;
   /** Key formItemId / bundle parent — highlight khi section player đang phát. */
   listeningHighlightKey?: string | null;
   /** `false`: ẩn player từng cây (dùng section orchestrator). */

@@ -90,6 +90,15 @@ CRM `upsertQuizGradedSync` chỉ cập nhật khi `submittedAt` attempt **≥** 
 
 ## 3.1.1 Listening — nộp bài & chuyển phần (2026-06)
 
+> **SSOT:** `ebest-crm-api/docs/modules/test-quiz/runtime/SECTION_LISTENING_POLICY.md`
+
+| Khái niệm | Quy tắc |
+|-----------|---------|
+| **Phân loại** | Section toàn audio / toàn không audio; mix hoặc rỗng → lỗi publish |
+| **Quota** | `section:<id>`; ưu tiên `listeningRepeatCount` section, fallback min câu |
+| **Auto / manual** | Override section hoặc inherit; manual: nút **Nghe** một lần → phát hết lượt |
+| **Playlist** | Tuần tự mọi track mọi câu có audio — không play lẻ từng câu |
+
 | Khóa | Quy tắc |
 |------|---------|
 | **Nộp bài / Chuyển phần** | Mở sau khi nghe **xong ≥1 vòng** (hết chuỗi track trong section). |

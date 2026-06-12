@@ -71,7 +71,7 @@ export function QuizReviewQuestionsPanel({
     const loneSection = sectionsOrdered[0];
     return (
       <div className="space-y-3">
-        <QuizSectionInstructionsBlock section={loneSection} />
+        <QuizSectionInstructionsBlock section={loneSection} hideSectionHeading />
         <QuizAttemptQuestionBlocks
           renderBlocks={renderBlocks}
           blockStartIndexes={blockStartIndexes}
@@ -103,7 +103,7 @@ export function QuizReviewQuestionsPanel({
           label: sec.title?.trim() || `Phần ${sec.order + 1}`,
           children: (
             <div className="space-y-3">
-              <QuizSectionInstructionsBlock section={sec} />
+              <QuizSectionInstructionsBlock section={sec} hideSectionHeading />
               <QuizAttemptQuestionBlocks
                 renderBlocks={blocks}
                 blockStartIndexes={idx}

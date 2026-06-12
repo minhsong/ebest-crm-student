@@ -19,7 +19,11 @@ import type {
   StartAttemptResponse,
   SubmitAttemptResponse,
 } from '@/features/quiz-test/types';
-import { quizSectionListeningStorageKey } from '@/features/quiz-test/lib/quiz-listening-rules';
+import {
+  buildRemainingPlaysByListeningUnitFromForm,
+  quizSectionListeningStorageKey,
+} from '@/features/quiz-test/lib/quiz-listening-rules';
+import { sortQuizFormSections } from '@/features/quiz-test/lib/quiz-section-meta';
 import { quizRuntimePublicUrl } from '@/features/quiz-test/quiz-gateway-browser';
 import {
   fetchQuizRuntimeJson,
@@ -134,6 +138,9 @@ export function useQuizAttemptRuntime({
   const [listeningRemaining, setListeningRemaining] = useState<Record<string, number>>({});
   const listeningRemainingRef = useRef<Record<string, number>>({});
   listeningRemainingRef.current = listeningRemaining;
+  const manualListeningStartedRef = useRef<Set<number>>(new Set());
+  const [manualListeningStartedVersion, setManualListeningStartedVersion] =
+    useState(0);
   /** Hết giờ / đang nộp — khóa sửa đáp án trên UI. */
   const [sessionLocked, setSessionLocked] = useState(false);
   const [closeReason, setCloseReason] = useState<QuizAttemptCloseReason>(null);
@@ -899,13 +906,13 @@ export function useQuizAttemptRuntime({
   }, []);
 
   const reportListeningCycle = useCallback(
-    async (formItemId: string) => {
+    async (formItemId: string): Promise<boolean> => {
       const id = attempt?.attemptPublicId?.trim();
       const key = formItemId.trim();
-      if (!id || !key) return;
+      if (!id || !key) return false;
 
       const before = listeningRemainingRef.current[key];
-      if (typeof before !== 'number' || before <= 0) return;
+      if (typeof before !== 'number' || before <= 0) return true;
 
       setListeningRemaining((prev) => ({ ...prev, [key]: before - 1 }));
 
@@ -919,11 +926,12 @@ export function useQuizAttemptRuntime({
 
       if (ok) {
         setListeningRemaining(normalizeListeningMap(data?.remainingPlaysByListeningUnit));
-        return;
+        return true;
       }
 
       setListeningRemaining((prev) => ({ ...prev, [key]: before }));
       antdMessage.warning('Không cập nhật được lượt nghe — thử tải lại trang nếu lỗi lặp lại.');
+      return false;
     },
     [attempt?.attemptPublicId],
   );
@@ -967,6 +975,42 @@ export function useQuizAttemptRuntime({
     [forfeitListeningSection],
   );
 
+  /** Forfeit các phần nghe trước `targetSectionId` khi vào phần qua URL (?section=) mà bỏ qua. */
+  const forfeitPriorListeningSections = useCallback(
+    async (targetSectionId: number) => {
+      if (!Number.isFinite(targetSectionId) || !formPayload) return;
+
+      const rawSections = Array.isArray(formPayload.sections)
+        ? formPayload.sections
+        : [];
+      const orderedIds = sortQuizFormSections(rawSections).map((s) => s.sectionId);
+
+      const targetIdx = orderedIds.indexOf(targetSectionId);
+      if (targetIdx <= 0) return;
+
+      const listeningKeys = buildRemainingPlaysByListeningUnitFromForm(formPayload);
+      for (let i = 0; i < targetIdx; i += 1) {
+        const key = quizSectionListeningStorageKey(orderedIds[i]!);
+        if (!Object.prototype.hasOwnProperty.call(listeningKeys, key)) continue;
+        const rem = listeningRemainingRef.current[key];
+        if (typeof rem === 'number' && rem > 0) {
+          await forfeitListeningSection(key);
+        }
+      }
+    },
+    [formPayload, forfeitListeningSection],
+  );
+
+  const startManualListeningSection = useCallback((sectionId: number) => {
+    if (!Number.isFinite(sectionId)) return;
+    manualListeningStartedRef.current.add(sectionId);
+    setManualListeningStartedVersion((v) => v + 1);
+  }, []);
+
+  const isManualListeningSectionStarted = useCallback((sectionId: number) => {
+    return manualListeningStartedRef.current.has(sectionId);
+  }, [manualListeningStartedVersion]);
+
   // ============================================================================
   // Return
   // ============================================================================
@@ -999,6 +1043,9 @@ export function useQuizAttemptRuntime({
     openConfirmStart,
     reportListeningCycle,
     maybeForfeitListeningOnLeaveSection,
+    forfeitPriorListeningSections,
+    startManualListeningSection,
+    isManualListeningSectionStarted,
     refreshHistory,
   };
 }
