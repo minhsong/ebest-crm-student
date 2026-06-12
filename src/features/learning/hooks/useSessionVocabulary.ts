@@ -24,6 +24,7 @@ export function useSessionVocabulary({
 	unlockErrorMessage,
 }: Options) {
 	const [items, setItems] = useState<LearningVocabularyItem[]>([]);
+	const [sessionTitle, setSessionTitle] = useState<string | null>(null);
 	const [courseSessionId, setCourseSessionId] = useState<number | null>(null);
 	const [canRecordEvents, setCanRecordEvents] = useState(true);
 	const [readOnlyReason, setReadOnlyReason] = useState<string | null>(null);
@@ -46,6 +47,7 @@ export function useSessionVocabulary({
 				if (cancelled) return;
 				const access = parseLearningAccess(payload.learningAccess);
 				setItems(payload.items ?? []);
+				setSessionTitle(payload.sessionTitle?.trim() || null);
 				setCourseSessionId(payload.courseSessionId ?? null);
 				setCanRecordEvents(access.canRecordEvents);
 				setReadOnlyReason(access.readOnlyReason);
@@ -71,6 +73,7 @@ export function useSessionVocabulary({
 
 	return {
 		items,
+		sessionTitle,
 		courseSessionId,
 		canRecordEvents,
 		readOnlyReason,

@@ -3,9 +3,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Button, Tabs, Tag, Alert } from 'antd';
+import { Button, Tabs, Tag } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { PageHeader, PageCard } from '@/components/layout';
+import { LearningAccessNoticeInline } from '@/features/learning/components/LearningAccessNotice';
+import { resolveReadOnlyNoticeMessage } from '@/features/learning/utils/learning-access';
 import { useAuth } from '@/contexts/auth-context';
 import { StudentChecklistDetailModal } from '@/features/checklists';
 import { StudentAssignmentDetailModal } from '@/features/schedule/components/StudentAssignmentDetailModal';
@@ -145,25 +147,23 @@ export default function StudentClassDetailPage() {
     ];
   }, [openAssignment]);
 
+  const classAccessNotice = resolveReadOnlyNoticeMessage(overview?.readOnlyReason);
+
   return (
     <>
       <PageHeader
-        title={classLabel}
-        description={
-          overview?.canInteract === false
-            ? 'Lớp chỉ xem lại — bài tập và từ vựng không thể tương tác mới.'
-            : 'Xem buổi học, bài tập, checklist và điểm danh của lớp.'
+        title={
+          <LearningAccessNoticeInline message={classAccessNotice}>
+            {classLabel}
+          </LearningAccessNoticeInline>
         }
+        description="Xem buổi học, bài tập, checklist và điểm danh của lớp."
         leading={
           <Link href="/classes">
             <Button icon={<ArrowLeftOutlined />}>Quay lại</Button>
           </Link>
         }
       />
-
-      {overview?.canInteract === false && overview.readOnlyReason ? (
-        <Alert type="info" showIcon message={overview.readOnlyReason} className="mb-4" />
-      ) : null}
 
       <PageCard>
         <Tabs

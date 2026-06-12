@@ -5,16 +5,23 @@ export interface LearningHubClass {
 	className: string;
 	courseId: number;
 	interactionMode?: 'interactive' | 'read_only';
+	/** Có thể luyện flashcard / ghi tiến độ (lớp COMPLETED vẫn true nếu enrollment ACTIVE). */
+	canRecordEvents?: boolean;
 	readOnlyReason?: string | null;
 }
 
-export interface LearningHubTodaySession {
+export interface LearningHubNearestSession {
 	classSessionId: number;
 	classId: number;
 	className: string;
 	title: string;
 	assetCount: number;
+	scheduledDate: string;
+	isToday: boolean;
 }
+
+/** @deprecated — dùng LearningHubNearestSession */
+export type LearningHubTodaySession = LearningHubNearestSession;
 
 export interface LearningHubWeekStats {
 	weekStart: string;
@@ -74,7 +81,9 @@ export interface LearningRecommendationItem {
 export interface LearningHubPayload {
 	recommendations: LearningRecommendationItem[];
 	assignmentsDue: LearningAssignmentDueItem[];
-	todaySession: LearningHubTodaySession | null;
+	nearestSession: LearningHubNearestSession | null;
+	/** @deprecated — alias nearestSession */
+	todaySession?: LearningHubNearestSession | null;
 	weekStats: LearningHubWeekStats;
 	classes: LearningHubClass[];
 	context?: {
@@ -141,6 +150,7 @@ export interface LearningVocabularyPayload {
 	classSessionId: number;
 	classId: number;
 	courseSessionId: number | null;
+	sessionTitle?: string;
 	learningAccess?: LearningVocabularyLearningAccess;
 	items: LearningVocabularyItem[];
 }
@@ -210,10 +220,24 @@ export interface WeakWordsPayload {
 
 export interface DrillSessionClient {
 	playId: string;
+	classId?: number;
+	assignmentId?: number | null;
 	gameMode: string;
 	scoreInRun: number;
+	streak?: number;
 	status: string;
 	question: DrillQuestionClient;
+}
+
+export interface DrillSessionResumePayload {
+	playId: string;
+	classId: number;
+	assignmentId: number | null;
+	gameMode: string;
+	scoreInRun: number;
+	streak: number;
+	status: string;
+	question?: DrillQuestionClient;
 }
 
 export interface DrillAnswerResult {
@@ -260,4 +284,29 @@ export interface DrillLeaderboardPayload {
 	self: { rank: number | null; score: number; playCount: number } | null;
 	hidden?: boolean;
 	hiddenReason?: string;
+}
+
+export interface FlashcardSessionCard {
+	assetId: number;
+	word: string;
+	meaning?: string;
+	promptAudioUrl?: string;
+	audioUkUrl?: string;
+	audioUsUrl?: string;
+	imageUrl?: string;
+	ipaUk?: string;
+	ipaUs?: string;
+	example?: string;
+	exampleTranslation?: string;
+	selfRating?: 'known' | 'unknown';
+}
+
+export interface FlashcardSessionPayload {
+	sessionId: string;
+	classId: number;
+	classSessionId: number;
+	courseSessionId: number | null;
+	status: string;
+	cards: FlashcardSessionCard[];
+	summary: { knownCount: number; unknownCount: number; total: number };
 }

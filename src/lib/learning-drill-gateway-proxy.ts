@@ -1,0 +1,199 @@
+/**
+ * Drill runtime BFF — Portal → Gateway trực tiếp; authorize CRM gộp khi start.
+ */
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+import { resolveStudentCustomerIdViaCrmMe } from '@/lib/crm-student-me';
+import { authorizeDrillViaCrm } from '@/lib/drill-crm-authorize';
+import {
+  buildGatewayServiceHeaders,
+  gatewayConfigErrorResponse,
+  gatewayUnauthorizedResponse,
+  getSocialGatewayConfig,
+  proxyGatewayJsonResponse,
+} from '@/lib/social-gateway-bff.util';
+import { STUDENT_SAFE_USER_MESSAGES } from '@/lib/student-safe-errors';
+
+const DRILL_INTERNAL_PREFIX =
+  '/api/v1/runtime/learning-drill/internal/student/learning/drill';
+
+function internalDrillUrl(baseUrl: string, subPath: string): string {
+  return `${baseUrl}${DRILL_INTERNAL_PREFIX}/${subPath.replace(/^\//, '')}`;
+}
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+type DrillGatewayContext = {
+  customerId: number;
+  cfg: NonNullable<ReturnType<typeof getSocialGatewayConfig>>;
+};
+
+async function resolveDrillGatewayContext(
+  request: NextRequest,
+  proxyName = 'learning-drill-proxy',
+): Promise<DrillGatewayContext | NextResponse> {
+  const cfg = getSocialGatewayConfig();
+  if (!cfg) {
+    return gatewayConfigErrorResponse(proxyName);
+  }
+  const customerId = await resolveStudentCustomerIdViaCrmMe(request);
+  if (customerId === null) {
+    return gatewayUnauthorizedResponse();
+  }
+  return { customerId, cfg };
+}
+
+async function fetchDrillGateway(
+  cfg: DrillGatewayContext['cfg'],
+  subPath: string,
+  init?: RequestInit,
+): Promise<Response> {
+  return fetch(internalDrillUrl(cfg.baseUrl, subPath), {
+    ...init,
+    headers: { ...buildGatewayServiceHeaders(cfg), ...init?.headers },
+    cache: 'no-store',
+  });
+}
+
+export async function proxyDrillRuntimeToGateway(
+  request: NextRequest,
+  segments: string[],
+): Promise<NextResponse> {
+  const ctx = await resolveDrillGatewayContext(request, 'learning-drill-runtime-proxy');
+  if (ctx instanceof NextResponse) {
+    return ctx;
+  }
+  const { customerId, cfg } = ctx;
+
+  if (request.method === 'POST' && segments[0] === 'plays' && segments.length === 1) {
+    const body = (await request.json().catch(() => ({}))) as {
+      classId?: number;
+      assignmentId?: number;
+      gameMode?: string;
+      context?: unknown;
+    };
+
+    let context = body.context;
+    if (!context) {
+      const classId = Number(body.classId);
+      if (!Number.isFinite(classId) || classId < 1) {
+        return NextResponse.json(
+          { message: 'Thiếu classId hợp lệ.' },
+          { status: 400 },
+        );
+      }
+      const auth = await authorizeDrillViaCrm(request, {
+        classId,
+        assignmentId: body.assignmentId,
+        gameMode: body.gameMode,
+      });
+      if (auth === null) {
+        return gatewayUnauthorizedResponse();
+      }
+      if (!auth.allowed) {
+        return NextResponse.json(
+          { message: auth.reason ?? 'Không được phép luyện tập.' },
+          { status: 403 },
+        );
+      }
+      context = {
+        classId: auth.classId,
+        courseId: auth.courseId,
+        assignmentId: auth.assignmentId,
+        gameMode: auth.gameMode,
+        rules: auth.rules,
+        pool: auth.pool,
+      };
+    }
+
+    const res = await fetchDrillGateway(cfg, 'plays', {
+      method: 'POST',
+      body: JSON.stringify({ customerId, context }),
+    });
+    return proxyGatewayJsonResponse(res);
+  }
+
+  if (request.method === 'GET' && segments[0] === 'plays' && segments.length === 2) {
+    const playId = segments[1];
+    if (!UUID_RE.test(playId)) {
+      return NextResponse.json({ message: STUDENT_SAFE_USER_MESSAGES.notFound }, { status: 404 });
+    }
+    const res = await fetchDrillGateway(
+      cfg,
+      `plays/${playId}?customerId=${customerId}`,
+    );
+    return proxyGatewayJsonResponse(res);
+  }
+
+  if (
+    request.method === 'POST' &&
+    segments[0] === 'plays' &&
+    segments.length === 3 &&
+    segments[2] === 'answer'
+  ) {
+    const playId = segments[1];
+    if (!UUID_RE.test(playId)) {
+      return NextResponse.json({ message: STUDENT_SAFE_USER_MESSAGES.notFound }, { status: 404 });
+    }
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const res = await fetchDrillGateway(cfg, `plays/${playId}/answer`, {
+      method: 'POST',
+      body: JSON.stringify({ customerId, ...body }),
+    });
+    return proxyGatewayJsonResponse(res);
+  }
+
+  return NextResponse.json({ message: STUDENT_SAFE_USER_MESSAGES.notFound }, { status: 404 });
+}
+
+/** Leaderboard — Mongo rollups Gateway + CRM present (ADR DRG-P3). */
+export async function proxyDrillLeaderboardToGateway(
+  request: NextRequest,
+): Promise<NextResponse> {
+  const ctx = await resolveDrillGatewayContext(request, 'learning-drill-analytics-proxy');
+  if (ctx instanceof NextResponse) {
+    return ctx;
+  }
+  const { customerId, cfg } = ctx;
+  const classId = request.nextUrl.searchParams.get('classId');
+  const scope = request.nextUrl.searchParams.get('scope');
+  const period = request.nextUrl.searchParams.get('period');
+  if (!classId || !scope || !period) {
+    return NextResponse.json(
+      { message: 'Thiếu tham số classId, scope hoặc period.' },
+      { status: 400 },
+    );
+  }
+  const qs = new URLSearchParams({
+    customerId: String(customerId),
+    classId,
+    scope,
+    period,
+  });
+  const res = await fetchDrillGateway(cfg, `leaderboards?${qs.toString()}`);
+  return proxyGatewayJsonResponse(res);
+}
+
+/** Weak words — Mongo rollups Gateway (ADR DRG-P3). */
+export async function proxyDrillWeakWordsToGateway(
+  request: NextRequest,
+): Promise<NextResponse> {
+  const ctx = await resolveDrillGatewayContext(request, 'learning-drill-analytics-proxy');
+  if (ctx instanceof NextResponse) {
+    return ctx;
+  }
+  const { customerId, cfg } = ctx;
+  const classId = request.nextUrl.searchParams.get('classId');
+  if (!classId) {
+    return NextResponse.json({ message: 'Thiếu tham số classId.' }, { status: 400 });
+  }
+  const qs = new URLSearchParams({ customerId: String(customerId), classId });
+  const limit = request.nextUrl.searchParams.get('limit');
+  if (limit) {
+    qs.set('limit', limit);
+  }
+  const res = await fetchDrillGateway(cfg, `analytics/weak-words?${qs.toString()}`);
+  return proxyGatewayJsonResponse(res);
+}

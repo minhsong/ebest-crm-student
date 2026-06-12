@@ -1,4 +1,6 @@
-import Link from 'next/link';
+'use client';
+
+import { useRouter } from 'next/navigation';
 import { Button, Card, List, Typography } from 'antd';
 import { BulbOutlined } from '@ant-design/icons';
 import type { LearningRecommendationItem } from '@/types/learning';
@@ -30,13 +32,14 @@ interface Props {
 }
 
 export function LearningRecommendationCards({ items }: Props) {
+	const router = useRouter();
+
 	if (!items.length) {
 		return null;
 	}
 
 	return (
 		<Card
-			className="mb-4"
 			title={
 				<span>
 					<BulbOutlined className="mr-2" />
@@ -49,11 +52,14 @@ export function LearningRecommendationCards({ items }: Props) {
 				renderItem={(item) => (
 					<List.Item
 						actions={[
-							<Link key="go" href={buildRecommendationHref(item)}>
-								<Button type="link" className="!px-0">
-									Làm ngay
-								</Button>
-							</Link>,
+							<Button
+								key="go"
+								type="primary"
+								size="middle"
+								onClick={() => router.push(buildRecommendationHref(item))}
+							>
+								Làm ngay
+							</Button>,
 						]}
 					>
 						<List.Item.Meta

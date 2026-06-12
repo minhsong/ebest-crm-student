@@ -1,10 +1,20 @@
-import type { LearningVocabularyLearningAccess } from '@/types/learning';
+import type {
+	LearningHubClass,
+	LearningVocabularyLearningAccess,
+} from '@/types/learning';
 
 export function parseLearningAccess(access?: LearningVocabularyLearningAccess | null) {
 	return {
 		canRecordEvents: access?.canRecordEvents !== false,
 		readOnlyReason: access?.readOnlyReason ?? null,
 	};
+}
+
+/** Hub / class row — mặc định true nếu field chưa có (client cũ). */
+export function hubClassCanRecordEvents(
+	hubClass?: Pick<LearningHubClass, 'canRecordEvents'> | null,
+): boolean {
+	return hubClass?.canRecordEvents !== false;
 }
 
 export function getSessionUnlockErrorMessage(
@@ -22,4 +32,12 @@ export function getFlashcardReadOnlyErrorMessage(
 	readOnlyReason?: string | null,
 ): string {
 	return readOnlyReason ?? 'Lớp chỉ cho phép xem lại. Không thể luyện flashcard mới.';
+}
+
+/** Ghi chú read-only từ API — null nếu không có. */
+export function resolveReadOnlyNoticeMessage(
+	readOnlyReason?: string | null,
+): string | null {
+	const trimmed = readOnlyReason?.trim();
+	return trimmed || null;
 }

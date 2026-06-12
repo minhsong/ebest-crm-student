@@ -2,7 +2,7 @@
 
 import { LearningClassVocabularySessions } from '@/features/learning/components/LearningClassVocabularySessions';
 import type { OverviewClassSessions } from '@/types/overview-sessions';
-import { Alert, Empty, Flex, Spin } from 'antd';
+import { Empty, Flex, Spin } from 'antd';
 
 type Props = {
 	loading: boolean;
@@ -29,14 +29,9 @@ export function ClassVocabularyTab({ loading, overview }: Props) {
 	}
 
 	return (
-		<>
-			{overview.canInteract === false && overview.readOnlyReason ? (
-				<Alert type="info" showIcon message={overview.readOnlyReason} className="mb-4" />
-			) : null}
-			<LearningClassVocabularySessions
-				classId={overview.classId}
-				mode="navigate"
-			/>
-		</>
+		<LearningClassVocabularySessions
+			classId={overview.classId}
+			mode="navigate"
+		/>
 	);
 }

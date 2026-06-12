@@ -6,8 +6,13 @@ import { useSearchParams } from 'next/navigation';
 import { Alert, Button, Card, Empty, Select, Skeleton, Typography } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout';
+import {
+	LearningAccessNotice,
+	LearningAccessNoticeInline,
+} from '@/features/learning/components/LearningAccessNotice';
 import { useLearningHub } from '@/features/learning/hooks/useLearningHub';
 import { LearningClassVocabularySessions } from '@/features/learning/components/LearningClassVocabularySessions';
+import { resolveReadOnlyNoticeMessage } from '@/features/learning/utils/learning-access';
 
 const { Text, Paragraph } = Typography;
 
@@ -82,6 +87,8 @@ export function VocabularyPracticeHomeView() {
 		);
 	}
 
+	const classAccessNotice = resolveReadOnlyNoticeMessage(selectedClass?.readOnlyReason);
+
 	return (
 		<div>
 			<PageHeader
@@ -97,26 +104,34 @@ export function VocabularyPracticeHomeView() {
 			{classOptions.length > 1 ? (
 				<div className="mb-4 max-w-md">
 					<Text className="mb-1 block text-sm text-[#434343]">Lớp học</Text>
-					<Select
-						className="w-full"
-						value={selectedClassId ?? undefined}
-						options={classOptions}
-						onChange={setSelectedClassId}
-						placeholder="Chọn lớp"
-					/>
+					<div className="learning-hub-class-picker__row">
+						<Select
+							className="w-full"
+							value={selectedClassId ?? undefined}
+							options={classOptions}
+							onChange={setSelectedClassId}
+							placeholder="Chọn lớp"
+						/>
+						{classAccessNotice ? (
+							<LearningAccessNotice message={classAccessNotice} />
+						) : null}
+					</div>
 				</div>
 			) : selectedClass ? (
 				<Paragraph className="!mb-4 text-[#434343]">
-					Lớp: <Text strong>{selectedClass.className}</Text>
+					<LearningAccessNoticeInline message={classAccessNotice}>
+						<span>
+							Lớp: <Text strong>{selectedClass.className}</Text>
+						</span>
+					</LearningAccessNoticeInline>
 				</Paragraph>
 			) : null}
 
-			{selectedClass?.interactionMode === 'read_only' && selectedClass.readOnlyReason ? (
-				<Alert type="info" showIcon message={selectedClass.readOnlyReason} className="mb-4" />
-			) : null}
-
 			{selectedClassId ? (
-				<Card title="Buổi học có từ vựng">
+				<Card title="Buổi học có từ vựng" styles={{ body: { paddingTop: 12 } }}>
+					<Text type="secondary" className="mb-3 block text-sm">
+						Chạm vào buổi để xem danh sách từ và luyện flashcard.
+					</Text>
 					<LearningClassVocabularySessions classId={selectedClassId} mode="navigate" />
 				</Card>
 			) : (

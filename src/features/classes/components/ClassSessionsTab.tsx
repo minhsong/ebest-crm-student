@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo } from 'react';
-import { Card, Empty, Flex, Spin, Space, Typography, Alert, theme } from 'antd';
+import { Card, Empty, Flex, Spin, Space, Typography, theme } from 'antd';
 import type { OverviewClassSessions } from '@/types/overview-sessions';
 import { StudentWeekSchedule } from '@/features/dashboard/components/StudentWeekSchedule';
 import { SessionCard } from '@/features/schedule/components/SessionCard';
@@ -62,10 +62,6 @@ export function ClassSessionsTab(props: {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      {overview.canInteract === false && overview.readOnlyReason ? (
-        <Alert type="info" showIcon message={overview.readOnlyReason} />
-      ) : null}
-
       <StudentWeekSchedule sessionsByClass={sessionsByClass} />
 
       <div>

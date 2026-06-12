@@ -3,11 +3,13 @@ import type {
   DrillAnswerResult,
 	DrillLeaderboardPayload,
 	DrillSessionClient,
+	DrillSessionResumePayload,
 	LearningEventItem,
 	LearningHubPayload,
 	LearningVocabularyPayload,
 	LearningVocabularySessionsPayload,
 	VocabularyPoolPayload,
+	FlashcardSessionPayload,
 	WeakWordsPayload,
 } from '@/types/learning';
 
@@ -66,7 +68,7 @@ export async function startDrillSession(
   classId: number,
   options?: { gameMode?: string; assignmentId?: number },
 ): Promise<DrillSessionClient> {
-  const res = await fetch('/api/student/learning/drill/sessions', {
+  const res = await fetch('/api/learning-drill-runtime/plays', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -88,15 +90,29 @@ export async function fetchAssignmentDrillContext(
   return parseJsonResponse(res, 'Không tải được thông tin bài luyện từ.');
 }
 
+export async function fetchDrillSession(playId: string): Promise<DrillSessionResumePayload> {
+	const res = await fetch(`/api/learning-drill-runtime/plays/${playId}`, {
+		cache: 'no-store',
+	});
+	return parseJsonResponse(res, 'Không khôi phục được lượt luyện.');
+}
+
 export async function submitDrillAnswer(
 	playId: string,
 	questionId: string,
-	selectedOptionId: string,
+	options?: { selectedOptionId?: string; timedOut?: boolean },
 ): Promise<DrillAnswerResult> {
-	const res = await fetch(`/api/student/learning/drill/sessions/${playId}/answer`, {
+	const body: Record<string, unknown> = { questionId };
+	if (options?.selectedOptionId) {
+		body.selectedOptionId = options.selectedOptionId;
+	}
+	if (options?.timedOut) {
+		body.timedOut = true;
+	}
+	const res = await fetch(`/api/learning-drill-runtime/plays/${playId}/answer`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ questionId, selectedOptionId }),
+		body: JSON.stringify(body),
 	});
 	return parseJsonResponse(res, 'Không gửi được câu trả lời.');
 }
@@ -105,13 +121,17 @@ export async function fetchDrillLeaderboard(
 	classId: number,
 	scope: 'class' | 'course',
 	period: 'week' | 'month' | 'all',
+	options?: { refresh?: boolean },
 ): Promise<DrillLeaderboardPayload> {
 	const qs = new URLSearchParams({
 		classId: String(classId),
 		scope,
 		period,
-	}).toString();
-	const res = await fetch(`/api/student/learning/leaderboards?${qs}`, {
+	});
+	if (options?.refresh) {
+		qs.set('_', String(Date.now()));
+	}
+	const res = await fetch(`/api/student/learning/leaderboards?${qs.toString()}`, {
 		cache: 'no-store',
 	});
 	return parseJsonResponse(res, 'Không tải được bảng xếp hạng.');
@@ -138,4 +158,40 @@ export async function fetchWeakWords(
 		cache: 'no-store',
 	});
 	return parseJsonResponse(res, 'Không tải được danh sách từ hay sai.');
+}
+
+export async function startFlashcardSession(
+	classId: number,
+	classSessionId: number,
+): Promise<FlashcardSessionPayload> {
+	const res = await fetch('/api/learning-flashcard-runtime/sessions', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ classId, classSessionId }),
+	});
+	return parseJsonResponse(res, 'Không bắt đầu được phiên flashcard.');
+}
+
+export async function reviewFlashcardCard(
+	sessionId: string,
+	assetId: number,
+	selfRating: 'known' | 'unknown',
+): Promise<{ summary: FlashcardSessionPayload['summary'] }> {
+	const res = await fetch(`/api/learning-flashcard-runtime/sessions/${sessionId}/review`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ assetId, selfRating }),
+	});
+	return parseJsonResponse(res, 'Không ghi được đánh giá thẻ.');
+}
+
+export async function completeFlashcardSession(
+	sessionId: string,
+): Promise<FlashcardSessionPayload> {
+	const res = await fetch(`/api/learning-flashcard-runtime/sessions/${sessionId}/complete`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({}),
+	});
+	return parseJsonResponse(res, 'Không hoàn thành được phiên flashcard.');
 }

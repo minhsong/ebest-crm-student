@@ -1,0 +1,138 @@
+# Student Portal — Learning UI (tiêu chuẩn triển khai)
+
+> **Cập nhật:** 2026-06-12  
+> **Phạm vi:** `ebest-student-portal/src/features/learning/`  
+> **SSOT nghiệp vụ:** [docs/vocabulary-learning-platform/VOCABULARY_DRILL_ENGINE_SPEC.md](../../docs/vocabulary-learning-platform/VOCABULARY_DRILL_ENGINE_SPEC.md)  
+> **SSOT API read-model:** [docs/vocabulary-learning-platform/STUDENT_HUB_VOCABULARY_READ_MODEL.md](../../docs/vocabulary-learning-platform/STUDENT_HUB_VOCABULARY_READ_MODEL.md)
+
+---
+
+## 1. Cấu trúc feature (Container / Presentational)
+
+Theo pattern CRM Client (`REACT_CODE_STANDARDS.md` — áp dụng tương đương cho Portal):
+
+| Loại | Trách nhiệm | Ví dụ |
+|------|-------------|--------|
+| **Container / View** | Fetch data, routing, state chọn item | `SessionVocabularyDetailView`, `LearningHubView`, `FlashcardSessionView` |
+| **List item** | Render 1 phần tử, không fetch | `VocabularyWordCard`, `HubMenuCard` |
+| **Detail panel** | Nội dung chi tiết thuần UI | `VocabularyWordDetailPanel` |
+| **Modal** | Shell Ant Design + panel/hook | `VocabularyWordDetailModal` |
+| **Hook** | Data hoặc side-effect tái s dụng | `useSessionVocabulary`, `useVocabularyAudio`, `useLearningHub` |
+| **Util** | Pure function hiển thị | `vocabulary-display.util.ts`, `vocabulary-session-routes.ts` |
+
+**Quy tắc:**
+
+- Container giữ `selectedItem` + `setSelectedItem`; modal nhận `open`, `item`, `onClose`.
+- Không nhét logic fetch vào `VocabularyWordCard` / `VocabularyWordDetailPanel`.
+- CSS theo route/feature: `session-vocabulary-words.css`, `vocabulary-sessions-list.css`, `flashcard-session.css`.
+
+---
+
+## 2. Danh sách từ buổi học (`/learning/vocabulary/sessions/:id`)
+
+### 2.1 Route & data
+
+| Mục | Giá trị |
+|-----|---------|
+| Route | `/learning/vocabulary/sessions/[classSessionId]?classId=` |
+| Legacy | `/learning/sessions/:id/words` → cùng `SessionVocabularyDetailView` |
+| API | `GET /api/student/learning/classes/:classId/sessions/:classSessionId/vocabulary` |
+| Hook | `useSessionVocabulary({ classId, classSessionId })` |
+
+### 2.2 UI (VD-OP-09)
+
+- **Card grid** (`VocabularyWordCard`): nền trắng, viền `#d9d9d9`, hover nâng + viền xanh — **không** dùng list Ant Design trên nền dashboard.
+- **Click card** → `VocabularyWordDetailModal` (destroyOnClose).
+- Modal dùng **`VocabularyWordDetailPanel`** — có thể tái s dụng ngoài modal sau này.
+
+### 2.3 Nội dung chi tiết từ (bắt buộc)
+
+| Block | Nguồn field |
+|-------|-------------|
+| Từ + MasteryBadge | `asset.word`, `progress.masteryState` |
+| Ảnh | `asset.imageUrl` |
+| Nghĩa | `translation`, `meanings[]` |
+| Phát âm UK/US | `ipaUk`, `ipaUs`, `audioUkUrl`, `audioUsUrl` |
+| Ví dụ | `example`, `exampleTranslation` |
+| Tiến độ | `timesSeen`, `accuracyRate` (0–100), `knownCount`, `unknownCount` |
+
+---
+
+## 3. Tái s dụng vocabulary UI
+
+### 3.1 `vocabulary-display.util.ts`
+
+| Hàm | Mục đích |
+|-----|----------|
+| `getPrimaryMeaning` | Nghĩa chính (flashcard mặt sau, modal) |
+| `getPreviewTranslation` | Dòng phụ trên card list |
+| `getExtraMeanings` | Nghĩa phụ trong modal |
+| `hasVocabularyPronunciation` | Có hiển thị block phát âm |
+| `formatAccuracyPercent` | `accuracyRate` API = 0–100 |
+
+### 3.2 `useVocabularyAudio`
+
+- Hook chung cho **flashcard** và **modal chi tiết từ**.
+- Option `active: false` khi đóng modal → dừng audio.
+- Flashcard: gọi `stopAudio()` khi đổi index / flip.
+
+### 3.3 `VocabularyPronunciationRow`
+
+- Prop `variant`: `'flashcard' \| 'detail'` — map class CSS tương ứng.
+- Dùng bởi `FlashcardFlipCard` và `VocabularyWordDetailPanel`.
+
+---
+
+## 4. Flashcard
+
+| Component | Vai trò |
+|-----------|---------|
+| `FlashcardSessionView` | Orchestration: start session Gateway, progress, rating |
+| `FlashcardFlipCard` | UI flip 3D + pronunciation rows |
+| `useVocabularyAudio` | Phát audio UK/US |
+
+Layout CSS: `flashcard-session.css` (VD-OP-07).
+
+---
+
+## 5. Hub & menu
+
+| Route | View | API |
+|-------|------|-----|
+| `/learning` | `LearningHubView` | `GET /api/student/learning/hub` |
+| `/learning/vocabulary` | `VocabularyPracticeHomeView` | vocabulary-sessions theo lớp |
+
+Hub load thêm `/api/overview/sessions` cho bài sắp hạn (client merge vào `assignmentsDue`).
+
+---
+
+## 6. i18n & copy
+
+- Label UI cố định: **tiếng Việt** (`vi-VN` default).
+- Identifier code / API: English.
+
+---
+
+## 6. Ghi chú nghiệp vụ (read-only / lớp kết thúc)
+
+**Quy tắc UX (VD-OP-10):** Không dùng `Alert` full-width lặp trên cùng trang.
+
+| Pattern | Component |
+|---------|-----------|
+| Icon + Popover (hover/chạm) | `LearningAccessNotice` |
+| Icon cạnh tiêu đề / nhãn lớp | `LearningAccessNoticeInline` |
+| Một lần / trang | Gắn ở PageHeader hoặc hàng chọn lớp — **không** lặp ở tab con / list con |
+
+Helper: `resolveReadOnlyNoticeMessage(readOnlyReason)` trong `learning-access.ts`.
+
+Các nút bị disable (flashcard, Survival) **đủ** gợi ý trực quan; chi tiết lý do qua icon ℹ️.
+
+---
+
+## 7. Checklist khi thêm màn vocabulary mới
+
+- [ ] Dùng `useSessionVocabulary` hoặc API typed trong `learning-api.ts`
+- [ ] Hiển thị từ qua `VocabularyWordCard` + modal/panel — không duplicate pronunciation UI
+- [ ] `accuracyRate` format qua `formatAccuracyPercent`
+- [ ] Card có contrast với nền trang (nền `#fff`, viền rõ)
+- [ ] Cập nhật doc này + `IMPLEMENTATION_STATUS.md` nếu đổi contract UX

@@ -88,9 +88,11 @@ export function useLearningHub() {
 
 				setSelectedClassId(hub.classes[0].classId);
 
-			} else if (hub.todaySession?.classId) {
+			} else if (hub.nearestSession?.classId ?? hub.todaySession?.classId) {
 
-				setSelectedClassId(hub.todaySession.classId);
+				setSelectedClassId(
+					hub.nearestSession?.classId ?? hub.todaySession!.classId,
+				);
 
 			} else if (hub.classes?.length) {
 				const interactive = hub.classes.find(

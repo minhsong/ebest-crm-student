@@ -14,27 +14,57 @@ import {
 import { ArrowLeftOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout';
 import {
-	buildActivityCompletedEvent,
-	buildActivityStartedEvent,
-	buildAssetAudioPlayedEvent,
-	buildAssetReviewedEvent,
-	buildAssetViewedEvent,
-	buildFlashcardContext,
-	createStudySessionId,
-	flushLearningEvents,
-} from '@/lib/learning-events';
-import type { LearningEventItem, LearningVocabularyItem } from '@/types/learning';
-import { useSessionVocabulary } from '@/features/learning/hooks/useSessionVocabulary';
-import { getFlashcardReadOnlyErrorMessage } from '@/features/learning/utils/learning-access';
+	completeFlashcardSession,
+	fetchSessionVocabulary,
+	reviewFlashcardCard,
+	startFlashcardSession,
+} from '@/lib/learning-api';
+import type { FlashcardSessionCard, LearningVocabularyItem } from '@/types/learning';
 import {
 	flashcardBackHref,
 	vocabularyPracticeHref,
 } from '@/features/learning/utils/vocabulary-session-routes';
-import { FlashcardFlipCard, type FlashcardPlayingLocale } from './FlashcardFlipCard';
+import { FlashcardFlipCard } from './FlashcardFlipCard';
 import { playFlashcardFlipSound } from '../utils/flashcard-flip-sound';
+import { useVocabularyAudio } from '@/features/learning/hooks/useVocabularyAudio';
 import './flashcard-session.css';
 
 type Phase = 'loading' | 'card' | 'done' | 'error';
+
+function mapCardToVocabularyItem(
+	card: FlashcardSessionCard,
+	order: number,
+): LearningVocabularyItem {
+	return {
+		order,
+		asset: {
+			id: card.assetId,
+			assetType: 'vocabulary',
+			word: card.word,
+			translation: card.meaning,
+			ipaUk: card.ipaUk,
+			ipaUs: card.ipaUs,
+			example: card.example,
+			exampleTranslation: card.exampleTranslation,
+			audioUkUrl: card.audioUkUrl,
+			audioUsUrl: card.audioUsUrl,
+			imageUrl: card.imageUrl,
+			status: 'published',
+		},
+		progress: {
+			assetId: card.assetId,
+			masteryState: 'new',
+			masteryLabel: 'Mới',
+			firstSeenAt: null,
+			lastSeenAt: null,
+			timesSeen: 0,
+			knownCount: 0,
+			unknownCount: 0,
+			accuracyRate: null,
+			lastQuizAt: null,
+		},
+	};
+}
 
 export function FlashcardSessionView() {
 	const router = useRouter();
@@ -47,179 +77,77 @@ export function FlashcardSessionView() {
 		[classId, classSessionId],
 	);
 
-	const {
-		items: fetchedItems,
-		courseSessionId,
-		canRecordEvents,
-		readOnlyReason,
-		loading: vocabularyLoading,
-		error: vocabularyError,
-	} = useSessionVocabulary({
-		classId,
-		classSessionId,
-		loadErrorFallback: 'Không tải được từ vựng.',
-		unlockErrorMessage: 'Buổi học chưa diễn ra — chưa thể luyện từ vựng buổi này.',
-	});
-
 	const [phase, setPhase] = useState<Phase>('loading');
 	const [error, setError] = useState<string | null>(null);
+	const [sessionId, setSessionId] = useState<string | null>(null);
 	const [items, setItems] = useState<LearningVocabularyItem[]>([]);
 	const [index, setIndex] = useState(0);
 	const [flipped, setFlipped] = useState(false);
 	const [knownCount, setKnownCount] = useState(0);
 	const [unknownCount, setUnknownCount] = useState(0);
 	const [sessionTitle, setSessionTitle] = useState('');
-	const [playingLocale, setPlayingLocale] = useState<FlashcardPlayingLocale>(null);
+	const { playingLocale, playAudio, stopAudio } = useVocabularyAudio();
 
-	const studySessionIdRef = useRef<string>(createStudySessionId());
-	const ctxRef = useRef<ReturnType<typeof buildFlashcardContext> | null>(null);
-	const pendingEventsRef = useRef<LearningEventItem[]>([]);
-	const viewedAssetIdsRef = useRef<Set<number>>(new Set());
-	const startedRef = useRef(false);
-	const audioRef = useRef<HTMLAudioElement | null>(null);
+	const startRequestedRef = useRef(false);
 
 	const current = items[index];
 	const progressPercent = items.length
 		? Math.round(((index + (phase === 'done' ? 1 : 0)) / items.length) * 100)
 		: 0;
 
-	const flushPending = useCallback(async () => {
-		const batch = pendingEventsRef.current.splice(0);
-		if (!batch.length) return;
-		try {
-			await flushLearningEvents(batch);
-		} catch {
-			pendingEventsRef.current.unshift(...batch);
-		}
-	}, []);
-
-	const queueEvent = useCallback((event: LearningEventItem) => {
-		pendingEventsRef.current.push(event);
-	}, []);
-
 	useEffect(() => {
-		if (vocabularyLoading) {
-			setPhase('loading');
-			return;
-		}
-		if (vocabularyError) {
-			setError(vocabularyError);
+		if (!Number.isFinite(classId) || classId < 1 || !Number.isFinite(classSessionId) || classSessionId < 1) {
+			setError('Thiếu tham số lớp hoặc buổi học.');
 			setPhase('error');
 			return;
 		}
-		if (!canRecordEvents) {
-			setError(getFlashcardReadOnlyErrorMessage(readOnlyReason));
-			setPhase('error');
-			return;
-		}
-		if (!fetchedItems.length) {
-			setError('Buổi học chưa có từ vựng để luyện.');
-			setPhase('error');
-			return;
-		}
+		if (startRequestedRef.current) return;
+		startRequestedRef.current = true;
 
-		ctxRef.current = buildFlashcardContext({
-			classId,
-			classSessionId,
-			courseSessionId: courseSessionId ?? undefined,
-			studySessionId: studySessionIdRef.current,
-		});
-		setItems(fetchedItems);
-		setSessionTitle(`Buổi ${classSessionId}`);
-		setPhase('card');
-	}, [
-		canRecordEvents,
-		classId,
-		classSessionId,
-		courseSessionId,
-		fetchedItems,
-		readOnlyReason,
-		vocabularyError,
-		vocabularyLoading,
-	]);
-
-	useEffect(() => {
-		if (phase !== 'card' || !current || !ctxRef.current) return;
-		if (!startedRef.current) {
-			startedRef.current = true;
-			queueEvent(buildActivityStartedEvent(ctxRef.current));
-			void flushPending();
-		}
-		if (viewedAssetIdsRef.current.has(current.asset.id)) return;
-		viewedAssetIdsRef.current.add(current.asset.id);
-		queueEvent(buildAssetViewedEvent(ctxRef.current, current.asset.id));
-		void flushPending();
-	}, [phase, current, queueEvent, flushPending]);
-
-	useEffect(() => {
-		return () => {
-			void flushPending();
-		};
-	}, [flushPending]);
+		void (async () => {
+			try {
+				const [session, vocabMeta] = await Promise.all([
+					startFlashcardSession(classId, classSessionId),
+					fetchSessionVocabulary(classId, classSessionId).catch(() => null),
+				]);
+				setSessionId(session.sessionId);
+				setItems(session.cards.map((card, i) => mapCardToVocabularyItem(card, i + 1)));
+				setSessionTitle(vocabMeta?.sessionTitle?.trim() || 'Buổi học');
+				setPhase('card');
+			} catch (e) {
+				setError(e instanceof Error ? e.message : 'Không bắt đầu được phiên flashcard.');
+				setPhase('error');
+			}
+		})();
+	}, [classId, classSessionId]);
 
 	const finishSession = useCallback(
 		async (known: number, unknown: number) => {
-			if (ctxRef.current) {
-				queueEvent(
-					buildActivityCompletedEvent(ctxRef.current, {
-						known,
-						unknown,
-						total: known + unknown,
-					}),
-				);
+			if (sessionId) {
+				try {
+					await completeFlashcardSession(sessionId);
+				} catch {
+					// Summary local vẫn hiển thị nếu complete retry sau.
+				}
 			}
-			await flushPending();
+			setKnownCount(known);
+			setUnknownCount(unknown);
 			setPhase('done');
 		},
-		[queueEvent, flushPending],
+		[sessionId],
 	);
-
-	const stopActiveAudio = useCallback(() => {
-		if (audioRef.current) {
-			audioRef.current.pause();
-			audioRef.current.onended = null;
-			audioRef.current.onerror = null;
-			audioRef.current = null;
-		}
-		setPlayingLocale(null);
-	}, []);
 
 	const handlePlayAudio = useCallback(
 		(locale: 'uk' | 'us', url?: string) => {
-			if (!current || !ctxRef.current || !url) return;
-
-			stopActiveAudio();
-			queueEvent(buildAssetAudioPlayedEvent(ctxRef.current, current.asset.id, locale));
-			void flushPending();
-
-			const audio = new Audio(url);
-			audioRef.current = audio;
-			setPlayingLocale(locale);
-			audio.onended = () => {
-				setPlayingLocale(null);
-				audioRef.current = null;
-			};
-			audio.onerror = () => {
-				setPlayingLocale(null);
-				audioRef.current = null;
-			};
-			void audio.play().catch(() => {
-				setPlayingLocale(null);
-				audioRef.current = null;
-			});
+			if (!current || !url) return;
+			playAudio(locale, url);
 		},
-		[current, queueEvent, flushPending, stopActiveAudio],
+		[current, playAudio],
 	);
 
 	useEffect(() => {
-		return () => {
-			stopActiveAudio();
-		};
-	}, [stopActiveAudio]);
-
-	useEffect(() => {
-		stopActiveAudio();
-	}, [index, flipped, stopActiveAudio]);
+		stopAudio();
+	}, [index, flipped, stopAudio]);
 
 	const handleFlip = useCallback(() => {
 		setFlipped((prev) => {
@@ -253,8 +181,16 @@ export function FlashcardSessionView() {
 
 	const handleRating = useCallback(
 		async (selfRating: 'known' | 'unknown') => {
-			if (!current || !ctxRef.current || !flipped) return;
-			queueEvent(buildAssetReviewedEvent(ctxRef.current, current.asset.id, selfRating));
+			if (!current || !flipped || !sessionId) return;
+
+			try {
+				await reviewFlashcardCard(sessionId, current.asset.id, selfRating);
+			} catch (e) {
+				setError(e instanceof Error ? e.message : 'Không ghi được đánh giá thẻ.');
+				setPhase('error');
+				return;
+			}
+
 			const nextKnown = knownCount + (selfRating === 'known' ? 1 : 0);
 			const nextUnknown = unknownCount + (selfRating === 'unknown' ? 1 : 0);
 			setKnownCount(nextKnown);
@@ -266,18 +202,16 @@ export function FlashcardSessionView() {
 				return;
 			}
 			setIndex((i) => i + 1);
-			await flushPending();
 		},
 		[
 			current,
 			flipped,
+			sessionId,
 			index,
 			items.length,
 			knownCount,
 			unknownCount,
-			queueEvent,
 			finishSession,
-			flushPending,
 		],
 	);
 

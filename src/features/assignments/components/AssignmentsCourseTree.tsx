@@ -2,6 +2,7 @@
 
 import { Collapse, Flex, Space, Typography, theme } from 'antd';
 import type { CourseAssignmentGroup } from '@/lib/assignments-overview-grouping';
+import { LearningAccessNotice } from '@/features/learning/components/LearningAccessNotice';
 import { SessionAssignmentsCard } from '@/features/assignments/components/SessionAssignmentsCard';
 
 const { Text } = Typography;
@@ -35,24 +36,28 @@ export function AssignmentsCourseTree({ groups, onOpenAssignment }: Props) {
       <Space direction="vertical" size={token.marginLG} style={{ width: '100%' }}>
         {course.classes.map((cls) => (
           <Flex key={cls.classId} vertical gap={token.margin} style={{ width: '100%' }}>
-            <Text
-              type="secondary"
-              style={{
-                fontSize: token.fontSizeSM,
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-              }}
-            >
-              Lớp {cls.className}
-              {cls.classCode ? ` · ${cls.classCode}` : ''}
-              {!cls.canInteract ? ' · Chỉ xem' : ''}
-            </Text>
-            {!cls.canInteract && cls.readOnlyReason ? (
-              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                {cls.readOnlyReason}
+            <Flex align="center" gap={token.marginXS} wrap="wrap">
+              <Text
+                type="secondary"
+                style={{
+                  fontSize: token.fontSizeSM,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                }}
+              >
+                Lớp {cls.className}
+                {cls.classCode ? ` · ${cls.classCode}` : ''}
+                {!cls.canInteract ? ' · Chỉ xem' : ''}
               </Text>
-            ) : null}
+              {!cls.canInteract && cls.readOnlyReason ? (
+                <LearningAccessNotice
+                  message={cls.readOnlyReason}
+                  variant="warning"
+                  title="Lớp chỉ xem"
+                />
+              ) : null}
+            </Flex>
             <Space direction="vertical" size={token.margin} style={{ width: '100%' }}>
               {cls.sessions.map((session) => (
                 <SessionAssignmentsCard

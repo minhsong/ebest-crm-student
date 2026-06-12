@@ -84,21 +84,34 @@ function LeaderboardPanel({
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
-	const load = useCallback(async () => {
-		setLoading(true);
-		setError(null);
-		try {
-			const payload = await fetchDrillLeaderboard(classId, scope, period);
-			setData(payload);
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Không tải được bảng xếp hạng.');
-		} finally {
-			setLoading(false);
-		}
-	}, [classId, scope, period]);
+	const load = useCallback(
+		async (refresh = false) => {
+			setLoading(true);
+			setError(null);
+			try {
+				const payload = await fetchDrillLeaderboard(classId, scope, period, { refresh });
+				setData(payload);
+			} catch (err) {
+				setError(err instanceof Error ? err.message : 'Không tải được bảng xếp hạng.');
+			} finally {
+				setLoading(false);
+			}
+		},
+		[classId, scope, period],
+	);
 
 	useEffect(() => {
-		void load();
+		void load(true);
+	}, [load]);
+
+	useEffect(() => {
+		const onVisible = () => {
+			if (document.visibilityState === 'visible') {
+				void load(true);
+			}
+		};
+		document.addEventListener('visibilitychange', onVisible);
+		return () => document.removeEventListener('visibilitychange', onVisible);
 	}, [load]);
 
 	return (
@@ -110,7 +123,7 @@ function LeaderboardPanel({
 				</span>
 			}
 			extra={
-				<Button size="small" icon={<ReloadOutlined />} onClick={() => void load()}>
+				<Button size="small" icon={<ReloadOutlined />} onClick={() => void load(true)}>
 					Làm mới
 				</Button>
 			}
@@ -131,7 +144,9 @@ function LeaderboardPanel({
 					message={
 						data.self.rank
 							? `Bạn: #${data.self.rank} · ${data.self.score} điểm · ${data.self.playCount} lượt`
-							: `Bạn chưa có điểm (${data.periodLabel}).`
+							: data.self.score > 0 || data.self.playCount > 0
+								? `Bạn: ${data.self.score} điểm · ${data.self.playCount} lượt`
+								: `Bạn chưa có điểm (${data.periodLabel}).`
 					}
 				/>
 			) : null}

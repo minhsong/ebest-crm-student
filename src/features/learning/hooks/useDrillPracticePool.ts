@@ -88,17 +88,47 @@ export function useDrillPracticePool({ classId, assignmentId }: PoolParams) {
 		void loadPool();
 	}, [loadPool]);
 
-	useEffect(() => {
-		if (!classId || Number.isNaN(classId) || assignmentId) {
-			setWeakWords(null);
-			return;
-		}
-		setWeakWordsLoading(true);
-		void fetchWeakWords(classId)
-			.then(setWeakWords)
-			.catch(() => setWeakWords(null))
-			.finally(() => setWeakWordsLoading(false));
-	}, [classId, assignmentId]);
+  useEffect(() => {
+    if (!classId || Number.isNaN(classId) || assignmentId) {
+      setWeakWords(null);
+      return;
+    }
+
+    let cancelled = false;
+    setWeakWordsLoading(true);
+
+    const loadWeakWords = () => {
+      void fetchWeakWords(classId)
+        .then((data) => {
+          if (!cancelled) setWeakWords(data);
+        })
+        .catch(() => {
+          if (!cancelled) setWeakWords(null);
+        })
+        .finally(() => {
+          if (!cancelled) setWeakWordsLoading(false);
+        });
+    };
+
+    let idleId: number | undefined;
+    let timeoutId: number | undefined;
+
+    if (typeof requestIdleCallback === 'function') {
+      idleId = requestIdleCallback(loadWeakWords, { timeout: 2500 });
+    } else {
+      timeoutId = window.setTimeout(loadWeakWords, 400);
+    }
+
+    return () => {
+      cancelled = true;
+      if (idleId != null && typeof cancelIdleCallback === 'function') {
+        cancelIdleCallback(idleId);
+      }
+      if (timeoutId != null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [classId, assignmentId]);
 
 	const refreshWeakWords = useCallback(async () => {
 		if (!classId || Number.isNaN(classId)) return;

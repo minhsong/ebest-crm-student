@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface PageHeaderProps {
-  title: string;
+  title: React.ReactNode;
   description?: React.ReactNode;
   /** Cùng hàng với tiêu đề, thường bên trái (ví dụ nút quay lại). */
   leading?: React.ReactNode;

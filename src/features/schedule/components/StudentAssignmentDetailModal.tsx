@@ -34,6 +34,7 @@ import {
 } from '@ant-design/icons';
 import Link from 'next/link';
 import { AssignmentQuizActionButtons } from '@/features/quiz-test/components/AssignmentQuizActionButtons';
+import { LearningAccessNotice } from '@/features/learning/components/LearningAccessNotice';
 import { useAuth } from '@/contexts/auth-context';
 import type {
   StudentAssignmentAttachment,
@@ -576,6 +577,13 @@ export function StudentAssignmentDetailModal({
             </span>
             <span style={{ fontWeight: 700 }}>{detail.title}</span>
             {headerStatusTag}
+            {readOnlyReason && !(isQuizWithLinkedForm && canStartQuiz) ? (
+              <LearningAccessNotice
+                message={readOnlyReason}
+                variant="warning"
+                title="Lớp chỉ xem"
+              />
+            ) : null}
           </Flex>
         ) : (
           'Chi tiết bài tập'
@@ -647,9 +655,7 @@ export function StudentAssignmentDetailModal({
             )}
           </Descriptions>
 
-          {readOnlyReason && !(isQuizWithLinkedForm && canStartQuiz) ? (
-            <Alert type="warning" showIcon message={readOnlyReason} />
-          ) : deadlinePassed ? (
+          {deadlinePassed ? (
             <Alert
               type="warning"
               showIcon

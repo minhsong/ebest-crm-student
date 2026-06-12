@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
-import Link from 'next/link';
+import { useMemo, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import {
 	Alert,
 	Button,
@@ -17,18 +17,75 @@ import {
 } from 'antd';
 import {
 	BookOutlined,
+	CalendarOutlined,
+	FileTextOutlined,
 	ReloadOutlined,
 	ThunderboltOutlined,
 	TrophyOutlined,
+	UnorderedListOutlined,
 } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout';
+import {
+	LearningAccessNotice,
+	LearningAccessNoticeInline,
+} from '@/features/learning/components/LearningAccessNotice';
 import { useLearningHub } from '@/features/learning/hooks/useLearningHub';
+import {
+	hubClassCanRecordEvents,
+	resolveReadOnlyNoticeMessage,
+} from '@/features/learning/utils/learning-access';
 import { LearningRecommendationCards } from '@/features/learning/components/LearningRecommendationCards';
 import { formatAssignmentDeadline } from '@/lib/learning-assignments-due';
+import {
+	flashcardSessionHref,
+	vocabularyHomeHref,
+	vocabularyPracticeHref,
+	vocabularySessionDetailHref,
+} from '@/features/learning/utils/vocabulary-session-routes';
+import './learning-hub.css';
 
 const { Text, Paragraph } = Typography;
 
+function formatNearestSessionDate(scheduledDate: string, isToday: boolean): string {
+	if (isToday) {
+		return 'Hôm nay';
+	}
+	const parsed = new Date(`${scheduledDate}T12:00:00+07:00`);
+	if (Number.isNaN(parsed.getTime())) {
+		return scheduledDate;
+	}
+	return new Intl.DateTimeFormat('vi-VN', {
+		day: 'numeric',
+		month: 'short',
+		year: 'numeric',
+	}).format(parsed);
+}
+
+type HubMenuCardProps = {
+	icon: ReactNode;
+	title: string;
+	description: string;
+	disabled?: boolean;
+	onClick: () => void;
+};
+
+function HubMenuCard({ icon, title, description, disabled, onClick }: HubMenuCardProps) {
+	return (
+		<button
+			type="button"
+			className="learning-hub-menu-card"
+			disabled={disabled}
+			onClick={onClick}
+		>
+			<span className="learning-hub-menu-card__icon">{icon}</span>
+			<span className="learning-hub-menu-card__title">{title}</span>
+			<span className="learning-hub-menu-card__desc">{description}</span>
+		</button>
+	);
+}
+
 export function LearningHubView() {
+	const router = useRouter();
 	const {
 		data,
 		assignmentsDue,
@@ -52,22 +109,21 @@ export function LearningHubView() {
 		[data?.classes],
 	);
 
-	const today = data?.todaySession;
+	const nearest = data?.nearestSession ?? data?.todaySession ?? null;
 	const stats = data?.weekStats;
 
-	const flashcardHref =
-		today && selectedClassId
-			? `/learning/flashcard?classId=${today.classId}&classSessionId=${today.classSessionId}`
-			: null;
+	const nearestClass = nearest
+		? data?.classes?.find((c) => c.classId === nearest.classId)
+		: null;
+	const canFlashcardNearest = hubClassCanRecordEvents(nearestClass);
+	const selectedCanRecord = hubClassCanRecordEvents(selectedClass);
+	const canOpenPractice = Boolean(selectedClassId && selectedClass);
 
-	const wordsHref =
-		today && selectedClassId
-			? `/learning/vocabulary/sessions/${today.classSessionId}?classId=${today.classId}`
-			: null;
+	const classAccessNotice = resolveReadOnlyNoticeMessage(selectedClass?.readOnlyReason);
 
 	if (loading) {
 		return (
-			<div>
+			<div className="learning-hub-root">
 				<PageHeader title="Học tập" />
 				<Skeleton active paragraph={{ rows: 6 }} />
 			</div>
@@ -76,9 +132,21 @@ export function LearningHubView() {
 
 	if (error) {
 		return (
-			<div>
-				<PageHeader title="Học tập" extra={<Button icon={<ReloadOutlined />} onClick={refresh}>Thử lại</Button>} />
-				<Alert type="error" showIcon message={error} description="Nếu tính năng chưa bật, vui lòng liên hệ trung tâm." />
+			<div className="learning-hub-root">
+				<PageHeader
+					title="Học tập"
+					extra={
+						<Button icon={<ReloadOutlined />} onClick={refresh}>
+							Thử lại
+						</Button>
+					}
+				/>
+				<Alert
+					type="error"
+					showIcon
+					message={error}
+					description="Nếu tính năng chưa bật, vui lòng liên hệ trung tâm."
+				/>
 			</div>
 		);
 	}
@@ -88,31 +156,46 @@ export function LearningHubView() {
 		data?.context?.messageCode === 'NO_ACTIVE_ENROLLMENT'
 	) {
 		return (
-			<div>
+			<div className="learning-hub-root">
 				<PageHeader title="Học tập" />
 				<Empty description="Bạn chưa có lớp học nào. Khi được ghi danh, nội dung luyện tập sẽ hiển thị tại đây." />
 			</div>
 		);
 	}
 
-	const selectedInteractive = selectedClass?.interactionMode === 'interactive';
-	const canOpenPractice = Boolean(selectedClassId && selectedClass);
+	const goFlashcard = () => {
+		if (!nearest) return;
+		router.push(flashcardSessionHref(nearest.classId, nearest.classSessionId));
+	};
 
-	const practiceHref =
-		selectedClassId != null
-			? `/learning/practice?classId=${selectedClassId}`
-			: null;
+	const goWordList = () => {
+		if (!nearest) return;
+		router.push(vocabularySessionDetailHref(nearest.classId, nearest.classSessionId));
+	};
 
-	const leaderboardHref =
-		selectedClassId != null
-			? `/learning/leaderboard?classId=${selectedClassId}`
-			: null;
+	const goPractice = () => {
+		if (!selectedClassId) return;
+		router.push(vocabularyPracticeHref(selectedClassId));
+	};
+
+	const goLeaderboard = () => {
+		if (!selectedClassId) return;
+		router.push(`/learning/leaderboard?classId=${selectedClassId}`);
+	};
+
+	const goAllSessions = () => {
+		router.push(vocabularyHomeHref(selectedClassId ?? undefined));
+	};
+
+	const goAssignments = () => {
+		router.push('/assignments');
+	};
 
 	return (
-		<div>
+		<div className="learning-hub-root">
 			<PageHeader
 				title="Học tập"
-				description="Tiến độ tuần, gợi ý luyện tập, game Survival và bảng xếp hạng."
+				description="Ôn từ vựng, chơi Survival và theo dõi tiến độ — chạm một lần để bắt đầu."
 				extra={
 					<Button icon={<ReloadOutlined />} onClick={refresh}>
 						Làm mới
@@ -121,156 +204,179 @@ export function LearningHubView() {
 			/>
 
 			{classOptions.length > 1 ? (
-				<div className="mb-4 max-w-md">
+				<div className="learning-hub-class-picker">
 					<Text type="secondary" className="mb-1 block text-sm">
 						Lớp học
 					</Text>
-					<Select
-						className="w-full"
-						value={selectedClassId ?? undefined}
-						options={classOptions}
-						onChange={setSelectedClassId}
-						placeholder="Chọn lớp"
-					/>
+					<div className="learning-hub-class-picker__row">
+						<Select
+							className="w-full"
+							size="large"
+							value={selectedClassId ?? undefined}
+							options={classOptions}
+							onChange={setSelectedClassId}
+							placeholder="Chọn lớp"
+						/>
+						{classAccessNotice ? (
+							<LearningAccessNotice message={classAccessNotice} />
+						) : null}
+					</div>
 				</div>
 			) : selectedClass ? (
-				<Paragraph type="secondary" className="!mb-4">
-					Lớp: <Text strong>{selectedClass.className}</Text>
+				<Paragraph type="secondary" className="!mb-0">
+					<LearningAccessNoticeInline message={classAccessNotice}>
+						<span>
+							Lớp: <Text strong>{selectedClass.className}</Text>
+						</span>
+					</LearningAccessNoticeInline>
 				</Paragraph>
-			) : null}
-
-			{selectedClass?.interactionMode === 'read_only' && selectedClass.readOnlyReason ? (
-				<Alert type="info" showIcon message={selectedClass.readOnlyReason} className="mb-4" />
-			) : null}
-
-			{data?.recommendations?.length ? (
-				<LearningRecommendationCards items={data.recommendations} />
 			) : null}
 
 			<Row gutter={[16, 16]}>
 				<Col xs={24} lg={14}>
 					<Card
+						className="learning-hub-featured"
 						title={
 							<span>
-								<ThunderboltOutlined className="mr-2" />
-								Từ buổi hôm nay
+								<BookOutlined className="mr-2" />
+								Từ vựng gần nhất
 							</span>
 						}
 					>
-						{today ? (
-							<Flex vertical gap="middle">
-								<div>
-									<Text strong>{today.title}</Text>
-									<div className="text-sm text-gray-500">
-										{today.className} · {today.assetCount} từ
-									</div>
+						{nearest ? (
+							<>
+								<div className="learning-hub-featured__meta">
+									<Text strong className="text-base">
+										{nearest.title}
+									</Text>
+									<Text type="secondary">
+										{nearest.className} · {nearest.assetCount} từ ·{' '}
+										{formatNearestSessionDate(
+											nearest.scheduledDate,
+											nearest.isToday,
+										)}
+									</Text>
 								</div>
-								<Flex wrap gap="small">
-									{flashcardHref && selectedInteractive ? (
-										<Link href={flashcardHref}>
-											<Button type="primary" icon={<BookOutlined />}>
-												Luyện flashcard
-											</Button>
-										</Link>
-									) : null}
-									{wordsHref ? (
-										<Link href={wordsHref}>
-											<Button icon={<BookOutlined />}>Xem danh sách từ</Button>
-										</Link>
-									) : null}
-									<Link href="/learning/vocabulary">
-										<Button type="link" className="!px-0">
-											Tất cả buổi →
-										</Button>
-									</Link>
-								</Flex>
-							</Flex>
+								<div className="learning-hub-featured__actions">
+									<Button
+										type="primary"
+										size="large"
+										block
+										icon={<BookOutlined />}
+										disabled={!canFlashcardNearest}
+										onClick={goFlashcard}
+									>
+										Luyện flashcard
+									</Button>
+									<Button
+										size="large"
+										block
+										icon={<UnorderedListOutlined />}
+										onClick={goWordList}
+									>
+										Xem danh sách từ
+									</Button>
+								</div>
+							</>
 						) : (
-							<Empty
-								image={Empty.PRESENTED_IMAGE_SIMPLE}
-								description="Hôm nay chưa có buổi có từ vựng để luyện, hoặc buổi học chưa diễn ra."
-							/>
+							<Flex vertical gap="middle">
+								<Empty
+									image={Empty.PRESENTED_IMAGE_SIMPLE}
+									description="Chưa có buổi nào có từ vựng để ôn. Hãy xem danh sách buổi học."
+								/>
+								<Button size="large" block onClick={goAllSessions}>
+									Xem tất cả buổi
+								</Button>
+							</Flex>
 						)}
 					</Card>
 
-					<Card className="mt-4" title="Bài sắp đến hạn">
-						{assignmentsDue.length > 0 ? (
-							<ul className="m-0 list-none space-y-3 p-0">
-								{assignmentsDue.map((item) => (
-									<li key={item.assignmentId} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
-										<Link href="/assignments" className="font-medium text-inherit hover:text-blue-600">
-											{item.title}
-										</Link>
-										<div className="text-sm text-gray-500">
-											{item.className} · {item.sessionTitle}
-										</div>
-										<div className="text-sm">
-											Hạn: <Text strong>{formatAssignmentDeadline(item.deadline)}</Text>
-										</div>
-									</li>
-								))}
-							</ul>
-						) : (
-							<Flex vertical gap="small">
-								<Text type="secondary">Xem bài tập và deadline trên trang Bài tập.</Text>
-								<Link href="/assignments">
-									<Button type="link" className="!px-0">
-										Mở Bài tập
-									</Button>
-								</Link>
-							</Flex>
-						)}
+					<Card className="mt-4" title="Luyện tập nhanh">
+						<div className="learning-hub-menu-grid">
+							<HubMenuCard
+								icon={<ThunderboltOutlined />}
+								title="Survival"
+								description="Game luyện từ — pool đã mở khóa"
+								disabled={!canOpenPractice || !selectedCanRecord}
+								onClick={goPractice}
+							/>
+							<HubMenuCard
+								icon={<TrophyOutlined />}
+								title="Bảng xếp hạng"
+								description="Điểm Survival tuần / tháng"
+								disabled={!canOpenPractice}
+								onClick={goLeaderboard}
+							/>
+							<HubMenuCard
+								icon={<CalendarOutlined />}
+								title="Tất cả buổi"
+								description="Danh sách từ theo buổi học"
+								onClick={goAllSessions}
+							/>
+							<HubMenuCard
+								icon={<FileTextOutlined />}
+								title="Bài tập"
+								description={
+									assignmentsDue.length > 0
+										? `${assignmentsDue.length} bài sắp đến hạn`
+										: 'Xem deadline & nộp bài'
+								}
+								onClick={goAssignments}
+							/>
+						</div>
 					</Card>
 				</Col>
 
 				<Col xs={24} lg={10}>
 					<Card title="Tuần này">
-						<Row gutter={16}>
-							<Col span={12}>
-								<Statistic title="Lần luyện" value={stats?.weekEventCount ?? 0} />
-							</Col>
-							<Col span={12}>
-								<Statistic title="Từ đã xem" value={stats?.weekUniqueAssetsSeen ?? 0} />
-							</Col>
-							<Col span={12} className="mt-4">
-								<Statistic title="Quiz đã làm" value={stats?.weekQuizAttempts ?? 0} />
-							</Col>
-							<Col span={12} className="mt-4">
-								<Statistic title="Điểm drill tuần" value={stats?.weekDrillScore ?? 0} />
-							</Col>
-						</Row>
+						<div className="learning-hub-stats-grid">
+							<Statistic title="Lần luyện" value={stats?.weekEventCount ?? 0} />
+							<Statistic title="Từ đã xem" value={stats?.weekUniqueAssetsSeen ?? 0} />
+							<Statistic title="Quiz đã làm" value={stats?.weekQuizAttempts ?? 0} />
+							<Statistic title="Điểm drill tuần" value={stats?.weekDrillScore ?? 0} />
+						</div>
 					</Card>
 
-					<Card className="mt-4" title="Luyện từ vựng (Survival)">
-						<Paragraph type="secondary" className="!mb-3">
-							Luyện toàn pool từ đã mở khóa — mỗi câu đúng +1 điểm, lượt dừng khi sai.
-						</Paragraph>
-						{canOpenPractice && practiceHref ? (
-							<Link href={practiceHref}>
-								<Button block type="primary" icon={<ThunderboltOutlined />}>
-									Mở Luyện từ vựng
+					<Card className="mt-4" title="Bài sắp đến hạn">
+						{assignmentsDue.length > 0 ? (
+							<>
+								{assignmentsDue.slice(0, 4).map((item) => (
+									<div key={item.assignmentId} className="learning-hub-assignment-item">
+										<Text strong>{item.title}</Text>
+										<Text type="secondary" className="text-sm">
+											{item.className} · {item.sessionTitle}
+										</Text>
+										<Text className="text-sm">
+											Hạn:{' '}
+											<Text strong>{formatAssignmentDeadline(item.deadline)}</Text>
+										</Text>
+									</div>
+								))}
+								<Button
+									type="primary"
+									size="large"
+									block
+									className="mt-3"
+									onClick={goAssignments}
+								>
+									Mở trang Bài tập
 								</Button>
-							</Link>
+							</>
 						) : (
-							<Text type="secondary">Chọn lớp để bắt đầu luyện.</Text>
+							<Flex vertical gap="small">
+								<Text type="secondary">Không có bài sắp đến hạn trong vài ngày tới.</Text>
+								<Button size="large" block onClick={goAssignments}>
+									Xem tất cả bài tập
+								</Button>
+							</Flex>
 						)}
 					</Card>
 
-					<Card className="mt-4" title="Bảng xếp hạng">
-						<Paragraph type="secondary" className="!mb-3">
-							Xếp hạng theo tổng điểm Survival — lớp và toàn khóa, tuần / tháng / tất cả.
-						</Paragraph>
-						{canOpenPractice && leaderboardHref ? (
-							<Link href={leaderboardHref}>
-								<Button block icon={<TrophyOutlined />}>
-									Mở bảng xếp hạng
-								</Button>
-							</Link>
-						) : (
-							<Text type="secondary">Chọn lớp để xem bảng xếp hạng.</Text>
-						)}
-					</Card>
-
+					{data?.recommendations?.length ? (
+						<div className="mt-4">
+							<LearningRecommendationCards items={data.recommendations} />
+						</div>
+					) : null}
 				</Col>
 			</Row>
 		</div>

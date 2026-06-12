@@ -1,13 +1,18 @@
 'use client';
 
-import type { KeyboardEvent, MouseEvent } from 'react';
-import { Button, Tag, Typography } from 'antd';
-import { SoundOutlined } from '@ant-design/icons';
+import type { KeyboardEvent } from 'react';
+import { Typography } from 'antd';
 import type { LearningVocabularyItem } from '@/types/learning';
+import { VocabularyPronunciationRow } from '@/features/learning/components/VocabularyPronunciationRow';
+import type { VocabularyPlayingLocale } from '@/features/learning/hooks/useVocabularyAudio';
+import {
+	getPrimaryMeaning,
+	hasVocabularyPronunciation,
+} from '@/features/learning/utils/vocabulary-display.util';
 
 const { Title } = Typography;
 
-export type FlashcardPlayingLocale = 'uk' | 'us' | null;
+export type FlashcardPlayingLocale = VocabularyPlayingLocale;
 
 interface Props {
 	item: LearningVocabularyItem;
@@ -15,64 +20,6 @@ interface Props {
 	playingLocale: FlashcardPlayingLocale;
 	onFlip: () => void;
 	onPlayAudio: (locale: 'uk' | 'us', url?: string) => void;
-}
-
-function stopBubble(e: MouseEvent) {
-	e.stopPropagation();
-}
-
-function PronunciationRow({
-	locale,
-	ipa,
-	audioUrl,
-	isPlaying,
-	onPlay,
-}: {
-	locale: 'uk' | 'us';
-	ipa?: string;
-	audioUrl?: string;
-	isPlaying: boolean;
-	onPlay: (locale: 'uk' | 'us', url?: string) => void;
-}) {
-	if (!ipa && !audioUrl) return null;
-
-	const label = locale === 'uk' ? 'UK' : 'US';
-
-	return (
-		<div
-			className={[
-				'flashcard-pronunciation-row',
-				`flashcard-pronunciation-row--${locale}`,
-				isPlaying ? `flashcard-pronunciation-row--playing-${locale}` : '',
-			]
-				.filter(Boolean)
-				.join(' ')}
-		>
-			<Tag
-				className={`flashcard-locale-tag flashcard-locale-tag--${locale}`}
-				bordered={false}
-			>
-				{label}
-			</Tag>
-			<span className="flashcard-pronunciation-ipa">{ipa || '—'}</span>
-			{audioUrl ? (
-				<Button
-					type="text"
-					shape="circle"
-					size="small"
-					className={`flashcard-pronunciation-speaker flashcard-pronunciation-speaker--${locale}`}
-					icon={<SoundOutlined />}
-					aria-label={`Nghe phát âm ${label}`}
-					onClick={(e) => {
-						stopBubble(e);
-						onPlay(locale, audioUrl);
-					}}
-				/>
-			) : (
-				<span className="flashcard-pronunciation-speaker-placeholder" aria-hidden />
-			)}
-		</div>
-	);
 }
 
 export function FlashcardFlipCard({
@@ -89,13 +36,8 @@ export function FlashcardFlipCard({
 		}
 	};
 
-	const meaning =
-		item.asset.translation || item.asset.meanings?.[0] || '—';
-
-	const hasPronunciation =
-		Boolean(item.asset.ipaUk || item.asset.ipaUs) ||
-		Boolean(item.asset.audioUkUrl || item.asset.audioUsUrl);
-
+	const meaning = getPrimaryMeaning(item.asset);
+	const hasPronunciation = hasVocabularyPronunciation(item.asset);
 	const hasImage = Boolean(item.asset.imageUrl);
 
 	return (
@@ -108,7 +50,9 @@ export function FlashcardFlipCard({
 				.join(' ')}
 			role="button"
 			tabIndex={0}
-			aria-label={flipped ? 'Mặt sau thẻ — chạm để lật lại' : 'Mặt trước thẻ — chạm để lật'}
+			aria-label={
+				flipped ? 'Mặt sau thẻ — chạm để lật lại' : 'Mặt trước thẻ — chạm để lật'
+			}
 			onClick={onFlip}
 			onKeyDown={handleKeyDown}
 		>
@@ -130,14 +74,16 @@ export function FlashcardFlipCard({
 						</Title>
 						{hasPronunciation ? (
 							<div className="flashcard-pronunciation-list">
-								<PronunciationRow
+								<VocabularyPronunciationRow
+									variant="flashcard"
 									locale="uk"
 									ipa={item.asset.ipaUk}
 									audioUrl={item.asset.audioUkUrl}
 									isPlaying={playingLocale === 'uk'}
 									onPlay={onPlayAudio}
 								/>
-								<PronunciationRow
+								<VocabularyPronunciationRow
+									variant="flashcard"
 									locale="us"
 									ipa={item.asset.ipaUs}
 									audioUrl={item.asset.audioUsUrl}
