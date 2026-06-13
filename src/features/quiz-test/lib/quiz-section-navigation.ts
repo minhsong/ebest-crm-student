@@ -1,4 +1,7 @@
-import type { QuizPublishedFormPayload } from '@/features/quiz-test/types';
+import type {
+  QuizFormSectionPayload,
+  QuizPublishedFormPayload,
+} from '@/features/quiz-test/types';
 import {
   filterRenderableBlocksBySectionId,
   type QuizRenderableBlock,
@@ -54,4 +57,79 @@ export function isAnchorKeyInForm(
   anchorKey: string,
 ): boolean {
   return allBlocks.some((b) => listAnchorKeysForBlock(b).includes(anchorKey));
+}
+
+/** Query `section` / `question` — chỉ dùng trong phiên làm bài hiện tại. */
+export function hasQuizAttemptNavigationParams(
+  searchParams: Pick<URLSearchParams, 'has'>,
+): boolean {
+  return searchParams.has('section') || searchParams.has('question');
+}
+
+/** Bỏ vị trí section/câu — giữ các param khác (assignmentId, mode, …). */
+export function stripQuizAttemptNavigationParams(
+  searchParams: URLSearchParams,
+): URLSearchParams {
+  const next = new URLSearchParams(searchParams.toString());
+  next.delete('section');
+  next.delete('question');
+  return next;
+}
+
+export function buildQuizAttemptPagePath(
+  formPublicId: string,
+  searchParams: URLSearchParams,
+): string {
+  const qs = searchParams.toString();
+  return `/quiz-test/${formPublicId}${qs ? `?${qs}` : ''}`;
+}
+
+/** Route làm bài sau khi bỏ `section` / `question`. */
+export function buildQuizAttemptPagePathWithoutNav(
+  formPublicId: string,
+  searchParams: URLSearchParams,
+): string {
+  return buildQuizAttemptPagePath(
+    formPublicId,
+    stripQuizAttemptNavigationParams(new URLSearchParams(searchParams.toString())),
+  );
+}
+
+function isSectionIdOnForm(
+  sections: QuizFormSectionPayload[],
+  sectionId: number,
+): boolean {
+  return sections.some((s) => Number(s.sectionId) === sectionId);
+}
+
+/** Section đang hiển thị: URL → initialSectionId → phần đầu. */
+export function resolveQuizAttemptActiveSectionId(
+  sections: QuizFormSectionPayload[],
+  options: {
+    sectionFromUrl?: string | null;
+    initialSectionId?: number;
+    /** Lần làm mới — bỏ qua ?section còn từ attempt trước. */
+    ignoreUrlNavigation?: boolean;
+  } = {},
+): number | null {
+  if (!sections.length) return null;
+  const firstSectionId = Number(sections[0].sectionId);
+
+  if (!options.ignoreUrlNavigation) {
+    const fromUrl = options.sectionFromUrl?.trim();
+    const urlSectionId = fromUrl ? Number(fromUrl) : NaN;
+    if (Number.isFinite(urlSectionId) && isSectionIdOnForm(sections, urlSectionId)) {
+      return urlSectionId;
+    }
+    const initial = options.initialSectionId;
+    if (
+      typeof initial === 'number' &&
+      Number.isFinite(initial) &&
+      isSectionIdOnForm(sections, initial)
+    ) {
+      return initial;
+    }
+  }
+
+  return firstSectionId;
 }

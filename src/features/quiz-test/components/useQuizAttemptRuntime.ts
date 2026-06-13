@@ -638,6 +638,8 @@ export function useQuizAttemptRuntime({
       if (!data.resumed) {
         setAnswers({});
         answersRef.current = {};
+        manualListeningStartedRef.current.clear();
+        setManualListeningStartedVersion((v) => v + 1);
       }
       setPhase('attempting');
     } catch (e) {

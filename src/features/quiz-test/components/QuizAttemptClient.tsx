@@ -18,9 +18,13 @@ import {
   type QuizRenderableBlock,
 } from '@/features/quiz-test/lib/quiz-renderable-items';
 import {
+  buildQuizAttemptPagePath,
+  buildQuizAttemptPagePathWithoutNav,
   findSectionIdForAnchorKey,
+  hasQuizAttemptNavigationParams,
   isAnchorKeyInForm,
   quizAnchorDomId,
+  resolveQuizAttemptActiveSectionId,
   scrollQuizAttemptPageToTop,
 } from '@/features/quiz-test/lib/quiz-section-navigation';
 import {
@@ -189,22 +193,21 @@ export function QuizAttemptClient({
     return Array.isArray(s) ? (s as QuizFormSectionPayload[]) : [];
   }, [formPayload?.sections]);
 
-  const activeSectionId = useMemo(() => {
-    if (!sectionList.length) return null;
-    const fromUrl = searchParams.get('section');
-    const n = fromUrl ? Number(fromUrl) : NaN;
-    if (Number.isFinite(n) && sectionList.some((s) => Number(s.sectionId) === n)) {
-      return n;
-    }
-    if (
-      typeof initialSectionId === 'number' &&
-      Number.isFinite(initialSectionId) &&
-      sectionList.some((s) => Number(s.sectionId) === initialSectionId)
-    ) {
-      return initialSectionId;
-    }
-    return Number(sectionList[0].sectionId);
-  }, [initialSectionId, searchParams, sectionList]);
+  const prevSectionIdRef = useRef<number | null>(null);
+  const sectionVisitRef = useRef<number | null>(null);
+  const prevPhaseRef = useRef<typeof phase>(phase);
+  /** Lần làm mới: bỏ qua ?section/?question còn từ attempt trước cho đến khi URL sạch. */
+  const [ignoreUrlNav, setIgnoreUrlNav] = useState(false);
+
+  const activeSectionId = useMemo(
+    () =>
+      resolveQuizAttemptActiveSectionId(sectionList, {
+        sectionFromUrl: searchParams.get('section'),
+        initialSectionId,
+        ignoreUrlNavigation: ignoreUrlNav,
+      }),
+    [ignoreUrlNav, initialSectionId, searchParams, sectionList],
+  );
 
   const visibleBlocks = useMemo(
     () => filterRenderableBlocksBySectionId(formPayload, renderBlocks, activeSectionId),
@@ -227,8 +230,31 @@ export function QuizAttemptClient({
     [blockStartIndexes, renderBlocks, visibleBlocks],
   );
 
-  const prevSectionIdRef = useRef<number | null>(null);
-  const sectionVisitRef = useRef<number | null>(null);
+  /** Lần làm mới (confirm → starting → attempting): reset về section đầu. */
+  useEffect(() => {
+    const prev = prevPhaseRef.current;
+    prevPhaseRef.current = phase;
+
+    if (phase === 'starting') {
+      setIgnoreUrlNav(true);
+      return;
+    }
+    if (phase !== 'attempting' || prev !== 'starting') return;
+
+    if (hasQuizAttemptNavigationParams(searchParams)) {
+      router.replace(
+        buildQuizAttemptPagePathWithoutNav(formPublicId, searchParams),
+        { scroll: false },
+      );
+    }
+    scrollQuizAttemptPageToTop();
+  }, [formPublicId, phase, router, searchParams]);
+
+  useEffect(() => {
+    if (ignoreUrlNav && !hasQuizAttemptNavigationParams(searchParams)) {
+      setIgnoreUrlNav(false);
+    }
+  }, [ignoreUrlNav, searchParams]);
 
   useEffect(() => {
     if (phase !== 'attempting' && phase !== 'submitting') {
@@ -271,7 +297,7 @@ export function QuizAttemptClient({
           params.delete('question');
         }
       }
-      router.replace(`/quiz-test/${formPublicId}?${params.toString()}`, { scroll: false });
+      router.replace(buildQuizAttemptPagePath(formPublicId, params), { scroll: false });
     },
     [
       activeSectionId,
@@ -317,7 +343,7 @@ export function QuizAttemptClient({
         params.delete('section');
       }
       params.set('question', anchorKey);
-      router.replace(`/quiz-test/${formPublicId}?${params.toString()}`, { scroll: false });
+      router.replace(buildQuizAttemptPagePath(formPublicId, params), { scroll: false });
     },
     [
       activeSectionId,
@@ -337,8 +363,7 @@ export function QuizAttemptClient({
     if (!isAnchorKeyInForm(renderBlocks, questionKey)) {
       const params = new URLSearchParams(searchParams.toString());
       params.delete('question');
-      const qs = params.toString();
-      router.replace(`/quiz-test/${formPublicId}${qs ? `?${qs}` : ''}`, { scroll: false });
+      router.replace(buildQuizAttemptPagePath(formPublicId, params), { scroll: false });
       return;
     }
     const targetSec = findSectionIdForAnchorKey(formPayload, renderBlocks, questionKey);
@@ -352,7 +377,7 @@ export function QuizAttemptClient({
       const params = new URLSearchParams(searchParams.toString());
       params.set('section', String(targetSec));
       params.set('question', questionKey);
-      router.replace(`/quiz-test/${formPublicId}?${params.toString()}`, { scroll: false });
+      router.replace(buildQuizAttemptPagePath(formPublicId, params), { scroll: false });
       return;
     }
     const id = quizAnchorDomId(questionKey);
