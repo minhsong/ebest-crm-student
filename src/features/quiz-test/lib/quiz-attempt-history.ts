@@ -1,4 +1,8 @@
 import type { QuizAttemptHistoryItem } from '@/features/quiz-test/types';
+import {
+  isQuizAttemptVisibleInHistory,
+  quizAttemptCountsTowardSubmittedQuota,
+} from '@/features/quiz-test/lib/quiz-attempt-quota.util';
 
 /** Lấy assignmentId từ item lịch sử (flat, assignment.id, participant.snapshot). */
 export function getHistoryAssignmentId(row: unknown): number | null {
@@ -25,6 +29,14 @@ export function getHistoryAssignmentId(row: unknown): number | null {
   }
 
   return null;
+}
+
+function historyItemMatchesAssignment(
+  item: QuizAttemptHistoryItem,
+  assignmentId: number,
+): boolean {
+  const aid = item.assignmentId ?? getHistoryAssignmentId(item);
+  return aid === assignmentId;
 }
 
 export function normalizeQuizAttemptHistoryItem(row: unknown): QuizAttemptHistoryItem | null {
@@ -75,14 +87,31 @@ export function normalizeQuizAttemptHistoryItems(raw: unknown): QuizAttemptHisto
     .filter(Boolean) as QuizAttemptHistoryItem[];
 }
 
+/** Attempt tính quota — bỏ voided. */
 export function filterSubmittedAttemptsForAssignment(
   items: QuizAttemptHistoryItem[],
   assignmentId: number,
 ): QuizAttemptHistoryItem[] {
-  return items.filter((a) => {
-    if (a.status !== 'submitted' && a.status !== 'expired') return false;
-    const aid = a.assignmentId ?? getHistoryAssignmentId(a);
-    if (aid == null) return false;
-    return aid === assignmentId;
-  });
+  return items.filter(
+    (a) =>
+      quizAttemptCountsTowardSubmittedQuota(a) &&
+      historyItemMatchesAssignment(a, assignmentId),
+  );
 }
+
+/** Lịch sử hiển thị — gồm voided (badge 「Đã hủy」). */
+export function filterAssignmentAttemptHistoryForDisplay(
+  items: QuizAttemptHistoryItem[],
+  assignmentId: number,
+): QuizAttemptHistoryItem[] {
+  return items.filter(
+    (a) =>
+      isQuizAttemptVisibleInHistory(a) &&
+      historyItemMatchesAssignment(a, assignmentId),
+  );
+}
+
+export {
+  hasPriorQuizAttemptsForUi,
+  isQuizAttemptVoided,
+} from '@/features/quiz-test/lib/quiz-attempt-quota.util';

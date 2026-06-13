@@ -18,6 +18,9 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { QuizAttemptQuotaSummary } from '@/features/quiz-test/components/QuizAttemptQuotaSummary';
 import {
+  hasPriorQuizAttemptsForUi,
+} from '@/features/quiz-test/lib/quiz-attempt-history';
+import {
   describeQuizResultDetailLocked,
   type QuizResultEligibility,
 } from '@/features/quiz-test/lib/quiz-result-view-policy';
@@ -154,9 +157,7 @@ export function QuizAttemptReadySection({
         {/* History */}
         <QuizAttemptHistoryList
           formPublicId={formPublicId}
-          rows={attemptHistory.filter(
-            (a) => a.status === 'submitted' || a.status === 'expired',
-          )}
+          rows={attemptHistory}
           title="Các lần làm trước"
           description={
             allowHistoryDetailLinks
@@ -171,7 +172,7 @@ export function QuizAttemptReadySection({
         {/* Start / xem kết quả */}
         <Space wrap>
           {canStartNew ? (
-            attemptHistory.some((a) => a.status === 'submitted' || a.status === 'expired') ? (
+            hasPriorQuizAttemptsForUi(attemptHistory) ? (
               <Button color="green" variant="solid" size="large" onClick={onOpenConfirmStart}>
                 Làm bài mới
                 {eligibility?.attemptsRemaining != null && eligibility.attemptsRemaining > 0

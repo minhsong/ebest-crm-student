@@ -124,15 +124,17 @@ export function formatDuration(seconds: number): string {
   return `${m} phút ${s} giây`;
 }
 
-export function getStatusTagColor(status: string): 'green' | 'orange' | 'blue' {
+export function getStatusTagColor(status: string): 'green' | 'orange' | 'blue' | 'default' {
   if (status === 'submitted') return 'green';
   if (status === 'expired') return 'orange';
+  if (status === 'voided') return 'default';
   return 'blue';
 }
 
 export function getStatusLabel(status: string): string {
   if (status === 'submitted') return 'Đã nộp bài';
   if (status === 'expired') return 'Hết giờ';
+  if (status === 'voided') return 'Đã hủy';
   if (status === 'in_progress') return 'Đang làm';
   return status;
 }
@@ -140,6 +142,7 @@ export function getStatusLabel(status: string): string {
 export function getAttemptHistoryRowLabel(status: string): string {
   if (status === 'submitted') return 'Đã nộp';
   if (status === 'expired') return 'Hết giờ';
+  if (status === 'voided') return 'Đã hủy';
   return 'Đang làm';
 }
 

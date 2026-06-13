@@ -1,4 +1,17 @@
-/** Eligibility xem chi tiết đáp án — SSOT cho assignment & practice. */
+/** Eligibility xem chi tiết đáp án — SSOT cho assignment & practice.
+ * Quota / void: `quiz-attempt-quota.util.ts`
+ */
+import {
+  computeQuizAttemptsRemaining,
+  isAttemptPerfectScore,
+  type AttemptScoreRow,
+} from '@/features/quiz-test/lib/quiz-attempt-quota.util';
+
+export type { AttemptScoreRow };
+
+/** Alias giữ API cũ trong module policy. */
+export const computeAttemptsRemaining = computeQuizAttemptsRemaining;
+
 export type QuizResultEligibility = {
   submittedCount: number;
   maxAttempts: number | null;
@@ -11,19 +24,9 @@ export type QuizAttemptEligibilityStats = Pick<
   'submittedCount' | 'hasPerfectScore' | 'maxAttempts' | 'attemptsRemaining'
 >;
 
-export type AttemptScoreRow = {
-  score?: number | null;
-  correctCount?: number | null;
-  totalQuestions?: number | null;
-};
-
-/** SSOT — khớp Gateway `quiz-attempt-eligibility.util` (chỉ đếm câu, không %). */
+/** Alias — dùng `isAttemptPerfectScore` từ quota util. */
 export function isAttemptRowPerfectScore(row: AttemptScoreRow): boolean {
-  const tc = Number(row.totalQuestions);
-  const cc = Number(row.correctCount);
-  if (!Number.isFinite(tc) || tc <= 0) return false;
-  if (!Number.isFinite(cc)) return false;
-  return cc === tc;
+  return isAttemptPerfectScore(row);
 }
 
 export function deriveHasPerfectScoreFromRows(
@@ -74,14 +77,6 @@ export function resolveQuizMaxAttempts(
     return formMax ?? null;
   }
   return null;
-}
-
-export function computeAttemptsRemaining(
-  maxAttempts: number | null,
-  submittedCount: number,
-): number | null {
-  if (maxAttempts == null) return null;
-  return Math.max(0, maxAttempts - submittedCount);
 }
 
 export function buildQuizResultEligibility(input: {

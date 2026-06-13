@@ -32,7 +32,7 @@ import {
 } from '@/features/quiz-test/lib/quiz-runtime-view';
 import { useQuizAttemptRuntime } from '@/features/quiz-test/components/useQuizAttemptRuntime';
 import { useAssignmentQuizAction } from '@/features/quiz-test/hooks/useAssignmentQuizAction';
-import { filterSubmittedAttemptsForAssignment } from '@/features/quiz-test/lib/quiz-attempt-history';
+import { filterAssignmentAttemptHistoryForDisplay } from '@/features/quiz-test/lib/quiz-attempt-history';
 import { useQuizResultViewGate } from '@/features/quiz-test/hooks/useQuizResultViewGate';
 import type {
   QuizFormSectionPayload,
@@ -171,7 +171,7 @@ export function QuizAttemptClient({
   );
   const assignmentHistoryForList = useMemo(() => {
     if (assignmentId == null || assignmentId < 1) return attemptHistory;
-    return filterSubmittedAttemptsForAssignment(attemptHistory, assignmentId);
+    return filterAssignmentAttemptHistoryForDisplay(attemptHistory, assignmentId);
   }, [assignmentId, attemptHistory]);
 
   const renderBlocks = useMemo(

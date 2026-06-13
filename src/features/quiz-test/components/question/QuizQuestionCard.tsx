@@ -13,6 +13,7 @@ import {
   normalizeMcqSingleValue,
 } from '@/features/quiz-test/question-view';
 import { buildQuizQuestionViewModel } from '@/features/quiz-test/lib/quiz-question-model';
+import { fillBlankAcceptedTextsFromGrading } from '@/features/quiz-test/lib/fill-blank-result-display';
 import type { QuizGradingPerItem } from '@/features/quiz-test/lib/quiz-runtime-view';
 import { extractQuizAudioTracks } from '@/features/quiz-test/lib/quiz-content-audio';
 import { listeningUnitHasAutoplayEligibleAudio } from '@/features/quiz-test/lib/quiz-listening-rules';
@@ -214,6 +215,7 @@ export const QuizQuestionCard = memo(function QuizQuestionCard({
             }
             showResult={showResult}
             isCorrect={grading?.isCorrect ?? isCorrect}
+            acceptedAnswers={fillBlankAcceptedTextsFromGrading(grading)}
           />
         </div>
       );

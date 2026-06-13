@@ -44,12 +44,16 @@ function attemptCardClassName(
   if (status === 'expired') {
     return `${base} !border-[var(--ant-color-error-border)] hover:!border-[var(--ant-color-error)]`;
   }
+  if (status === 'voided') {
+    return `${base} opacity-80 hover:!border-[var(--ant-color-border)]`;
+  }
   return `${base} hover:!border-[var(--ant-color-primary)]`;
 }
 
 function statusTagColor(status: string): string {
   if (status === 'submitted') return 'success';
   if (status === 'expired') return 'error';
+  if (status === 'voided') return 'default';
   return 'processing';
 }
 
@@ -142,6 +146,8 @@ export function QuizAttemptHistoryList({
               <CheckCircleFilled className="text-lg text-[var(--ant-color-success)]" />
             ) : row.status === 'expired' ? (
               <ClockCircleOutlined className="text-lg text-[var(--ant-color-error)]" />
+            ) : row.status === 'voided' ? (
+              <ExclamationCircleOutlined className="text-lg text-[var(--ant-color-text-description)]" />
             ) : (
               <ClockCircleOutlined className="text-lg text-[var(--ant-color-text-heading)]" />
             );
