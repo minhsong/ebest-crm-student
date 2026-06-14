@@ -12,11 +12,12 @@ import { QuizSectionListeningOrchestrator } from '@/features/quiz-test/component
 import { useSectionListeningTaking } from '@/features/quiz-test/hooks/useSectionListeningTaking';
 import type { QuizRenderableBlock } from '@/features/quiz-test/lib/quiz-renderable-items';
 import { quizAnchorDomId } from '@/features/quiz-test/lib/quiz-section-navigation';
+import { countQuizAttemptAnswerProgress } from '@/features/quiz-test/lib/quiz-attempt-progress.util';
 import { getAttemptTimerValidity } from '@/features/quiz-test/lib/quiz-runtime-view';
 import type { QuizPublishedFormPayload, QuizFormSectionPayload, StartAttemptResponse } from '@/features/quiz-test/types';
 import { Alert, Button, Card, Space, Typography } from 'antd';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 export type QuizAttemptTakingSectionProps = {
   title: string;
@@ -103,11 +104,17 @@ export function QuizAttemptTakingSection({
 
   const timerOk = !!(attempt && getAttemptTimerValidity(attempt).ok);
 
+  const questionProgress = useMemo(() => {
+    const blocks = allRenderBlocks ?? renderBlocks;
+    return countQuizAttemptAnswerProgress(answers, blocks);
+  }, [allRenderBlocks, answers, renderBlocks]);
+
   return (
     <Card styles={{ body: { padding: 0 } }}>
       <QuizAttemptStickyStatusBar
         showTimer={timerOk}
         remainingSeconds={remainingSeconds}
+        questionProgress={questionProgress}
         listeningRemainingPlays={
           listening.useSectionListeningPlayer
             ? listening.sectionListeningRemaining ?? 0
@@ -117,23 +124,24 @@ export function QuizAttemptTakingSection({
         listeningPlaybackBusy={listening.listeningPlaybackBusy}
         showManualListenButton={listening.showManualListenButton}
         onManualListenStart={listening.handleManualPlaybackStart}
+        headerLeft={
+          <>
+            <Link href={backHref ?? '/assignments'}>
+              <Button type="default" icon={<ArrowLeftOutlined />} size="small">
+                Quay lại
+              </Button>
+            </Link>
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              {title}
+            </Typography.Title>
+            <QuizFormMetaBlock
+              compact
+              formType={formPayload.type ?? null}
+              tagKeys={formTagKeys}
+            />
+          </>
+        }
       />
-
-      <div className="flex flex-col gap-3 px-4 pb-4 pt-4 md:px-6">
-        <Link href={backHref ?? '/assignments'}>
-          <Button type="default" icon={<ArrowLeftOutlined />} size="small">
-            Quay lại
-          </Button>
-        </Link>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          {title}
-        </Typography.Title>
-        <QuizFormMetaBlock
-          compact
-          formType={formPayload.type ?? null}
-          tagKeys={formTagKeys}
-        />
-      </div>
 
       {answersLocked ? (
         <div className="px-4 md:px-6">

@@ -9,8 +9,9 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 export type QuizAttemptStickyPinState = {
   isPinned: boolean;
   barHeight: number;
-  pinRight: number;
-  pinMaxWidth: number;
+  /** Cạnh trái vùng content (viewport) — căn pin theo cột bài làm. */
+  pinLeft: number;
+  pinWidth: number;
 };
 
 /** Pin cụm timer/lượt nghe góc phải trên khi scroll dashboard content. */
@@ -21,15 +22,15 @@ export function useQuizAttemptStickyPin(enabled: boolean) {
   const [state, setState] = useState<QuizAttemptStickyPinState>({
     isPinned: false,
     barHeight: 0,
-    pinRight: 0,
-    pinMaxWidth: 320,
+    pinLeft: 0,
+    pinWidth: 320,
   });
 
   const measure = useCallback(() => {
     if (!enabled) {
       setState((prev) =>
         prev.isPinned
-          ? { isPinned: false, barHeight: 0, pinRight: 0, pinMaxWidth: 320 }
+          ? { isPinned: false, barHeight: 0, pinLeft: 0, pinWidth: 320 }
           : prev,
       );
       return;
@@ -43,18 +44,18 @@ export function useQuizAttemptStickyPin(enabled: boolean) {
 
     const barHeight = bar.offsetHeight;
     const containerRect = container.getBoundingClientRect();
-    const pinRight = Math.max(0, window.innerWidth - containerRect.right);
-    const pinMaxWidth = Math.max(200, containerRect.width);
+    const pinLeft = Math.max(0, containerRect.left);
+    const pinWidth = Math.max(200, containerRect.width);
 
     const shouldPin =
       sentinel.getBoundingClientRect().top < QUIZ_ATTEMPT_STICKY_VIEWPORT_TOP;
 
     if (!shouldPin) {
-      setState({ isPinned: false, barHeight, pinRight, pinMaxWidth });
+      setState({ isPinned: false, barHeight, pinLeft, pinWidth });
       return;
     }
 
-    setState({ isPinned: true, barHeight, pinRight, pinMaxWidth });
+    setState({ isPinned: true, barHeight, pinLeft, pinWidth });
   }, [enabled]);
 
   useLayoutEffect(() => {

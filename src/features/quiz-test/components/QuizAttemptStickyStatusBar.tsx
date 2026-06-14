@@ -1,17 +1,26 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useQuizAttemptStickyPin } from '@/features/quiz-test/hooks/useQuizAttemptStickyPin';
 import { QuizAttemptStatusCluster } from '@/features/quiz-test/components/QuizAttemptStatusCluster';
 import type { QuizAttemptStatusClusterProps } from '@/features/quiz-test/components/QuizAttemptStatusCluster';
 import { isQuizAttemptStatusClusterVisible } from '@/features/quiz-test/lib/quiz-attempt-status-ui';
+import '@/features/quiz-test/components/quiz-attempt-sticky-status-bar.css';
 
-export type QuizAttemptStickyStatusBarProps = QuizAttemptStatusClusterProps;
+export type QuizAttemptStickyStatusBarProps = QuizAttemptStatusClusterProps & {
+  /** Cột trái: quay lại, title, meta đề — luôn hiển thị. */
+  headerLeft?: ReactNode;
+};
 
 /**
- * Timer + lượt nghe — trong Card căn phải; scroll xuống pin góc phải trên (~50px dưới header).
+ * Header làm bài gộp: trái thông tin đề, phải cụm timer / số câu / lượt nghe (vừa đủ);
+ * scroll → chỉ cụm phải pin góc trên cột content.
  */
-export function QuizAttemptStickyStatusBar(props: QuizAttemptStickyStatusBarProps) {
-  const visible = isQuizAttemptStatusClusterVisible(props);
+export function QuizAttemptStickyStatusBar({
+  headerLeft,
+  ...statusProps
+}: QuizAttemptStickyStatusBarProps) {
+  const statusVisible = isQuizAttemptStatusClusterVisible(statusProps);
 
   const {
     containerRef,
@@ -19,45 +28,57 @@ export function QuizAttemptStickyStatusBar(props: QuizAttemptStickyStatusBarProp
     barRef,
     isPinned,
     barHeight,
-    pinRight,
-    pinMaxWidth,
+    pinLeft,
+    pinWidth,
     stickyTop,
-  } = useQuizAttemptStickyPin(visible);
+  } = useQuizAttemptStickyPin(statusVisible);
 
-  if (!visible) {
-    return null;
-  }
+  const cardClassName = `quiz-attempt-sticky-card ${
+    isPinned ? 'quiz-attempt-sticky-card--pinned' : 'quiz-attempt-sticky-card--in-flow'
+  }`;
+
+  const statusCard = statusVisible ? (
+    <div ref={barRef} className={cardClassName}>
+      <QuizAttemptStatusCluster {...statusProps} />
+    </div>
+  ) : null;
+
+  const asideInFlow =
+    statusVisible && !isPinned ? (
+      <div className="quiz-attempt-sticky-slot">{statusCard}</div>
+    ) : statusVisible && isPinned ? (
+      <div
+        className="quiz-attempt-sticky-placeholder"
+        style={{ height: barHeight > 0 ? barHeight : undefined }}
+        aria-hidden
+      />
+    ) : null;
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className="quiz-attempt-taking-header">
       <div ref={sentinelRef} className="pointer-events-none h-px w-full" aria-hidden />
-      {isPinned && barHeight > 0 ? (
-        <div style={{ height: barHeight }} aria-hidden />
-      ) : null}
-      <div
-        ref={barRef}
-        className={
-          isPinned
-            ? 'inline-flex max-w-full flex-wrap items-center justify-end gap-2 rounded-lg border border-neutral-200 bg-white/95 px-2 py-1.5 shadow-lg backdrop-blur-sm dark:border-neutral-600 dark:bg-neutral-950/95 sm:gap-3 sm:px-3 sm:py-2'
-            : 'flex w-full flex-wrap items-center justify-end gap-2 border-b border-neutral-200 bg-white/95 px-4 py-2 shadow-sm backdrop-blur-sm dark:border-neutral-700 dark:bg-neutral-950/95 sm:gap-3 md:px-6'
-        }
-        style={
-          isPinned
-            ? {
-                position: 'fixed',
-                top: stickyTop,
-                right: pinRight,
-                left: 'auto',
-                width: 'max-content',
-                maxWidth: pinMaxWidth,
-                zIndex: 110,
-                boxSizing: 'border-box',
-              }
-            : undefined
-        }
-      >
-        <QuizAttemptStatusCluster {...props} />
+
+      <div className="quiz-attempt-taking-header-row">
+        {headerLeft ? (
+          <div className="quiz-attempt-taking-header-main">{headerLeft}</div>
+        ) : null}
+        {statusVisible ? (
+          <div className="quiz-attempt-taking-header-aside">{asideInFlow}</div>
+        ) : null}
       </div>
+
+      {statusVisible && isPinned ? (
+        <div
+          className="quiz-attempt-sticky-pin-layer"
+          style={{
+            top: stickyTop,
+            left: pinLeft,
+            width: pinWidth,
+          }}
+        >
+          {statusCard}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,4 +1,6 @@
-/** Helpers hiển thị cụm timer / lượt nghe trên sticky bar. */
+import type { QuizAttemptAnswerProgress } from '@/features/quiz-test/lib/quiz-attempt-progress.util';
+
+/** Helpers hiển thị cụm timer / tiến độ / lượt nghe trên sticky bar. */
 
 export function isFiniteDisplayNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -16,8 +18,19 @@ export function shouldShowListeningRemainingPlays(
   return isFiniteDisplayNumber(plays);
 }
 
+export function shouldShowQuestionProgress(
+  progress: QuizAttemptAnswerProgress | null | undefined,
+): progress is QuizAttemptAnswerProgress {
+  return (
+    !!progress &&
+    isFiniteDisplayNumber(progress.totalCount) &&
+    progress.totalCount > 0
+  );
+}
+
 export type QuizAttemptStatusClusterVisibility = {
   showTimer?: boolean;
+  questionProgress?: QuizAttemptAnswerProgress | null;
   listeningRemainingPlays?: number | null;
   listeningAutoStartCountdown?: number | null;
 };
@@ -27,6 +40,7 @@ export function isQuizAttemptStatusClusterVisible(
 ): boolean {
   return (
     Boolean(props.showTimer) ||
+    shouldShowQuestionProgress(props.questionProgress) ||
     shouldShowListeningRemainingPlays(props.listeningRemainingPlays) ||
     isListeningAutoStartCountdownActive(props.listeningAutoStartCountdown)
   );

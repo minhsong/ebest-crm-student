@@ -1,0 +1,100 @@
+/* Header làm bài: trái (quay lại + title), phải (timer / số câu / nghe). */
+.quiz-attempt-taking-header {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.quiz-attempt-taking-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid #e5e5e5;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .quiz-attempt-taking-header-row {
+    padding: 16px 24px 12px;
+  }
+}
+
+.quiz-attempt-taking-header-main {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quiz-attempt-taking-header-aside {
+  flex: 0 0 auto;
+  max-width: min(100%, 26rem);
+  align-self: flex-start;
+}
+
+@media (max-width: 639px) {
+  .quiz-attempt-taking-header-row {
+    flex-wrap: wrap;
+  }
+
+  .quiz-attempt-taking-header-aside {
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
+.quiz-attempt-sticky-slot {
+  display: flex;
+  width: 100%;
+  justify-content: flex-end;
+  box-sizing: border-box;
+}
+
+.quiz-attempt-sticky-pin-layer {
+  position: fixed;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+  z-index: 110;
+  box-sizing: border-box;
+}
+
+.quiz-attempt-sticky-card {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  flex-direction: column;
+  border-radius: 8px;
+  border: 1px solid #e5e5e5;
+  background: rgb(255 255 255 / 95%);
+  padding: 4px 8px;
+  backdrop-filter: blur(4px);
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+@media (min-width: 640px) {
+  .quiz-attempt-sticky-card {
+    padding: 6px 10px;
+  }
+}
+
+.quiz-attempt-sticky-card--in-flow {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+}
+
+.quiz-attempt-sticky-card--pinned {
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 10%);
+}
+
+.quiz-attempt-sticky-placeholder {
+  width: max-content;
+  max-width: 100%;
+  margin-left: auto;
+}
