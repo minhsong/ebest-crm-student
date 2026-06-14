@@ -3,70 +3,43 @@
 import { memo } from 'react';
 import { theme } from 'antd';
 import type { AssignmentDrillContextPayload, DrillQuestionClient } from '@/types/learning';
-import type { DrillAnswerFeedback } from '@/features/learning/hooks/useDrillPracticeSession';
-import type { DrillGameMode } from '@/features/learning/hooks/useDrillPracticePool';
-import { DrillGameHud } from './DrillGameHud';
+import type { GameAnswerFeedback } from '@/features/learning/games/core/types/game-session.types';
+import type { VocabularyDrillPresentationProfile } from '@/features/learning/games/vocabulary-drill/vocabulary-drill-presentation.mapper';
+import { VocabularyDrillGameHud } from '@/features/learning/games/vocabulary-drill/presentation/hud/VocabularyDrillGameHud';
+import { VocabularyDrillAssignmentProgress } from '@/features/learning/games/vocabulary-drill/presentation/layout/VocabularyDrillAssignmentProgress';
 import { DrillQuestionStage } from './DrillQuestionStage';
 import { drillAntdCssVars } from './drill-antd-theme';
 import './drill-survival.css';
 
 type Props = {
-	mode: DrillGameMode;
+	presentation: VocabularyDrillPresentationProfile;
 	assignmentTitle?: string;
 	backHref: string;
 	score: number;
 	streak: number;
+	poolProgress?: {
+		answered: number;
+		total: number;
+		correct: number;
+		wrong: number;
+	} | null;
 	assignmentCtx: AssignmentDrillContextPayload | null;
 	question: DrillQuestionClient;
 	selectedOptionId: string | null;
-	feedback: DrillAnswerFeedback;
+	feedback: GameAnswerFeedback;
 	optionsLocked: boolean;
 	secondsLeft: number;
 	totalSeconds: number;
 	onSelect: (optionId: string) => void;
 };
 
-function DrillAssignmentProgress({
-	score,
-	minimumScore,
-}: {
-	score: number;
-	minimumScore: number;
-}) {
-	const pct = Math.min(100, Math.round((score / minimumScore) * 100));
-	const reached = score >= minimumScore;
-	const remaining = Math.max(0, minimumScore - score);
-
-	return (
-		<div className="drill-assignment-progress">
-			<div className="drill-assignment-progress__row">
-				<span>
-					{reached ? (
-						<>Đã đạt <strong>{minimumScore}</strong> điểm yêu cầu</>
-					) : (
-						<>Còn <strong>{remaining}</strong> điểm để hoàn thành bài</>
-					)}
-				</span>
-				<span>
-					<strong>{score}</strong>/{minimumScore}
-				</span>
-			</div>
-			<div className="drill-assignment-progress__track">
-				<div
-					className="drill-assignment-progress__fill"
-					style={{ width: `${pct}%` }}
-				/>
-			</div>
-		</div>
-	);
-}
-
 function DrillGameLayoutInner({
-	mode,
+	presentation,
 	assignmentTitle,
 	backHref,
 	score,
 	streak,
+	poolProgress,
 	assignmentCtx,
 	question,
 	selectedOptionId,
@@ -82,25 +55,29 @@ function DrillGameLayoutInner({
 	const showAssignmentBar =
 		assignmentCtx != null &&
 		!assignmentCtx.assignmentComplete &&
-		assignmentCtx.minimumScore > 0;
+		assignmentCtx.minimumScore > 0 &&
+		(presentation.usesPoolProgressBar ? Boolean(poolProgress) : true);
 
 	return (
 		<div className="drill-game-shell" style={themeVars}>
-			<DrillGameHud
-				mode={mode}
+			<VocabularyDrillGameHud
+				presentation={presentation}
 				title={assignmentTitle}
 				backHref={backHref}
 				score={score}
 				streak={streak}
 			/>
 			{showAssignmentBar ? (
-				<DrillAssignmentProgress
+				<VocabularyDrillAssignmentProgress
+					presentation={presentation}
 					score={score}
-					minimumScore={assignmentCtx.minimumScore}
+					minimumScore={assignmentCtx!.minimumScore}
+					poolProgress={poolProgress}
 				/>
 			) : null}
 			<div className="drill-game-body">
 				<DrillQuestionStage
+					detailWidgetId={presentation.detailWidgetId}
 					question={question}
 					selectedOptionId={selectedOptionId}
 					feedback={feedback}

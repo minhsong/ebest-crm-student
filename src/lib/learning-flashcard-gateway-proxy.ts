@@ -74,6 +74,7 @@ export async function proxyFlashcardRuntimeToGateway(
     };
 
     let context = body.context;
+    let sessionConfigForClient: Record<string, unknown> | undefined;
     if (!context) {
       const classId = Number(body.classId);
       const classSessionId = Number(body.classSessionId);
@@ -93,10 +94,12 @@ export async function proxyFlashcardRuntimeToGateway(
           { status: 403 },
         );
       }
+      sessionConfigForClient = auth.sessionConfig;
       context = {
         classId: auth.classId,
         classSessionId: auth.classSessionId,
         courseSessionId: auth.courseSessionId,
+        sessionConfig: auth.sessionConfig,
         cards: auth.cards,
       };
     }
@@ -105,7 +108,11 @@ export async function proxyFlashcardRuntimeToGateway(
       method: 'POST',
       body: JSON.stringify({ customerId, context }),
     });
-    return proxyGatewayJsonResponse(res);
+    const payload = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (sessionConfigForClient && res.ok) {
+      payload.sessionConfig = sessionConfigForClient;
+    }
+    return NextResponse.json(payload, { status: res.status });
   }
 
   if (

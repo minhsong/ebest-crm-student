@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
@@ -31,8 +32,8 @@ import {
   EyeOutlined,
   PlayCircleOutlined,
   DeleteOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
-import Link from 'next/link';
 import { AssignmentQuizActionButtons } from '@/features/quiz-test/components/AssignmentQuizActionButtons';
 import { LearningAccessNotice } from '@/features/learning/components/LearningAccessNotice';
 import { useAuth } from '@/contexts/auth-context';
@@ -69,6 +70,10 @@ import {
   isSubmissionMimeAllowed,
 } from '@/lib/student-submission-policy';
 import { QuizAssignmentUiMessages } from '@/lib/quiz-assignment-ui-messages';
+import {
+  buildVocabularyDrillStartHref,
+  isVocabularyDrillAssignment,
+} from '@/lib/assignment-list-row-actions';
 
 const { Text, Title } = Typography;
 const SUBMISSION_MIME_REJECT_DETAIL =
@@ -333,6 +338,46 @@ export function StudentAssignmentDetailModal({
     return Number.isFinite(t) && t < Date.now();
   }, [detail?.deadline]);
 
+  const isVocabularyDrillExercise = useMemo(
+    () => (detail ? isVocabularyDrillAssignment(detail) : false),
+    [detail],
+  );
+
+  const vocabularyDrillStartHref = useMemo(() => {
+    if (!detail?.classId || !Number.isFinite(detail.classId)) return null;
+    return buildVocabularyDrillStartHref(detail.classId, detail.assignmentId);
+  }, [detail?.assignmentId, detail?.classId]);
+
+  const canStartVocabularyDrill = useMemo(() => {
+    if (!isVocabularyDrillExercise || !vocabularyDrillStartHref) return false;
+    if (deadlinePassed) return false;
+    return !detail?.learningAccess?.readOnlyReason;
+  }, [
+    deadlinePassed,
+    detail?.learningAccess?.readOnlyReason,
+    isVocabularyDrillExercise,
+    vocabularyDrillStartHref,
+  ]);
+
+  const vocabularyDrillCardDescription = useMemo(() => {
+    if (!detail) return '';
+    if (canStartVocabularyDrill) {
+      const hasScore =
+        detail.result?.resultStatus === CRM_ASSIGNMENT_RESULT_STATUS.GRADED ||
+        Boolean(detail.result?.scoreDisplay?.trim());
+      return hasScore
+        ? 'Chơi lại để cải thiện điểm — kết quả đồng bộ sổ điểm sau khi hoàn thành.'
+        : 'Luyện từ theo pool GV giao — hoàn thành để nộp điểm vào sổ điểm.';
+    }
+    if (detail.learningAccess?.readOnlyReason) {
+      return detail.learningAccess.readOnlyReason;
+    }
+    if (deadlinePassed) {
+      return 'Đã quá hạn — chỉ xem lại thông tin bài.';
+    }
+    return 'Không mở được game luyện từ cho bài này.';
+  }, [canStartVocabularyDrill, deadlinePassed, detail]);
+
   const headerExerciseIcon = useMemo(() => {
     const t = (detail?.exerciseType ?? '').trim().toLowerCase();
     if (t === 'recording') return <AudioOutlined aria-hidden />;
@@ -343,6 +388,7 @@ export function StudentAssignmentDetailModal({
     if (t === 'homework') return <BookOutlined aria-hidden />;
     if (t === 'quiz') return <CheckSquareOutlined aria-hidden />;
     if (t === 'external_link') return <LinkOutlined aria-hidden />;
+    if (t === 'vocabulary_drill') return <ThunderboltOutlined aria-hidden />;
     return <AppstoreOutlined aria-hidden />;
   }, [detail?.exerciseType]);
 
@@ -678,6 +724,30 @@ export function StudentAssignmentDetailModal({
                   assignmentId={detail.assignmentId}
                   allowStart={canStartQuiz}
                 />
+              </Flex>
+            </Card>
+          ) : null}
+
+          {isVocabularyDrillExercise ? (
+            <Card size="small">
+              <Flex justify="space-between" align="center" gap="middle" wrap>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>Chơi game luyện từ</div>
+                  <Text type="secondary" style={{ fontSize: token.fontSize }}>
+                    {vocabularyDrillCardDescription}
+                  </Text>
+                </div>
+                {canStartVocabularyDrill && vocabularyDrillStartHref ? (
+                  <Link href={vocabularyDrillStartHref} prefetch={false}>
+                    <Button type="primary" icon={<ThunderboltOutlined />}>
+                      Chơi game
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button type="primary" icon={<ThunderboltOutlined />} disabled>
+                    Chơi game
+                  </Button>
+                )}
               </Flex>
             </Card>
           ) : null}

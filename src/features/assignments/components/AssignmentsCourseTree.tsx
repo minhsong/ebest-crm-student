@@ -10,6 +10,7 @@ const { Text } = Typography;
 type Props = {
   groups: CourseAssignmentGroup[];
   onOpenAssignment: (assignmentId: number) => void;
+  showRowActions?: boolean;
 };
 
 function countAssignments(course: CourseAssignmentGroup): number {
@@ -19,7 +20,11 @@ function countAssignments(course: CourseAssignmentGroup): number {
   );
 }
 
-export function AssignmentsCourseTree({ groups, onOpenAssignment }: Props) {
+export function AssignmentsCourseTree({
+  groups,
+  onOpenAssignment,
+  showRowActions = false,
+}: Props) {
   const { token } = theme.useToken();
 
   const items = groups.map((course) => ({
@@ -64,6 +69,8 @@ export function AssignmentsCourseTree({ groups, onOpenAssignment }: Props) {
                   key={session.sessionId}
                   session={session}
                   onOpenAssignment={onOpenAssignment}
+                  showRowActions={showRowActions}
+                  canInteract={cls.canInteract}
                 />
               ))}
             </Space>

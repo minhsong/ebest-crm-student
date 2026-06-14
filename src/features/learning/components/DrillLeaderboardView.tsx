@@ -9,6 +9,7 @@ import {
 	Card,
 	Col,
 	Flex,
+	Input,
 	Row,
 	Skeleton,
 	Table,
@@ -19,8 +20,16 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { CrownOutlined, ReloadOutlined, TrophyOutlined } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout';
+import {
+	vocabularyPracticeHref,
+} from '@/features/learning/utils/vocabulary-session-routes';
 import { fetchDrillLeaderboard } from '@/lib/learning-api';
-import type { DrillLeaderboardPayload, DrillLeaderboardRow } from '@/types/learning';
+import type {
+	DrillLeaderboardBoardKind,
+	DrillLeaderboardPayload,
+	DrillLeaderboardPerPlayRow,
+	DrillLeaderboardRow,
+} from '@/types/learning';
 
 const { Text } = Typography;
 
@@ -33,7 +42,17 @@ const PERIOD_TABS = [
 	{ key: 'all' as const, label: 'Tất cả' },
 ];
 
-function useLeaderboardColumns(): ColumnsType<DrillLeaderboardRow> {
+const BOARD_KIND_TABS: { key: DrillLeaderboardBoardKind; label: string }[] = [
+	{ key: 'per_play_score', label: 'Điểm từng lượt' },
+	{ key: 'total_plays', label: 'Số lượt chơi' },
+	{ key: 'total_correct', label: 'Số câu đúng' },
+];
+
+function isPerPlayRow(row: DrillLeaderboardRow | DrillLeaderboardPerPlayRow): row is DrillLeaderboardPerPlayRow {
+	return 'playId' in row;
+}
+
+function usePerPlayColumns(): ColumnsType<DrillLeaderboardPerPlayRow> {
 	return useMemo(
 		() => [
 			{
@@ -42,30 +61,59 @@ function useLeaderboardColumns(): ColumnsType<DrillLeaderboardRow> {
 				width: 56,
 				render: (rank: number) =>
 					rank <= 3 ? (
-						<Tag color={rank === 1 ? 'gold' : rank === 2 ? 'default' : 'orange'}>
-							{rank}
-						</Tag>
+						<Tag color={rank === 1 ? 'gold' : rank === 2 ? 'default' : 'orange'}>{rank}</Tag>
 					) : (
 						rank
 					),
 			},
+			{ title: 'Học viên', dataIndex: 'displayName' },
+			{ title: 'Lớp', dataIndex: 'className', width: 100 },
 			{
-				title: 'Học viên',
-				dataIndex: 'displayName',
-			},
-			{
-				title: 'Điểm',
+				title: 'Điểm lượt',
 				dataIndex: 'score',
-				width: 88,
+				width: 96,
 				render: (score: number) => <Text strong>{score}</Text>,
 			},
 			{
-				title: 'Lượt',
-				dataIndex: 'playCount',
-				width: 72,
+				title: 'Thời gian',
+				dataIndex: 'completedAt',
+				width: 160,
+				render: (value: string) =>
+					new Date(value).toLocaleString('vi-VN', {
+						day: '2-digit',
+						month: '2-digit',
+						hour: '2-digit',
+						minute: '2-digit',
+					}),
 			},
 		],
 		[],
+	);
+}
+
+function useAggregateColumns(boardKind: DrillLeaderboardBoardKind): ColumnsType<DrillLeaderboardRow> {
+	return useMemo(
+		() => [
+			{
+				title: '#',
+				dataIndex: 'rank',
+				width: 56,
+				render: (rank: number) =>
+					rank <= 3 ? (
+						<Tag color={rank === 1 ? 'gold' : rank === 2 ? 'default' : 'orange'}>{rank}</Tag>
+					) : (
+						rank
+					),
+			},
+			{ title: 'Học viên', dataIndex: 'displayName' },
+			{
+				title: boardKind === 'total_plays' ? 'Lượt chơi' : 'Câu đúng',
+				dataIndex: 'score',
+				width: 100,
+				render: (score: number) => <Text strong>{score}</Text>,
+			},
+		],
+		[boardKind],
 	);
 }
 
@@ -78,18 +126,30 @@ function LeaderboardPanel({
 	scope: ScopeTab;
 	title: string;
 }) {
-	const columns = useLeaderboardColumns();
+	const perPlayColumns = usePerPlayColumns();
+	const [boardKind, setBoardKind] = useState<DrillLeaderboardBoardKind>('per_play_score');
+	const aggregateColumns = useAggregateColumns(boardKind);
 	const [period, setPeriod] = useState<PeriodTab>('week');
+	const [page, setPage] = useState(1);
+	const [nameQuery, setNameQuery] = useState('');
+	const [appliedQuery, setAppliedQuery] = useState('');
 	const [data, setData] = useState<DrillLeaderboardPayload | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
 	const load = useCallback(
-		async (refresh = false) => {
+		async (targetPage = page) => {
 			setLoading(true);
 			setError(null);
 			try {
-				const payload = await fetchDrillLeaderboard(classId, scope, period, { refresh });
+				const payload = await fetchDrillLeaderboard(classId, scope, period, {
+					boardKind,
+					page: targetPage,
+					pageSize: 10,
+					q: appliedQuery || undefined,
+					filterClassId: scope === 'course' ? classId : undefined,
+					refresh: true,
+				});
 				setData(payload);
 			} catch (err) {
 				setError(err instanceof Error ? err.message : 'Không tải được bảng xếp hạng.');
@@ -97,22 +157,29 @@ function LeaderboardPanel({
 				setLoading(false);
 			}
 		},
-		[classId, scope, period],
+		[classId, scope, period, boardKind, page, appliedQuery],
 	);
 
 	useEffect(() => {
-		void load(true);
-	}, [load]);
+		setPage(1);
+	}, [boardKind, period, appliedQuery, scope]);
 
 	useEffect(() => {
-		const onVisible = () => {
-			if (document.visibilityState === 'visible') {
-				void load(true);
-			}
-		};
-		document.addEventListener('visibilitychange', onVisible);
-		return () => document.removeEventListener('visibilitychange', onVisible);
-	}, [load]);
+		void load(page);
+	}, [load, page]);
+
+	const selfMessage = useMemo(() => {
+		if (!data?.self) return null;
+		const { self } = data;
+		if (boardKind === 'per_play_score') {
+			return self.rank
+				? `Bạn: #${self.rank} · ${self.score} điểm (lượt cao nhất)${self.pageHint ? ` · trang ${self.pageHint}` : ''}`
+				: 'Bạn chưa có lượt chơi trong kỳ này.';
+		}
+		return self.rank
+			? `Bạn: #${self.rank} · ${self.score} ${boardKind === 'total_plays' ? 'lượt' : 'câu đúng'}`
+			: `Bạn chưa có dữ liệu (${data.periodLabel}).`;
+	}, [data, boardKind]);
 
 	return (
 		<Card
@@ -123,11 +190,18 @@ function LeaderboardPanel({
 				</span>
 			}
 			extra={
-				<Button size="small" icon={<ReloadOutlined />} onClick={() => void load(true)}>
+				<Button size="small" icon={<ReloadOutlined />} onClick={() => void load(page)}>
 					Làm mới
 				</Button>
 			}
 		>
+			<Tabs
+				activeKey={boardKind}
+				onChange={(key) => setBoardKind(key as DrillLeaderboardBoardKind)}
+				items={BOARD_KIND_TABS.map((tab) => ({ key: tab.key, label: tab.label }))}
+				className="mb-3"
+			/>
+
 			<Tabs
 				activeKey={period}
 				onChange={(key) => setPeriod(key as PeriodTab)}
@@ -135,18 +209,30 @@ function LeaderboardPanel({
 				className="mb-3"
 			/>
 
-			{data?.self ? (
+			<Flex gap="small" wrap="wrap" className="mb-3">
+				<Input.Search
+					allowClear
+					placeholder="Lọc theo tên học viên"
+					value={nameQuery}
+					onChange={(e) => setNameQuery(e.target.value)}
+					onSearch={(value) => setAppliedQuery(value.trim())}
+					style={{ maxWidth: 280 }}
+				/>
+			</Flex>
+
+			{selfMessage ? (
 				<Alert
 					className="mb-3"
 					type="info"
 					showIcon
 					icon={<CrownOutlined />}
-					message={
-						data.self.rank
-							? `Bạn: #${data.self.rank} · ${data.self.score} điểm · ${data.self.playCount} lượt`
-							: data.self.score > 0 || data.self.playCount > 0
-								? `Bạn: ${data.self.score} điểm · ${data.self.playCount} lượt`
-								: `Bạn chưa có điểm (${data.periodLabel}).`
+					message={selfMessage}
+					action={
+						data?.self?.pageHint && data.self.pageHint !== page ? (
+							<Button size="small" onClick={() => setPage(data.self!.pageHint!)}>
+								Xem trang của tôi
+							</Button>
+						) : undefined
 					}
 				/>
 			) : null}
@@ -159,14 +245,35 @@ function LeaderboardPanel({
 
 			{loading ? (
 				<Skeleton active paragraph={{ rows: 6 }} />
+			) : boardKind === 'per_play_score' ? (
+				<Table<DrillLeaderboardPerPlayRow>
+					rowKey="playId"
+					size="small"
+					columns={perPlayColumns}
+					dataSource={(data?.rows ?? []).filter(isPerPlayRow)}
+					pagination={{
+						current: data?.page ?? page,
+						pageSize: data?.pageSize ?? 10,
+						total: data?.total ?? 0,
+						showSizeChanger: false,
+						onChange: (nextPage) => setPage(nextPage),
+					}}
+					locale={{ emptyText: `Chưa có lượt chơi — ${data?.periodLabel ?? ''}.` }}
+				/>
 			) : (
-				<Table
+				<Table<DrillLeaderboardRow>
 					rowKey="customerId"
 					size="small"
-					pagination={false}
-					columns={columns}
+					columns={aggregateColumns}
 					dataSource={data?.rows ?? []}
-					locale={{ emptyText: `Chưa có điểm drill — ${data?.periodLabel ?? ''}.` }}
+					pagination={{
+						current: data?.page ?? page,
+						pageSize: data?.pageSize ?? 10,
+						total: data?.total ?? 0,
+						showSizeChanger: false,
+						onChange: (nextPage) => setPage(nextPage),
+					}}
+					locale={{ emptyText: `Chưa có dữ liệu — ${data?.periodLabel ?? ''}.` }}
 				/>
 			)}
 		</Card>
@@ -179,20 +286,20 @@ export function DrillLeaderboardView() {
 	const classId = classIdParam ? Number(classIdParam) : null;
 
 	if (!classId || Number.isNaN(classId)) {
-		return (
-			<div>
-				<PageHeader title="Bảng xếp hạng" />
-				<Alert type="info" showIcon message="Chọn lớp trên trang Học tập để xem bảng xếp hạng." />
-				<Link href="/learning" className="mt-4 inline-block">
-					<Button>Về Học tập</Button>
-				</Link>
-			</div>
-		);
+		return null;
 	}
 
 	return (
-		<div>
-			<PageHeader title="Bảng xếp hạng luyện từ" />
+		<div className="learning-dashboard-root">
+			<PageHeader
+				title="Bảng xếp hạng luyện từ"
+				description="So sánh theo lớp và toàn khóa — quay lại dashboard để đổi lớp."
+				extra={
+					<Link href="/learning/games/leaderboard">
+						<Button>Về BXH</Button>
+					</Link>
+				}
+			/>
 
 			<Row gutter={[16, 16]}>
 				<Col xs={24} lg={12}>
@@ -204,11 +311,11 @@ export function DrillLeaderboardView() {
 			</Row>
 
 			<Flex gap="small" wrap="wrap" className="mt-4">
-				<Link href={`/learning/practice?classId=${classId}`}>
+				<Link href={vocabularyPracticeHref(classId)}>
 					<Button type="primary">Luyện thêm</Button>
 				</Link>
-				<Link href="/learning">
-					<Button>Về Học tập</Button>
+				<Link href="/learning/games">
+					<Button>Trang Game</Button>
 				</Link>
 			</Flex>
 		</div>

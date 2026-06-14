@@ -17,11 +17,11 @@ import {
 } from 'antd';
 import {
 	BookOutlined,
-	CalendarOutlined,
-	FileTextOutlined,
+	FileDoneOutlined,
+	FontSizeOutlined,
 	ReloadOutlined,
+	RiseOutlined,
 	ThunderboltOutlined,
-	TrophyOutlined,
 	UnorderedListOutlined,
 } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout';
@@ -61,25 +61,42 @@ function formatNearestSessionDate(scheduledDate: string, isToday: boolean): stri
 	}).format(parsed);
 }
 
+type HubMenuCardVariant = 'vocabulary' | 'games' | 'assignments' | 'progress';
+
 type HubMenuCardProps = {
+	variant: HubMenuCardVariant;
 	icon: ReactNode;
 	title: string;
 	description: string;
+	badge?: string;
 	disabled?: boolean;
 	onClick: () => void;
 };
 
-function HubMenuCard({ icon, title, description, disabled, onClick }: HubMenuCardProps) {
+function HubMenuCard({
+	variant,
+	icon,
+	title,
+	description,
+	badge,
+	disabled,
+	onClick,
+}: HubMenuCardProps) {
 	return (
 		<button
 			type="button"
-			className="learning-hub-menu-card"
+			className={`learning-hub-menu-card learning-hub-menu-card--${variant}`}
 			disabled={disabled}
 			onClick={onClick}
 		>
-			<span className="learning-hub-menu-card__icon">{icon}</span>
-			<span className="learning-hub-menu-card__title">{title}</span>
-			<span className="learning-hub-menu-card__desc">{description}</span>
+			<span className="learning-hub-menu-card__blob learning-hub-menu-card__blob--a" aria-hidden />
+			<span className="learning-hub-menu-card__blob learning-hub-menu-card__blob--b" aria-hidden />
+			<span className="learning-hub-menu-card__icon-wrap">{icon}</span>
+			<span className="learning-hub-menu-card__content">
+				<span className="learning-hub-menu-card__title">{title}</span>
+				<span className="learning-hub-menu-card__desc">{description}</span>
+			</span>
+			{badge ? <span className="learning-hub-menu-card__badge">{badge}</span> : null}
 		</button>
 	);
 }
@@ -173,14 +190,9 @@ export function LearningHubView() {
 		router.push(vocabularySessionDetailHref(nearest.classId, nearest.classSessionId));
 	};
 
-	const goPractice = () => {
+	const goGames = () => {
 		if (!selectedClassId) return;
 		router.push(vocabularyPracticeHref(selectedClassId));
-	};
-
-	const goLeaderboard = () => {
-		if (!selectedClassId) return;
-		router.push(`/learning/leaderboard?classId=${selectedClassId}`);
 	};
 
 	const goAllSessions = () => {
@@ -191,11 +203,18 @@ export function LearningHubView() {
 		router.push('/assignments');
 	};
 
+	const goProgress = () => {
+		document.getElementById('learning-hub-progress')?.scrollIntoView({
+			behavior: 'smooth',
+			block: 'start',
+		});
+	};
+
 	return (
 		<div className="learning-hub-root">
 			<PageHeader
 				title="Học tập"
-				description="Ôn từ vựng, chơi Survival và theo dõi tiến độ — chạm một lần để bắt đầu."
+				description="Ôn từ vựng, chơi game luyện từ, làm bài tập — chạm một lần để bắt đầu."
 				extra={
 					<Button icon={<ReloadOutlined />} onClick={refresh}>
 						Làm mới
@@ -291,49 +310,59 @@ export function LearningHubView() {
 						)}
 					</Card>
 
-					<Card className="mt-4" title="Luyện tập nhanh">
-						<div className="learning-hub-menu-grid">
+					<section className="learning-hub-primary-section">
+						<div className="learning-hub-section-head">
+							<h2 className="learning-hub-section-title">Chức năng chính</h2>
+							<p className="learning-hub-section-subtitle">
+								Chọn một mục để bắt đầu học ngay
+							</p>
+						</div>
+						<div className="learning-hub-menu-grid learning-hub-menu-grid--primary">
 							<HubMenuCard
-								icon={<ThunderboltOutlined />}
-								title="Survival"
-								description="Game luyện từ — pool đã mở khóa"
-								disabled={!canOpenPractice || !selectedCanRecord}
-								onClick={goPractice}
-							/>
-							<HubMenuCard
-								icon={<TrophyOutlined />}
-								title="Bảng xếp hạng"
-								description="Điểm Survival tuần / tháng"
-								disabled={!canOpenPractice}
-								onClick={goLeaderboard}
-							/>
-							<HubMenuCard
-								icon={<CalendarOutlined />}
-								title="Tất cả buổi"
-								description="Danh sách từ theo buổi học"
+								variant="vocabulary"
+								icon={<FontSizeOutlined />}
+								title="Từ vựng"
+								description="Buổi học, danh sách từ, flashcard"
 								onClick={goAllSessions}
 							/>
 							<HubMenuCard
-								icon={<FileTextOutlined />}
+								variant="games"
+								icon={<ThunderboltOutlined />}
+								title="Game luyện từ"
+								description="Survival, bài drill, từ hay sai"
+								disabled={!canOpenPractice || !selectedCanRecord}
+								onClick={goGames}
+							/>
+							<HubMenuCard
+								variant="assignments"
+								icon={<FileDoneOutlined />}
 								title="Bài tập"
 								description={
 									assignmentsDue.length > 0
 										? `${assignmentsDue.length} bài sắp đến hạn`
 										: 'Xem deadline & nộp bài'
 								}
+								badge={assignmentsDue.length > 0 ? String(assignmentsDue.length) : undefined}
 								onClick={goAssignments}
 							/>
+							<HubMenuCard
+								variant="progress"
+								icon={<RiseOutlined />}
+								title="Tiến độ tuần"
+								description="Lần luyện, từ đã xem, game tuần này"
+								onClick={goProgress}
+							/>
 						</div>
-					</Card>
+					</section>
 				</Col>
 
 				<Col xs={24} lg={10}>
-					<Card title="Tuần này">
+					<Card id="learning-hub-progress" title="Tuần này">
 						<div className="learning-hub-stats-grid">
 							<Statistic title="Lần luyện" value={stats?.weekEventCount ?? 0} />
 							<Statistic title="Từ đã xem" value={stats?.weekUniqueAssetsSeen ?? 0} />
 							<Statistic title="Quiz đã làm" value={stats?.weekQuizAttempts ?? 0} />
-							<Statistic title="Điểm drill tuần" value={stats?.weekDrillScore ?? 0} />
+							<Statistic title="Điểm game tuần" value={stats?.weekDrillScore ?? 0} />
 						</div>
 					</Card>
 

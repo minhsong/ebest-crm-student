@@ -113,3 +113,34 @@ export function groupAssignmentsFromOverview(
     .filter((c) => c.classes.length > 0)
     .sort((a, b) => a.courseName.localeCompare(b.courseName, 'vi'));
 }
+
+export function filterAssignmentGroups(
+  groups: CourseAssignmentGroup[],
+  predicate: (row: AssignmentOverviewRow) => boolean,
+): CourseAssignmentGroup[] {
+  return groups
+    .map((course) => ({
+      ...course,
+      classes: course.classes
+        .map((cls) => ({
+          ...cls,
+          sessions: cls.sessions
+            .map((session) => ({
+              ...session,
+              assignments: session.assignments.filter(predicate),
+            }))
+            .filter((session) => session.assignments.length > 0),
+        }))
+        .filter((cls) => cls.sessions.length > 0),
+    }))
+    .filter((course) => course.classes.length > 0);
+}
+
+export function filterVocabularyDrillAssignmentGroups(
+  groups: CourseAssignmentGroup[],
+): CourseAssignmentGroup[] {
+  return filterAssignmentGroups(
+    groups,
+    (row) => row.exerciseType === 'vocabulary_drill',
+  );
+}

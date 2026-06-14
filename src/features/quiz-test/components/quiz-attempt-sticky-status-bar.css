@@ -36,6 +36,58 @@
   align-self: flex-start;
 }
 
+.quiz-attempt-header-aside-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  width: max-content;
+  max-width: 100%;
+}
+
+.quiz-attempt-outline-below {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.quiz-attempt-outline-toggle--inline {
+  height: 24px !important;
+  padding: 0 8px !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+}
+
+.quiz-attempt-outline-toggle--below {
+  font-size: 12px;
+}
+
+.quiz-attempt-section-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px 8px;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .quiz-attempt-section-toolbar {
+    padding: 0 24px 8px;
+  }
+}
+
+.quiz-attempt-status-outline-slot {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid #e5e5e5;
+  padding: 2px 6px;
+  box-sizing: border-box;
+}
+
 @media (max-width: 639px) {
   .quiz-attempt-taking-header-row {
     flex-wrap: wrap;

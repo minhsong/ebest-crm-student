@@ -224,6 +224,12 @@ export function normalizeStudentAssignmentDetail(
     content: typeof o.content === 'string' ? o.content : null,
     deadline: typeof o.deadline === 'string' ? o.deadline : null,
     attachments,
+    classId:
+      typeof o.classId === 'number' && Number.isFinite(o.classId) && o.classId > 0
+        ? o.classId
+        : o.classId === null
+          ? null
+          : undefined,
     classSessionTitle:
       typeof o.classSessionTitle === 'string'
         ? o.classSessionTitle

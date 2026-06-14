@@ -1,47 +1,22 @@
 'use client';
 
-import { memo, useCallback, useRef } from 'react';
-import { SoundOutlined } from '@ant-design/icons';
+import { memo } from 'react';
 import type { DrillQuestionClient } from '@/types/learning';
+import { VocabularyDrillPromptDetail } from '@/features/learning/games/vocabulary-drill/presentation/detail/VocabularyDrillPromptDetail';
+import type { VocabularyDrillDetailWidgetId } from '@/features/learning/games/vocabulary-drill/vocabulary-drill-presentation.mapper';
 
 type Props = {
-	question: Pick<DrillQuestionClient, 'prompt' | 'promptType' | 'promptAudioUrl'>;
+	detailWidgetId: VocabularyDrillDetailWidgetId;
+	question: Pick<DrillQuestionClient, 'prompt' | 'promptAudioUrl'>;
 };
 
-function DrillPromptCardInner({ question }: Props) {
-	const audioRef = useRef<HTMLAudioElement>(null);
-	const isAudio = question.promptType === 'audio' && question.promptAudioUrl;
-
-	const replayAudio = useCallback(() => {
-		const el = audioRef.current;
-		if (!el) return;
-		el.currentTime = 0;
-		void el.play();
-	}, []);
-
+function DrillPromptCardInner({ detailWidgetId, question }: Props) {
 	return (
-		<div className="drill-prompt-card">
-			<p className="drill-prompt-card__eyebrow">
-				{isAudio ? 'Nghe và chọn' : 'Nghĩa tiếng Việt'}
-			</p>
-			{isAudio ? (
-				<>
-					<button
-						type="button"
-						className="drill-prompt-card__audio-btn"
-						onClick={replayAudio}
-						aria-label="Phát lại âm thanh"
-					>
-						<SoundOutlined />
-					</button>
-					<div className="drill-prompt-card__audio-wrap">
-						<audio ref={audioRef} autoPlay src={question.promptAudioUrl} />
-					</div>
-				</>
-			) : (
-				<p className="drill-prompt-card__text">{question.prompt}</p>
-			)}
-		</div>
+		<VocabularyDrillPromptDetail
+			detailWidgetId={detailWidgetId}
+			prompt={question.prompt}
+			promptAudioUrl={question.promptAudioUrl}
+		/>
 	);
 }
 

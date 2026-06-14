@@ -34,7 +34,7 @@ export function AssignmentOverviewRowActions({
     return (
       <Link href={href} prefetch={false}>
         <Button type="primary" size={size} icon={<PlayCircleOutlined />}>
-          Làm bài
+          Chơi game
         </Button>
       </Link>
     );

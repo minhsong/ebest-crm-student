@@ -2,7 +2,9 @@ export { DrillLeaderboardView } from './components/DrillLeaderboardView';
 export { DrillPracticeView } from './components/DrillPracticeView';
 export { LearningHubView } from './components/LearningHubView';
 export { FlashcardSessionView } from './components/FlashcardSessionView';
-export { VocabularyPracticeHomeView } from './components/VocabularyPracticeHomeView';
+export { VocabularyDashboardView } from './components/VocabularyDashboardView';
+/** @deprecated dùng VocabularyDashboardView */
+export { VocabularyDashboardView as VocabularyPracticeHomeView } from './components/VocabularyDashboardView';
 export { LearningAccessNotice, LearningAccessNoticeInline } from './components/LearningAccessNotice';
 export { VocabularyWordDetailModal } from './components/VocabularyWordDetailModal';
 export { VocabularyWordDetailPanel } from './components/VocabularyWordDetailPanel';

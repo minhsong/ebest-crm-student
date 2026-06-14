@@ -20,6 +20,8 @@ export type QuizAttemptStatusClusterProps = {
   listeningPlaybackBusy?: boolean;
   showManualListenButton?: boolean;
   onManualListenStart?: () => void;
+  /** Nút mục lục — chèn cạnh metric Số câu khi sticky pin. */
+  outlineAfterProgress?: ReactNode;
 };
 
 type StatusMetricCellProps = {
@@ -67,6 +69,7 @@ export function QuizAttemptStatusCluster({
   listeningPlaybackBusy = false,
   showManualListenButton = false,
   onManualListenStart,
+  outlineAfterProgress,
 }: QuizAttemptStatusClusterProps) {
   const remainingPlays = isFiniteDisplayNumber(listeningRemainingPlays)
     ? listeningRemainingPlays
@@ -99,6 +102,14 @@ export function QuizAttemptStatusCluster({
         value={`${questionProgress.answeredCount}/${questionProgress.totalCount}`}
         showDivider={metrics.length > 0}
       />,
+    );
+  }
+
+  if (outlineAfterProgress) {
+    metrics.push(
+      <div key="outline" className="quiz-attempt-status-outline-slot">
+        {outlineAfterProgress}
+      </div>,
     );
   }
 

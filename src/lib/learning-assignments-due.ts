@@ -3,11 +3,13 @@ import type { OverviewClassSessions } from '@/types/overview-sessions';
 
 export interface LearningAssignmentDue {
 	assignmentId: number;
+	classId: number;
 	title: string;
 	deadline: string;
 	className: string;
 	sessionTitle: string;
 	resultStatus: number | null;
+	exerciseType: string | null;
 }
 
 const MS_DAY = 24 * 60 * 60 * 1000;
@@ -25,6 +27,7 @@ function isPending(resultStatus: number | null): boolean {
 export function extractAssignmentsDue(
 	blocks: OverviewClassSessions[],
 	maxItems = 5,
+	options?: { exerciseType?: string | null },
 ): LearningAssignmentDue[] {
 	const now = Date.now();
 	const horizon = now + 7 * MS_DAY;
@@ -38,6 +41,13 @@ export function extractAssignmentsDue(
 				if (!assignment.deadline || !isPending(assignment.resultStatus ?? null)) {
 					continue;
 				}
+				const exerciseType = assignment.exerciseType ?? null;
+				if (
+					options?.exerciseType != null &&
+					exerciseType !== options.exerciseType
+				) {
+					continue;
+				}
 				const deadlineMs = new Date(assignment.deadline).getTime();
 				if (Number.isNaN(deadlineMs)) continue;
 				if (deadlineMs > horizon) continue;
@@ -45,11 +55,13 @@ export function extractAssignmentsDue(
 
 				items.push({
 					assignmentId: assignment.assignmentId,
+					classId: block.classId,
 					title: assignment.title,
 					deadline: assignment.deadline,
 					className: block.className,
 					sessionTitle: session.title,
 					resultStatus: assignment.resultStatus ?? null,
+					exerciseType,
 					deadlineMs,
 				});
 			}

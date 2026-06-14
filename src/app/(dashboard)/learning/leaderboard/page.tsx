@@ -1,12 +1,25 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { Suspense } from 'react';
-import { DrillLeaderboardView } from '@/features/learning/components/DrillLeaderboardView';
+type Props = {
+	searchParams?: Record<string, string | string[] | undefined>;
+};
 
-export default function LearningLeaderboardPage() {
-	return (
-		<Suspense fallback={null}>
-			<DrillLeaderboardView />
-		</Suspense>
-	);
+function buildQueryString(searchParams: Props['searchParams']): string {
+	if (!searchParams) return '';
+	const qs = new URLSearchParams();
+	for (const [key, value] of Object.entries(searchParams)) {
+		if (value == null) continue;
+		if (Array.isArray(value)) {
+			for (const item of value) qs.append(key, item);
+		} else {
+			qs.set(key, value);
+		}
+	}
+	return qs.toString();
+}
+
+/** @deprecated Dùng `/learning/games/leaderboard` — giữ redirect tương thích bookmark cũ. */
+export default function LearningLeaderboardRedirectPage({ searchParams }: Props) {
+	const suffix = buildQueryString(searchParams);
+	redirect(suffix ? `/learning/games/leaderboard?${suffix}` : '/learning/games/leaderboard');
 }

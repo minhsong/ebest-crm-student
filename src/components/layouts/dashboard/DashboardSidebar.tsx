@@ -16,16 +16,20 @@ export { SIDER_WIDTH, SIDER_COLLAPSED_WIDTH };
 export interface DashboardSidebarProps {
   collapsed: boolean;
   onCollapse?: (collapsed: boolean) => void;
-  pathname: string;
   /** Menu items (có thể gồm divider) */
   menuItems: MenuProps['items'];
+  selectedKeys: string[];
+  openKeys: string[];
+  onOpenChange: (keys: string[]) => void;
 }
 
 export default function DashboardSidebar({
   collapsed,
   onCollapse,
-  pathname,
   menuItems,
+  selectedKeys,
+  openKeys,
+  onOpenChange,
 }: DashboardSidebarProps) {
   return (
     <Sider
@@ -63,7 +67,9 @@ export default function DashboardSidebar({
       </div>
       <Menu
         theme="light"
-        selectedKeys={[pathname]}
+        selectedKeys={selectedKeys}
+        openKeys={openKeys}
+        onOpenChange={onOpenChange}
         mode="inline"
         items={menuItems}
         className="border-r-0 bg-transparent"

@@ -16,6 +16,8 @@ import {
   FileDoneOutlined,
   ReadOutlined,
   FontSizeOutlined,
+  PlayCircleOutlined,
+  TrophyOutlined,
 } from '@ant-design/icons';
 
 export interface DashboardMenuClassItem {
@@ -67,13 +69,6 @@ export const DASHBOARD_MENU_ENTRIES: DashboardMenuEntry[] = [
   },
   {
     type: 'link',
-    key: 'vocabulary',
-    path: '/learning/vocabulary',
-    label: 'Luyện từ vựng',
-    icon: <FontSizeOutlined />,
-  },
-  {
-    type: 'link',
     key: 'classes',
     path: '/classes',
     label: 'Lớp học của tôi',
@@ -92,13 +87,6 @@ export const DASHBOARD_MENU_ENTRIES: DashboardMenuEntry[] = [
     path: '/qa',
     label: 'Hỏi đáp',
     icon: <QuestionCircleOutlined />,
-  },
-  {
-    type: 'link',
-    key: 'assignments',
-    path: '/assignments',
-    label: 'Bài tập',
-    icon: <FileDoneOutlined />,
   },
   { type: 'divider', key: 'divider-after-main' },
   {
@@ -121,6 +109,79 @@ export const DASHBOARD_MENU_ENTRIES: DashboardMenuEntry[] = [
 export const DASHBOARD_MENU_ITEMS: DashboardMenuItem[] = DASHBOARD_MENU_ENTRIES.filter(
   (e): e is DashboardMenuLinkEntry => e.type === 'link',
 ).map(({ key, path, label, icon }) => ({ key, path, label, icon }));
+
+/** Submenu «Học tập» — thứ tự hiển thị (khớp hub cards + trang). */
+const LEARNING_MENU_CHILDREN: Array<{ path: string; label: string; icon?: ReactNode }> = [
+  { path: '/learning', label: 'Tổng quan', icon: <ReadOutlined /> },
+  { path: '/learning/vocabulary', label: 'Luyện từ vựng', icon: <FontSizeOutlined /> },
+  { path: '/learning/games', label: 'Game luyện từ', icon: <PlayCircleOutlined /> },
+  { path: '/learning/games/leaderboard', label: 'Bảng xếp hạng', icon: <TrophyOutlined /> },
+  { path: '/assignments', label: 'Bài tập', icon: <FileDoneOutlined /> },
+];
+
+/** Dài → ngắn khi khớp prefix pathname. */
+const LEARNING_MENU_MATCH_ORDER = [...LEARNING_MENU_CHILDREN].sort(
+  (a, b) => b.path.length - a.path.length,
+);
+
+export const LEARNING_MENU_ROOT = '/learning';
+
+function isLearningSectionPath(pathname: string): boolean {
+  const normalized = pathname?.replace(/\/$/, '') || '/';
+  return (
+    normalized.startsWith('/learning') ||
+    normalized.startsWith('/assignments') ||
+    normalized.startsWith('/quiz-test')
+  );
+}
+
+function resolveMenuSelectedKey(pathname: string): string {
+  const normalized = pathname?.replace(/\/$/, '') || '/';
+
+  if (normalized.startsWith('/quiz-test')) {
+    return '/assignments';
+  }
+  if (normalized.startsWith('/assignments')) {
+    return '/assignments';
+  }
+  if (!normalized.startsWith('/learning')) {
+    return normalized || '/';
+  }
+  if (normalized.startsWith('/learning/flashcard')) {
+    return '/learning/vocabulary';
+  }
+  if (normalized.startsWith('/learning/practice')) {
+    return '/learning/games';
+  }
+  if (normalized.startsWith('/learning/leaderboard')) {
+    return '/learning/games/leaderboard';
+  }
+  for (const child of LEARNING_MENU_MATCH_ORDER) {
+    if (normalized === child.path || normalized.startsWith(`${child.path}/`)) {
+      return child.path;
+    }
+  }
+  return LEARNING_MENU_ROOT;
+}
+
+/**
+ * selectedKeys + openKeys cho Ant Design Menu (sidebar / drawer).
+ */
+export function resolveDashboardMenuKeys(pathname: string): {
+  selectedKeys: string[];
+  openKeys: string[];
+} {
+  const normalized = pathname?.replace(/\/$/, '') || '/';
+  const selectedKeys = [resolveMenuSelectedKey(normalized)];
+  const openKeys: string[] = [];
+  if (isLearningSectionPath(normalized)) {
+    openKeys.push(LEARNING_MENU_ROOT);
+  }
+  if (normalized.startsWith('/classes/') || normalized === '/classes') {
+    openKeys.push('/classes');
+  }
+  return { selectedKeys, openKeys };
+}
 
 /**
  * Build `items` cho Ant Design Menu (có divider).
@@ -187,6 +248,20 @@ export function buildDashboardMenuAntdItems(
         continue;
       }
 
+      if (entry.path === '/learning') {
+        out.push({
+          key: entry.path,
+          icon: entry.icon,
+          label: renderLinkLabel(entry.path, entry.label),
+          children: LEARNING_MENU_CHILDREN.map((child) => ({
+            key: child.path,
+            icon: child.icon,
+            label: renderLinkLabel(child.path, child.label),
+          })),
+        });
+        continue;
+      }
+
       out.push({
         key: entry.path,
         icon: entry.icon,
@@ -207,10 +282,12 @@ const PATH_LABELS: Record<string, string> = {
   '/learning': 'Học tập',
   '/learning/vocabulary': 'Luyện từ vựng',
   '/learning/flashcard': 'Flashcard',
+  '/learning/games': 'Game luyện từ',
+  '/learning/games/leaderboard': 'Bảng xếp hạng',
   '/invoices': 'Hóa Đơn',
   '/qa': 'Hỏi đáp',
   '/assignments': 'Bài tập',
-  '/learning/practice': 'Games Survival',
+  '/learning/practice': 'Game luyện từ',
   '/learning/leaderboard': 'Bảng xếp hạng',
   '/quiz-test': 'Làm bài',
 };

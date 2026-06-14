@@ -1,12 +1,25 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { Suspense } from 'react';
-import { DrillPracticeView } from '@/features/learning/components/DrillPracticeView';
+type Props = {
+	searchParams?: Record<string, string | string[] | undefined>;
+};
 
-export default function LearningPracticePage() {
-	return (
-		<Suspense fallback={null}>
-			<DrillPracticeView />
-		</Suspense>
-	);
+function buildQueryString(searchParams: Props['searchParams']): string {
+	if (!searchParams) return '';
+	const qs = new URLSearchParams();
+	for (const [key, value] of Object.entries(searchParams)) {
+		if (value == null) continue;
+		if (Array.isArray(value)) {
+			for (const item of value) qs.append(key, item);
+		} else {
+			qs.set(key, value);
+		}
+	}
+	return qs.toString();
+}
+
+/** @deprecated Dùng `/learning/games` — giữ redirect tương thích bookmark cũ. */
+export default function LearningPracticeRedirectPage({ searchParams }: Props) {
+	const suffix = buildQueryString(searchParams);
+	redirect(suffix ? `/learning/games?${suffix}` : '/learning/games');
 }

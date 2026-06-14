@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 import { resolveStudentCustomerIdViaCrmMe } from '@/lib/crm-student-me';
-import { authorizeDrillViaCrm } from '@/lib/drill-crm-authorize';
+import { authorizeDrillViaCrm, type DrillAuthorizeResponse } from '@/lib/drill-crm-authorize';
 import {
   buildGatewayServiceHeaders,
   gatewayConfigErrorResponse,
@@ -71,11 +71,13 @@ export async function proxyDrillRuntimeToGateway(
     const body = (await request.json().catch(() => ({}))) as {
       classId?: number;
       assignmentId?: number;
-      gameMode?: string;
+      modeId?: 'survival' | 'pool_coverage';
+      promptType?: 'meaning_to_word' | 'audio_to_word';
       context?: unknown;
     };
 
     let context = body.context;
+    let sessionConfigForClient: Extract<DrillAuthorizeResponse, { allowed: true }>['sessionConfig'] | undefined;
     if (!context) {
       const classId = Number(body.classId);
       if (!Number.isFinite(classId) || classId < 1) {
@@ -87,7 +89,8 @@ export async function proxyDrillRuntimeToGateway(
       const auth = await authorizeDrillViaCrm(request, {
         classId,
         assignmentId: body.assignmentId,
-        gameMode: body.gameMode,
+        modeId: body.modeId,
+        promptType: body.promptType,
       });
       if (auth === null) {
         return gatewayUnauthorizedResponse();
@@ -98,11 +101,12 @@ export async function proxyDrillRuntimeToGateway(
           { status: 403 },
         );
       }
+      sessionConfigForClient = auth.sessionConfig;
       context = {
         classId: auth.classId,
         courseId: auth.courseId,
         assignmentId: auth.assignmentId,
-        gameMode: auth.gameMode,
+        sessionConfig: auth.sessionConfig,
         rules: auth.rules,
         pool: auth.pool,
       };
@@ -112,7 +116,11 @@ export async function proxyDrillRuntimeToGateway(
       method: 'POST',
       body: JSON.stringify({ customerId, context }),
     });
-    return proxyGatewayJsonResponse(res);
+    const payload = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (sessionConfigForClient && res.ok) {
+      payload.sessionConfig = sessionConfigForClient;
+    }
+    return NextResponse.json(payload, { status: res.status });
   }
 
   if (request.method === 'GET' && segments[0] === 'plays' && segments.length === 2) {
@@ -160,6 +168,11 @@ export async function proxyDrillLeaderboardToGateway(
   const classId = request.nextUrl.searchParams.get('classId');
   const scope = request.nextUrl.searchParams.get('scope');
   const period = request.nextUrl.searchParams.get('period');
+  const boardKind = request.nextUrl.searchParams.get('boardKind');
+  const page = request.nextUrl.searchParams.get('page');
+  const pageSize = request.nextUrl.searchParams.get('pageSize');
+  const q = request.nextUrl.searchParams.get('q');
+  const filterClassId = request.nextUrl.searchParams.get('filterClassId');
   if (!classId || !scope || !period) {
     return NextResponse.json(
       { message: 'Thiếu tham số classId, scope hoặc period.' },
@@ -172,6 +185,11 @@ export async function proxyDrillLeaderboardToGateway(
     scope,
     period,
   });
+  if (boardKind) qs.set('boardKind', boardKind);
+  if (page) qs.set('page', page);
+  if (pageSize) qs.set('pageSize', pageSize);
+  if (q) qs.set('q', q);
+  if (filterClassId) qs.set('filterClassId', filterClassId);
   const res = await fetchDrillGateway(cfg, `leaderboards?${qs.toString()}`);
   return proxyGatewayJsonResponse(res);
 }

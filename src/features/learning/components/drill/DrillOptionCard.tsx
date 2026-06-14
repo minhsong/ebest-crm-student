@@ -1,7 +1,7 @@
 'use client';
 
 import { memo } from 'react';
-import type { DrillAnswerFeedback } from '@/features/learning/hooks/useDrillPracticeSession';
+import type { GameAnswerFeedback } from '@/features/learning/games/core/types/game-session.types';
 
 export type DrillOptionVisualState = 'default' | 'selected' | 'correct' | 'wrong' | 'disabled';
 
@@ -40,7 +40,7 @@ export const DrillOptionCard = memo(DrillOptionCardInner);
 export function resolveOptionState(input: {
 	optionId: string;
 	selectedOptionId: string | null;
-	feedback: DrillAnswerFeedback;
+	feedback: GameAnswerFeedback;
 	optionsLocked: boolean;
 }): DrillOptionVisualState {
 	if (input.feedback && input.selectedOptionId === input.optionId) {

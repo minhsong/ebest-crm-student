@@ -4,17 +4,22 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { QuizAttemptResultHeader } from '@/features/quiz-test/components/QuizAttemptResultHeader';
 import { QuizResultDetailLockedHint } from '@/features/quiz-test/components/QuizResultDetailLockedHint';
 import { QuizReviewQuestionsPanel } from '@/features/quiz-test/components/QuizReviewQuestionsPanel';
+import { QuizAttemptSectionToolbar } from '@/features/quiz-test/components/QuizAttemptSectionToolbar';
+import { QuizSectionOutlineDrawer } from '@/features/quiz-test/components/QuizSectionOutlineDrawer';
 import {
   findSectionIdForAnchorKey,
+  getQuizQuestionScrollDelayMs,
   isAnchorKeyInForm,
-  quizAnchorDomId,
+  mergeQuizOutlineSectionExpandKeys,
+  scrollToQuizQuestionAnchor,
 } from '@/features/quiz-test/lib/quiz-section-navigation';
+import { useQuizSectionOutline } from '@/features/quiz-test/hooks/useQuizSectionOutline';
 import { useQuizAttemptResultPage } from '@/features/quiz-test/hooks/useQuizAttemptResultPage';
 import { buildAssignmentResultsHref } from '@/lib/quiz-assignment-action';
 import { buildQuizResultEligibility } from '@/features/quiz-test/lib/quiz-result-view-policy';
 import { Alert, Button, Card, Skeleton, Space, Typography } from 'antd';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 type Props = {
@@ -51,6 +56,35 @@ export function QuizAttemptResultClient({
   }, [initialQuestionKey]);
 
   const [sectionKeysForAnchor, setSectionKeysForAnchor] = useState<string[]>([]);
+  const [outlineOpen, setOutlineOpen] = useState(true);
+
+  const { showOutline } = useQuizSectionOutline(
+    reviewViewModel?.formPayload,
+    reviewViewModel?.renderBlocks,
+    {
+      enabled: Boolean(reviewViewModel),
+      sectionCount: reviewViewModel?.sectionsOrdered.length,
+    },
+  );
+
+  const navigateToQuestion = useCallback(
+    (sectionId: number | null, formItemId: string) => {
+      if (!reviewViewModel) return;
+      if (sectionId != null && Number.isFinite(sectionId)) {
+        setSectionKeysForAnchor((prev) =>
+          mergeQuizOutlineSectionExpandKeys(
+            prev,
+            sectionId,
+            reviewViewModel.allSectionKeys,
+          ),
+        );
+      }
+      scrollToQuizQuestionAnchor(formItemId, {
+        delayMs: getQuizQuestionScrollDelayMs(reviewViewModel.sectionsOrdered.length),
+      });
+    },
+    [reviewViewModel],
+  );
 
   useEffect(() => {
     setSectionKeysForAnchor([]);
@@ -75,20 +109,14 @@ export function QuizAttemptResultClient({
       questionKey,
     );
     if (sid != null) {
-      const k = String(sid);
-      setSectionKeysForAnchor((prev) => {
-        const base = prev.length > 0 ? prev : reviewViewModel.allSectionKeys;
-        if (base.includes(k)) return base;
-        return [...base, k];
-      });
+      setSectionKeysForAnchor((prev) =>
+        mergeQuizOutlineSectionExpandKeys(prev, sid, reviewViewModel.allSectionKeys),
+      );
     }
 
-    const id = quizAnchorDomId(questionKey);
-    const delay = reviewViewModel.sectionsOrdered.length > 1 ? 400 : 120;
-    const timer = window.setTimeout(() => {
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, delay);
-    return () => window.clearTimeout(timer);
+    return scrollToQuizQuestionAnchor(questionKey, {
+      delayMs: getQuizQuestionScrollDelayMs(reviewViewModel.sectionsOrdered.length),
+    });
   }, [loading, questionKey, reviewViewModel]);
 
   /** Không đủ điều kiện D41 — chuyển về danh sách lần làm (hook phải trước mọi return). */
@@ -178,6 +206,28 @@ export function QuizAttemptResultClient({
           attemptSubmittedAt={reviewViewModel.attempt.submittedAt}
           grading={reviewViewModel.attempt.grading}
         />
+
+        {showOutline ? (
+          <QuizAttemptSectionToolbar
+            showOutline={showOutline}
+            outlineOpen={outlineOpen}
+            onToggleOutline={() => setOutlineOpen((v) => !v)}
+          />
+        ) : null}
+
+        {showOutline ? (
+          <QuizSectionOutlineDrawer
+            open={outlineOpen}
+            onClose={() => setOutlineOpen(false)}
+            formPayload={reviewViewModel.formPayload}
+            allRenderBlocks={reviewViewModel.renderBlocks}
+            activeQuestionKey={questionKey}
+            onNavigateToQuestion={navigateToQuestion}
+            mode="review"
+            correctByFormItemId={reviewViewModel.correctByFormItemId}
+          />
+        ) : null}
+
         <QuizReviewQuestionsPanel
           viewModel={reviewViewModel}
           collapseActiveKeys={sectionKeysForAnchor}

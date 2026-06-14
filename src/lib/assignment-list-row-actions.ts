@@ -83,7 +83,7 @@ export function buildVocabularyDrillStartHref(
   const sp = new URLSearchParams();
   sp.set('classId', String(classId));
   sp.set('assignmentId', String(assignmentId));
-  return `/learning/practice?${sp.toString()}`;
+  return `/learning/games?${sp.toString()}`;
 }
 
 export function isVocabularyDrillAssignment(row: {

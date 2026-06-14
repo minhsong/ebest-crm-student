@@ -1,6 +1,6 @@
 # Student Portal — Learning UI (tiêu chuẩn triển khai)
 
-> **Cập nhật:** 2026-06-12  
+> **Cập nhật:** 2026-06-14  
 > **Phạm vi:** `ebest-student-portal/src/features/learning/`  
 > **SSOT nghiệp vụ:** [docs/vocabulary-learning-platform/VOCABULARY_DRILL_ENGINE_SPEC.md](../../docs/vocabulary-learning-platform/VOCABULARY_DRILL_ENGINE_SPEC.md)  
 > **SSOT API read-model:** [docs/vocabulary-learning-platform/STUDENT_HUB_VOCABULARY_READ_MODEL.md](../../docs/vocabulary-learning-platform/STUDENT_HUB_VOCABULARY_READ_MODEL.md)
@@ -83,37 +83,98 @@ Theo pattern CRM Client (`REACT_CODE_STANDARDS.md` — áp dụng tương đươ
 
 ---
 
-## 4. Flashcard
+## 4. Vocabulary Drill (Game Engine)
 
-| Component | Vai trò |
-|-----------|---------|
-| `FlashcardSessionView` | Orchestration: start session Gateway, progress, rating |
-| `FlashcardFlipCard` | UI flip 3D + pronunciation rows |
-| `useVocabularyAudio` | Phát audio UK/US |
+> SSOT runtime: [GAME_ENGINE_END_TO_END_SPEC.md](../../docs/learning-platform/GAME_ENGINE_END_TO_END_SPEC.md) · Gateway ADR [DRILL_RUNTIME_GATEWAY_ADR.md](../../docs/vocabulary-learning-platform/DRILL_RUNTIME_GATEWAY_ADR.md)
 
-Layout CSS: `flashcard-session.css` (VD-OP-07).
+### 4.1 Route & luồng
+
+| Mục | Giá trị |
+|-----|---------|
+| Route luyện tự do | `/learning/drill?classId=` |
+| Route bài tập | `/learning/drill?assignmentId=` (classId optional) |
+| Resume | `?playId=` — `useGameSession` + `resumeGameSession` |
+| Authorize (lobby) | `POST /api/student/learning/drill/authorize` |
+| Start play | `POST /api/learning-drill-runtime/plays` — BFF gửi `context` từ lobby (GAP-UI-06, không authorize lần 2) |
+| Answer | WS primary (`drill-runtime-ws`) · HTTP fallback |
+| Timer | `sessionConfig.rules.answerTimeoutSec` — server TIMER_SYNC |
+
+### 4.2 Container / hooks
+
+| Thành phần | Vai trò |
+|------------|---------|
+| `DrillPracticeView` | Orchestration: lobby → play → result |
+| `useDrillPracticePool` | Pool, assignment context, **authorize + `authorizeContext`** |
+| `useDrillPracticeSession` | `useGameSession` adapter — answer UX, pool progress |
+| `DrillGameLayout` | HUD + MCQ — presentation registry |
+| `VocabularyDrillRunResultScreen` | Router result profile (survival / pool_coverage) |
+
+**Quy tắc:**
+
+- Presentation qua `getVocabularyDrillPresentation(sessionConfig)` — **không** branch `modeId` string trong JSX layout.
+- Authorize denied → `sessionConfigError` + Alert (GAP-UI-01) — không skeleton vô hạn.
+- `canStart === false` → disable nút Bắt đầu + copy từ `learningAccess`.
+
+### 4.3 CSS & theme
+
+- `drill-survival.css` + `drillAntdCssVars(token)` — token Ant Design, không hardcode màu ngoài theme drill.
 
 ---
 
-## 5. Hub & menu
+## 5. Flashcard
+
+| Component | Vai trò |
+|-----------|---------|
+| `FlashcardSessionView` | Orchestration: authorize → start với `context`, progress, rating |
+| `FlashcardFlipCard` | UI flip 3D + pronunciation rows |
+| `FlashcardSessionResultScreen` | Result theo presentation profile |
+| `getFlashcardReviewPresentation` | Registry mapper từ `sessionConfig` |
+| `flashcard-authorize-client.ts` | Prefetch authorize (parity single-authorize với drill) |
+| `useVocabularyAudio` | Phát audio UK/US |
+
+Layout CSS: `flashcard-session.css` + class `flashcard-layout--{coreLayoutProfileId}`.
+
+---
+
+## 6. Hub & menu
+
+Pattern **dashboard → action → màn chi tiết** (không xử lý nghiệp vụ ngay khi vào route gốc):
+
+| Route gốc | Dashboard | Màn chi tiết (query / bước sau) |
+|-----------|-----------|----------------------------------|
+| `/learning` | `LearningHubView` | card → vocabulary / games / assignments |
+| `/learning/vocabulary` | `VocabularyDashboardView` | `?classId=&view=sessions` → `VocabularySessionsBrowseView` |
+| `/learning/games` | `GamesDashboardView` | `?classId=` / `?assignmentId=` / `?playId=` → `DrillPracticeView` |
+| `/learning/games/leaderboard` | `LeaderboardDashboardView` | `?classId=` → `DrillLeaderboardView` |
+| `/assignments` | dashboard Bài tập | «Duyệt tất cả bài» → cây khóa/lớp/buổi |
+
+Component dùng chung: `LearningDashboardActionCard` + `learning-dashboard-shared.css`.
 
 | Route | View | API |
 |-------|------|-----|
 | `/learning` | `LearningHubView` | `GET /api/student/learning/hub` |
-| `/learning/vocabulary` | `VocabularyPracticeHomeView` | vocabulary-sessions theo lớp |
+| `/learning/vocabulary` | `VocabularyDashboardView` | hub + vocabulary-sessions |
+| `/learning/games` | `GamesDashboardView` → `DrillPracticeView` | GE vocabulary_drill |
+| `/learning/games/leaderboard` | `LeaderboardDashboardView` → `DrillLeaderboardView` | LB-V2 |
+
+**Alias (redirect):** `/learning/practice` → `/learning/games`; `/learning/leaderboard` → `/learning/games/leaderboard`.
+
+**Sidebar:** một mục gốc «Học tập» (submenu) — Tổng quan, Luyện từ vựng, Game luyện từ, Bảng xếp hạng, Bài tập.
+
+Helper route: `vocabulary-session-routes.ts` (`vocabularyPracticeHref`, `vocabularyLeaderboardHref`, `vocabularySessionsBrowseHref`, …).
 
 Hub load thêm `/api/overview/sessions` cho bài sắp hạn (client merge vào `assignmentsDue`).
 
 ---
 
-## 6. i18n & copy
+## 7. i18n & copy
 
 - Label UI cố định: **tiếng Việt** (`vi-VN` default).
 - Identifier code / API: English.
 
 ---
 
-## 6. Ghi chú nghiệp vụ (read-only / lớp kết thúc)
+## 8. Ghi chú nghiệp vụ (read-only / lớp kết thúc)
 
 **Quy tắc UX (VD-OP-10):** Không dùng `Alert` full-width lặp trên cùng trang.
 
@@ -129,7 +190,7 @@ Các nút bị disable (flashcard, Survival) **đủ** gợi ý trực quan; chi
 
 ---
 
-## 7. Checklist khi thêm màn vocabulary mới
+## 9. Checklist khi thêm màn vocabulary mới
 
 - [ ] Dùng `useSessionVocabulary` hoặc API typed trong `learning-api.ts`
 - [ ] Hiển thị từ qua `VocabularyWordCard` + modal/panel — không duplicate pronunciation UI

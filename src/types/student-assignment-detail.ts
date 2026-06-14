@@ -60,6 +60,8 @@ export interface StudentAssignmentDetail {
   content: string | null;
   deadline: string | null;
   attachments: StudentAssignmentAttachment[];
+  /** Lớp gắn buổi — route play drill. */
+  classId?: number | null;
   classSessionTitle: string | null;
   courseSessionTitle: string | null;
   studentUploadEnabled?: boolean;

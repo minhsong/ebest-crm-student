@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Socket } from 'socket.io-client';
+import { useCallback, useMemo, useState } from 'react';
 
 import {
 	fetchDrillSession,
@@ -14,676 +13,357 @@ import {
 	fetchDrillWsAccessToken,
 } from '@/features/learning/lib/drill-runtime-ws-client';
 
-import type { DrillGameMode } from '@/features/learning/hooks/useDrillPracticePool';
+import type { GameSessionConfig } from '@/features/learning/games/core/types/game-session-config.types';
+import type { DrillPracticeSelection, DrillStartAuthorizeContext } from '@/features/learning/hooks/useDrillPracticePool';
 
-import { useDrillQuestionTimer } from '@/features/learning/hooks/useDrillQuestionTimer';
+import {
+	useGameSession,
+	type GameAnswerFeedback,
+	type GameSessionAnswerResultContext,
+} from '@/features/learning/games/core/use-game-session';
 
-import type { DrillQuestionClient, DrillSessionClient } from '@/types/learning';
-
-
+import type { DrillQuestionClient, DrillSessionClient, DrillAnswerResult } from '@/types/learning';
 
 const FEEDBACK_CORRECT_MS = 480;
-
 const FEEDBACK_WRONG_MS = 650;
 
-
-
-export type DrillAnswerFeedback = 'correct' | 'wrong' | null;
-
-
+export type DrillAnswerFeedback = GameAnswerFeedback;
 
 type Options = {
-
 	effectiveClassId: number | null;
-
 	assignmentId: number | null;
-
-	resolvedGameMode: DrillGameMode;
-
+	resolvedSelection: DrillPracticeSelection;
+	sessionConfig: GameSessionConfig | null;
+	onSessionConfigChange: (config: GameSessionConfig | null) => void;
+	authorizeContext: DrillStartAuthorizeContext | null;
+	assignmentMinimumScore?: number;
+	assignmentPoolSize?: number;
 	playIdFromUrl: string | null;
-
 	onPlayIdChange: (playId: string | null) => void;
-
 	onSessionCompleted?: () => void;
-
 };
-
-
 
 function toSessionClient(
-
 	started: Awaited<ReturnType<typeof startDrillSession>>,
-
 ): DrillSessionClient {
-
 	return {
-
 		playId: started.playId,
-
 		classId: started.classId,
-
 		assignmentId: started.assignmentId,
-
-		gameMode: started.gameMode,
-
+		modeId: started.modeId,
+		promptType: started.promptType,
 		scoreInRun: started.scoreInRun,
-
 		streak: started.streak,
-
 		status: started.status,
-
+		sessionConfig: started.sessionConfig ?? null,
 		question: started.question,
-
 	};
-
 }
 
-
-
 export function useDrillPracticeSession({
-
 	effectiveClassId,
-
 	assignmentId,
-
-	resolvedGameMode,
-
+	resolvedSelection,
+	sessionConfig,
+	onSessionConfigChange,
+	authorizeContext,
+	assignmentMinimumScore,
+	assignmentPoolSize,
 	playIdFromUrl,
-
 	onPlayIdChange,
-
 	onSessionCompleted,
-
 }: Options) {
+	const isPoolCoverage =
+		(sessionConfig?.modeId ?? resolvedSelection.modeId) === 'pool_coverage';
 
-	const [session, setSession] = useState<DrillSessionClient | null>(null);
+	const [poolProgress, setPoolProgress] = useState<{
+		answered: number;
+		total: number;
+		correct: number;
+		wrong: number;
+	} | null>(null);
+	const [runPassed, setRunPassed] = useState<boolean | null>(null);
+	const [gradebookSyncFailed, setGradebookSyncFailed] = useState(false);
 
-	const [question, setQuestion] = useState<DrillQuestionClient | null>(null);
-
-	const [scoreInRun, setScoreInRun] = useState(0);
-
-	const [streak, setStreak] = useState(0);
-
-	const [submitting, setSubmitting] = useState(false);
-
-	const [resuming, setResuming] = useState(false);
-
-	const [finished, setFinished] = useState(false);
-
-	const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
-
-	const [feedback, setFeedback] = useState<DrillAnswerFeedback>(null);
-
-	const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
-
-	const [actionError, setActionError] = useState<string | null>(null);
-	const [serverTimerSecondsLeft, setServerTimerSecondsLeft] = useState<number | null>(null);
-
-	const feedbackTimerRef = useRef<number | null>(null);
-
-	const resumeAttemptedRef = useRef<string | null>(null);
-
-	const drillSocketRef = useRef<Socket | null>(null);
-
-	const wsReadyRef = useRef(false);
-
-
-
-	const clearFeedbackTimer = useCallback(() => {
-
-		if (feedbackTimerRef.current != null) {
-
-			window.clearTimeout(feedbackTimerRef.current);
-
-			feedbackTimerRef.current = null;
-
-		}
-
-	}, []);
-
-
-
-	useEffect(() => () => clearFeedbackTimer(), [clearFeedbackTimer]);
-
-	useEffect(() => {
-		if (!session?.playId || finished) {
-			drillSocketRef.current?.removeAllListeners();
-			drillSocketRef.current?.disconnect();
-			drillSocketRef.current = null;
-			wsReadyRef.current = false;
-			return;
-		}
-
-		let cancelled = false;
-		const playId = session.playId;
-
-		const connect = async () => {
-			const token = await fetchDrillWsAccessToken();
-			if (cancelled || !token) return;
-			try {
-				const sock = connectDrillRuntimeSocket(token);
-				drillSocketRef.current = sock;
-				wsReadyRef.current = false;
-
-				sock.on('connect', () => {
-					sock.emit(DRILL_WS.JOIN, { playId });
-				});
-				sock.on(DRILL_WS.JOINED, () => {
-					wsReadyRef.current = true;
-				});
-				sock.on(DRILL_WS.TIMER_SYNC, (payload: unknown) => {
-					const p = payload as { playId?: string; secondsLeft?: number };
-					if (p?.playId !== playId) return;
-					if (typeof p.secondsLeft === 'number') {
-						setServerTimerSecondsLeft(p.secondsLeft);
-					}
-				});
-				sock.on('connect_error', () => {
-					wsReadyRef.current = false;
-				});
-			} catch {
-				wsReadyRef.current = false;
-			}
-		};
-
-		void connect();
-
-		return () => {
-			cancelled = true;
-			drillSocketRef.current?.removeAllListeners();
-			drillSocketRef.current?.disconnect();
-			drillSocketRef.current = null;
-			wsReadyRef.current = false;
-		};
-	}, [finished, session?.playId]);
-
-
-
-	const finishRun = useCallback(
-
-		(wasCorrect: boolean | null) => {
-
-			setLastCorrect(wasCorrect);
-
-			setFinished(true);
-
-			setQuestion(null);
-
-			setFeedback(null);
-
-			setSelectedOptionId(null);
-
-			setStreak(0);
-
-			onPlayIdChange(null);
-
+	const finishPoolCoverageRun = useCallback(
+		(
+			progress: NonNullable<DrillAnswerResult['progress']>,
+			finishRun: (lastCorrect: boolean | null) => void,
+		) => {
+			setPoolProgress(progress);
+			const passed =
+				assignmentMinimumScore == null
+					? progress.correct > 0
+					: progress.correct >= assignmentMinimumScore;
+			setRunPassed(passed);
+			finishRun(passed);
 			onSessionCompleted?.();
-
 		},
-
-		[onPlayIdChange, onSessionCompleted],
-
+		[assignmentMinimumScore, onSessionCompleted],
 	);
 
-
-
-	const showWrongFeedbackThenFinish = useCallback(() => {
-
-		setFeedback('wrong');
-
-		setStreak(0);
-
-		clearFeedbackTimer();
-
-		feedbackTimerRef.current = window.setTimeout(() => {
-
-			finishRun(false);
-
-		}, FEEDBACK_WRONG_MS);
-
-	}, [clearFeedbackTimer, finishRun]);
-
-
-
-	const resetRunState = useCallback(() => {
-
-		clearFeedbackTimer();
-
-		setSession(null);
-
-		setQuestion(null);
-
-		setScoreInRun(0);
-
-		setFinished(false);
-
-		setLastCorrect(null);
-
-		setFeedback(null);
-
-		setSelectedOptionId(null);
-
-		setStreak(0);
-
-		setActionError(null);
-
-	}, [clearFeedbackTimer]);
-
-
-
-	const handleStart = useCallback(async () => {
-
-		if (!effectiveClassId) return;
-
-		resetRunState();
-
-		onPlayIdChange(null);
-
-		try {
-
-			const started = await startDrillSession(effectiveClassId, {
-
-				assignmentId: assignmentId ?? undefined,
-
-				gameMode: resolvedGameMode,
-
+	const showWrongFeedbackThenFinish = useCallback(
+		(
+			finishRun: (lastCorrect: boolean | null) => void,
+			scheduleFeedback: (delayMs: number, fn: () => void) => void,
+			setFeedback: (v: DrillAnswerFeedback) => void,
+			setStreak: (updater: (s: number) => number) => void,
+		) => {
+			setFeedback('wrong');
+			setStreak(() => 0);
+			scheduleFeedback(FEEDBACK_WRONG_MS, () => {
+				setRunPassed(false);
+				finishRun(false);
+				onSessionCompleted?.();
 			});
-
-			const nextSession = toSessionClient(started);
-
-			setSession(nextSession);
-
-			setQuestion(started.question);
-
-			setScoreInRun(started.scoreInRun);
-
-			setStreak(started.streak ?? 0);
-
-			onPlayIdChange(started.playId);
-
-		} catch (err) {
-
-			setActionError(err instanceof Error ? err.message : 'Không bắt đầu được lượt luyện.');
-
-		}
-
-	}, [
-
-		assignmentId,
-
-		effectiveClassId,
-
-		onPlayIdChange,
-
-		resetRunState,
-
-		resolvedGameMode,
-
-	]);
-
-
-
-	const submitAnswer = useCallback(
-
-		async (options: { selectedOptionId?: string; timedOut?: boolean }) => {
-
-			if (!session || !question || submitting || feedback) return;
-
-
-
-			setSubmitting(true);
-
-			if (options.selectedOptionId) {
-
-				setSelectedOptionId(options.selectedOptionId);
-
-			}
-
-			setActionError(null);
-
-
-
-			try {
-				const wsPayload = {
-					playId: session.playId,
-					questionId: question.questionId,
-					...(options.selectedOptionId
-						? { selectedOptionId: options.selectedOptionId }
-						: {}),
-					...(options.timedOut ? { timedOut: true } : {}),
-				};
-
-				let result: Awaited<ReturnType<typeof submitDrillAnswer>>;
-				if (wsReadyRef.current && drillSocketRef.current?.connected) {
-					try {
-						result = await new Promise<Awaited<ReturnType<typeof submitDrillAnswer>>>(
-							(resolve, reject) => {
-								const sock = drillSocketRef.current;
-								if (!sock) {
-									reject(new Error('WS unavailable'));
-									return;
-								}
-								const timer = window.setTimeout(() => {
-									sock.off(DRILL_WS.ANSWER_ACK, onAck);
-									sock.off(DRILL_WS.ERROR, onErr);
-									reject(new Error('WS timeout'));
-								}, 8000);
-								const onAck = (payload: unknown) => {
-									window.clearTimeout(timer);
-									sock.off(DRILL_WS.ANSWER_ACK, onAck);
-									sock.off(DRILL_WS.ERROR, onErr);
-									resolve(payload as Awaited<ReturnType<typeof submitDrillAnswer>>);
-								};
-								const onErr = () => {
-									window.clearTimeout(timer);
-									sock.off(DRILL_WS.ANSWER_ACK, onAck);
-									sock.off(DRILL_WS.ERROR, onErr);
-									reject(new Error('WS answer failed'));
-								};
-								sock.on(DRILL_WS.ANSWER_ACK, onAck);
-								sock.on(DRILL_WS.ERROR, onErr);
-								sock.emit(DRILL_WS.ANSWER, wsPayload);
-							},
-						);
-					} catch {
-						result = await submitDrillAnswer(
-							session.playId,
-							question.questionId,
-							options,
-						);
-					}
-				} else {
-					result = await submitDrillAnswer(
-						session.playId,
-						question.questionId,
-						options,
-					);
-				}
-
-				setScoreInRun(result.scoreInRun);
-
-				setLastCorrect(result.correct);
-
-				setSubmitting(false);
-
-
-
-				if (result.completed) {
-
-					showWrongFeedbackThenFinish();
-
-					return;
-
-				}
-
-
-
-				if (result.correct) {
-
-					setStreak((s) => s + 1);
-
-					setFeedback('correct');
-
-					clearFeedbackTimer();
-
-					feedbackTimerRef.current = window.setTimeout(() => {
-
-						if (result.nextQuestion) {
-
-							setQuestion(result.nextQuestion);
-
-						}
-
-						setFeedback(null);
-
-						setSelectedOptionId(null);
-
-						setLastCorrect(null);
-
-					}, FEEDBACK_CORRECT_MS);
-
-				}
-
-			} catch (err) {
-
-				setSubmitting(false);
-
-				setSelectedOptionId(null);
-
-				setActionError(err instanceof Error ? err.message : 'Không gửi được câu trả lời.');
-
-			}
-
 		},
-
-		[clearFeedbackTimer, feedback, question, session, showWrongFeedbackThenFinish, submitting],
-
+		[onSessionCompleted],
 	);
 
-
-
-	const handleAnswer = useCallback(
-
-		(optionId: string) => void submitAnswer({ selectedOptionId: optionId }),
-
-		[submitAnswer],
-
+	const showCorrectFeedbackThenFinish = useCallback(
+		(
+			result: DrillAnswerResult,
+			finishRun: (lastCorrect: boolean | null) => void,
+			scheduleFeedback: (delayMs: number, fn: () => void) => void,
+			setFeedback: (v: DrillAnswerFeedback) => void,
+		) => {
+			setFeedback('correct');
+			scheduleFeedback(FEEDBACK_CORRECT_MS, () => {
+				const passed =
+					assignmentMinimumScore == null
+						? true
+						: result.scoreInRun >= assignmentMinimumScore;
+				setRunPassed(passed);
+				finishRun(true);
+				onSessionCompleted?.();
+			});
+		},
+		[assignmentMinimumScore, onSessionCompleted],
 	);
 
-
-
-	const handleTimeout = useCallback(
-
-		() => void submitAnswer({ timedOut: true }),
-
-		[submitAnswer],
-
-	);
-
-
-
-	useEffect(() => {
-
-		if (!playIdFromUrl || session || finished) return;
-
-		if (resumeAttemptedRef.current === playIdFromUrl) return;
-
-		resumeAttemptedRef.current = playIdFromUrl;
-
-
-
-		let cancelled = false;
-
-		(async () => {
-
-			setResuming(true);
-
-			setActionError(null);
-
-			try {
-
-				const resumed = await fetchDrillSession(playIdFromUrl);
-
-				if (cancelled) return;
-
-
-
-				if (resumed.status === 'completed') {
-
-					setSession({
-
-						playId: resumed.playId,
-
-						classId: resumed.classId,
-
-						assignmentId: resumed.assignmentId,
-
-						gameMode: resumed.gameMode,
-
-						scoreInRun: resumed.scoreInRun,
-
-						streak: 0,
-
-						status: resumed.status,
-
-						question: resumed.question ?? {
-
-							questionId: '',
-
-							prompt: '',
-
-							promptType: 'meaning',
-
-							options: [],
-
-						},
-
-					});
-
-					setScoreInRun(resumed.scoreInRun);
-
-					finishRun(null);
-
-					return;
-
-				}
-
-
-
-				if (!resumed.question) {
-
-					setActionError('Không tìm thấy câu hỏi đang chờ trong lượt luyện.');
-
-					onPlayIdChange(null);
-
-					return;
-
-				}
-
-
-
-				setSession({
-
-					playId: resumed.playId,
-
-					classId: resumed.classId,
-
-					assignmentId: resumed.assignmentId,
-
-					gameMode: resumed.gameMode,
-
-					scoreInRun: resumed.scoreInRun,
-
-					streak: resumed.streak,
-
-					status: resumed.status,
-
-					question: resumed.question,
-
-				});
-
-				setQuestion(resumed.question);
-
-				setScoreInRun(resumed.scoreInRun);
-
-				setStreak(resumed.streak);
-
-			} catch (err) {
-
-				if (!cancelled) {
-
-					setActionError(
-
-						err instanceof Error ? err.message : 'Không khôi phục được lượt luyện.',
-
+	const onAnswerResult = useCallback(
+		({
+			result,
+			setQuestion,
+			setScoreInRun,
+			setStreak,
+			setLastCorrect,
+			setFeedback,
+			setSelectedOptionId,
+			setSubmitting,
+			finishRun,
+			scheduleFeedback,
+		}: GameSessionAnswerResultContext<
+			DrillSessionClient,
+			DrillQuestionClient,
+			DrillAnswerResult
+		>) => {
+			setScoreInRun(result.scoreInRun);
+			setLastCorrect(result.correct);
+			setSubmitting(false);
+
+			if (result.completed) {
+				if (isPoolCoverage && result.progress) {
+					setFeedback(result.correct ? 'correct' : 'wrong');
+					scheduleFeedback(
+						result.correct ? FEEDBACK_CORRECT_MS : FEEDBACK_WRONG_MS,
+						() => finishPoolCoverageRun(result.progress!, finishRun),
 					);
-
-					onPlayIdChange(null);
-
+				} else if (result.correct) {
+					showCorrectFeedbackThenFinish(
+						result,
+						finishRun,
+						scheduleFeedback,
+						setFeedback,
+					);
+				} else {
+					showWrongFeedbackThenFinish(
+						finishRun,
+						scheduleFeedback,
+						setFeedback,
+						setStreak,
+					);
 				}
-
-			} finally {
-
-				if (!cancelled) setResuming(false);
-
+				return;
 			}
 
-		})();
+			if (!result.correct && isPoolCoverage) {
+				if (result.progress) {
+					setPoolProgress(result.progress);
+				}
+				setStreak(() => 0);
+				setFeedback('wrong');
+				scheduleFeedback(FEEDBACK_WRONG_MS, () => {
+					if (result.nextQuestion) {
+						setQuestion(result.nextQuestion);
+					}
+					setFeedback(null);
+					setSelectedOptionId(null);
+					setLastCorrect(null);
+				});
+				return;
+			}
 
+			if (result.correct) {
+				setStreak((s) => s + 1);
+				if (result.progress) {
+					setPoolProgress(result.progress);
+				}
+				setFeedback('correct');
+				scheduleFeedback(FEEDBACK_CORRECT_MS, () => {
+					if (result.nextQuestion) {
+						setQuestion(result.nextQuestion);
+					}
+					setFeedback(null);
+					setSelectedOptionId(null);
+					setLastCorrect(null);
+				});
+			}
+		},
+		[finishPoolCoverageRun, isPoolCoverage, showCorrectFeedbackThenFinish, showWrongFeedbackThenFinish],
+	);
 
-
-		return () => {
-
-			cancelled = true;
-
+	const startSession = useCallback(async () => {
+		if (!effectiveClassId) {
+			throw new Error('Thiếu lớp học.');
+		}
+		const started = await startDrillSession(effectiveClassId, {
+			assignmentId: assignmentId ?? undefined,
+			modeId: resolvedSelection.modeId,
+			promptType: resolvedSelection.promptType,
+			context: authorizeContext ?? undefined,
+		});
+		if (started.sessionConfig) {
+			onSessionConfigChange(started.sessionConfig);
+		}
+		return {
+			playId: started.playId,
+			session: toSessionClient(started),
+			question: started.question,
+			scoreInRun: started.scoreInRun,
+			streak: started.streak ?? 0,
 		};
+	}, [assignmentId, authorizeContext, effectiveClassId, onSessionConfigChange, resolvedSelection]);
 
-	}, [finishRun, finished, onPlayIdChange, playIdFromUrl, session]);
+	const wsEvents = useMemo(
+		() => ({
+			JOIN: DRILL_WS.JOIN,
+			JOINED: DRILL_WS.JOINED,
+			TIMER_SYNC: DRILL_WS.TIMER_SYNC,
+			STATE_SYNC: DRILL_WS.STATE_SYNC,
+			PLAY_CLOSED: DRILL_WS.PLAY_CLOSED,
+			ANSWER: DRILL_WS.ANSWER,
+			ANSWER_ACK: DRILL_WS.ANSWER_ACK,
+			ERROR: DRILL_WS.ERROR,
+		}),
+		[],
+	);
 
+	const answerTimeoutSec =
+		sessionConfig?.rules.answerTimeoutSec ?? DRILL_ANSWER_TIMEOUT_SEC;
 
-
-	const optionsLocked = submitting || feedback !== null || resuming;
-
-
-
-	const { secondsLeft, totalSeconds } = useDrillQuestionTimer({
-
-		questionId: question?.questionId ?? null,
-
-		enabled: Boolean(session && question && !finished),
-
-		paused: optionsLocked,
-
-		seconds: DRILL_ANSWER_TIMEOUT_SEC,
-
-		onTimeout: handleTimeout,
-
-		serverSecondsLeft: serverTimerSecondsLeft,
-
+	const gameSession = useGameSession<
+		DrillSessionClient,
+		DrillQuestionClient,
+		DrillAnswerResult
+	>({
+		playIdFromUrl,
+		onPlayIdChange,
+		answerTimeoutSec,
+		wsEvents,
+		fetchWsAccessToken: fetchDrillWsAccessToken,
+		connectSocket: connectDrillRuntimeSocket,
+		startSession,
+		fetchSession: fetchDrillSession,
+		toSessionFromStart: (started) => started.session,
+		toSessionFromResume: (resumed) => {
+			if (resumed.sessionConfig) {
+				onSessionConfigChange(resumed.sessionConfig);
+			}
+			return {
+			playId: resumed.playId,
+			classId: resumed.classId,
+			assignmentId: resumed.assignmentId,
+			modeId: resumed.modeId as DrillSessionClient['modeId'],
+			promptType: resumed.promptType as DrillSessionClient['promptType'],
+			scoreInRun: resumed.scoreInRun,
+			streak: resumed.streak,
+			status: resumed.status,
+			sessionConfig: resumed.sessionConfig ?? null,
+			question:
+				resumed.question ??
+				({
+					questionId: '',
+					prompt: '',
+					promptType: 'meaning',
+					options: [],
+				} as DrillQuestionClient),
+		};
+		},
+		submitAnswerHttp: (playId, questionId, opts) =>
+			submitDrillAnswer(playId, questionId, opts),
+		getQuestionId: (q) => q.questionId,
+		onAnswerResult,
+		onSessionStarted: (started) => {
+			if (isPoolCoverage && assignmentPoolSize) {
+				setPoolProgress({
+					answered: 0,
+					total: assignmentPoolSize,
+					correct: 0,
+					wrong: 0,
+				});
+			}
+		},
+		onSessionResumed: (_session, _question, resumeCtx) => {
+			setGradebookSyncFailed(resumeCtx.gradebookSyncFailed ?? false);
+			if (resumeCtx.progress) {
+				setPoolProgress(resumeCtx.progress);
+			} else if (isPoolCoverage && assignmentPoolSize) {
+				setPoolProgress({
+					answered: 0,
+					total: assignmentPoolSize,
+					correct: 0,
+					wrong: 0,
+				});
+			}
+		},
+		onSessionCompletedFromResume: (_session, resumeCtx) => {
+			setGradebookSyncFailed(resumeCtx.gradebookSyncFailed ?? false);
+			if (resumeCtx.progress) {
+				setPoolProgress(resumeCtx.progress);
+			}
+			if (resumeCtx.runPassed != null) {
+				setRunPassed(resumeCtx.runPassed);
+			} else if (isPoolCoverage && resumeCtx.progress) {
+				const passed =
+					assignmentMinimumScore == null
+						? resumeCtx.progress.correct > 0
+						: resumeCtx.progress.correct >= assignmentMinimumScore;
+				setRunPassed(passed);
+			} else if (!isPoolCoverage && resumeCtx.lastAnswerCorrect === false) {
+				setRunPassed(false);
+			}
+			onSessionCompleted?.();
+		},
+		resetSessionExtras: () => {
+			setPoolProgress(null);
+			setRunPassed(null);
+			setGradebookSyncFailed(false);
+		},
 	});
 
-	useEffect(() => {
-		setServerTimerSecondsLeft(null);
-	}, [question?.questionId]);
-
-
+	// handleStart guard — skip when no class
+	const handleStart = useCallback(async () => {
+		if (!effectiveClassId) return;
+		await gameSession.handleStart();
+	}, [effectiveClassId, gameSession]);
 
 	return {
-
-		session,
-
-		question,
-
-		scoreInRun,
-
-		streak,
-
-		submitting,
-
-		resuming,
-
-		finished,
-
-		lastCorrect,
-
-		feedback,
-
-		selectedOptionId,
-
-		optionsLocked,
-
-		actionError,
-
-		secondsLeft,
-
-		totalSeconds,
-
+		...gameSession,
 		handleStart,
-
-		handleAnswer,
-
+		poolProgress,
+		runPassed,
+		gradebookSyncFailed,
+		isPoolCoverage,
 	};
-
-};
-
-
+}

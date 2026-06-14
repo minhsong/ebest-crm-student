@@ -4,12 +4,15 @@ import { CalendarOutlined } from '@ant-design/icons';
 import { Card, Flex, List, Typography, theme } from 'antd';
 import type { SessionAssignmentGroup } from '@/lib/assignments-overview-grouping';
 import { AssignmentOverviewListRow } from '@/features/assignments/components/AssignmentOverviewListRow';
+import { AssignmentOverviewRowActions } from '@/features/schedule/components/AssignmentOverviewRowActions';
 
 const { Text } = Typography;
 
 type Props = {
   session: SessionAssignmentGroup;
   onOpenAssignment: (assignmentId: number) => void;
+  showRowActions?: boolean;
+  canInteract?: boolean;
 };
 
 function formatSessionDate(scheduledDate: string): string | null {
@@ -25,7 +28,12 @@ function formatSessionDate(scheduledDate: string): string | null {
   });
 }
 
-export function SessionAssignmentsCard({ session, onOpenAssignment }: Props) {
+export function SessionAssignmentsCard({
+  session,
+  onOpenAssignment,
+  showRowActions = false,
+  canInteract = true,
+}: Props) {
   const { token } = theme.useToken();
   const dateLabel = formatSessionDate(session.scheduledDate);
   const assignmentCount = session.assignments.length;
@@ -69,10 +77,21 @@ export function SessionAssignmentsCard({ session, onOpenAssignment }: Props) {
               paddingBlock: token.paddingXS,
             }}
           >
-            <AssignmentOverviewListRow
-              row={row}
-              onOpenDetail={() => onOpenAssignment(row.assignmentId)}
-            />
+            <Flex align="center" gap={token.marginSM} style={{ width: '100%', minWidth: 0 }}>
+              <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+                <AssignmentOverviewListRow
+                  row={row}
+                  onOpenDetail={() => onOpenAssignment(row.assignmentId)}
+                />
+              </div>
+              {showRowActions ? (
+                <AssignmentOverviewRowActions
+                  row={row}
+                  onOpenDetail={() => onOpenAssignment(row.assignmentId)}
+                  canInteract={canInteract}
+                />
+              ) : null}
+            </Flex>
           </List.Item>
         )}
       />

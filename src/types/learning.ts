@@ -34,11 +34,13 @@ export interface LearningHubWeekStats {
 
 export interface LearningAssignmentDueItem {
 	assignmentId: number;
+	classId: number;
 	title: string;
 	deadline: string;
 	className: string;
 	sessionTitle: string;
 	resultStatus: number | null;
+	exerciseType: string | null;
 }
 
 export type LearningRecommendationType =
@@ -218,14 +220,18 @@ export interface WeakWordsPayload {
 	rows: WeakWordRow[];
 }
 
+import type { GameSessionConfig } from '@/features/learning/games/core/types/game-session-config.types';
+
 export interface DrillSessionClient {
 	playId: string;
-	classId?: number;
-	assignmentId?: number | null;
-	gameMode: string;
+	classId: number;
+	assignmentId: number | null;
+	modeId: 'survival' | 'pool_coverage';
+	promptType: 'meaning_to_word' | 'audio_to_word';
 	scoreInRun: number;
-	streak?: number;
+	streak: number;
 	status: string;
+	sessionConfig: GameSessionConfig | null;
 	question: DrillQuestionClient;
 }
 
@@ -233,11 +239,22 @@ export interface DrillSessionResumePayload {
 	playId: string;
 	classId: number;
 	assignmentId: number | null;
-	gameMode: string;
+	modeId: 'survival' | 'pool_coverage';
+	promptType: 'meaning_to_word' | 'audio_to_word';
 	scoreInRun: number;
 	streak: number;
 	status: string;
+	sessionConfig: GameSessionConfig | null;
 	question?: DrillQuestionClient;
+	progress?: {
+		answered: number;
+		total: number;
+		correct: number;
+		wrong: number;
+	} | null;
+	lastAnswerCorrect?: boolean | null;
+	runPassed?: boolean | null;
+	gradebookSyncFailed?: boolean;
 }
 
 export interface DrillAnswerResult {
@@ -247,6 +264,12 @@ export interface DrillAnswerResult {
 	status: string;
 	completed: boolean;
 	nextQuestion?: DrillQuestionClient;
+	progress?: {
+		answered: number;
+		total: number;
+		correct: number;
+		wrong: number;
+	};
 }
 
 export interface AssignmentDrillContextPayload {
@@ -254,10 +277,12 @@ export interface AssignmentDrillContextPayload {
   classId: number;
   title: string;
   minimumScore: number;
-  gameMode: string;
+  modeId: 'survival' | 'pool_coverage';
+  promptType: 'meaning_to_word' | 'audio_to_word';
   assignmentPoolSize: number;
   unlockPoolSize: number;
   bestScore: number;
+  bestTotal?: number;
   assignmentComplete: boolean;
   canPlay: boolean;
   learningAccess?: LearningVocabularyLearningAccess;
@@ -265,6 +290,11 @@ export interface AssignmentDrillContextPayload {
     wordScopeMode: 'class_pool' | 'custom_selection';
   };
 }
+
+export type DrillLeaderboardBoardKind =
+	| 'per_play_score'
+	| 'total_plays'
+	| 'total_correct';
 
 export interface DrillLeaderboardRow {
 	rank: number;
@@ -274,14 +304,33 @@ export interface DrillLeaderboardRow {
 	playCount: number;
 }
 
+export interface DrillLeaderboardPerPlayRow extends DrillLeaderboardRow {
+	playId: string;
+	classId: number;
+	className: string;
+	correctCount: number;
+	completedAt: string;
+	modeId: string;
+}
+
 export interface DrillLeaderboardPayload {
+	boardKind: DrillLeaderboardBoardKind;
 	classId: number;
 	courseId: number | null;
 	scope: 'class' | 'course';
 	period: 'week' | 'month' | 'all';
 	periodLabel: string;
-	rows: DrillLeaderboardRow[];
-	self: { rank: number | null; score: number; playCount: number } | null;
+	page: number;
+	pageSize: number;
+	total: number;
+	rows: DrillLeaderboardRow[] | DrillLeaderboardPerPlayRow[];
+	self: {
+		rank: number | null;
+		score: number;
+		playCount: number;
+		playId?: string;
+		pageHint?: number;
+	} | null;
 	hidden?: boolean;
 	hiddenReason?: string;
 }
@@ -307,6 +356,15 @@ export interface FlashcardSessionPayload {
 	classSessionId: number;
 	courseSessionId: number | null;
 	status: string;
+	sessionConfig?: {
+		gameFamily: 'flashcard_review';
+		modeId: 'session_review';
+		presentation: {
+			coreLayoutProfileId: string;
+			detailWidgetId: string;
+			resultProfileId: string;
+		};
+	} | null;
 	cards: FlashcardSessionCard[];
 	summary: { knownCount: number; unknownCount: number; total: number };
 }

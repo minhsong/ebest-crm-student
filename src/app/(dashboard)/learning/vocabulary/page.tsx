@@ -1,5 +1,12 @@
-import { VocabularyPracticeHomeView } from '@/features/learning/components/VocabularyPracticeHomeView';
+'use client';
+
+import { Suspense } from 'react';
+import { LearningVocabularyPageContent } from '@/features/learning/components/LearningVocabularyPageContent';
 
 export default function VocabularyPracticePage() {
-	return <VocabularyPracticeHomeView />;
+	return (
+		<Suspense fallback={null}>
+			<LearningVocabularyPageContent />
+		</Suspense>
+	);
 }

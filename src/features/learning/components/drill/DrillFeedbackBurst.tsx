@@ -1,10 +1,10 @@
 'use client';
 
 import { memo } from 'react';
-import type { DrillAnswerFeedback } from '@/features/learning/hooks/useDrillPracticeSession';
+import type { GameAnswerFeedback } from '@/features/learning/games/core/types/game-session.types';
 
 type Props = {
-	feedback: DrillAnswerFeedback;
+	feedback: GameAnswerFeedback;
 };
 
 function DrillFeedbackBurstInner({ feedback }: Props) {

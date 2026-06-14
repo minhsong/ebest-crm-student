@@ -1,6 +1,7 @@
 import type {
   AssignmentDrillContextPayload,
   DrillAnswerResult,
+  DrillLeaderboardBoardKind,
 	DrillLeaderboardPayload,
 	DrillSessionClient,
 	DrillSessionResumePayload,
@@ -12,6 +13,8 @@ import type {
 	FlashcardSessionPayload,
 	WeakWordsPayload,
 } from '@/types/learning';
+import type { DrillStartAuthorizeContext } from '@/lib/drill-authorize-client';
+import type { FlashcardStartAuthorizeContext } from '@/lib/flashcard-authorize-client';
 
 async function parseJsonResponse<T>(res: Response, fallback: string): Promise<T> {
 	const data = await res.json().catch(() => ({}));
@@ -66,15 +69,23 @@ export async function fetchVocabularyPool(classId: number): Promise<VocabularyPo
 
 export async function startDrillSession(
   classId: number,
-  options?: { gameMode?: string; assignmentId?: number },
+  options?: {
+    modeId?: 'survival' | 'pool_coverage';
+    promptType?: 'meaning_to_word' | 'audio_to_word';
+    assignmentId?: number;
+    /** CRM authorize context từ lobby — tránh authorize lần 2 (GAP-UI-06). */
+    context?: DrillStartAuthorizeContext;
+  },
 ): Promise<DrillSessionClient> {
   const res = await fetch('/api/learning-drill-runtime/plays', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       classId,
-      gameMode: options?.gameMode ?? 'survival',
+      modeId: options?.modeId ?? 'survival',
+      promptType: options?.promptType ?? 'meaning_to_word',
       assignmentId: options?.assignmentId,
+      ...(options?.context ? { context: options.context } : {}),
     }),
   });
   return parseJsonResponse(res, 'Không bắt đầu được lượt luyện.');
@@ -121,13 +132,29 @@ export async function fetchDrillLeaderboard(
 	classId: number,
 	scope: 'class' | 'course',
 	period: 'week' | 'month' | 'all',
-	options?: { refresh?: boolean },
+	options?: {
+		refresh?: boolean;
+		boardKind?: DrillLeaderboardBoardKind;
+		page?: number;
+		pageSize?: number;
+		q?: string;
+		filterClassId?: number;
+	},
 ): Promise<DrillLeaderboardPayload> {
 	const qs = new URLSearchParams({
 		classId: String(classId),
 		scope,
 		period,
+		boardKind: options?.boardKind ?? 'per_play_score',
+		page: String(options?.page ?? 1),
+		pageSize: String(options?.pageSize ?? 10),
 	});
+	if (options?.q?.trim()) {
+		qs.set('q', options.q.trim());
+	}
+	if (options?.filterClassId) {
+		qs.set('filterClassId', String(options.filterClassId));
+	}
 	if (options?.refresh) {
 		qs.set('_', String(Date.now()));
 	}
@@ -163,11 +190,19 @@ export async function fetchWeakWords(
 export async function startFlashcardSession(
 	classId: number,
 	classSessionId: number,
+	options?: {
+		/** CRM authorize context từ prefetch — tránh authorize lần 2 (parity GAP-UI-06). */
+		context?: FlashcardStartAuthorizeContext;
+	},
 ): Promise<FlashcardSessionPayload> {
 	const res = await fetch('/api/learning-flashcard-runtime/sessions', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ classId, classSessionId }),
+		body: JSON.stringify({
+			classId,
+			classSessionId,
+			...(options?.context ? { context: options.context } : {}),
+		}),
 	});
 	return parseJsonResponse(res, 'Không bắt đầu được phiên flashcard.');
 }

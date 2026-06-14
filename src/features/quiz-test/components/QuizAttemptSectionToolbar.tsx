@@ -1,7 +1,6 @@
 'use client';
 
-import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
-import { Button } from 'antd';
+import { QuizAttemptOutlineToggleButton } from '@/features/quiz-test/components/QuizAttemptOutlineToggleButton';
 
 export type QuizAttemptSectionToolbarProps = {
   showOutline: boolean;
@@ -9,9 +8,7 @@ export type QuizAttemptSectionToolbarProps = {
   onToggleOutline: () => void;
 };
 
-/**
- * Mục lục (toggle). Nhãn phần nằm trong Alert hướng dẫn — không lặp ở đây.
- */
+/** Toolbar mục lục độc lập — trang kết quả khi chưa gộp header. */
 export function QuizAttemptSectionToolbar({
   showOutline,
   outlineOpen,
@@ -20,15 +17,18 @@ export function QuizAttemptSectionToolbar({
   if (!showOutline) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 px-4 pb-2 md:px-6">
-      <Button
-        size="small"
-        type={outlineOpen ? 'primary' : 'default'}
-        icon={outlineOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
-        onClick={onToggleOutline}
-      >
-        {outlineOpen ? 'Đóng mục lục' : 'Mục lục câu'}
-      </Button>
+    <div className="quiz-attempt-section-toolbar">
+      <QuizAttemptOutlineToggleButton
+        outlineOpen={outlineOpen}
+        onToggleOutline={onToggleOutline}
+        variant="below"
+      />
     </div>
   );
 }
+
+export { QuizAttemptOutlineToggleButton } from '@/features/quiz-test/components/QuizAttemptOutlineToggleButton';
+export type {
+  QuizAttemptOutlineToggleButtonProps,
+  QuizAttemptOutlineToggleVariant,
+} from '@/features/quiz-test/components/QuizAttemptOutlineToggleButton';

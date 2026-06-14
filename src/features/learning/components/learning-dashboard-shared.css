@@ -1,0 +1,331 @@
+.learning-dashboard-root {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.learning-dashboard-context {
+	border-radius: 12px;
+	background: linear-gradient(180deg, #fafbff 0%, #fff 100%);
+}
+
+.learning-dashboard-class-picker {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	max-width: 28rem;
+}
+
+.learning-dashboard-actions-section {
+	padding: 1.25rem;
+	border-radius: 16px;
+	background: linear-gradient(180deg, #fafbff 0%, #f5f7ff 100%);
+	border: 1px solid #e8ecf8;
+	box-shadow: 0 4px 24px rgba(15, 23, 42, 0.04);
+}
+
+.learning-dashboard-section-title {
+	margin: 0 0 1rem;
+	font-size: 1.0625rem;
+	font-weight: 700;
+	color: rgba(0, 0, 0, 0.88);
+}
+
+.learning-dashboard-section-subtitle {
+	margin: -0.5rem 0 1rem;
+	font-size: 0.8125rem;
+	color: rgba(0, 0, 0, 0.45);
+}
+
+.learning-dashboard-actions-grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 0.875rem;
+}
+
+@media (min-width: 640px) {
+	.learning-dashboard-actions-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+.learning-dashboard-action {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.75rem;
+	width: 100%;
+	min-height: 7.5rem;
+	padding: 1rem;
+	overflow: hidden;
+	text-align: left;
+	border: 1px solid transparent;
+	border-radius: 16px;
+	cursor: pointer;
+	transition:
+		transform 0.2s ease,
+		box-shadow 0.2s ease;
+	-webkit-tap-highlight-color: transparent;
+}
+
+.learning-dashboard-action:hover:not(:disabled) {
+	transform: translateY(-2px);
+}
+
+.learning-dashboard-action:disabled {
+	opacity: 0.58;
+	cursor: not-allowed;
+	filter: saturate(0.7);
+}
+
+.learning-dashboard-action__blob {
+	position: absolute;
+	border-radius: 50%;
+	pointer-events: none;
+	opacity: 0.45;
+}
+
+.learning-dashboard-action__blob--a {
+	top: -1rem;
+	right: -0.5rem;
+	width: 4rem;
+	height: 4rem;
+}
+
+.learning-dashboard-action__icon-wrap {
+	position: relative;
+	z-index: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.5rem;
+	height: 2.5rem;
+	border-radius: 12px;
+	font-size: 1.25rem;
+	color: #fff;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.learning-dashboard-action__content {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+}
+
+.learning-dashboard-action__title {
+	font-size: 0.9375rem;
+	font-weight: 700;
+	line-height: 1.35;
+	color: var(--ld-action-title, rgba(0, 0, 0, 0.88));
+}
+
+.learning-dashboard-action__desc {
+	font-size: 0.8125rem;
+	line-height: 1.4;
+	color: var(--ld-action-desc, rgba(0, 0, 0, 0.55));
+}
+
+.learning-dashboard-action__hint {
+	font-size: 0.75rem;
+	font-weight: 600;
+	color: var(--ld-action-hint, #d97706);
+}
+
+.learning-dashboard-stats {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 0.75rem 1rem;
+}
+
+.learning-dashboard-info-list {
+	margin: 0;
+	padding-left: 1.125rem;
+	color: rgba(0, 0, 0, 0.65);
+	font-size: 0.8125rem;
+	line-height: 1.55;
+}
+
+.learning-dashboard-info-list li + li {
+	margin-top: 0.35rem;
+}
+
+.learning-dashboard-featured {
+	border-radius: 12px;
+	background: linear-gradient(135deg, #eff6ff 0%, #fff 100%);
+}
+
+.learning-dashboard-due-item {
+	padding: 0.5rem 0;
+	border-bottom: 1px solid #f0f0f0;
+}
+
+.learning-dashboard-due-item:last-child {
+	border-bottom: none;
+}
+
+.learning-dashboard-due-item--clickable {
+	display: block;
+	width: 100%;
+	padding: 0.5rem 0;
+	border: 0;
+	background: transparent;
+	text-align: left;
+	cursor: pointer;
+	border-radius: 6px;
+}
+
+.learning-dashboard-due-item--clickable:hover {
+	background: var(--ant-color-fill-tertiary, rgba(0, 0, 0, 0.04));
+}
+
+/* Variants */
+.learning-dashboard-action--vocabulary {
+	--ld-action-title: #1e3a8a;
+	--ld-action-desc: #3b5998;
+	background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
+	border-color: #93c5fd;
+	box-shadow: 0 4px 14px rgba(37, 99, 235, 0.1);
+}
+
+.learning-dashboard-action--vocabulary .learning-dashboard-action__icon-wrap {
+	background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.learning-dashboard-action--vocabulary .learning-dashboard-action__blob--a {
+	background: rgba(96, 165, 250, 0.3);
+}
+
+.learning-dashboard-action--flashcard {
+	--ld-action-title: #115e59;
+	--ld-action-desc: #0f766e;
+	background: linear-gradient(145deg, #f0fdfa 0%, #ccfbf1 100%);
+	border-color: #5eead4;
+	box-shadow: 0 4px 14px rgba(13, 148, 136, 0.1);
+}
+
+.learning-dashboard-action--flashcard .learning-dashboard-action__icon-wrap {
+	background: linear-gradient(135deg, #14b8a6, #0d9488);
+}
+
+.learning-dashboard-action--flashcard .learning-dashboard-action__blob--a {
+	background: rgba(45, 212, 191, 0.3);
+}
+
+.learning-dashboard-action--sessions {
+	--ld-action-title: #3730a3;
+	--ld-action-desc: #4338ca;
+	background: linear-gradient(145deg, #eef2ff 0%, #e0e7ff 100%);
+	border-color: #a5b4fc;
+	box-shadow: 0 4px 14px rgba(79, 70, 229, 0.1);
+}
+
+.learning-dashboard-action--sessions .learning-dashboard-action__icon-wrap {
+	background: linear-gradient(135deg, #6366f1, #4f46e5);
+}
+
+.learning-dashboard-action--sessions .learning-dashboard-action__blob--a {
+	background: rgba(129, 140, 248, 0.3);
+}
+
+.learning-dashboard-action--play {
+	--ld-action-title: #7c2d12;
+	--ld-action-desc: #9a3412;
+	background: linear-gradient(145deg, #fff7ed 0%, #ffedd5 100%);
+	border-color: #fdba74;
+	box-shadow: 0 4px 14px rgba(234, 88, 12, 0.1);
+}
+
+.learning-dashboard-action--play .learning-dashboard-action__icon-wrap {
+	background: linear-gradient(135deg, #f97316, #ea580c);
+}
+
+.learning-dashboard-action--play .learning-dashboard-action__blob--a {
+	background: rgba(251, 146, 60, 0.3);
+}
+
+.learning-dashboard-action--leaderboard {
+	--ld-action-title: #854d0e;
+	--ld-action-desc: #a16207;
+	background: linear-gradient(145deg, #fefce8 0%, #fef9c3 100%);
+	border-color: #fde047;
+	box-shadow: 0 4px 14px rgba(202, 138, 4, 0.1);
+}
+
+.learning-dashboard-action--leaderboard .learning-dashboard-action__icon-wrap {
+	background: linear-gradient(135deg, #eab308, #ca8a04);
+}
+
+.learning-dashboard-action--leaderboard .learning-dashboard-action__blob--a {
+	background: rgba(250, 204, 21, 0.35);
+}
+
+.learning-dashboard-action--assignments {
+	--ld-action-title: #14532d;
+	--ld-action-desc: #166534;
+	background: linear-gradient(145deg, #f0fdf4 0%, #dcfce7 100%);
+	border-color: #86efac;
+	box-shadow: 0 4px 14px rgba(22, 163, 74, 0.1);
+}
+
+.learning-dashboard-action--assignments .learning-dashboard-action__icon-wrap {
+	background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.learning-dashboard-action--assignments .learning-dashboard-action__blob--a {
+	background: rgba(74, 222, 128, 0.3);
+}
+
+.learning-dashboard-action--hub {
+	--ld-action-title: #374151;
+	--ld-action-desc: #6b7280;
+	background: linear-gradient(145deg, #f9fafb 0%, #f3f4f6 100%);
+	border-color: #d1d5db;
+	box-shadow: 0 4px 14px rgba(55, 65, 81, 0.08);
+}
+
+.learning-dashboard-action--hub .learning-dashboard-action__icon-wrap {
+	background: linear-gradient(135deg, #6b7280, #4b5563);
+}
+
+.learning-dashboard-action--hub .learning-dashboard-action__blob--a {
+	background: rgba(156, 163, 175, 0.3);
+}
+
+.learning-dashboard-action--browse {
+	--ld-action-title: #1e40af;
+	--ld-action-desc: #2563eb;
+	background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
+	border-color: #93c5fd;
+	box-shadow: 0 4px 14px rgba(37, 99, 235, 0.1);
+}
+
+.learning-dashboard-action--browse .learning-dashboard-action__icon-wrap {
+	background: linear-gradient(135deg, #2563eb, #1d4ed8);
+}
+
+.learning-dashboard-action--browse .learning-dashboard-action__blob--a {
+	background: rgba(59, 130, 246, 0.25);
+}
+
+.learning-dashboard-action--quiz {
+	--ld-action-title: #6b21a8;
+	--ld-action-desc: #7e22ce;
+	background: linear-gradient(145deg, #faf5ff 0%, #f3e8ff 100%);
+	border-color: #d8b4fe;
+	box-shadow: 0 4px 14px rgba(147, 51, 234, 0.1);
+}
+
+.learning-dashboard-action--quiz .learning-dashboard-action__icon-wrap {
+	background: linear-gradient(135deg, #a855f7, #9333ea);
+}
+
+.learning-dashboard-action--quiz .learning-dashboard-action__blob--a {
+	background: rgba(192, 132, 252, 0.3);
+}
+
+.learning-dashboard-browse-panel {
+	margin-top: 1rem;
+}

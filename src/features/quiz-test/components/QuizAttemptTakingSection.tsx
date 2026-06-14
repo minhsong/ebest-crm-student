@@ -2,10 +2,9 @@
 
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { QuizAttemptQuestionBlocks } from '@/features/quiz-test/components/QuizAttemptQuestionBlocks';
-import { QuizAttemptSectionToolbar } from '@/features/quiz-test/components/QuizAttemptSectionToolbar';
+import { QuizAttemptStickyStatusBar } from '@/features/quiz-test/components/QuizAttemptStickyStatusBar';
 import { QuizSectionInstructionsBlock } from '@/features/quiz-test/components/QuizSectionInstructionsBlock';
 import { QuizAttemptTakingFooter } from '@/features/quiz-test/components/QuizAttemptTakingFooter';
-import { QuizAttemptStickyStatusBar } from '@/features/quiz-test/components/QuizAttemptStickyStatusBar';
 import { QuizSectionOutlineDrawer } from '@/features/quiz-test/components/QuizSectionOutlineDrawer';
 import { QuizFormMetaBlock } from '@/features/quiz-test/components/QuizFormMetaBlock';
 import { QuizSectionListeningOrchestrator } from '@/features/quiz-test/components/QuizSectionListeningOrchestrator';
@@ -13,6 +12,7 @@ import { useSectionListeningTaking } from '@/features/quiz-test/hooks/useSection
 import type { QuizRenderableBlock } from '@/features/quiz-test/lib/quiz-renderable-items';
 import { quizAnchorDomId } from '@/features/quiz-test/lib/quiz-section-navigation';
 import { countQuizAttemptAnswerProgress } from '@/features/quiz-test/lib/quiz-attempt-progress.util';
+import { useQuizSectionOutline } from '@/features/quiz-test/hooks/useQuizSectionOutline';
 import { getAttemptTimerValidity } from '@/features/quiz-test/lib/quiz-runtime-view';
 import type { QuizPublishedFormPayload, QuizFormSectionPayload, StartAttemptResponse } from '@/features/quiz-test/types';
 import { Alert, Button, Card, Space, Typography } from 'antd';
@@ -97,10 +97,10 @@ export function QuizAttemptTakingSection({
     }
   }, [listening.listeningHighlightKey]);
 
-  const showOutline =
-    Boolean(onNavigateToBlock) &&
-    Array.isArray(allRenderBlocks) &&
-    (allRenderBlocks.length > 1 || (sections?.length ?? 0) > 1);
+  const { showOutline } = useQuizSectionOutline(formPayload, allRenderBlocks, {
+    enabled: Boolean(onNavigateToBlock),
+    sectionCount: sections?.length,
+  });
 
   const timerOk = !!(attempt && getAttemptTimerValidity(attempt).ok);
 
@@ -124,6 +124,9 @@ export function QuizAttemptTakingSection({
         listeningPlaybackBusy={listening.listeningPlaybackBusy}
         showManualListenButton={listening.showManualListenButton}
         onManualListenStart={listening.handleManualPlaybackStart}
+        showOutline={showOutline}
+        outlineOpen={outlineOpen}
+        onToggleOutline={() => setOutlineOpen((v) => !v)}
         headerLeft={
           <>
             <Link href={backHref ?? '/assignments'}>
@@ -161,21 +164,16 @@ export function QuizAttemptTakingSection({
         </div>
       ) : null}
 
-      <QuizAttemptSectionToolbar
-        showOutline={showOutline}
-        outlineOpen={outlineOpen}
-        onToggleOutline={() => setOutlineOpen((v) => !v)}
-      />
-
       {showOutline && allRenderBlocks && onNavigateToBlock ? (
         <QuizSectionOutlineDrawer
           open={outlineOpen}
           onClose={() => setOutlineOpen(false)}
           formPayload={formPayload}
           allRenderBlocks={allRenderBlocks}
-          activeSectionId={activeSectionId ?? null}
-          activeAnchorKey={activeAnchorKey ?? null}
-          onNavigateToBlock={onNavigateToBlock}
+          activeQuestionKey={activeAnchorKey ?? null}
+          onNavigateToQuestion={onNavigateToBlock}
+          mode="attempt"
+          answers={answers}
           navigationLocked={listening.listeningNavLocked}
           lockedSectionId={activeSectionId ?? null}
         />

@@ -2,13 +2,13 @@
 
 import { memo, useCallback } from 'react';
 import type { DrillQuestionClient } from '@/types/learning';
-import type { DrillAnswerFeedback } from '@/features/learning/hooks/useDrillPracticeSession';
+import type { GameAnswerFeedback } from '@/features/learning/games/core/types/game-session.types';
 import { DrillOptionCard, resolveOptionState } from './DrillOptionCard';
 
 type Props = {
 	options: DrillQuestionClient['options'];
 	selectedOptionId: string | null;
-	feedback: DrillAnswerFeedback;
+	feedback: GameAnswerFeedback;
 	optionsLocked: boolean;
 	onSelect: (optionId: string) => void;
 };

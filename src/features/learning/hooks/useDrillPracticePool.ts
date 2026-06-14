@@ -4,6 +4,8 @@ import {
 	fetchVocabularyPool,
 	fetchWeakWords,
 } from '@/lib/learning-api';
+import { authorizeDrillSession, type DrillStartAuthorizeContext } from '@/lib/drill-authorize-client';
+import type { GameSessionConfig } from '@/features/learning/games/core/types/game-session-config.types';
 import { parseLearningAccess } from '@/features/learning/utils/learning-access';
 import type {
 	AssignmentDrillContextPayload,
@@ -11,7 +13,18 @@ import type {
 	WeakWordsPayload,
 } from '@/types/learning';
 
-export type DrillGameMode = 'survival' | 'audio_to_word';
+
+export type { DrillStartAuthorizeContext } from '@/lib/drill-authorize-client';
+
+export type DrillPracticeSelection = {
+	modeId: 'survival' | 'pool_coverage';
+	promptType: 'meaning_to_word' | 'audio_to_word';
+};
+
+const DEFAULT_SELECTION: DrillPracticeSelection = {
+	modeId: 'survival',
+	promptType: 'meaning_to_word',
+};
 
 type PoolParams = {
 	classId: number | null;
@@ -20,13 +33,17 @@ type PoolParams = {
 
 export function useDrillPracticePool({ classId, assignmentId }: PoolParams) {
 	const [assignmentCtx, setAssignmentCtx] = useState<AssignmentDrillContextPayload | null>(null);
-	const [gameMode, setGameMode] = useState<DrillGameMode>('survival');
+	const [selection, setSelection] = useState<DrillPracticeSelection>(DEFAULT_SELECTION);
 	const [pool, setPool] = useState<VocabularyPoolPayload | null>(null);
 	const [poolLoading, setPoolLoading] = useState(true);
 	const [poolError, setPoolError] = useState<string | null>(null);
 
 	const [weakWords, setWeakWords] = useState<WeakWordsPayload | null>(null);
 	const [weakWordsLoading, setWeakWordsLoading] = useState(false);
+	const [sessionConfig, setSessionConfig] = useState<GameSessionConfig | null>(null);
+	const [authorizeContext, setAuthorizeContext] = useState<DrillStartAuthorizeContext | null>(null);
+	const [sessionConfigLoading, setSessionConfigLoading] = useState(false);
+	const [sessionConfigError, setSessionConfigError] = useState<string | null>(null);
 
 	const loadPool = useCallback(async () => {
 		if (assignmentId && !Number.isNaN(assignmentId)) {
@@ -70,11 +87,15 @@ export function useDrillPracticePool({ classId, assignmentId }: PoolParams) {
 
 	const effectiveClassId = assignmentCtx?.classId ?? classId;
 
-	const resolvedGameMode = useMemo((): DrillGameMode => {
-		if (assignmentCtx?.gameMode === 'audio_to_word') return 'audio_to_word';
-		if (assignmentCtx?.gameMode === 'survival') return 'survival';
-		return gameMode;
-	}, [assignmentCtx, gameMode]);
+	const resolvedSelection = useMemo((): DrillPracticeSelection => {
+		if (assignmentCtx) {
+			return {
+				modeId: assignmentCtx.modeId,
+				promptType: assignmentCtx.promptType,
+			};
+		}
+		return selection;
+	}, [assignmentCtx, selection]);
 
 	const canStart = useMemo(() => {
 		if (assignmentCtx) {
@@ -84,9 +105,107 @@ export function useDrillPracticePool({ classId, assignmentId }: PoolParams) {
 		return Boolean(pool?.practiceEnabled && access.canRecordEvents);
 	}, [assignmentCtx, pool]);
 
+	const startBlockReason = useMemo(() => {
+		if (sessionConfigError) {
+			return sessionConfigError;
+		}
+		if (assignmentCtx) {
+			if (!assignmentCtx.canPlay) {
+				return (
+					assignmentCtx.learningAccess?.readOnlyReason ??
+					'Bạn chưa thể làm bài luyện từ này.'
+				);
+			}
+			if (assignmentCtx.assignmentPoolSize <= 0) {
+				return 'Chưa có từ vựng unlock phù hợp với phạm vi bài tập.';
+			}
+		}
+		if (!assignmentCtx && pool) {
+			const access = parseLearningAccess(pool.learningAccess);
+			if (!pool.practiceEnabled) {
+				return 'Luyện tập chưa được bật cho lớp này.';
+			}
+			if (!access.canRecordEvents) {
+				return access.readOnlyReason ?? 'Bạn chưa thể ghi nhận kết quả luyện tập.';
+			}
+		}
+		return null;
+	}, [assignmentCtx, pool, sessionConfigError]);
+
 	useEffect(() => {
 		void loadPool();
 	}, [loadPool]);
+
+	useEffect(() => {
+		if (!effectiveClassId || Number.isNaN(effectiveClassId)) {
+			setSessionConfig(null);
+			setAuthorizeContext(null);
+			setSessionConfigError(null);
+			return;
+		}
+		if (assignmentId && assignmentCtx && !assignmentCtx.canPlay) {
+			setSessionConfig(null);
+			setAuthorizeContext(null);
+			setSessionConfigError(
+				assignmentCtx.learningAccess?.readOnlyReason ??
+					'Bạn chưa thể làm bài luyện từ này.',
+			);
+			return;
+		}
+		if (poolLoading) {
+			return;
+		}
+
+		let cancelled = false;
+		setSessionConfigLoading(true);
+		setSessionConfigError(null);
+
+		void authorizeDrillSession(effectiveClassId, {
+			assignmentId: assignmentId ?? undefined,
+			modeId: resolvedSelection.modeId,
+			promptType: resolvedSelection.promptType,
+		})
+			.then((auth) => {
+				if (cancelled) return;
+				if (auth.allowed) {
+					setSessionConfig(auth.sessionConfig);
+					setAuthorizeContext({
+						classId: auth.classId,
+						courseId: auth.courseId,
+						assignmentId: auth.assignmentId,
+						sessionConfig: auth.sessionConfig,
+						rules: auth.rules,
+						pool: auth.pool,
+					});
+					setSessionConfigError(null);
+				} else {
+					setSessionConfig(null);
+					setAuthorizeContext(null);
+					setSessionConfigError(auth.reason ?? 'Không được phép luyện tập.');
+				}
+			})
+			.catch(() => {
+				if (!cancelled) {
+					setSessionConfig(null);
+					setAuthorizeContext(null);
+					setSessionConfigError('Không thể xác thực quyền luyện tập.');
+				}
+			})
+			.finally(() => {
+				if (!cancelled) setSessionConfigLoading(false);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		assignmentId,
+		assignmentCtx,
+		effectiveClassId,
+		poolLoading,
+		resolvedSelection.modeId,
+		resolvedSelection.promptType,
+	]);
 
   useEffect(() => {
     if (!classId || Number.isNaN(classId) || assignmentId) {
@@ -150,15 +269,20 @@ export function useDrillPracticePool({ classId, assignmentId }: PoolParams) {
 
 	return {
 		assignmentCtx,
-		gameMode,
-		setGameMode,
+		selection,
+		setSelection,
 		pool,
 		poolLoading,
 		poolError,
 		loadPool,
 		effectiveClassId,
-		resolvedGameMode,
+		resolvedSelection,
 		canStart,
+		startBlockReason,
+		sessionConfig,
+		sessionConfigLoading,
+		sessionConfigError,
+		authorizeContext,
 		weakWords,
 		weakWordsLoading,
 		refreshWeakWords,

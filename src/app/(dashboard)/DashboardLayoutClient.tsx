@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { SIDER_WIDTH, SIDER_COLLAPSED_WIDTH } from '@/lib/ui-constants';
 import { dashboardAntdTheme } from '@/lib/ebest-antd-theme';
 import { useDashboardMobile } from '@/hooks/use-dashboard-mobile';
+import { useDashboardMenuState } from '@/hooks/use-dashboard-menu-state';
 import { EbestLogo } from '@/components/branding/EbestLogo';
 import { LoadingState } from '@/components/layout';
 import {
@@ -49,6 +50,8 @@ export default function DashboardLayoutClient({
       ),
     [initialClasses],
   );
+
+  const menuState = useDashboardMenuState(pathname ?? '');
 
   const breadcrumbItems = useMemo(() => {
     const items = getBreadcrumbFromPath(pathname ?? '');
@@ -104,8 +107,10 @@ export default function DashboardLayoutClient({
           <DashboardSidebar
             collapsed={collapsed}
             onCollapse={setCollapsed}
-            pathname={pathname ?? ''}
             menuItems={menuItems}
+            selectedKeys={menuState.selectedKeys}
+            openKeys={menuState.openKeys}
+            onOpenChange={menuState.onOpenChange}
           />
         )}
 
@@ -164,7 +169,9 @@ export default function DashboardLayoutClient({
           }}
         >
           <Menu
-            selectedKeys={[pathname ?? '']}
+            selectedKeys={menuState.selectedKeys}
+            openKeys={menuState.openKeys}
+            onOpenChange={menuState.onOpenChange}
             mode="inline"
             items={menuItems}
             style={{ borderRight: 0 }}

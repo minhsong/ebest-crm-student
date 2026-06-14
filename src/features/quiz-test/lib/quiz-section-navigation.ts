@@ -21,6 +21,46 @@ export function quizAnchorDomId(rawKey: string): string {
   return `quiz-q-${safe}`;
 }
 
+export type ScrollToQuizQuestionAnchorOptions = {
+  delayMs?: number;
+  behavior?: ScrollBehavior;
+  block?: ScrollLogicalPosition;
+};
+
+/** Scroll tới anchor câu — trả hàm cleanup timer (dùng trong useEffect). */
+export function scrollToQuizQuestionAnchor(
+  formItemId: string,
+  options?: ScrollToQuizQuestionAnchorOptions,
+): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+
+  const delayMs = options?.delayMs ?? 80;
+  const behavior = options?.behavior ?? 'smooth';
+  const block = options?.block ?? 'start';
+  const timer = window.setTimeout(() => {
+    document
+      .getElementById(quizAnchorDomId(formItemId))
+      ?.scrollIntoView({ behavior, block });
+  }, delayMs);
+
+  return () => window.clearTimeout(timer);
+}
+
+export function getQuizQuestionScrollDelayMs(sectionCount: number): number {
+  return sectionCount > 1 ? 350 : 80;
+}
+
+/** Mở rộng collapse section khi nhảy câu từ mục lục (trang kết quả). */
+export function mergeQuizOutlineSectionExpandKeys(
+  prevKeys: string[],
+  sectionId: number,
+  fallbackKeys: string[],
+): string[] {
+  const base = prevKeys.length > 0 ? prevKeys : fallbackKeys;
+  const key = String(sectionId);
+  return base.includes(key) ? base : [...base, key];
+}
+
 export function listAnchorKeysForBlock(block: QuizRenderableBlock): string[] {
   if (block.kind === 'single') return [String(block.item.formItemId)];
   return [String(block.parentFormItemId), ...block.items.map((it) => String(it.formItemId))];

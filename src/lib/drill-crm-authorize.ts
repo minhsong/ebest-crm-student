@@ -1,5 +1,7 @@
 import type { NextRequest } from 'next/server';
 
+import type { GameSessionConfig } from '@/features/learning/games/core/types/game-session-config.types';
+
 import { getStudentAccessTokenFromRequest } from '@/lib/crm-student-me';
 import { getApiBaseUrl } from '@/lib/env';
 import { sanitizeStudentFacingMessage } from '@/lib/student-safe-errors';
@@ -9,7 +11,8 @@ const STUDENT_BASE = '/api/v1/student';
 export type DrillAuthorizePayload = {
   classId: number;
   assignmentId?: number;
-  gameMode?: string;
+  modeId?: GameSessionConfig['modeId'];
+  promptType?: GameSessionConfig['promptType'];
 };
 
 export type DrillAuthorizeResponse =
@@ -18,11 +21,11 @@ export type DrillAuthorizeResponse =
       classId: number;
       courseId: number | null;
       assignmentId: number | null;
-      gameMode: string;
+      modeId: GameSessionConfig['modeId'];
+      promptType: GameSessionConfig['promptType'];
       rules: {
         minimumScore: number | null;
         answerTimeoutSec: number;
-        survivalWrongEndsRun: boolean;
       };
       pool: {
         totalAssetIds: number[];
@@ -35,6 +38,7 @@ export type DrillAuthorizeResponse =
           promptAudioUrl?: string;
         }>;
       };
+      sessionConfig: GameSessionConfig;
     }
   | { allowed: false; reason: string };
 

@@ -1,13 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
 	Alert,
 	Button,
 	Progress,
-	Result,
 	Skeleton,
 	Space,
 } from 'antd';
@@ -19,6 +17,7 @@ import {
 	reviewFlashcardCard,
 	startFlashcardSession,
 } from '@/lib/learning-api';
+import { authorizeFlashcardSession } from '@/lib/flashcard-authorize-client';
 import type { FlashcardSessionCard, LearningVocabularyItem } from '@/types/learning';
 import {
 	flashcardBackHref,
@@ -27,6 +26,9 @@ import {
 import { FlashcardFlipCard } from './FlashcardFlipCard';
 import { playFlashcardFlipSound } from '../utils/flashcard-flip-sound';
 import { useVocabularyAudio } from '@/features/learning/hooks/useVocabularyAudio';
+import { getFlashcardReviewPresentation } from '@/features/learning/games/registry/game-presentation.registry';
+import { FlashcardSessionResultScreen } from '@/features/learning/games/flashcard-review/presentation/FlashcardSessionResultScreen';
+import type { FlashcardReviewSessionConfigLike } from '@/features/learning/games/flashcard-review/flashcard-review-presentation.mapper';
 import './flashcard-session.css';
 
 type Phase = 'loading' | 'card' | 'done' | 'error';
@@ -86,7 +88,15 @@ export function FlashcardSessionView() {
 	const [knownCount, setKnownCount] = useState(0);
 	const [unknownCount, setUnknownCount] = useState(0);
 	const [sessionTitle, setSessionTitle] = useState('');
+	const [sessionConfig, setSessionConfig] = useState<FlashcardReviewSessionConfigLike | null>(
+		null,
+	);
 	const { playingLocale, playAudio, stopAudio } = useVocabularyAudio();
+
+	const presentation = useMemo(
+		() => getFlashcardReviewPresentation(sessionConfig),
+		[sessionConfig],
+	);
 
 	const startRequestedRef = useRef(false);
 
@@ -106,11 +116,27 @@ export function FlashcardSessionView() {
 
 		void (async () => {
 			try {
+				const auth = await authorizeFlashcardSession(classId, classSessionId);
+				if (!auth.allowed) {
+					setError(auth.reason ?? 'Không được phép luyện flashcard.');
+					setPhase('error');
+					return;
+				}
+
+				const startContext = {
+					classId: auth.classId,
+					classSessionId: auth.classSessionId,
+					courseSessionId: auth.courseSessionId,
+					sessionConfig: auth.sessionConfig,
+					cards: auth.cards,
+				};
+
 				const [session, vocabMeta] = await Promise.all([
-					startFlashcardSession(classId, classSessionId),
+					startFlashcardSession(classId, classSessionId, { context: startContext }),
 					fetchSessionVocabulary(classId, classSessionId).catch(() => null),
 				]);
 				setSessionId(session.sessionId);
+				setSessionConfig(session.sessionConfig ?? null);
 				setItems(session.cards.map((card, i) => mapCardToVocabularyItem(card, i + 1)));
 				setSessionTitle(vocabMeta?.sessionTitle?.trim() || 'Buổi học');
 				setPhase('card');
@@ -248,32 +274,22 @@ export function FlashcardSessionView() {
 	if (phase === 'done') {
 		return (
 			<div>
-				<Result
-					status="success"
-					title="Hoàn thành lượt luyện"
-					subTitle={`${summary.known} từ biết · ${summary.unknown} từ chưa thuộc · ${summary.total} từ`}
-					extra={[
-						<Link key="back" href={backHref}>
-							<Button type="primary">Về buổi học</Button>
-						</Link>,
-						<Link
-							key="practice"
-							href={
-								Number.isFinite(classId)
-									? vocabularyPracticeHref(classId)
-									: '/learning/practice'
-							}
-						>
-							<Button>Games</Button>
-						</Link>,
-					]}
+				<FlashcardSessionResultScreen
+					presentation={presentation}
+					known={summary.known}
+					unknown={summary.unknown}
+					total={summary.total}
+					backHref={backHref}
+					practiceHref={
+						Number.isFinite(classId) ? vocabularyPracticeHref(classId) : '/learning/games'
+					}
 				/>
 			</div>
 		);
 	}
 
 	return (
-		<div className="flashcard-session-root">
+		<div className={`flashcard-session-root ${presentation.rootCssClass}`}>
 			<PageHeader
 				title="Flashcard"
 				description={sessionTitle}
@@ -308,7 +324,7 @@ export function FlashcardSessionView() {
 							disabled={!flipped}
 							onClick={() => void handleRating('known')}
 						>
-							Biết
+							{presentation.knownLabel}
 						</Button>
 						<Button
 							danger
@@ -317,7 +333,7 @@ export function FlashcardSessionView() {
 							disabled={!flipped}
 							onClick={() => void handleRating('unknown')}
 						>
-							Chưa thuộc
+							{presentation.unknownLabel}
 						</Button>
 					</Space>
 				</div>
