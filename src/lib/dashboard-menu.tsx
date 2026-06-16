@@ -19,11 +19,31 @@ import {
   PlayCircleOutlined,
   TrophyOutlined,
 } from '@ant-design/icons';
+import { CRM_CLASS_STATUS } from '@/lib/crm-enums';
 
 export interface DashboardMenuClassItem {
   id: number;
   name: string;
-  status?: string | null;
+  /** CRM `classes.status` (1–6) hoặc legacy string từ `/me` cache. */
+  status?: number | string | null;
+}
+
+/** Chuẩn hóa status lớp — tránh lệch string vs number từ API `/me`. */
+export function normalizeDashboardClassStatus(
+  status?: number | string | null,
+): number | null {
+  if (status == null || status === '') return null;
+  if (typeof status === 'number' && Number.isFinite(status)) return status;
+  const key = String(status).trim().toUpperCase();
+  const map: Record<string, number> = {
+    PLANNING: CRM_CLASS_STATUS.PLANNING,
+    READY: CRM_CLASS_STATUS.READY,
+    IN_PROGRESS: CRM_CLASS_STATUS.IN_PROGRESS,
+    COMPLETED: CRM_CLASS_STATUS.COMPLETED,
+    CANCELLED: CRM_CLASS_STATUS.CANCELLED,
+    DROPPED: CRM_CLASS_STATUS.DROPPED,
+  };
+  return map[key] ?? null;
 }
 
 export interface DashboardMenuItem {
@@ -197,12 +217,23 @@ export function buildDashboardMenuAntdItems(
       out.push({ type: 'divider', key: entry.key });
     } else {
       if (entry.path === '/classes' && classes.length > 0) {
-        const inProgress = classes.filter((c) => String(c.status ?? '').toUpperCase() === 'IN_PROGRESS');
-        const completed = classes.filter((c) => String(c.status ?? '').toUpperCase() === 'COMPLETED');
-        const other = classes.filter(
+        const inProgress = classes.filter(
           (c) =>
-            !inProgress.some((x) => x.id === c.id) && !completed.some((x) => x.id === c.id),
+            normalizeDashboardClassStatus(c.status) ===
+            CRM_CLASS_STATUS.IN_PROGRESS,
         );
+        const completed = classes.filter(
+          (c) =>
+            normalizeDashboardClassStatus(c.status) ===
+            CRM_CLASS_STATUS.COMPLETED,
+        );
+        const other = classes.filter((c) => {
+          const st = normalizeDashboardClassStatus(c.status);
+          return (
+            st !== CRM_CLASS_STATUS.IN_PROGRESS &&
+            st !== CRM_CLASS_STATUS.COMPLETED
+          );
+        });
 
         const toChild = (c: DashboardMenuClassItem) => ({
           key: `/classes/${c.id}`,

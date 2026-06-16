@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Button, Tabs, Tag } from 'antd';
+import { antdTagColorForClassStatus, getPortalClassStatusLabel } from '@/lib/class-status-ui';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { PageHeader, PageCard } from '@/components/layout';
 import { LearningAccessNoticeInline } from '@/features/learning/components/LearningAccessNotice';
@@ -149,6 +150,10 @@ export default function StudentClassDetailPage() {
 
   const classAccessNotice = resolveReadOnlyNoticeMessage(overview?.readOnlyReason);
 
+  const statusLabel =
+    overview?.classStatusLabel ??
+    getPortalClassStatusLabel(overview?.classStatus);
+
   return (
     <>
       <PageHeader
@@ -157,7 +162,16 @@ export default function StudentClassDetailPage() {
             {classLabel}
           </LearningAccessNoticeInline>
         }
-        description="Xem buổi học, bài tập, checklist và điểm danh của lớp."
+        description={
+          <span className="flex flex-wrap items-center gap-2">
+            {overview?.classStatus != null && (
+              <Tag color={antdTagColorForClassStatus(overview.classStatus)}>
+                {statusLabel}
+              </Tag>
+            )}
+            <span>Xem buổi học, bài tập, checklist và điểm danh của lớp.</span>
+          </span>
+        }
         leading={
           <Link href="/classes">
             <Button icon={<ArrowLeftOutlined />}>Quay lại</Button>

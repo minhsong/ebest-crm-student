@@ -12,7 +12,7 @@ export type StudentMeSsrPayload = {
     primaryPhone?: string;
     avatarUrl?: string | null;
   } | null;
-  classes?: Array<{ id: number; name: string; status?: string | null }>;
+  classes?: Array<{ id: number; name: string; status?: number | string | null }>;
 };
 
 export async function fetchStudentMeForSsr(): Promise<StudentMeSsrPayload | null> {

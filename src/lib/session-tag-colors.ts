@@ -1,8 +1,10 @@
 import {
   CRM_ATTENDANCE_STATUS,
   CRM_CLASS_SESSION_STATUS,
-  CRM_CLASS_STATUS,
 } from '@/lib/crm-enums';
+import { antdTagColorForClassStatus as colorFromUi } from '@/lib/class-status-ui';
+
+export { getPortalClassStatusLabel, getPortalInteractionTag } from '@/lib/class-status-ui';
 
 /** Màu Tag Ant Design cho trạng thái buổi học (CRM class_sessions.status). */
 export function antdTagColorForClassSessionStatus(status: number): string {
@@ -15,9 +17,7 @@ export function antdTagColorForClassSessionStatus(status: number): string {
 
 /** Màu Tag cho trạng thái lớp (classes.status) — tiêu đề khối lịch. */
 export function antdTagColorForClassStatus(classStatus: number): string {
-  if (classStatus === CRM_CLASS_STATUS.IN_PROGRESS) return 'processing';
-  if (classStatus === CRM_CLASS_STATUS.READY) return 'blue';
-  return 'default';
+  return colorFromUi(classStatus);
 }
 
 export function antdTagColorForAttendance(status: number): string {

@@ -2,9 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Table, Tag, Typography } from 'antd';
+import { Table, Tag, Tooltip, Typography } from 'antd';
 import { useAuth } from '@/contexts/auth-context';
 import { PageHeader, PageCard, LoadingState } from '@/components/layout';
+import {
+  antdTagColorForClassStatus,
+  getPortalClassStatusLabel,
+  getPortalInteractionTag,
+} from '@/lib/class-status-ui';
 
 interface ClassItem {
   enrollmentId: number;
@@ -15,18 +20,12 @@ interface ClassItem {
   enrollmentDate?: string;
   schedule?: Array<{ dayCode: number; time: string }>;
   classStatus?: number;
+  classStatusLabel?: string;
   interactionMode?: 'interactive' | 'read_only';
   canInteract?: boolean;
+  canRecordLearningEvents?: boolean;
+  readOnlyReason?: string | null;
 }
-
-const CLASS_STATUS_LABEL: Record<number, string> = {
-  1: 'Dự mở',
-  2: 'Sẵn sàng',
-  3: 'Đang học',
-  4: 'Đã học',
-  5: 'Đã hủy',
-  6: 'Tạm dừng',
-};
 
 const DAY_LABELS: Record<number, string> = {
   0: 'CN', 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7',
@@ -50,6 +49,10 @@ export default function MyClassesPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  if (loading) {
+    return <LoadingState />;
+  }
+
   const columns = [
     { title: 'Mã lớp', dataIndex: 'classCode', key: 'classCode', width: 120 },
     {
@@ -67,28 +70,59 @@ export default function MyClassesPage() {
     },
     { title: 'Khóa học', dataIndex: 'courseName', key: 'courseName' },
     {
-      title: 'Trạng thái',
-      key: 'status',
-      width: 140,
+      title: 'Trạng thái lớp',
+      key: 'classStatus',
+      width: 120,
       render: (_: unknown, row: ClassItem) => {
         const label =
-          CLASS_STATUS_LABEL[row.classStatus ?? 0] ??
-          (row.canInteract === false ? 'Chỉ xem' : '—');
-        const color =
-          row.interactionMode === 'interactive' || row.canInteract !== false
-            ? 'processing'
-            : 'default';
-        return <Tag color={color}>{label}</Tag>;
+          row.classStatusLabel ??
+          getPortalClassStatusLabel(row.classStatus);
+        return (
+          <Tag color={antdTagColorForClassStatus(row.classStatus ?? 0)}>
+            {label}
+          </Tag>
+        );
       },
     },
-    { title: 'Ngày ghi danh', dataIndex: 'enrollmentDate', key: 'enrollmentDate', width: 120, render: (v: string) => v || '—' },
+    {
+      title: 'Portal',
+      key: 'portalAccess',
+      width: 130,
+      render: (_: unknown, row: ClassItem) => {
+        const tag = getPortalInteractionTag(
+          row.interactionMode,
+          row.canInteract,
+        );
+        const hint =
+          row.readOnlyReason?.trim() ||
+          (row.canRecordLearningEvents
+            ? 'Có thể tự luyện từ vựng sau khi lớp kết thúc.'
+            : null);
+        return hint ? (
+          <Tooltip title={hint}>
+            <Tag color={tag.color}>{tag.label}</Tag>
+          </Tooltip>
+        ) : (
+          <Tag color={tag.color}>{tag.label}</Tag>
+        );
+      },
+    },
+    {
+      title: 'Ngày ghi danh',
+      dataIndex: 'enrollmentDate',
+      key: 'enrollmentDate',
+      width: 120,
+      render: (v: string) => v || '—',
+    },
     {
       title: 'Lịch học',
       key: 'schedule',
       render: (_: unknown, row: ClassItem) =>
         row.schedule?.length
           ? row.schedule.map((s) => (
-              <Tag key={s.dayCode}>{DAY_LABELS[s.dayCode] ?? `T${s.dayCode + 1}`}: {s.time}</Tag>
+              <Tag key={s.dayCode}>
+                {DAY_LABELS[s.dayCode] ?? `T${s.dayCode + 1}`}: {s.time}
+              </Tag>
             ))
           : '—',
     },
@@ -100,7 +134,8 @@ export default function MyClassesPage() {
         title="Lớp học của tôi"
         description={
           <>
-            Danh sách lớp bạn đang và đã học. Lớp đã kết thúc chỉ xem lại bài tập và từ vựng.{' '}
+            Danh sách lớp bạn đang và đã học. Cột Portal mô tả quyền tương tác
+            (nộp bài, luyện tập). Lớp đã kết thúc vẫn có thể tự luyện từ vựng.{' '}
             <Link href="/schedule" className="text-blue-600 hover:underline">
               Xem lịch buổi học theo ngày
             </Link>
@@ -113,7 +148,6 @@ export default function MyClassesPage() {
       </Typography.Paragraph>
       <PageCard noPadding>
         <Table
-          loading={loading}
           dataSource={list}
           columns={columns}
           rowKey="enrollmentId"
