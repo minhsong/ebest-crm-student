@@ -29,9 +29,10 @@ const DEFAULT_SELECTION: DrillPracticeSelection = {
 type PoolParams = {
 	classId: number | null;
 	assignmentId: number | null;
+	checklistId?: number | null;
 };
 
-export function useDrillPracticePool({ classId, assignmentId }: PoolParams) {
+export function useDrillPracticePool({ classId, assignmentId, checklistId }: PoolParams) {
 	const [assignmentCtx, setAssignmentCtx] = useState<AssignmentDrillContextPayload | null>(null);
 	const [selection, setSelection] = useState<DrillPracticeSelection>(DEFAULT_SELECTION);
 	const [pool, setPool] = useState<VocabularyPoolPayload | null>(null);
@@ -46,6 +47,12 @@ export function useDrillPracticePool({ classId, assignmentId }: PoolParams) {
 	const [sessionConfigError, setSessionConfigError] = useState<string | null>(null);
 
 	const loadPool = useCallback(async () => {
+		if (checklistId && !Number.isNaN(checklistId)) {
+			setPoolLoading(false);
+			setPoolError(null);
+			return;
+		}
+
 		if (assignmentId && !Number.isNaN(assignmentId)) {
 			setPoolLoading(true);
 			setPoolError(null);
@@ -83,11 +90,14 @@ export function useDrillPracticePool({ classId, assignmentId }: PoolParams) {
 		} finally {
 			setPoolLoading(false);
 		}
-	}, [classId, assignmentId]);
+	}, [classId, assignmentId, checklistId]);
 
 	const effectiveClassId = assignmentCtx?.classId ?? classId;
 
 	const resolvedSelection = useMemo((): DrillPracticeSelection => {
+		if (checklistId) {
+			return { modeId: 'pool_coverage', promptType: 'meaning_to_word' };
+		}
 		if (assignmentCtx) {
 			return {
 				modeId: assignmentCtx.modeId,
@@ -95,17 +105,25 @@ export function useDrillPracticePool({ classId, assignmentId }: PoolParams) {
 			};
 		}
 		return selection;
-	}, [assignmentCtx, selection]);
+	}, [assignmentCtx, selection, checklistId]);
 
 	const canStart = useMemo(() => {
+		if (checklistId) {
+			return Boolean(authorizeContext && sessionConfig);
+		}
 		if (assignmentCtx) {
 			return Boolean(assignmentCtx.canPlay && assignmentCtx.assignmentPoolSize > 0);
 		}
 		const access = parseLearningAccess(pool?.learningAccess);
 		return Boolean(pool?.practiceEnabled && access.canRecordEvents);
-	}, [assignmentCtx, pool]);
+	}, [assignmentCtx, pool, checklistId, authorizeContext, sessionConfig]);
 
 	const startBlockReason = useMemo(() => {
+		if (checklistId) {
+			if (!authorizeContext || !sessionConfig) {
+				return sessionConfigError ?? 'Đang tải cấu hình game phạt…';
+			}
+		}
 		if (sessionConfigError) {
 			return sessionConfigError;
 		}
@@ -130,7 +148,7 @@ export function useDrillPracticePool({ classId, assignmentId }: PoolParams) {
 			}
 		}
 		return null;
-	}, [assignmentCtx, pool, sessionConfigError]);
+	}, [assignmentCtx, pool, sessionConfigError, checklistId, authorizeContext, sessionConfig]);
 
 	useEffect(() => {
 		void loadPool();
@@ -143,6 +161,10 @@ export function useDrillPracticePool({ classId, assignmentId }: PoolParams) {
 			setSessionConfigError(null);
 			return;
 		}
+		if (checklistId && (!classId || Number.isNaN(classId))) {
+			setSessionConfigError('Thiếu classId cho checklist game.');
+			return;
+		}
 		if (assignmentId && assignmentCtx && !assignmentCtx.canPlay) {
 			setSessionConfig(null);
 			setAuthorizeContext(null);
@@ -150,6 +172,9 @@ export function useDrillPracticePool({ classId, assignmentId }: PoolParams) {
 				assignmentCtx.learningAccess?.readOnlyReason ??
 					'Bạn chưa thể làm bài luyện từ này.',
 			);
+			return;
+		}
+		if (checklistId && !Number.isNaN(checklistId)) {
 			return;
 		}
 		if (poolLoading) {
@@ -162,6 +187,7 @@ export function useDrillPracticePool({ classId, assignmentId }: PoolParams) {
 
 		void authorizeDrillSession(effectiveClassId, {
 			assignmentId: assignmentId ?? undefined,
+			checklistId: checklistId ?? undefined,
 			modeId: resolvedSelection.modeId,
 			promptType: resolvedSelection.promptType,
 		})
@@ -173,6 +199,7 @@ export function useDrillPracticePool({ classId, assignmentId }: PoolParams) {
 						classId: auth.classId,
 						courseId: auth.courseId,
 						assignmentId: auth.assignmentId,
+						checklistId: auth.checklistId ?? null,
 						sessionConfig: auth.sessionConfig,
 						rules: auth.rules,
 						pool: auth.pool,
@@ -201,6 +228,8 @@ export function useDrillPracticePool({ classId, assignmentId }: PoolParams) {
 	}, [
 		assignmentId,
 		assignmentCtx,
+		checklistId,
+		classId,
 		effectiveClassId,
 		poolLoading,
 		resolvedSelection.modeId,

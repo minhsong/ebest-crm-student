@@ -9,7 +9,7 @@ import {
 	Skeleton,
 	Space,
 } from 'antd';
-import { ArrowLeftOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, RetweetOutlined } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout';
 import {
 	completeFlashcardSession,
@@ -29,9 +29,14 @@ import { useVocabularyAudio } from '@/features/learning/hooks/useVocabularyAudio
 import { getFlashcardReviewPresentation } from '@/features/learning/games/registry/game-presentation.registry';
 import { FlashcardSessionResultScreen } from '@/features/learning/games/flashcard-review/presentation/FlashcardSessionResultScreen';
 import type { FlashcardReviewSessionConfigLike } from '@/features/learning/games/flashcard-review/flashcard-review-presentation.mapper';
+import { shuffleArray } from '@/features/learning/utils/shuffle-array';
 import './flashcard-session.css';
 
 type Phase = 'loading' | 'card' | 'done' | 'error';
+
+function remapCardOrder(items: LearningVocabularyItem[]): LearningVocabularyItem[] {
+	return items.map((item, i) => ({ ...item, order: i + 1 }));
+}
 
 function mapCardToVocabularyItem(
 	card: FlashcardSessionCard,
@@ -101,6 +106,8 @@ export function FlashcardSessionView() {
 	const startRequestedRef = useRef(false);
 
 	const current = items[index];
+	const remainingCount = items.length - index;
+	const canReshuffleRemaining = remainingCount > 1;
 	const progressPercent = items.length
 		? Math.round(((index + (phase === 'done' ? 1 : 0)) / items.length) * 100)
 		: 0;
@@ -205,6 +212,17 @@ export function FlashcardSessionView() {
 		return () => window.clearTimeout(timer);
 	}, [phase, current, flipped, index, handlePlayAudio]);
 
+	const handleReshuffleRemaining = useCallback(() => {
+		if (!canReshuffleRemaining) return;
+		stopAudio();
+		setItems((prev) => {
+			const head = prev.slice(0, index);
+			const tail = shuffleArray(prev.slice(index));
+			return remapCardOrder([...head, ...tail]);
+		});
+		setFlipped(false);
+	}, [canReshuffleRemaining, index, stopAudio]);
+
 	const handleRating = useCallback(
 		async (selfRating: 'known' | 'unknown') => {
 			if (!current || !flipped || !sessionId) return;
@@ -301,7 +319,19 @@ export function FlashcardSessionView() {
 			/>
 
 			<div className="flashcard-session-body">
-				<Progress percent={progressPercent} showInfo className="flashcard-session-progress" />
+				<div className="flashcard-session-progress-row">
+					<Progress percent={progressPercent} showInfo className="flashcard-session-progress" />
+					<Button
+						type="default"
+						size="small"
+						icon={<RetweetOutlined />}
+						disabled={!canReshuffleRemaining}
+						onClick={handleReshuffleRemaining}
+						className="flashcard-reshuffle-btn"
+					>
+						Xáo lại thẻ còn lại
+					</Button>
+				</div>
 
 				<div className="flashcard-stage">
 					{current ? (

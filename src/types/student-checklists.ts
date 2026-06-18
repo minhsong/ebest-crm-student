@@ -26,6 +26,7 @@ export type StudentChecklistDetail = {
     requiresSession: boolean;
     classSessionId: number | null;
     createdAt: string;
+    gameConfig?: Record<string, unknown> | null;
   };
   studentItem: {
     id: number;
@@ -34,6 +35,14 @@ export type StudentChecklistDetail = {
     checkedAt: string | null;
     deadlineAt: string | null;
     note: string | null;
+    bestScore?: number;
+    playCount?: number;
+    lastPlayAt?: string | null;
+    completedVia?: string | null;
   };
+  gameProgress?: {
+    minimumScore: number;
+    bestScore: number;
+    playCount: number;
+  } | null;
 };
-

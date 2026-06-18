@@ -4,6 +4,8 @@
 
 import { useMemo } from 'react';
 
+import { Button, Skeleton } from 'antd';
+
 import type { GameSessionConfig } from '@/features/learning/games/core/types/game-session-config.types';
 import type { DrillPracticeSelection } from '@/features/learning/hooks/useDrillPracticePool';
 
@@ -43,6 +45,8 @@ type Props = {
 
 	sessionConfig: GameSessionConfig | null;
 
+	sessionConfigLoading?: boolean;
+
 	canStart: boolean;
 
 	startBlockReason?: string | null;
@@ -75,6 +79,8 @@ export function DrillPracticeLobby({
 
 	sessionConfig,
 
+	sessionConfigLoading = false,
+
 	canStart,
 
 	startBlockReason,
@@ -101,7 +107,23 @@ export function DrillPracticeLobby({
 	);
 
 	if (!lobbyVm) {
-		return null;
+		return (
+			<div className="drill-lobby">
+				{sessionConfigLoading ? (
+					<div className="drill-lobby-hero-skeleton">
+						<Skeleton active paragraph={{ rows: 4 }} />
+					</div>
+				) : null}
+				<DrillLobbySharedPanels
+					pool={pool}
+					weakWords={weakWords}
+					weakWordsLoading={weakWordsLoading}
+					classId={classId}
+					showWeakWords={!assignmentCtx}
+					onRefresh={onRefresh}
+				/>
+			</div>
+		);
 	}
 
 

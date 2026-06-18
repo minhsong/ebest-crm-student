@@ -858,3 +858,42 @@
 		grid-template-columns: 1fr;
 	}
 }
+
+/* ─── Splash & lobby progressive load ─── */
+
+.drill-game-splash {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	min-height: min(420px, calc(100dvh - 160px));
+	padding: 32px 20px;
+	text-align: center;
+	border-radius: var(--drill-radius-lg);
+	background: var(--drill-bg-container);
+	border: 1px solid var(--drill-border);
+	box-shadow: var(--drill-shadow-card);
+}
+
+.drill-game-splash__icon {
+	font-size: 2.5rem !important;
+	color: var(--drill-primary);
+}
+
+.drill-game-splash__title {
+	margin: 0 !important;
+}
+
+.drill-game-splash__desc {
+	margin: 0 !important;
+	max-width: 20rem;
+}
+
+.drill-lobby-hero-skeleton {
+	margin-bottom: 16px;
+	padding: 16px;
+	border-radius: var(--drill-radius-lg);
+	background: var(--drill-bg-container);
+	border: 1px solid var(--drill-border-secondary);
+}

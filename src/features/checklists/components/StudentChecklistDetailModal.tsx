@@ -1,10 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Space, Spin, Tag, Typography, Flex, Descriptions, theme } from 'antd';
+import { Modal, Flex, Spin, Typography } from 'antd';
 import { useAuth } from '@/contexts/auth-context';
 import type { StudentChecklistDetail } from '@/types/student-checklists';
 import { checklistTypeLabel } from '@/lib/checklist-labels';
+import { StudentChecklistDetailBody } from '@/features/checklists/components/StudentChecklistDetailBody';
 
 const { Text } = Typography;
 
@@ -15,7 +16,6 @@ type Props = {
 };
 
 export function StudentChecklistDetailModal({ open, checklistId, onClose }: Props) {
-  const { token } = theme.useToken();
   const { fetchWithAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<StudentChecklistDetail | null>(null);
@@ -71,49 +71,7 @@ export function StudentChecklistDetailModal({ open, checklistId, onClose }: Prop
         </Flex>
       )}
       {error && !loading && <Text type="danger">{error}</Text>}
-      {!loading && !error && detail && (
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <div>
-            <Space wrap size="small">
-              <Tag color={detail.studentItem.checked ? 'green' : 'orange'}>
-                {detail.studentItem.checked ? 'Đã hoàn thành' : 'Chưa hoàn thành'}
-              </Tag>
-              <Tag>{checklistTypeLabel(detail.checklist.typeKey)}</Tag>
-              {detail.studentItem.deadlineAt ? (
-                <Tag>
-                  Deadline:{' '}
-                  {new Date(detail.studentItem.deadlineAt).toLocaleString('vi-VN')}
-                </Tag>
-              ) : null}
-            </Space>
-          </div>
-
-          <Descriptions
-            bordered
-            size="small"
-            column={{ xs: 1, sm: 1 }}
-            labelStyle={{ fontWeight: 600, width: 160 }}
-          >
-            {detail.checklist.note ? (
-              <Descriptions.Item label="Ghi chú" span={2}>
-                <Text>{detail.checklist.note}</Text>
-              </Descriptions.Item>
-            ) : null}
-            {detail.studentItem.note ? (
-              <Descriptions.Item label="Ghi chú riêng" span={2}>
-                <Text>{detail.studentItem.note}</Text>
-              </Descriptions.Item>
-            ) : null}
-          </Descriptions>
-
-          {detail.studentItem.checkedAt ? (
-            <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-              Cập nhật: {new Date(detail.studentItem.checkedAt).toLocaleString('vi-VN')}
-            </Text>
-          ) : null}
-        </Space>
-      )}
+      {!loading && !error && detail ? <StudentChecklistDetailBody detail={detail} /> : null}
     </Modal>
   );
 }
-

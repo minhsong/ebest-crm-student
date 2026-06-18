@@ -5,6 +5,7 @@ export type DrillAuthorizeSuccess = {
   classId: number;
   courseId: number | null;
   assignmentId: number | null;
+  checklistId?: number | null;
   modeId: GameSessionConfig['modeId'];
   promptType: GameSessionConfig['promptType'];
   rules: {
@@ -31,13 +32,14 @@ export type DrillAuthorizeResult =
 
 export type DrillStartAuthorizeContext = Pick<
   DrillAuthorizeSuccess,
-  'classId' | 'courseId' | 'assignmentId' | 'sessionConfig' | 'rules' | 'pool'
+  'classId' | 'courseId' | 'assignmentId' | 'checklistId' | 'sessionConfig' | 'rules' | 'pool'
 >;
 
 export async function authorizeDrillSession(
   classId: number,
   options?: {
     assignmentId?: number;
+    checklistId?: number;
     modeId?: GameSessionConfig['modeId'];
     promptType?: GameSessionConfig['promptType'];
   },
@@ -48,6 +50,7 @@ export async function authorizeDrillSession(
     body: JSON.stringify({
       classId,
       assignmentId: options?.assignmentId,
+      checklistId: options?.checklistId,
       modeId: options?.modeId,
       promptType: options?.promptType,
     }),

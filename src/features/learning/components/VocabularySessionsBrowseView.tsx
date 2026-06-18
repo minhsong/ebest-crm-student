@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo } from 'react';
-import { Button, Card, Typography } from 'antd';
+import { Button, Card, Skeleton, Typography } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout';
 import { LearningClassVocabularySessions } from '@/features/learning/components/LearningClassVocabularySessions';
@@ -14,20 +14,26 @@ type Props = {
 	classId: number;
 };
 
-/** `/learning/vocabulary?classId=&view=sessions` — duyệt buổi sau khi chọn action trên dashboard. */
+/** `/learning/vocabulary?classId=&view=sessions` — tên lớp lazy, danh sách buổi load độc lập. */
 export function VocabularySessionsBrowseView({ classId }: Props) {
-	const { data } = useLearningHub();
+	const { data, hubLoading } = useLearningHub();
 
 	const className = useMemo(
-		() => data?.classes?.find((c) => c.classId === classId)?.className ?? 'Lớp học',
+		() => data?.classes?.find((c) => c.classId === classId)?.className ?? null,
 		[data?.classes, classId],
+	);
+
+	const description = hubLoading ? (
+		<Skeleton.Input active size="small" style={{ width: 280 }} />
+	) : (
+		`${className ?? 'Lớp học'} — chạm buổi để xem từ hoặc luyện flashcard.`
 	);
 
 	return (
 		<div className="learning-dashboard-root">
 			<PageHeader
 				title="Danh sách buổi"
-				description={`${className} — chạm buổi để xem từ hoặc luyện flashcard.`}
+				description={description}
 				extra={
 					<Link href="/learning/vocabulary">
 						<Button icon={<ArrowLeftOutlined />}>Về Luyện từ vựng</Button>

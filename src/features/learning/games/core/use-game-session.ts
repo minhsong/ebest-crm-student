@@ -137,6 +137,7 @@ export function useGameSession<
   const [feedback, setFeedback] = useState<GameAnswerFeedback>(null);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
   const [serverTimerSecondsLeft, setServerTimerSecondsLeft] = useState<number | null>(null);
 
   const feedbackTimerRef = useRef<number | null>(null);
@@ -227,6 +228,7 @@ export function useGameSession<
   const handleStart = useCallback(async () => {
     resetRunState();
     options.onPlayIdChange(null);
+    setStarting(true);
 
     try {
       const started = await options.startSession();
@@ -244,6 +246,8 @@ export function useGameSession<
       } else {
         setActionError(message);
       }
+    } finally {
+      setStarting(false);
     }
   }, [options, resetRunState]);
 
@@ -382,7 +386,7 @@ export function useGameSession<
     };
   }, [finishRun, finished, options, session]);
 
-  const optionsLocked = submitting || feedback !== null || resuming;
+  const optionsLocked = submitting || feedback !== null || resuming || starting;
 
   const { secondsLeft, totalSeconds } = useGameQuestionTimer({
     questionId: question ? options.getQuestionId(question) : null,
@@ -403,6 +407,7 @@ export function useGameSession<
     scoreInRun,
     streak,
     submitting,
+    starting,
     resuming,
     finished,
     lastCorrect,
