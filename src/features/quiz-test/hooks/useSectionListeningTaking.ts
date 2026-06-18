@@ -16,6 +16,7 @@ import {
 } from '@/features/quiz-test/lib/quiz-section-meta';
 import type { QuizRenderableBlock } from '@/features/quiz-test/lib/quiz-renderable-items';
 import type { QuizFormSectionPayload, QuizPublishedFormPayload } from '@/features/quiz-test/types';
+import type { QuizListeningPlaybackGate } from '@/features/quiz-test/components/QuizSectionListeningOrchestrator';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type Args = {
@@ -50,6 +51,11 @@ export function useSectionListeningTaking({
   const [listeningAutoStartCountdown, setListeningAutoStartCountdown] = useState<
     number | null
   >(null);
+  const [listeningInterRoundCountdown, setListeningInterRoundCountdown] = useState<
+    number | null
+  >(null);
+  const [listeningPlaybackGate, setListeningPlaybackGate] =
+    useState<QuizListeningPlaybackGate | null>(null);
 
   const effectiveSectionId =
     typeof activeSectionId === 'number' && Number.isFinite(activeSectionId)
@@ -108,6 +114,8 @@ export function useSectionListeningTaking({
       setListeningHighlightKey(null);
       setListeningPlaybackBusy(false);
       setListeningAutoStartCountdown(null);
+      setListeningInterRoundCountdown(null);
+      setListeningPlaybackGate(null);
       onListeningNavLock?.(false);
     }
   }, [onListeningNavLock, useSectionListeningPlayer]);
@@ -124,6 +132,17 @@ export function useSectionListeningTaking({
     },
     [onListeningNavLock],
   );
+
+  const handleListeningPlaybackGateChange = useCallback(
+    (gate: QuizListeningPlaybackGate | null) => {
+      setListeningPlaybackGate(gate);
+    },
+    [],
+  );
+
+  const handleListeningPlaybackConfirm = useCallback(() => {
+    listeningPlaybackGate?.confirmPlayback();
+  }, [listeningPlaybackGate]);
 
   const navigateSection = useCallback(
     (direction: 'prev' | 'next') => {
@@ -163,6 +182,11 @@ export function useSectionListeningTaking({
     setListeningPlaybackBusy,
     listeningAutoStartCountdown,
     setListeningAutoStartCountdown,
+    listeningInterRoundCountdown,
+    setListeningInterRoundCountdown,
+    listeningPlaybackGate,
+    handleListeningPlaybackGateChange,
+    handleListeningPlaybackConfirm,
     handleListeningLocksChange,
     handleGoPrevSection,
     handleGoNextSection,

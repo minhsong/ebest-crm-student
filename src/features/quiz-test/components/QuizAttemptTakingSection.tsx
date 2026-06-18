@@ -7,6 +7,7 @@ import { QuizSectionInstructionsBlock } from '@/features/quiz-test/components/Qu
 import { QuizAttemptTakingFooter } from '@/features/quiz-test/components/QuizAttemptTakingFooter';
 import { QuizSectionOutlineDrawer } from '@/features/quiz-test/components/QuizSectionOutlineDrawer';
 import { QuizFormMetaBlock } from '@/features/quiz-test/components/QuizFormMetaBlock';
+import { QuizListeningPlaybackConfirmModal } from '@/features/quiz-test/components/QuizListeningPlaybackConfirmModal';
 import { QuizSectionListeningOrchestrator } from '@/features/quiz-test/components/QuizSectionListeningOrchestrator';
 import { useSectionListeningTaking } from '@/features/quiz-test/hooks/useSectionListeningTaking';
 import type { QuizRenderableBlock } from '@/features/quiz-test/lib/quiz-renderable-items';
@@ -111,6 +112,12 @@ export function QuizAttemptTakingSection({
 
   return (
     <Card styles={{ body: { padding: 0 } }}>
+      <QuizListeningPlaybackConfirmModal
+        open={Boolean(listening.listeningPlaybackGate?.open)}
+        reason={listening.listeningPlaybackGate?.reason}
+        sectionTitle={listening.activeSectionMeta?.title ?? listening.sectionInstructionsHeading}
+        onConfirm={listening.handleListeningPlaybackConfirm}
+      />
       <QuizAttemptStickyStatusBar
         showTimer={timerOk}
         remainingSeconds={remainingSeconds}
@@ -121,6 +128,7 @@ export function QuizAttemptTakingSection({
             : null
         }
         listeningAutoStartCountdown={listening.listeningAutoStartCountdown}
+        listeningInterRoundCountdown={listening.listeningInterRoundCountdown}
         listeningPlaybackBusy={listening.listeningPlaybackBusy}
         showManualListenButton={listening.showManualListenButton}
         onManualListenStart={listening.handleManualPlaybackStart}
@@ -198,6 +206,8 @@ export function QuizAttemptTakingSection({
             onLocksChange={listening.handleListeningLocksChange}
             onPlaybackBusyChange={listening.setListeningPlaybackBusy}
             onAutoStartCountdownChange={listening.setListeningAutoStartCountdown}
+            onInterRoundCountdownChange={listening.setListeningInterRoundCountdown}
+            onPlaybackGateChange={listening.handleListeningPlaybackGateChange}
           />
         ) : null}
         <QuizAttemptQuestionBlocks

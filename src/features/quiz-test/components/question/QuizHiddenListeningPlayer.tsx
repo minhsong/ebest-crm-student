@@ -1,6 +1,7 @@
 'use client';
 
-import { Alert } from 'antd';
+import { SoundOutlined } from '@ant-design/icons';
+import { Button } from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { QuizAudioTrack } from '@/features/quiz-test/lib/quiz-content-audio';
@@ -16,9 +17,6 @@ type QuizHiddenListeningPlayerProps = {
 /**
  * Player ẩn — không controls; autoplay theo §10.2.
  * Một vòng = tuần tự hết tracks; khi track cuối `ended` → callback (server trừ remaining).
- *
- * Callback giữ qua ref để không nằm trong dependency của `play()` — inline fn từ cha
- * đổi mỗi render sẽ khiến `play()` chạy lại → nghe như phát 2 lần với repeatCount = 1.
  */
 export function QuizHiddenListeningPlayer({
   tracks,
@@ -27,7 +25,8 @@ export function QuizHiddenListeningPlayer({
 }: QuizHiddenListeningPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [index, setIndex] = useState(0);
-  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [needsUserGesture, setNeedsUserGesture] = useState(false);
+  const needsUserGestureRef = useRef(false);
   const completedRef = useRef(false);
   const onCompleteRef = useRef(onPlaylistRoundCompleted);
   onCompleteRef.current = onPlaylistRoundCompleted;
@@ -35,8 +34,32 @@ export function QuizHiddenListeningPlayer({
   const resetForNewCycle = useCallback(() => {
     completedRef.current = false;
     setIndex(0);
-    setAutoplayBlocked(false);
+    needsUserGestureRef.current = false;
+    setNeedsUserGesture(false);
   }, []);
+
+  const startTrackPlayback = useCallback(() => {
+    const el = audioRef.current;
+    if (!el) return Promise.resolve(false);
+    const track = tracks[index];
+    if (!track?.url) return Promise.resolve(false);
+    el.src = track.url;
+    const p = el.play();
+    if (!p || typeof p.then !== 'function') {
+      return Promise.resolve(true);
+    }
+    return p
+      .then(() => {
+        needsUserGestureRef.current = false;
+        setNeedsUserGesture(false);
+        return true;
+      })
+      .catch(() => {
+        needsUserGestureRef.current = true;
+        setNeedsUserGesture(true);
+        return false;
+      });
+  }, [index, tracks]);
 
   useEffect(() => {
     resetForNewCycle();
@@ -59,15 +82,14 @@ export function QuizHiddenListeningPlayer({
       }
       return;
     }
-    el.src = track.url;
-    const p = el.play();
-    if (p && typeof p.then === 'function') {
-      void p.then(() => setAutoplayBlocked(false)).catch(() => setAutoplayBlocked(true));
+    if (needsUserGestureRef.current) {
+      return;
     }
+    void startTrackPlayback();
     return () => {
       el.pause();
     };
-  }, [canPlay, index, tracks]);
+  }, [canPlay, index, tracks, startTrackPlayback]);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -90,15 +112,22 @@ export function QuizHiddenListeningPlayer({
 
   return (
     <>
-      <audio ref={audioRef} preload="auto" className="sr-only h-0 w-0" aria-hidden />
-      {autoplayBlocked ? (
-        <Alert
-          className="mt-2"
-          type="warning"
-          showIcon
-          message="Âm thanh chưa phát được"
-          description="Trình duyệt có thể đang chặn tự phát. Hãy kiểm tra quyền âm thanh, chế độ im lặng, hoặc tương tác nhẹ với trang rồi tải lại nếu cần."
-        />
+      <audio ref={audioRef} preload="auto" className="sr-only h-0 w-0" aria-hidden playsInline />
+      {needsUserGesture ? (
+        <div className="mt-2 rounded border border-blue-500/90 bg-blue-50 px-3 py-2.5 text-center dark:border-blue-500 dark:bg-blue-950/50">
+          <p className="mb-2 text-xs text-blue-900 dark:text-blue-200">
+            Nhấn nút bên dưới để phát âm thanh (Safari/iOS yêu cầu thao tác của bạn).
+          </p>
+          <Button
+            type="primary"
+            icon={<SoundOutlined />}
+            onClick={() => {
+              void startTrackPlayback();
+            }}
+          >
+            Nhấn để nghe
+          </Button>
+        </div>
       ) : null}
     </>
   );

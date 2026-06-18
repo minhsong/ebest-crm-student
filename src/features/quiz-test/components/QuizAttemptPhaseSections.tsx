@@ -13,6 +13,11 @@ import type {
   QuizPublishedFormPayload,
   SubmitAttemptResponse,
 } from '@/features/quiz-test/types';
+import {
+  formHasAutoPlaybackListeningSection,
+  formHasManualPlaybackListeningSection,
+} from '@/features/quiz-test/lib/quiz-listening-rules';
+import { unlockQuizAudioSession } from '@/features/quiz-test/lib/quiz-audio-session';
 import { Alert, Button, Card, Checkbox, Divider, Space, Tag, Typography } from 'antd';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -263,6 +268,35 @@ export function QuizAttemptConfirmSection({
           </div>
         </div>
 
+        {/* Listening requirements (section settings) */}
+        {formHasAutoPlaybackListeningSection(formPayload) ||
+        formHasManualPlaybackListeningSection(formPayload) ? (
+          <Alert
+            type="warning"
+            showIcon
+            message="Đề có phần nghe"
+            description={
+              <ul className="mb-0 list-disc pl-5">
+                {formHasAutoPlaybackListeningSection(formPayload) ? (
+                  <li>
+                    Một số phần <strong>tự phát âm thanh</strong> theo cài đặt đề (sau
+                    countdown). Nhấn «Xác nhận và bắt đầu» để trình duyệt cho phép phát
+                    âm thanh — bắt buộc trên Safari/iPhone; không có hộp thoại quyền riêng
+                    như micro.
+                  </li>
+                ) : null}
+                {formHasManualPlaybackListeningSection(formPayload) ? (
+                  <li>
+                    Một số phần chỉ phát khi bạn bấm nút <strong>Nghe</strong> — không tự
+                    phát, đúng theo cài đặt section.
+                  </li>
+                ) : null}
+                <li>Dùng tai nghe và kiểm tra âm lượng trước khi vào phần nghe.</li>
+              </ul>
+            }
+          />
+        ) : null}
+
         {/* Acknowledge checkbox */}
         <Checkbox
           checked={rulesAcknowledged}
@@ -277,7 +311,17 @@ export function QuizAttemptConfirmSection({
         {/* Action buttons */}
         <Space wrap>
           <Button onClick={onBack}>Quay lại</Button>
-          <Button type="primary" size="large" disabled={!rulesAcknowledged} onClick={onStart}>
+          <Button
+            type="primary"
+            size="large"
+            disabled={!rulesAcknowledged}
+            onClick={() => {
+              if (formHasAutoPlaybackListeningSection(formPayload)) {
+                void unlockQuizAudioSession();
+              }
+              onStart();
+            }}
+          >
             Xác nhận và bắt đầu làm bài
           </Button>
         </Space>

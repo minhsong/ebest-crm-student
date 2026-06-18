@@ -12,6 +12,12 @@ export function isListeningAutoStartCountdownActive(
   return isFiniteDisplayNumber(seconds) && seconds > 0;
 }
 
+export function isListeningCountdownActive(
+  seconds: number | null | undefined,
+): boolean {
+  return isListeningAutoStartCountdownActive(seconds);
+}
+
 export function shouldShowListeningRemainingPlays(
   plays: number | null | undefined,
 ): boolean {
@@ -33,6 +39,7 @@ export type QuizAttemptStatusClusterVisibility = {
   questionProgress?: QuizAttemptAnswerProgress | null;
   listeningRemainingPlays?: number | null;
   listeningAutoStartCountdown?: number | null;
+  listeningInterRoundCountdown?: number | null;
 };
 
 export function isQuizAttemptStatusClusterVisible(
@@ -42,6 +49,7 @@ export function isQuizAttemptStatusClusterVisible(
     Boolean(props.showTimer) ||
     shouldShowQuestionProgress(props.questionProgress) ||
     shouldShowListeningRemainingPlays(props.listeningRemainingPlays) ||
-    isListeningAutoStartCountdownActive(props.listeningAutoStartCountdown)
+    isListeningCountdownActive(props.listeningAutoStartCountdown) ||
+    isListeningCountdownActive(props.listeningInterRoundCountdown)
   );
 }

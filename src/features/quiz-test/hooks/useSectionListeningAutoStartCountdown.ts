@@ -1,6 +1,9 @@
 'use client';
 
-import { SECTION_LISTENING_AUTO_START_COUNTDOWN_SECONDS } from '@/features/quiz-test/lib/quiz-listening-rules';
+import {
+  SECTION_LISTENING_AUTO_START_COUNTDOWN_SECONDS,
+} from '@/features/quiz-test/lib/quiz-listening-rules';
+import { useSecondsCountdown } from '@/features/quiz-test/hooks/useSecondsCountdown';
 import { useEffect, useRef, useState } from 'react';
 
 type Args = {
@@ -23,14 +26,14 @@ export function useSectionListeningAutoStartCountdown({
   sectionRem,
   onCountdownChange,
 }: Args) {
-  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [generation, setGeneration] = useState(0);
   const sessionRef = useRef<string | null>(null);
   const onChangeRef = useRef(onCountdownChange);
   onChangeRef.current = onCountdownChange;
 
   useEffect(() => {
     sessionRef.current = null;
-    setSecondsLeft(null);
+    setGeneration(0);
     onChangeRef.current?.(null);
   }, [sectionKey]);
 
@@ -42,30 +45,17 @@ export function useSectionListeningAutoStartCountdown({
       return;
     }
     sessionRef.current = sectionKey;
-
-    let remaining = SECTION_LISTENING_AUTO_START_COUNTDOWN_SECONDS;
-    setSecondsLeft(remaining);
-    onChangeRef.current?.(remaining);
-
-    const id = window.setInterval(() => {
-      remaining -= 1;
-      if (remaining <= 0) {
-        window.clearInterval(id);
-        setSecondsLeft(null);
-        onChangeRef.current?.(null);
-      } else {
-        setSecondsLeft(remaining);
-        onChangeRef.current?.(remaining);
-      }
-    }, 1000);
-
-    return () => {
-      window.clearInterval(id);
-      setSecondsLeft(null);
-      onChangeRef.current?.(null);
-    };
+    setGeneration((g) => g + 1);
   }, [enabled, hasQueue, hasServerQuota, sectionKey, sectionRem]);
 
-  const inCountdown = secondsLeft != null && secondsLeft > 0;
+  const shouldRun = enabled && hasQueue && hasServerQuota && sectionRem > 0;
+
+  const { secondsLeft, inCountdown } = useSecondsCountdown({
+    enabled: shouldRun && generation > 0,
+    generation,
+    totalSeconds: SECTION_LISTENING_AUTO_START_COUNTDOWN_SECONDS,
+    onTick: (s) => onChangeRef.current?.(s),
+  });
+
   return { secondsLeft, inCountdown };
 }

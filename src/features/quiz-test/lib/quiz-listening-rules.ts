@@ -9,6 +9,11 @@ import type { QuizPublishedFormPayload } from '@/features/quiz-test/types';
 /** Đếm ngược (giây) trước auto-play khi vào section nghe — chờ UI render + chuẩn bị. */
 export const SECTION_LISTENING_AUTO_START_COUNTDOWN_SECONDS = 10;
 
+/** Khoảng nghỉ (giây) giữa hai lượt nghe liên tiếp trong cùng section. */
+export const SECTION_LISTENING_INTER_ROUND_COUNTDOWN_SECONDS = 10;
+
+export type ListeningCountdownPhase = 'initial' | 'inter-round';
+
 export function getAudioItemsFromQuestionContent(content: unknown): unknown[] {
   if (!content || typeof content !== 'object' || Array.isArray(content)) return [];
   const media = (content as Record<string, unknown>).media;
@@ -244,3 +249,41 @@ export function resolveSectionPlaybackModeFromForm(
 }
 
 export type SectionPlaybackMode = 'auto' | 'manual';
+
+export type ListeningSectionPlaybackInfo = {
+  sectionId: number;
+  mode: SectionPlaybackMode;
+};
+
+/** Mọi section nghe + chế độ phát (theo section settings / inherit). */
+export function listListeningSectionPlaybackModes(
+  form: QuizPublishedFormPayload | Record<string, unknown> | null | undefined,
+): ListeningSectionPlaybackInfo[] {
+  const { bundleByGroupId, itemsBySection } = parseFormListeningContext(form);
+  const out: ListeningSectionPlaybackInfo[] = [];
+
+  for (const sectionId of itemsBySection.keys()) {
+    const rows = itemsBySection.get(sectionId) ?? [];
+    if (classifySectionKind(rows, bundleByGroupId) !== 'listening') continue;
+    const mode = resolveSectionPlaybackModeFromForm(form, sectionId);
+    if (mode) {
+      out.push({ sectionId, mode });
+    }
+  }
+
+  return out.sort((a, b) => a.sectionId - b.sectionId);
+}
+
+/** Có ít nhất một section listening ở chế độ auto (cần unlock audio khi bắt đầu bài). */
+export function formHasAutoPlaybackListeningSection(
+  form: QuizPublishedFormPayload | Record<string, unknown> | null | undefined,
+): boolean {
+  return listListeningSectionPlaybackModes(form).some((s) => s.mode === 'auto');
+}
+
+/** Có section listening manual — học viên chỉ nghe khi bấm «Nghe» (không tự phát). */
+export function formHasManualPlaybackListeningSection(
+  form: QuizPublishedFormPayload | Record<string, unknown> | null | undefined,
+): boolean {
+  return listListeningSectionPlaybackModes(form).some((s) => s.mode === 'manual');
+}

@@ -98,12 +98,14 @@ CRM `upsertQuizGradedSync` chỉ cập nhật khi `submittedAt` attempt **≥** 
 | **Quota** | `section:<id>`; ưu tiên `listeningRepeatCount` section, fallback min câu |
 | **Auto / manual** | Override section hoặc inherit; manual: nút **Nghe** một lần → phát hết lượt |
 | **Playlist** | Tuần tự mọi track mọi câu có audio — không play lẻ từng câu |
+| **Countdown** | Vào section auto: 10s trước lượt 1; **giữa các lượt**: 10s + banner lớn ở sticky bar |
+| **iOS / Safari** | Modal xác nhận phần nghe nếu chưa unlock; sau đó countdown 10s + 10s giữa các lượt |
 
 | Khóa | Quy tắc |
 |------|---------|
 | **Nộp bài / Chuyển phần** | Mở sau khi nghe **xong ≥1 vòng** (hết chuỗi track trong section). |
 | **Rời section nghe** | User **chủ động chuyển phần** khi còn lượt → `POST listening-forfeit` → `remaining = 0`; quay lại **không** phát thêm. |
-| **Ở lại section** | Còn lượt (`remaining > 0`) → autoplay tiếp các vòng còn lại cho đến hết hoặc forfeit. |
+| **Ở lại section** | Còn lượt (`remaining > 0`) → sau countdown 10s giữa các lượt, phát tiếp cho đến hết hoặc forfeit. |
 
 | File | Vai trò |
 |------|---------|

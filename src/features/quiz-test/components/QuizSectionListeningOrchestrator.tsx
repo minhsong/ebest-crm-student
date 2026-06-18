@@ -7,13 +7,25 @@ import {
 } from '@/features/quiz-test/lib/quiz-section-listening-locks';
 import {
   isKnownListeningRemaining,
+  SECTION_LISTENING_INTER_ROUND_COUNTDOWN_SECONDS,
   quizSectionListeningStorageKey,
   type SectionPlaybackMode,
 } from '@/features/quiz-test/lib/quiz-listening-rules';
 import { flattenSectionListeningQueue } from '@/features/quiz-test/lib/quiz-section-listening-queue';
 import { useSectionListeningAutoStartCountdown } from '@/features/quiz-test/hooks/useSectionListeningAutoStartCountdown';
-import { Alert } from 'antd';
+import { useSecondsCountdown } from '@/features/quiz-test/hooks/useSecondsCountdown';
+import {
+  isQuizAudioSessionUnlocked,
+  unlockQuizAudioSession,
+} from '@/features/quiz-test/lib/quiz-audio-session';
+import type { QuizListeningPlaybackGateReason } from '@/features/quiz-test/components/QuizListeningPlaybackConfirmModal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+export type QuizListeningPlaybackGate = {
+  open: boolean;
+  reason: QuizListeningPlaybackGateReason;
+  confirmPlayback: () => void;
+};
 
 export type QuizSectionListeningOrchestratorProps = {
   sectionId: number;
@@ -27,6 +39,8 @@ export type QuizSectionListeningOrchestratorProps = {
   onLocksChange: (locks: SectionListeningLocks) => void;
   onPlaybackBusyChange?: (busy: boolean) => void;
   onAutoStartCountdownChange?: (seconds: number | null) => void;
+  onInterRoundCountdownChange?: (seconds: number | null) => void;
+  onPlaybackGateChange?: (gate: QuizListeningPlaybackGate | null) => void;
 };
 
 /**
@@ -44,6 +58,8 @@ export function QuizSectionListeningOrchestrator({
   onLocksChange,
   onPlaybackBusyChange,
   onAutoStartCountdownChange,
+  onInterRoundCountdownChange,
+  onPlaybackGateChange,
 }: QuizSectionListeningOrchestratorProps) {
   const flat = useMemo(
     () => flattenSectionListeningQueue(renderBlocks),
@@ -55,8 +71,14 @@ export function QuizSectionListeningOrchestrator({
   const [segIndex, setSegIndex] = useState(0);
   const [roundGeneration, setRoundGeneration] = useState(0);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [playbackConfirmed, setPlaybackConfirmed] = useState(() =>
+    isQuizAudioSessionUnlocked(),
+  );
+  const needsUserGestureRef = useRef(false);
   const [playbackBusy, setPlaybackBusy] = useState(false);
   const [localCyclesCompleted, setLocalCyclesCompleted] = useState(0);
+  const [interRoundGeneration, setInterRoundGeneration] = useState(0);
+  const [interRoundPending, setInterRoundPending] = useState(false);
   const roundClosedRef = useRef(false);
   const reportRef = useRef(reportListeningCycle);
   reportRef.current = reportListeningCycle;
@@ -64,32 +86,122 @@ export function QuizSectionListeningOrchestrator({
   highlightRef.current = onHighlightKeyChange;
   const locksRef = useRef(onLocksChange);
   locksRef.current = onLocksChange;
+  const gateChangeRef = useRef(onPlaybackGateChange);
+  gateChangeRef.current = onPlaybackGateChange;
+  const interRoundChangeRef = useRef(onInterRoundCountdownChange);
+  interRoundChangeRef.current = onInterRoundCountdownChange;
 
   const hasQueue = flat.length > 0;
   const hasServerQuota = isKnownListeningRemaining(sectionRem);
 
+  const autoCountdownEnabled =
+    playbackMode === 'auto' && playbackConfirmed && hasQueue && hasServerQuota;
+
   const { inCountdown: inAutoStartCountdown } = useSectionListeningAutoStartCountdown({
     sectionKey,
-    enabled: playbackMode === 'auto',
+    enabled: autoCountdownEnabled,
     hasQueue,
     hasServerQuota,
     sectionRem: hasServerQuota ? sectionRem : 0,
     onCountdownChange: onAutoStartCountdownChange,
   });
 
+  const { inCountdown: inInterRoundCountdown } = useSecondsCountdown({
+    enabled: interRoundPending,
+    generation: interRoundGeneration,
+    totalSeconds: SECTION_LISTENING_INTER_ROUND_COUNTDOWN_SECONDS,
+    onTick: (s) => interRoundChangeRef.current?.(s),
+  });
+
+  const inCountdown = inAutoStartCountdown || inInterRoundCountdown;
+
+  const playbackGateOpen =
+    playbackMode === 'auto' &&
+    hasQueue &&
+    hasServerQuota &&
+    sectionRem > 0 &&
+    (!playbackConfirmed || autoplayBlocked);
+
   const playbackStarted =
     playbackMode === 'manual'
       ? manualPlaybackStarted
-      : playbackMode === 'auto' && !inAutoStartCountdown;
+      : playbackMode === 'auto' && playbackConfirmed && !inAutoStartCountdown;
 
   const active =
-    hasQueue && hasServerQuota && sectionRem > 0 && playbackStarted;
+    hasQueue &&
+    hasServerQuota &&
+    sectionRem > 0 &&
+    playbackStarted &&
+    !inInterRoundCountdown &&
+    !playbackGateOpen;
+
+  const startSegmentPlayback = useCallback(() => {
+    const el = audioRef.current;
+    if (!el) return Promise.resolve(false);
+    const seg = flat[segIndex];
+    if (!seg?.url) return Promise.resolve(false);
+    el.src = seg.url;
+    const p = el.play();
+    if (!p || typeof p.then !== 'function') {
+      setAutoplayBlocked(false);
+      needsUserGestureRef.current = false;
+      return Promise.resolve(true);
+    }
+    return p
+      .then(() => {
+        needsUserGestureRef.current = false;
+        setAutoplayBlocked(false);
+        return true;
+      })
+      .catch(() => {
+        needsUserGestureRef.current = true;
+        setAutoplayBlocked(true);
+        return false;
+      });
+  }, [flat, segIndex]);
+
+  const startSegmentPlaybackRef = useRef(startSegmentPlayback);
+  startSegmentPlaybackRef.current = startSegmentPlayback;
+
+  const confirmSectionPlayback = useCallback(() => {
+    void unlockQuizAudioSession();
+    setPlaybackConfirmed(true);
+    needsUserGestureRef.current = false;
+    setAutoplayBlocked((blocked) => {
+      if (blocked) {
+        void startSegmentPlaybackRef.current();
+      }
+      return false;
+    });
+  }, []);
+
+  const confirmSectionPlaybackRef = useRef(confirmSectionPlayback);
+  confirmSectionPlaybackRef.current = confirmSectionPlayback;
+
+  useEffect(() => {
+    if (!playbackGateOpen) {
+      gateChangeRef.current?.(null);
+      return;
+    }
+    gateChangeRef.current?.({
+      open: true,
+      reason: !playbackConfirmed ? 'section-start' : 'autoplay-blocked',
+      confirmPlayback: () => confirmSectionPlaybackRef.current(),
+    });
+  }, [playbackGateOpen, playbackConfirmed]);
 
   useEffect(() => {
     setLocalCyclesCompleted(0);
     setRoundGeneration(0);
     setSegIndex(0);
+    setInterRoundPending(false);
+    setInterRoundGeneration(0);
+    setAutoplayBlocked(false);
+    needsUserGestureRef.current = false;
+    setPlaybackConfirmed(isQuizAudioSessionUnlocked());
     roundClosedRef.current = false;
+    gateChangeRef.current?.(null);
+    interRoundChangeRef.current?.(null);
   }, [sectionKey]);
 
   useEffect(() => {
@@ -97,6 +209,8 @@ export function QuizSectionListeningOrchestrator({
       locksRef.current({ navLocked: false, submitLocked: false });
       highlightRef.current(null);
       onPlaybackBusyChange?.(false);
+      gateChangeRef.current?.(null);
+      interRoundChangeRef.current?.(null);
     };
   }, [onPlaybackBusyChange]);
 
@@ -113,7 +227,7 @@ export function QuizSectionListeningOrchestrator({
         sectionRem,
         sectionQuotaMax,
         localCyclesCompleted,
-        playbackBusy: playbackBusy || inAutoStartCountdown,
+        playbackBusy: playbackBusy || inCountdown || playbackGateOpen,
       }),
     );
   }, [
@@ -123,17 +237,19 @@ export function QuizSectionListeningOrchestrator({
     sectionQuotaMax,
     localCyclesCompleted,
     playbackBusy,
-    inAutoStartCountdown,
+    inCountdown,
+    playbackGateOpen,
   ]);
 
   useEffect(() => {
-    onPlaybackBusyChange?.(playbackBusy);
-  }, [onPlaybackBusyChange, playbackBusy]);
+    onPlaybackBusyChange?.(playbackBusy || inCountdown || playbackGateOpen);
+  }, [onPlaybackBusyChange, playbackBusy, inCountdown, playbackGateOpen]);
 
   const resetRound = useCallback(() => {
     roundClosedRef.current = false;
     setSegIndex(0);
     setAutoplayBlocked(false);
+    needsUserGestureRef.current = false;
     setRoundGeneration((g) => g + 1);
   }, []);
 
@@ -146,10 +262,18 @@ export function QuizSectionListeningOrchestrator({
     }
   }, [hasQueue, sectionRem, resetRound]);
 
+  useEffect(() => {
+    if (!interRoundPending) return;
+    if (inInterRoundCountdown) return;
+    setInterRoundPending(false);
+    interRoundChangeRef.current?.(null);
+  }, [interRoundPending, inInterRoundCountdown]);
+
   const completePlaylistRound = useCallback(() => {
     if (roundClosedRef.current) return;
     roundClosedRef.current = true;
     highlightRef.current(null);
+    const remBefore = sectionRem;
     setLocalCyclesCompleted((n) => n + 1);
     void (async () => {
       try {
@@ -158,17 +282,33 @@ export function QuizSectionListeningOrchestrator({
           roundClosedRef.current = false;
           setLocalCyclesCompleted((n) => Math.max(0, n - 1));
           resetRound();
+          setPlaybackBusy(false);
+          return;
         }
-      } finally {
+        if (remBefore - 1 > 0) {
+          setInterRoundPending(true);
+          setInterRoundGeneration((g) => g + 1);
+          setPlaybackBusy(true);
+        } else {
+          setPlaybackBusy(false);
+        }
+      } catch {
+        roundClosedRef.current = false;
+        setLocalCyclesCompleted((n) => Math.max(0, n - 1));
+        resetRound();
         setPlaybackBusy(false);
       }
     })();
-  }, [resetRound, sectionKey]);
+  }, [resetRound, sectionKey, sectionRem]);
 
   useEffect(() => {
     if (!active) {
-      highlightRef.current(null);
-      setPlaybackBusy(false);
+      if (!inInterRoundCountdown && !playbackGateOpen) {
+        highlightRef.current(null);
+      }
+      if (!inInterRoundCountdown && !playbackGateOpen) {
+        setPlaybackBusy(false);
+      }
       return;
     }
     setPlaybackBusy(true);
@@ -179,17 +319,22 @@ export function QuizSectionListeningOrchestrator({
       return;
     }
     highlightRef.current(seg.highlightKey);
-    const el = audioRef.current;
-    if (!el) return;
-    el.src = seg.url;
-    const p = el.play();
-    if (p && typeof p.then === 'function') {
-      void p.then(() => setAutoplayBlocked(false)).catch(() => setAutoplayBlocked(true));
+    if (needsUserGestureRef.current) {
+      return;
     }
+    void startSegmentPlayback();
     return () => {
-      el.pause();
+      audioRef.current?.pause();
     };
-  }, [active, flat, segIndex, roundGeneration]);
+  }, [
+    active,
+    flat,
+    segIndex,
+    roundGeneration,
+    startSegmentPlayback,
+    inInterRoundCountdown,
+    playbackGateOpen,
+  ]);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -219,17 +364,6 @@ export function QuizSectionListeningOrchestrator({
   }
 
   return (
-    <>
-      <audio ref={audioRef} preload="auto" className="sr-only h-0 w-0" aria-hidden />
-      {autoplayBlocked ? (
-        <Alert
-          className="mb-4"
-          type="warning"
-          showIcon
-          message="Âm thanh chưa phát được"
-          description="Trình duyệt có thể chặn tự phát. Thử tương tác nhẹ với trang hoặc kiểm tra quyền âm thanh."
-        />
-      ) : null}
-    </>
+    <audio ref={audioRef} preload="auto" className="sr-only h-0 w-0" aria-hidden playsInline />
   );
 }

@@ -6,9 +6,10 @@ import { formatCountdownHhMmSs } from '@/features/quiz-test/lib/quiz-runtime-vie
 import type { QuizAttemptAnswerProgress } from '@/features/quiz-test/lib/quiz-attempt-progress.util';
 import {
   isFiniteDisplayNumber,
-  isListeningAutoStartCountdownActive,
+  isListeningCountdownActive,
   shouldShowQuestionProgress,
 } from '@/features/quiz-test/lib/quiz-attempt-status-ui';
+import type { ListeningCountdownPhase } from '@/features/quiz-test/lib/quiz-listening-rules';
 import { Button, Tag } from 'antd';
 
 export type QuizAttemptStatusClusterProps = {
@@ -17,6 +18,7 @@ export type QuizAttemptStatusClusterProps = {
   questionProgress?: QuizAttemptAnswerProgress | null;
   listeningRemainingPlays?: number | null;
   listeningAutoStartCountdown?: number | null;
+  listeningInterRoundCountdown?: number | null;
   listeningPlaybackBusy?: boolean;
   showManualListenButton?: boolean;
   onManualListenStart?: () => void;
@@ -59,6 +61,47 @@ function StatusMetricCell({
   );
 }
 
+function ListeningCountdownBanner({
+  phase,
+  seconds,
+}: {
+  phase: ListeningCountdownPhase;
+  seconds: number;
+}) {
+  const isInterRound = phase === 'inter-round';
+  const message =
+    phase === 'inter-round'
+      ? 'Lượt nghe tiếp theo sau'
+      : 'Phần nghe sẽ bắt đầu sau';
+
+  return (
+    <div
+      className={`rounded border text-center font-medium leading-snug ${
+        isInterRound
+          ? 'border-amber-500/90 bg-amber-50 px-3 py-2.5 text-amber-800 dark:border-amber-500 dark:bg-amber-950/50 dark:text-amber-300'
+          : 'border-red-500/80 bg-red-50 px-2 py-1 text-[11px] text-red-600 sm:text-xs dark:border-red-500 dark:bg-red-950/60 dark:text-red-400'
+      }`}
+      role="status"
+      aria-live="polite"
+    >
+      <div className={isInterRound ? 'text-xs sm:text-sm' : undefined}>{message}</div>
+      <strong
+        className={`tabular-nums ${
+          isInterRound ? 'text-2xl font-bold sm:text-3xl' : ''
+        }`}
+      >
+        {seconds}
+      </strong>{' '}
+      giây
+      {isInterRound ? (
+        <div className="mt-1 text-[11px] font-normal opacity-90 sm:text-xs">
+          Hãy chuẩn bị sẵn sàng cho lượt nghe kế tiếp
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** Cụm timer + tiến độ câu + lượt nghe — dùng trong sticky bar. */
 export function QuizAttemptStatusCluster({
   showTimer = false,
@@ -66,6 +109,7 @@ export function QuizAttemptStatusCluster({
   questionProgress = null,
   listeningRemainingPlays = null,
   listeningAutoStartCountdown = null,
+  listeningInterRoundCountdown = null,
   listeningPlaybackBusy = false,
   showManualListenButton = false,
   onManualListenStart,
@@ -75,9 +119,8 @@ export function QuizAttemptStatusCluster({
     ? listeningRemainingPlays
     : null;
   const showListening = remainingPlays != null;
-  const isAutoStartCountdown = isListeningAutoStartCountdownActive(
-    listeningAutoStartCountdown,
-  );
+  const isInitialCountdown = isListeningCountdownActive(listeningAutoStartCountdown);
+  const isInterRoundCountdown = isListeningCountdownActive(listeningInterRoundCountdown);
   const showProgress = shouldShowQuestionProgress(questionProgress);
 
   const metrics: ReactNode[] = [];
@@ -113,7 +156,7 @@ export function QuizAttemptStatusCluster({
     );
   }
 
-  if (showListening && !isAutoStartCountdown) {
+  if (showListening && !isInitialCountdown && !isInterRoundCountdown) {
     metrics.push(
       <StatusMetricCell
         key="listening"
@@ -144,27 +187,32 @@ export function QuizAttemptStatusCluster({
     );
   }
 
-  if (!metrics.length && !isAutoStartCountdown) {
+  const hasBanner = isInitialCountdown || isInterRoundCountdown;
+
+  if (!metrics.length && !hasBanner) {
     return null;
   }
 
   return (
-    <div className="flex w-max max-w-full flex-col gap-1">
+    <div className="flex w-max max-w-full flex-col gap-1.5">
+      {isInterRoundCountdown && listeningInterRoundCountdown != null ? (
+        <ListeningCountdownBanner
+          phase="inter-round"
+          seconds={listeningInterRoundCountdown}
+        />
+      ) : null}
+
       {metrics.length ? (
         <div className="flex w-max max-w-full flex-wrap items-stretch">
           {metrics}
         </div>
       ) : null}
 
-      {isAutoStartCountdown ? (
-        <div
-          className="rounded border border-red-500/80 bg-red-50 px-2 py-1 text-center text-[11px] font-medium leading-snug text-red-600 sm:text-xs dark:border-red-500 dark:bg-red-950/60 dark:text-red-400"
-          role="status"
-          aria-live="polite"
-        >
-          Phần nghe sẽ bắt đầu sau{' '}
-          <strong className="tabular-nums">{listeningAutoStartCountdown}</strong> giây
-        </div>
+      {isInitialCountdown && listeningAutoStartCountdown != null ? (
+        <ListeningCountdownBanner
+          phase="initial"
+          seconds={listeningAutoStartCountdown}
+        />
       ) : null}
     </div>
   );
