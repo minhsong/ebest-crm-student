@@ -9,6 +9,7 @@ import { QuizSectionOutlineDrawer } from '@/features/quiz-test/components/QuizSe
 import { QuizFormMetaBlock } from '@/features/quiz-test/components/QuizFormMetaBlock';
 import { QuizListeningPlaybackConfirmModal } from '@/features/quiz-test/components/QuizListeningPlaybackConfirmModal';
 import { QuizSectionListeningOrchestrator } from '@/features/quiz-test/components/QuizSectionListeningOrchestrator';
+import type { QuizSectionListeningOrchestratorHandle } from '@/features/quiz-test/components/QuizSectionListeningOrchestrator';
 import { useSectionListeningTaking } from '@/features/quiz-test/hooks/useSectionListeningTaking';
 import type { QuizRenderableBlock } from '@/features/quiz-test/lib/quiz-renderable-items';
 import { quizAnchorDomId } from '@/features/quiz-test/lib/quiz-section-navigation';
@@ -18,7 +19,7 @@ import { getAttemptTimerValidity } from '@/features/quiz-test/lib/quiz-runtime-v
 import type { QuizPublishedFormPayload, QuizFormSectionPayload, StartAttemptResponse } from '@/features/quiz-test/types';
 import { Alert, Button, Card, Space, Typography } from 'antd';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 export type QuizAttemptTakingSectionProps = {
   title: string;
@@ -38,8 +39,6 @@ export type QuizAttemptTakingSectionProps = {
   onSectionChange?: (sectionId: number) => void;
   listeningRemaining?: Record<string, number>;
   reportListeningCycle?: (formItemKey: string) => Promise<boolean>;
-  startManualListeningSection?: (sectionId: number) => void;
-  isManualListeningSectionStarted?: (sectionId: number) => boolean;
   allRenderBlocks?: QuizRenderableBlock[];
   activeAnchorKey?: string | null;
   onNavigateToBlock?: (sectionId: number | null, anchorKey: string) => void;
@@ -66,8 +65,6 @@ export function QuizAttemptTakingSection({
   onSectionChange,
   listeningRemaining,
   reportListeningCycle,
-  startManualListeningSection,
-  isManualListeningSectionStarted,
   allRenderBlocks,
   activeAnchorKey,
   onNavigateToBlock,
@@ -76,6 +73,7 @@ export function QuizAttemptTakingSection({
   answersLocked = false,
 }: QuizAttemptTakingSectionProps) {
   const [outlineOpen, setOutlineOpen] = useState(true);
+  const listeningOrchestratorRef = useRef<QuizSectionListeningOrchestratorHandle>(null);
 
   const listening = useSectionListeningTaking({
     formPayload,
@@ -84,10 +82,9 @@ export function QuizAttemptTakingSection({
     renderBlocks,
     listeningRemaining,
     reportListeningCycle,
-    startManualListeningSection,
-    isManualListeningSectionStarted,
     onSectionChange,
     onListeningNavLock,
+    listenOrchestratorRef: listeningOrchestratorRef,
   });
 
   useEffect(() => {
@@ -130,8 +127,8 @@ export function QuizAttemptTakingSection({
         listeningAutoStartCountdown={listening.listeningAutoStartCountdown}
         listeningInterRoundCountdown={listening.listeningInterRoundCountdown}
         listeningPlaybackBusy={listening.listeningPlaybackBusy}
-        showManualListenButton={listening.showManualListenButton}
-        onManualListenStart={listening.handleManualPlaybackStart}
+        showOnDemandListenButton={listening.showOnDemandListenButton}
+        onOnDemandListenStart={listening.handleOnDemandListenStart}
         showOutline={showOutline}
         outlineOpen={outlineOpen}
         onToggleOutline={() => setOutlineOpen((v) => !v)}
@@ -194,13 +191,13 @@ export function QuizAttemptTakingSection({
         />
         {listening.useSectionListeningPlayer ? (
           <QuizSectionListeningOrchestrator
+            ref={listeningOrchestratorRef}
             key={listening.sectionStorageKey}
             sectionId={listening.effectiveSectionId}
             renderBlocks={renderBlocks}
             listeningRemaining={listeningRemaining ?? {}}
             sectionQuotaMax={listening.sectionListeningQuotaMax}
             playbackMode={listening.sectionPlaybackMode}
-            manualPlaybackStarted={listening.manualPlaybackStarted}
             reportListeningCycle={reportListeningCycle!}
             onHighlightKeyChange={listening.setListeningHighlightKey}
             onLocksChange={listening.handleListeningLocksChange}

@@ -115,6 +115,16 @@ function normalizeListeningMap(raw: unknown): Record<string, number> {
   return o;
 }
 
+/** Attempt DB ưu tiên; bổ sung quota section từ form khi attempt thiếu key (listening). */
+function mergeListeningRemainingFromForm(
+  form: QuizPublishedFormPayload | null | undefined,
+  attemptRemainingRaw: unknown,
+): Record<string, number> {
+  const fromForm = buildRemainingPlaysByListeningUnitFromForm(form);
+  const fromAttempt = normalizeListeningMap(attemptRemainingRaw);
+  return { ...fromForm, ...fromAttempt };
+}
+
 // ============================================================================
 // Main Hook
 // ============================================================================
@@ -138,9 +148,6 @@ export function useQuizAttemptRuntime({
   const [listeningRemaining, setListeningRemaining] = useState<Record<string, number>>({});
   const listeningRemainingRef = useRef<Record<string, number>>({});
   listeningRemainingRef.current = listeningRemaining;
-  const manualListeningStartedRef = useRef<Set<number>>(new Set());
-  const [manualListeningStartedVersion, setManualListeningStartedVersion] =
-    useState(0);
   /** Hết giờ / đang nộp — khóa sửa đáp án trên UI. */
   const [sessionLocked, setSessionLocked] = useState(false);
   const [closeReason, setCloseReason] = useState<QuizAttemptCloseReason>(null);
@@ -200,7 +207,7 @@ export function useQuizAttemptRuntime({
     try {
       const activeState = await fetchActiveQuizAttemptState(formPublicId);
       const resumeInProgress = activeState?.state === 'in_progress';
-      const rawAttempt =
+      let rawAttempt: Record<string, unknown> | null =
         resumeInProgress && activeState?.attempt
           ? (activeState.attempt as Record<string, unknown>)
           : null;
@@ -217,6 +224,15 @@ export function useQuizAttemptRuntime({
 
       if (resumeInProgress) {
         data = await fetchFormPayload({ resume: true });
+        invalidateActiveQuizAttemptCache(formPublicId);
+        const refreshedState = await fetchActiveQuizAttemptState(formPublicId);
+        if (
+          refreshedState?.state === 'in_progress' &&
+          refreshedState.attempt &&
+          typeof refreshedState.attempt === 'object'
+        ) {
+          rawAttempt = refreshedState.attempt as Record<string, unknown>;
+        }
         void fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
           quizRuntimePublicUrl(`forms/${formPublicId}/attempts`),
         ).then((res) => {
@@ -257,7 +273,10 @@ export function useQuizAttemptRuntime({
           answersRef.current = resumedAnswers;
           setAnswers(resumedAnswers);
           setListeningRemaining(
-            normalizeListeningMap(rawAttempt.remainingPlaysByListeningUnit),
+            mergeListeningRemainingFromForm(
+              data,
+              rawAttempt.remainingPlaysByListeningUnit,
+            ),
           );
           setRemainingSeconds(syncRemainingFromAttempt(merged));
           setPhase('attempting');
@@ -619,13 +638,14 @@ export function useQuizAttemptRuntime({
 
       invalidateActiveQuizAttemptCache(formPublicId);
 
-      const layoutForm = await fetchFormPayload();
+      const layoutForm = await fetchFormPayload({ resume: true });
       setFormPayload(layoutForm);
 
       const mergedStart = mergeAttemptWithFormPublishedDuration(data, layoutForm);
       setAttempt(mergedStart);
       setListeningRemaining(
-        normalizeListeningMap(
+        mergeListeningRemainingFromForm(
+          layoutForm,
           (data as { remainingPlaysByListeningUnit?: unknown })
             ?.remainingPlaysByListeningUnit,
         ),
@@ -638,8 +658,6 @@ export function useQuizAttemptRuntime({
       if (!data.resumed) {
         setAnswers({});
         answersRef.current = {};
-        manualListeningStartedRef.current.clear();
-        setManualListeningStartedVersion((v) => v + 1);
       }
       setPhase('attempting');
     } catch (e) {
@@ -916,8 +934,6 @@ export function useQuizAttemptRuntime({
       const before = listeningRemainingRef.current[key];
       if (typeof before !== 'number' || before <= 0) return true;
 
-      setListeningRemaining((prev) => ({ ...prev, [key]: before - 1 }));
-
       const url = quizRuntimePublicUrl(`attempts/${id}/listening-cycle`);
       const { ok, data } = await fetchQuizRuntimeJson<{
         remainingPlaysByListeningUnit?: unknown;
@@ -1003,16 +1019,6 @@ export function useQuizAttemptRuntime({
     [formPayload, forfeitListeningSection],
   );
 
-  const startManualListeningSection = useCallback((sectionId: number) => {
-    if (!Number.isFinite(sectionId)) return;
-    manualListeningStartedRef.current.add(sectionId);
-    setManualListeningStartedVersion((v) => v + 1);
-  }, []);
-
-  const isManualListeningSectionStarted = useCallback((sectionId: number) => {
-    return manualListeningStartedRef.current.has(sectionId);
-  }, [manualListeningStartedVersion]);
-
   // ============================================================================
   // Return
   // ============================================================================
@@ -1046,8 +1052,6 @@ export function useQuizAttemptRuntime({
     reportListeningCycle,
     maybeForfeitListeningOnLeaveSection,
     forfeitPriorListeningSections,
-    startManualListeningSection,
-    isManualListeningSectionStarted,
     refreshHistory,
   };
 }

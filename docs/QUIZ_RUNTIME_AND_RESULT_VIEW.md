@@ -96,7 +96,7 @@ CRM `upsertQuizGradedSync` chỉ cập nhật khi `submittedAt` attempt **≥** 
 |-----------|---------|
 | **Phân loại** | Section toàn audio / toàn không audio; mix hoặc rỗng → lỗi publish |
 | **Quota** | `section:<id>`; ưu tiên `listeningRepeatCount` section, fallback min câu |
-| **Auto / manual** | Override section hoặc inherit; manual: nút **Nghe** một lần → phát hết lượt |
+| **Auto / on_demand** | Override `listeningPlaybackMode`; on_demand: nút **Nghe** từng lượt |
 | **Playlist** | Tuần tự mọi track mọi câu có audio — không play lẻ từng câu |
 | **Countdown** | Vào section auto: 10s trước lượt 1; **giữa các lượt**: 10s + banner lớn ở sticky bar |
 | **iOS / Safari** | Modal xác nhận phần nghe nếu chưa unlock; sau đó countdown 10s + 10s giữa các lượt |

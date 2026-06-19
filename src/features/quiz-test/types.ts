@@ -57,6 +57,8 @@ export type QuizFormSectionPayload = {
   instructions?: string | null;
   formItemIds?: number[];
   listeningRepeatCount?: number | null;
+  listeningPlaybackMode?: 'auto' | 'on_demand' | null;
+  /** @deprecated Đọc listeningPlaybackMode */
   listeningAutoPlay?: boolean | null;
 };
 

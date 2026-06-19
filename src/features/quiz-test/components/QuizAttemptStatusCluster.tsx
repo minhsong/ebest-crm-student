@@ -20,8 +20,8 @@ export type QuizAttemptStatusClusterProps = {
   listeningAutoStartCountdown?: number | null;
   listeningInterRoundCountdown?: number | null;
   listeningPlaybackBusy?: boolean;
-  showManualListenButton?: boolean;
-  onManualListenStart?: () => void;
+  showOnDemandListenButton?: boolean;
+  onOnDemandListenStart?: () => void;
   /** Nút mục lục — chèn cạnh metric Số câu khi sticky pin. */
   outlineAfterProgress?: ReactNode;
 };
@@ -111,8 +111,8 @@ export function QuizAttemptStatusCluster({
   listeningAutoStartCountdown = null,
   listeningInterRoundCountdown = null,
   listeningPlaybackBusy = false,
-  showManualListenButton = false,
-  onManualListenStart,
+  showOnDemandListenButton = false,
+  onOnDemandListenStart,
   outlineAfterProgress,
 }: QuizAttemptStatusClusterProps) {
   const remainingPlays = isFiniteDisplayNumber(listeningRemainingPlays)
@@ -170,13 +170,13 @@ export function QuizAttemptStatusCluster({
                 Đang phát
               </Tag>
             ) : null}
-            {showManualListenButton ? (
+            {showOnDemandListenButton ? (
               <Button
                 type="primary"
                 size="small"
                 className="!h-6 !px-2 !text-[11px]"
                 icon={<SoundOutlined />}
-                onClick={onManualListenStart}
+                onClick={onOnDemandListenStart}
               >
                 Nghe
               </Button>

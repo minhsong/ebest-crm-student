@@ -15,7 +15,7 @@ import type {
 } from '@/features/quiz-test/types';
 import {
   formHasAutoPlaybackListeningSection,
-  formHasManualPlaybackListeningSection,
+  formHasOnDemandPlaybackListeningSection,
 } from '@/features/quiz-test/lib/quiz-listening-rules';
 import { unlockQuizAudioSession } from '@/features/quiz-test/lib/quiz-audio-session';
 import { Alert, Button, Card, Checkbox, Divider, Space, Tag, Typography } from 'antd';
@@ -270,7 +270,7 @@ export function QuizAttemptConfirmSection({
 
         {/* Listening requirements (section settings) */}
         {formHasAutoPlaybackListeningSection(formPayload) ||
-        formHasManualPlaybackListeningSection(formPayload) ? (
+        formHasOnDemandPlaybackListeningSection(formPayload) ? (
           <Alert
             type="warning"
             showIcon
@@ -285,7 +285,7 @@ export function QuizAttemptConfirmSection({
                     như micro.
                   </li>
                 ) : null}
-                {formHasManualPlaybackListeningSection(formPayload) ? (
+                {formHasOnDemandPlaybackListeningSection(formPayload) ? (
                   <li>
                     Một số phần chỉ phát khi bạn bấm nút <strong>Nghe</strong> — không tự
                     phát, đúng theo cài đặt section.

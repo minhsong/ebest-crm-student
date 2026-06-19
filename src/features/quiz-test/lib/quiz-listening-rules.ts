@@ -74,8 +74,44 @@ type PreviewLikeGroupBundle = {
 type PublishedSectionRow = {
   sectionId?: number;
   listeningRepeatCount?: number | null;
+  listeningPlaybackMode?: SectionListeningPlaybackSetting;
   listeningAutoPlay?: boolean | null;
 };
+
+export type SectionListeningPlaybackSetting = 'auto' | 'on_demand' | null;
+
+/** Chế độ runtime sau resolve inherit. */
+export type SectionPlaybackMode = 'auto' | 'on_demand';
+
+function isSectionListeningPlaybackSetting(
+  raw: unknown,
+): raw is 'auto' | 'on_demand' {
+  return raw === 'auto' || raw === 'on_demand';
+}
+
+function parseSectionListeningPlaybackSetting(meta: {
+  listeningPlaybackMode?: unknown;
+  listeningAutoPlay?: boolean | null;
+}): SectionListeningPlaybackSetting {
+  const raw = meta.listeningPlaybackMode;
+  if (isSectionListeningPlaybackSetting(raw)) return raw;
+  if (meta.listeningAutoPlay === true) return 'auto';
+  if (meta.listeningAutoPlay === false) return 'on_demand';
+  return null;
+}
+
+function sectionMetaFromPublishedRow(
+  sid: number,
+  s: PublishedSectionRow,
+): { sectionId: number; listeningRepeatCount?: number | null; listeningPlaybackMode?: SectionListeningPlaybackSetting; listeningAutoPlay?: boolean | null } {
+  return {
+    sectionId: sid,
+    listeningRepeatCount: s.listeningRepeatCount ?? null,
+    listeningPlaybackMode: parseSectionListeningPlaybackSetting(s),
+    listeningAutoPlay:
+      typeof s.listeningAutoPlay === 'boolean' ? s.listeningAutoPlay : null,
+  };
+}
 
 function parsePreviewLikeItem(raw: Record<string, unknown>): PreviewLikeItem | null {
   const sectionId = Number(raw.sectionId);
@@ -125,7 +161,7 @@ function parseFormListeningContext(
     const s = raw as PublishedSectionRow;
     const sid = Number(s.sectionId);
     if (!Number.isFinite(sid)) continue;
-    sectionMetaById.set(sid, s);
+    sectionMetaById.set(sid, sectionMetaFromPublishedRow(sid, s as PublishedSectionRow));
   }
 
   const rawItems = Array.isArray(form.items) ? form.items : [];
@@ -226,29 +262,23 @@ export function getSectionListeningQuotaFromForm(
 export function resolveSectionPlaybackModeFromForm(
   form: QuizPublishedFormPayload | Record<string, unknown> | null | undefined,
   sectionId: number,
-): 'auto' | 'manual' | null {
+): SectionPlaybackMode | null {
   const { bundleByGroupId, sectionMetaById, itemsBySection } =
     parseFormListeningContext(form);
   const rows = itemsBySection.get(sectionId) ?? [];
   const kind = classifySectionKind(rows, bundleByGroupId);
   if (kind !== 'listening') return null;
 
-  const sectionMeta = sectionMetaById.get(sectionId);
-  const sectionAutoPlay =
-    typeof sectionMeta?.listeningAutoPlay === 'boolean'
-      ? sectionMeta.listeningAutoPlay
-      : null;
-
+  const sectionMeta = sectionMetaById.get(sectionId) ?? { sectionId };
+  const setting = parseSectionListeningPlaybackSetting(sectionMeta);
   const audioUnits = collectAudioUnitContentsInSection(rows, bundleByGroupId);
-  if (sectionAutoPlay === true) return 'auto';
-  if (sectionAutoPlay === false) return 'manual';
+  if (setting === 'auto') return 'auto';
+  if (setting === 'on_demand') return 'on_demand';
   for (const content of audioUnits) {
-    if (!listeningUnitHasAutoplayEligibleAudio(content)) return 'manual';
+    if (!listeningUnitHasAutoplayEligibleAudio(content)) return 'on_demand';
   }
   return 'auto';
 }
-
-export type SectionPlaybackMode = 'auto' | 'manual';
 
 export type ListeningSectionPlaybackInfo = {
   sectionId: number;
@@ -281,9 +311,16 @@ export function formHasAutoPlaybackListeningSection(
   return listListeningSectionPlaybackModes(form).some((s) => s.mode === 'auto');
 }
 
-/** Có section listening manual — học viên chỉ nghe khi bấm «Nghe» (không tự phát). */
+/** Có section nghe on_demand — học viên bấm «Nghe» từng lượt. */
+export function formHasOnDemandPlaybackListeningSection(
+  form: QuizPublishedFormPayload | Record<string, unknown> | null | undefined,
+): boolean {
+  return listListeningSectionPlaybackModes(form).some((s) => s.mode === 'on_demand');
+}
+
+/** @deprecated Dùng formHasOnDemandPlaybackListeningSection */
 export function formHasManualPlaybackListeningSection(
   form: QuizPublishedFormPayload | Record<string, unknown> | null | undefined,
 ): boolean {
-  return listListeningSectionPlaybackModes(form).some((s) => s.mode === 'manual');
+  return formHasOnDemandPlaybackListeningSection(form);
 }

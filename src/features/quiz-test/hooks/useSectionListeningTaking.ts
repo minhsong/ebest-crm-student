@@ -16,8 +16,12 @@ import {
 } from '@/features/quiz-test/lib/quiz-section-meta';
 import type { QuizRenderableBlock } from '@/features/quiz-test/lib/quiz-renderable-items';
 import type { QuizFormSectionPayload, QuizPublishedFormPayload } from '@/features/quiz-test/types';
-import type { QuizListeningPlaybackGate } from '@/features/quiz-test/components/QuizSectionListeningOrchestrator';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import type {
+  QuizListeningPlaybackGate,
+  QuizSectionListeningOrchestratorHandle,
+} from '@/features/quiz-test/components/QuizSectionListeningOrchestrator';
+import { unlockQuizAudioSession } from '@/features/quiz-test/lib/quiz-audio-session';
+import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react';
 
 type Args = {
   formPayload: QuizPublishedFormPayload;
@@ -26,10 +30,9 @@ type Args = {
   renderBlocks: QuizRenderableBlock[];
   listeningRemaining?: Record<string, number>;
   reportListeningCycle?: (formItemKey: string) => Promise<boolean>;
-  startManualListeningSection?: (sectionId: number) => void;
-  isManualListeningSectionStarted?: (sectionId: number) => boolean;
   onSectionChange?: (sectionId: number) => void;
   onListeningNavLock?: (locked: boolean) => void;
+  listenOrchestratorRef?: RefObject<QuizSectionListeningOrchestratorHandle | null>;
 };
 
 export function useSectionListeningTaking({
@@ -39,10 +42,9 @@ export function useSectionListeningTaking({
   renderBlocks,
   listeningRemaining,
   reportListeningCycle,
-  startManualListeningSection,
-  isManualListeningSectionStarted,
   onSectionChange,
   onListeningNavLock,
+  listenOrchestratorRef,
 }: Args) {
   const [listeningHighlightKey, setListeningHighlightKey] = useState<string | null>(null);
   const [listeningNavLocked, setListeningNavLocked] = useState(false);
@@ -90,17 +92,14 @@ export function useSectionListeningTaking({
     return resolveSectionPlaybackModeFromForm(formPayload, effectiveSectionId) ?? 'auto';
   }, [formPayload, effectiveSectionId]);
 
-  const manualPlaybackStarted =
-    isManualListeningSectionStarted?.(effectiveSectionId) ?? false;
-
   const sectionListeningRemaining = listeningRemaining?.[sectionStorageKey];
 
-  const showManualListenButton =
+  const showOnDemandListenButton =
     useSectionListeningPlayer &&
-    sectionPlaybackMode === 'manual' &&
-    !manualPlaybackStarted &&
+    sectionPlaybackMode === 'on_demand' &&
     typeof sectionListeningRemaining === 'number' &&
-    sectionListeningRemaining > 0;
+    sectionListeningRemaining > 0 &&
+    !listeningPlaybackBusy;
 
   const sectionInstructionsHeading = useMemo(
     () => formatSectionInstructionsHeading(sections, activeSectionId ?? null),
@@ -120,9 +119,10 @@ export function useSectionListeningTaking({
     }
   }, [onListeningNavLock, useSectionListeningPlayer]);
 
-  const handleManualPlaybackStart = useCallback(() => {
-    startManualListeningSection?.(effectiveSectionId);
-  }, [effectiveSectionId, startManualListeningSection]);
+  const handleOnDemandListenStart = useCallback(() => {
+    void unlockQuizAudioSession();
+    void listenOrchestratorRef?.current?.startFromUserGesture();
+  }, [listenOrchestratorRef]);
 
   const handleListeningLocksChange = useCallback(
     ({ navLocked, submitLocked }: SectionListeningLocks) => {
@@ -170,10 +170,9 @@ export function useSectionListeningTaking({
     useSectionListeningPlayer,
     sectionListeningQuotaMax,
     sectionPlaybackMode,
-    manualPlaybackStarted,
     sectionListeningRemaining,
-    showManualListenButton,
-    handleManualPlaybackStart,
+    showOnDemandListenButton,
+    handleOnDemandListenStart,
     listeningHighlightKey,
     setListeningHighlightKey,
     listeningNavLocked,

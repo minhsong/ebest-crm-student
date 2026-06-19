@@ -122,8 +122,6 @@ export function QuizAttemptClient({
     reportListeningCycle,
     maybeForfeitListeningOnLeaveSection,
     forfeitPriorListeningSections,
-    startManualListeningSection,
-    isManualListeningSectionStarted,
     refreshHistory,
     closeReason,
     answersLocked,
@@ -558,8 +556,6 @@ export function QuizAttemptClient({
       onSectionChange={onSectionChange}
       listeningRemaining={listeningRemaining}
       reportListeningCycle={reportListeningCycle}
-      startManualListeningSection={startManualListeningSection}
-      isManualListeningSectionStarted={isManualListeningSectionStarted}
       allRenderBlocks={renderBlocks}
       activeAnchorKey={questionKey}
       onNavigateToBlock={navigateToBlock}
