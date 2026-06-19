@@ -11,7 +11,6 @@ export type SectionListeningLockInput = {
   sectionRem: number;
   sectionQuotaMax?: number | null;
   localCyclesCompleted: number;
-  playbackBusy: boolean;
 };
 
 export type SectionListeningLocks = {
@@ -54,9 +53,10 @@ export function computeSectionListeningLocks(
     return { navLocked: false, submitLocked: false };
   }
   const heardOnce = hasHeardSectionListeningAtLeastOnce(input);
+  // Chỉ khóa trước vòng đầu; lượt 2+ vẫn phát nền — không chặn chuyển phần / nộp bài (§SECTION_LISTENING_POLICY).
   return {
-    navLocked: !heardOnce || input.playbackBusy,
-    submitLocked: !heardOnce || input.playbackBusy,
+    navLocked: !heardOnce,
+    submitLocked: !heardOnce,
   };
 }
 
