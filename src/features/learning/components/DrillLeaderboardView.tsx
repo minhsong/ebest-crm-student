@@ -24,6 +24,7 @@ import {
 	vocabularyPracticeHref,
 } from '@/features/learning/utils/vocabulary-session-routes';
 import { fetchDrillLeaderboard } from '@/lib/learning-api';
+import { formatDrillDurationMs } from '@/features/learning/utils/format-drill-duration';
 import type {
 	DrillLeaderboardBoardKind,
 	DrillLeaderboardPayload,
@@ -71,20 +72,14 @@ function usePerPlayColumns(): ColumnsType<DrillLeaderboardPerPlayRow> {
 			{
 				title: 'Điểm lượt',
 				dataIndex: 'score',
-				width: 96,
+				width: 88,
 				render: (score: number) => <Text strong>{score}</Text>,
 			},
 			{
-				title: 'Thời gian',
-				dataIndex: 'completedAt',
-				width: 160,
-				render: (value: string) =>
-					new Date(value).toLocaleString('vi-VN', {
-						day: '2-digit',
-						month: '2-digit',
-						hour: '2-digit',
-						minute: '2-digit',
-					}),
+				title: 'Thời gian làm',
+				dataIndex: 'durationMs',
+				width: 104,
+				render: (value: number | null) => formatDrillDurationMs(value),
 			},
 		],
 		[],
@@ -173,7 +168,7 @@ function LeaderboardPanel({
 		const { self } = data;
 		if (boardKind === 'per_play_score') {
 			return self.rank
-				? `Bạn: #${self.rank} · ${self.score} điểm (lượt cao nhất)${self.pageHint ? ` · trang ${self.pageHint}` : ''}`
+				? `Bạn: #${self.rank} · ${self.score} câu đúng (lượt tốt nhất)${self.pageHint ? ` · trang ${self.pageHint}` : ''}`
 				: 'Bạn chưa có lượt chơi trong kỳ này.';
 		}
 		return self.rank

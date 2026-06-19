@@ -310,6 +310,7 @@ export interface DrillLeaderboardPerPlayRow extends DrillLeaderboardRow {
 	className: string;
 	correctCount: number;
 	completedAt: string;
+	durationMs: number | null;
 	modeId: string;
 }
 
