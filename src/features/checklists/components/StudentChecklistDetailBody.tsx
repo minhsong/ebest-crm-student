@@ -41,13 +41,13 @@ export function StudentChecklistDetailBody({ detail }: Props) {
 
       {isGamePenalty && detail.gameProgress ? (
         <Descriptions bordered size="small" column={1}>
-          <Descriptions.Item label="Yêu cầu">
-            Đạt tối thiểu {detail.gameProgress.minimumScore} điểm (lượt cao nhất)
+          <Descriptions.Item label="Nhiệm vụ">
+            Trả lời đúng ít nhất {detail.gameProgress.minimumScore} từ trong một lượt chơi
           </Descriptions.Item>
-          <Descriptions.Item label="Điểm cao nhất">
-            {detail.gameProgress.bestScore} / {detail.gameProgress.minimumScore}
+          <Descriptions.Item label="Kết quả tốt nhất">
+            {detail.gameProgress.bestScore} từ đúng (cần {detail.gameProgress.minimumScore})
           </Descriptions.Item>
-          <Descriptions.Item label="Lượt chơi">
+          <Descriptions.Item label="Số lần đã chơi">
             {detail.gameProgress.playCount}
           </Descriptions.Item>
         </Descriptions>
@@ -74,18 +74,18 @@ export function StudentChecklistDetailBody({ detail }: Props) {
       {isGamePenalty && !detail.studentItem.checked ? (
         <Link href={playHref}>
           <Button type="primary" size="large" icon={<PlayCircleOutlined />} block>
-            Chơi game phạt
+            Bắt đầu làm nhiệm vụ
           </Button>
         </Link>
       ) : null}
 
       {detail.studentItem.checkedAt ? (
         <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-          Cập nhật: {new Date(detail.studentItem.checkedAt).toLocaleString('vi-VN')}
+          Hoàn thành lúc: {new Date(detail.studentItem.checkedAt).toLocaleString('vi-VN')}
           {detail.studentItem.completedVia === 'game_sync'
-            ? ' · Tự động qua game'
+            ? ' · Qua game luyện từ'
             : detail.studentItem.completedVia === 'manual'
-              ? ' · Giáo viên xác nhận'
+              ? ' · Cô xác nhận'
               : ''}
         </Text>
       ) : null}

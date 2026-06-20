@@ -57,7 +57,33 @@ describe('buildVocabularyDrillLobbyViewModel', () => {
     expect(vm?.presentation.usesPoolProgressBar).toBe(true);
     expect(vm?.showModePicker).toBe(false);
     expect(vm?.stats).toHaveLength(3);
-    expect(vm?.footerHint).toContain('Chế độ kiểm tra thuộc từ');
+    expect(vm?.footerHint).toContain('bạn làm được');
+  });
+
+  it('builds checklist penalty lobby with student-facing copy', () => {
+    const vm = buildVocabularyDrillLobbyViewModel({
+      sessionConfig: mockSessionConfig('pool_coverage'),
+      assignmentCtx: {
+        assignmentId: 0,
+        classId: 2,
+        title: 'ignored',
+        minimumScore: 10,
+        modeId: 'pool_coverage',
+        promptType: 'meaning_to_word',
+        assignmentPoolSize: 20,
+        unlockPoolSize: 20,
+        bestScore: 0,
+        bestTotal: 20,
+        assignmentComplete: false,
+        canPlay: true,
+        contextKind: 'checklist_penalty',
+      },
+    });
+
+    expect(vm?.title).toContain('Cô phạt');
+    expect(vm?.description).toContain('Hãy hoàn thành nhiệm vụ');
+    expect(vm?.footerHint).toContain('Chúc bạn may mắn');
+    expect(vm?.stats[0]?.label).toBe('Cần đạt');
   });
 
   it('uses sessionConfig.presentation.lobby copy when provided', () => {

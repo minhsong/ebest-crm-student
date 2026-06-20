@@ -4,6 +4,8 @@ import type { VocabularyDrillResultProfileId } from '@/features/learning/games/v
 import { PoolCoverageRunResultScreen } from '@/features/learning/games/vocabulary-drill/presentation/PoolCoverageRunResultScreen';
 import { SurvivalRunResultScreen } from '@/features/learning/games/vocabulary-drill/presentation/SurvivalRunResultScreen';
 
+import type { DrillResultStudentTone } from '@/features/learning/copy/drill-result-tone';
+
 type SharedProps = {
   score: number;
   bestScore?: number;
@@ -23,16 +25,19 @@ type SharedProps = {
 
 type Props = SharedProps & {
   resultProfileId: VocabularyDrillResultProfileId;
+  studentTone?: DrillResultStudentTone;
 };
 
 /** Router kết quả theo presentation profile — không branch mode string (GE-V4). */
 export function VocabularyDrillRunResultScreen({
   resultProfileId,
+  studentTone = 'assignment',
   ...props
 }: Props) {
   if (resultProfileId === 'pool_coverage_result') {
     return (
       <PoolCoverageRunResultScreen
+        studentTone={studentTone}
         score={props.score}
         bestScore={props.bestScore}
         bestTotal={props.bestTotal}

@@ -13,7 +13,6 @@ import type {
 	WeakWordsPayload,
 } from '@/types/learning';
 
-
 export type { DrillStartAuthorizeContext } from '@/lib/drill-authorize-client';
 
 export type DrillPracticeSelection = {
@@ -48,6 +47,7 @@ export function useDrillPracticePool({ classId, assignmentId, checklistId }: Poo
 
 	const loadPool = useCallback(async () => {
 		if (checklistId && !Number.isNaN(checklistId)) {
+			setPool(null);
 			setPoolLoading(false);
 			setPoolError(null);
 			return;
@@ -121,7 +121,7 @@ export function useDrillPracticePool({ classId, assignmentId, checklistId }: Poo
 	const startBlockReason = useMemo(() => {
 		if (checklistId) {
 			if (!authorizeContext || !sessionConfig) {
-				return sessionConfigError ?? 'Đang tải cấu hình game phạt…';
+				return sessionConfigError ?? 'Đang tải nhiệm vụ của bạn…';
 			}
 		}
 		if (sessionConfigError) {
@@ -138,7 +138,7 @@ export function useDrillPracticePool({ classId, assignmentId, checklistId }: Poo
 				return 'Chưa có từ vựng unlock phù hợp với phạm vi bài tập.';
 			}
 		}
-		if (!assignmentCtx && pool) {
+		if (!assignmentCtx && !checklistId && pool) {
 			const access = parseLearningAccess(pool.learningAccess);
 			if (!pool.practiceEnabled) {
 				return 'Luyện tập chưa được bật cho lớp này.';
@@ -155,7 +155,9 @@ export function useDrillPracticePool({ classId, assignmentId, checklistId }: Poo
 	}, [loadPool]);
 
 	useEffect(() => {
-		if (!effectiveClassId || Number.isNaN(effectiveClassId)) {
+		const authorizeClassId = checklistId ? classId : effectiveClassId;
+
+		if (!authorizeClassId || Number.isNaN(authorizeClassId)) {
 			setSessionConfig(null);
 			setAuthorizeContext(null);
 			setSessionConfigError(null);
@@ -174,10 +176,7 @@ export function useDrillPracticePool({ classId, assignmentId, checklistId }: Poo
 			);
 			return;
 		}
-		if (checklistId && !Number.isNaN(checklistId)) {
-			return;
-		}
-		if (poolLoading) {
+		if (!checklistId && poolLoading) {
 			return;
 		}
 
@@ -185,7 +184,7 @@ export function useDrillPracticePool({ classId, assignmentId, checklistId }: Poo
 		setSessionConfigLoading(true);
 		setSessionConfigError(null);
 
-		void authorizeDrillSession(effectiveClassId, {
+		void authorizeDrillSession(authorizeClassId, {
 			assignmentId: assignmentId ?? undefined,
 			checklistId: checklistId ?? undefined,
 			modeId: resolvedSelection.modeId,
@@ -203,6 +202,7 @@ export function useDrillPracticePool({ classId, assignmentId, checklistId }: Poo
 						sessionConfig: auth.sessionConfig,
 						rules: auth.rules,
 						pool: auth.pool,
+						progress: auth.progress,
 					});
 					setSessionConfigError(null);
 				} else {
@@ -236,47 +236,47 @@ export function useDrillPracticePool({ classId, assignmentId, checklistId }: Poo
 		resolvedSelection.promptType,
 	]);
 
-  useEffect(() => {
-    if (!classId || Number.isNaN(classId) || assignmentId) {
-      setWeakWords(null);
-      return;
-    }
+	useEffect(() => {
+		if (!classId || Number.isNaN(classId) || assignmentId || checklistId) {
+			setWeakWords(null);
+			return;
+		}
 
-    let cancelled = false;
-    setWeakWordsLoading(true);
+		let cancelled = false;
+		setWeakWordsLoading(true);
 
-    const loadWeakWords = () => {
-      void fetchWeakWords(classId)
-        .then((data) => {
-          if (!cancelled) setWeakWords(data);
-        })
-        .catch(() => {
-          if (!cancelled) setWeakWords(null);
-        })
-        .finally(() => {
-          if (!cancelled) setWeakWordsLoading(false);
-        });
-    };
+		const loadWeakWords = () => {
+			void fetchWeakWords(classId)
+				.then((data) => {
+					if (!cancelled) setWeakWords(data);
+				})
+				.catch(() => {
+					if (!cancelled) setWeakWords(null);
+				})
+				.finally(() => {
+					if (!cancelled) setWeakWordsLoading(false);
+				});
+		};
 
-    let idleId: number | undefined;
-    let timeoutId: number | undefined;
+		let idleId: number | undefined;
+		let timeoutId: number | undefined;
 
-    if (typeof requestIdleCallback === 'function') {
-      idleId = requestIdleCallback(loadWeakWords, { timeout: 2500 });
-    } else {
-      timeoutId = window.setTimeout(loadWeakWords, 400);
-    }
+		if (typeof requestIdleCallback === 'function') {
+			idleId = requestIdleCallback(loadWeakWords, { timeout: 2500 });
+		} else {
+			timeoutId = window.setTimeout(loadWeakWords, 400);
+		}
 
-    return () => {
-      cancelled = true;
-      if (idleId != null && typeof cancelIdleCallback === 'function') {
-        cancelIdleCallback(idleId);
-      }
-      if (timeoutId != null) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, [classId, assignmentId]);
+		return () => {
+			cancelled = true;
+			if (idleId != null && typeof cancelIdleCallback === 'function') {
+				cancelIdleCallback(idleId);
+			}
+			if (timeoutId != null) {
+				window.clearTimeout(timeoutId);
+			}
+		};
+	}, [classId, assignmentId, checklistId]);
 
 	const refreshWeakWords = useCallback(async () => {
 		if (!classId || Number.isNaN(classId)) return;

@@ -24,6 +24,12 @@ export type DrillAuthorizeSuccess = {
     }>;
   };
   sessionConfig: GameSessionConfig;
+  progress?: {
+    bestScore: number;
+    minimumScore: number;
+    playCount: number;
+    checked: boolean;
+  };
 };
 
 export type DrillAuthorizeResult =
@@ -32,7 +38,14 @@ export type DrillAuthorizeResult =
 
 export type DrillStartAuthorizeContext = Pick<
   DrillAuthorizeSuccess,
-  'classId' | 'courseId' | 'assignmentId' | 'checklistId' | 'sessionConfig' | 'rules' | 'pool'
+  | 'classId'
+  | 'courseId'
+  | 'assignmentId'
+  | 'checklistId'
+  | 'sessionConfig'
+  | 'rules'
+  | 'pool'
+  | 'progress'
 >;
 
 export async function authorizeDrillSession(

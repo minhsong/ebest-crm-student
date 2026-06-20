@@ -114,14 +114,15 @@ export function DrillPracticeLobby({
 						<Skeleton active paragraph={{ rows: 4 }} />
 					</div>
 				) : null}
-				<DrillLobbySharedPanels
-					pool={pool}
-					weakWords={weakWords}
-					weakWordsLoading={weakWordsLoading}
-					classId={classId}
-					showWeakWords={!assignmentCtx}
-					onRefresh={onRefresh}
-				/>
+			<DrillLobbySharedPanels
+				pool={pool}
+				weakWords={weakWords}
+				weakWordsLoading={weakWordsLoading}
+				classId={classId}
+				showWeakWords={!assignmentCtx}
+				showPoolSummary={!assignmentCtx}
+				onRefresh={onRefresh}
+			/>
 			</div>
 		);
 	}
@@ -172,6 +173,8 @@ export function DrillPracticeLobby({
 				classId={classId}
 
 				showWeakWords={!assignmentCtx}
+
+				showPoolSummary={!assignmentCtx}
 
 				onRefresh={onRefresh}
 

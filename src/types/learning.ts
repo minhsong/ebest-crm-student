@@ -285,6 +285,8 @@ export interface AssignmentDrillContextPayload {
   bestTotal?: number;
   assignmentComplete: boolean;
   canPlay: boolean;
+  /** Phân biệt bài tập lớp vs checklist phạt — copy học viên. */
+  contextKind?: 'assignment' | 'checklist_penalty';
   learningAccess?: LearningVocabularyLearningAccess;
   config?: {
     wordScopeMode: 'class_pool' | 'custom_selection';

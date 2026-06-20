@@ -80,19 +80,21 @@ export function DrillPracticeView() {
 			authorizeContext.pool?.batchSize ??
 			authorizeContext.pool?.totalAssetIds?.length ??
 			0;
+		const progress = authorizeContext.progress;
 		return {
 			assignmentId: 0,
 			classId: authorizeContext.classId,
-			title: 'Phạt chơi game',
+			title: 'Nhiệm vụ phạt chơi game',
 			minimumScore,
 			modeId: 'pool_coverage',
 			promptType: resolvedSelection.promptType,
 			assignmentPoolSize: poolSize,
 			unlockPoolSize: poolSize,
-			bestScore: 0,
+			bestScore: progress?.bestScore ?? 0,
 			bestTotal: poolSize,
-			assignmentComplete: false,
-			canPlay: true,
+			assignmentComplete: progress?.checked ?? false,
+			canPlay: poolSize > 0,
+			contextKind: 'checklist_penalty',
 		};
 	}, [authorizeContext, checklistId, resolvedSelection.promptType]);
 
@@ -163,7 +165,9 @@ export function DrillPracticeView() {
 	const leaderboardHref =
 		classId && !Number.isNaN(classId) ? vocabularyLeaderboardHref(classId) : null;
 
-	const pageTitle = lobbyAssignmentCtx?.title ?? 'Game luyện từ';
+	const pageTitle = checklistId
+		? 'Nhiệm vụ luyện từ'
+		: (lobbyAssignmentCtx?.title ?? 'Game luyện từ');
 
 	const isPlaying = Boolean(question && !finished);
 	const showLobby = !isPlaying && !finished && !starting;
@@ -206,11 +210,11 @@ export function DrillPracticeView() {
 				<PageHeader
 					title={pageTitle}
 					description={
-						lobbyAssignmentCtx
-							? checklistId
-								? 'Checklist phạt chơi game'
-								: 'Bài tập game'
-							: 'Chọn mode và bắt đầu — quay lại trang Game nếu muốn đổi lớp.'
+						checklistId
+							? 'Cô đã giao nhiệm vụ — đọc hướng dẫn bên dưới và bắt đầu nhé.'
+							: lobbyAssignmentCtx
+								? 'Bài tập game'
+								: 'Chọn mode và bắt đầu — quay lại trang Game nếu muốn đổi lớp.'
 					}
 					extra={
 						!assignmentId ? (
@@ -243,6 +247,7 @@ export function DrillPracticeView() {
 			{finished && presentation ? (
 				<VocabularyDrillRunResultScreen
 					resultProfileId={presentation.resultProfileId}
+					studentTone={checklistId ? 'checklist_penalty' : 'assignment'}
 					score={scoreInRun}
 					bestScore={lobbyAssignmentCtx?.bestScore}
 					bestTotal={lobbyAssignmentCtx?.bestTotal ?? lobbyAssignmentCtx?.assignmentPoolSize}
@@ -291,7 +296,9 @@ export function DrillPracticeView() {
 						canStart={canStart && !sessionConfigLoading && Boolean(activeSessionConfig)}
 						startBlockReason={
 							sessionConfigLoading
-								? 'Đang chuẩn bị cấu hình lượt chơi…'
+								? checklistId
+									? 'Đang chuẩn bị nhiệm vụ…'
+									: 'Đang chuẩn bị cấu hình lượt chơi…'
 								: startBlockReason
 						}
 						weakWords={weakWords}

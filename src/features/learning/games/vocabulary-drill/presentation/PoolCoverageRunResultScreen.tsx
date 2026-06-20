@@ -1,5 +1,7 @@
 'use client';
 
+import { checklistPenaltyPoolResultCopy } from '@/features/learning/copy/checklist-penalty-game.copy';
+import type { DrillResultStudentTone } from '@/features/learning/copy/drill-result-tone';
 import { RunResultShell } from '@/features/learning/games/vocabulary-drill/presentation/RunResultShell';
 
 type Props = {
@@ -14,6 +16,7 @@ type Props = {
   } | null;
   minimumScore?: number;
   passed?: boolean | null;
+  studentTone?: DrillResultStudentTone;
   onReplay: () => void;
 };
 
@@ -24,6 +27,7 @@ export function PoolCoverageRunResultScreen({
   poolProgress,
   minimumScore,
   passed,
+  studentTone = 'assignment',
   onReplay,
 }: Props) {
   const total = poolProgress?.total ?? bestTotal;
@@ -32,15 +36,38 @@ export function PoolCoverageRunResultScreen({
   const metRequirement =
     passed ?? (minimumScore != null ? correct >= minimumScore : correct > 0);
 
+  if (studentTone === 'checklist_penalty') {
+    const copy = checklistPenaltyPoolResultCopy({
+      correct,
+      total,
+      wrong,
+      minimumScore,
+      passed: metRequirement,
+      bestScore,
+      bestTotal,
+    });
+
+    return (
+      <RunResultShell
+        icon={copy.icon}
+        iconTone={copy.iconTone}
+        scoreLabel={copy.scoreLabel}
+        scoreDisplay={total != null ? `${correct}/${total}` : String(correct)}
+        title={copy.title}
+        subtitle={<>{copy.subtitleParts.join('')}</>}
+        replayLabel={copy.replayLabel}
+        onReplay={onReplay}
+      />
+    );
+  }
+
   return (
     <RunResultShell
       icon={metRequirement ? '🏆' : '📝'}
       iconTone={metRequirement ? 'win' : 'end'}
-      scoreLabel="Kết quả kiểm tra"
+      scoreLabel="Kết quả của bạn"
       scoreDisplay={total != null ? `${correct}/${total}` : String(correct)}
-      title={
-        metRequirement ? 'Hoàn thành bài kiểm tra!' : 'Đã chơi hết danh sách từ'
-      }
+      title={metRequirement ? 'Tuyệt vời, bạn đã hoàn thành!' : 'Hết lượt rồi — thử lại nhé!'}
       subtitle={
         <>
           Đúng <strong>{correct}</strong>, sai <strong>{wrong}</strong>
@@ -53,16 +80,16 @@ export function PoolCoverageRunResultScreen({
           {minimumScore != null ? (
             <>
               {' '}
-              Yêu cầu: đạt <strong>{minimumScore}</strong> từ đúng.
+              Cần đạt <strong>{minimumScore}</strong> từ đúng.
               {!metRequirement ? (
-                <> Chưa đủ ngưỡng — chỉ lưu lịch sử, chưa nộp bài.</>
+                <> Còn một chút nữa — hãy thử lại, bạn làm được!</>
               ) : null}
             </>
           ) : null}
           {bestScore != null && total != null && metRequirement ? (
             <>
               {' '}
-              Kết quả cao nhất bài: {bestScore}/{total}.
+              Kết quả tốt nhất của bạn: {bestScore}/{total}.
             </>
           ) : null}
         </>

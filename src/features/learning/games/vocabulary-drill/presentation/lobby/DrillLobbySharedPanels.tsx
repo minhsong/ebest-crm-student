@@ -16,6 +16,8 @@ type Props = {
   weakWordsLoading: boolean;
   classId: number | null;
   showWeakWords: boolean;
+  /** Ẩn panel pool lớp khi đang chơi bài tập / checklist có pool riêng. */
+  showPoolSummary?: boolean;
   onRefresh?: () => void;
 };
 
@@ -25,6 +27,7 @@ export function DrillLobbySharedPanels({
   weakWordsLoading,
   classId,
   showWeakWords,
+  showPoolSummary = true,
   onRefresh,
 }: Props) {
   const poolSize = pool?.poolSize ?? 0;
@@ -32,30 +35,32 @@ export function DrillLobbySharedPanels({
 
   return (
     <>
-      <div className="drill-lobby-panel">
-        <div className="drill-lobby-panel__title-row">
-          <p className="drill-lobby-section-title">Pool từ vựng</p>
-          {pool?.learningAccess?.readOnlyReason && !pool.learningAccess.canRecordEvents ? (
-            <LearningAccessNotice message={pool.learningAccess.readOnlyReason} />
+      {showPoolSummary ? (
+        <div className="drill-lobby-panel">
+          <div className="drill-lobby-panel__title-row">
+            <p className="drill-lobby-section-title">Pool từ vựng</p>
+            {pool?.learningAccess?.readOnlyReason && !pool.learningAccess.canRecordEvents ? (
+              <LearningAccessNotice message={pool.learningAccess.readOnlyReason} />
+            ) : null}
+          </div>
+          <div className="drill-lobby-pool-row">
+            <span className="drill-lobby-pool-chip">
+              Tổng <strong>{poolSize}</strong> từ
+            </span>
+            <span className="drill-lobby-pool-chip">
+              Bắt buộc <strong>{pool?.requiredCount ?? 0}</strong>
+            </span>
+            <span className="drill-lobby-pool-chip">
+              Mở rộng <strong>{pool?.extendedCount ?? 0}</strong>
+            </span>
+          </div>
+          {!pool?.practiceEnabled ? (
+            <div className="drill-lobby-alert is-warning">
+              Cần ít nhất {minPool} từ đã mở khóa để bắt đầu luyện.
+            </div>
           ) : null}
         </div>
-        <div className="drill-lobby-pool-row">
-          <span className="drill-lobby-pool-chip">
-            Tổng <strong>{poolSize}</strong> từ
-          </span>
-          <span className="drill-lobby-pool-chip">
-            Bắt buộc <strong>{pool?.requiredCount ?? 0}</strong>
-          </span>
-          <span className="drill-lobby-pool-chip">
-            Mở rộng <strong>{pool?.extendedCount ?? 0}</strong>
-          </span>
-        </div>
-        {!pool?.practiceEnabled ? (
-          <div className="drill-lobby-alert is-warning">
-            Cần ít nhất {minPool} từ đã mở khóa để bắt đầu luyện.
-          </div>
-        ) : null}
-      </div>
+      ) : null}
 
       {showWeakWords && classId ? (
         <div className="drill-lobby-panel">
