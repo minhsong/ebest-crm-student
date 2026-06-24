@@ -8,10 +8,15 @@ const { Text, Title } = Typography;
 
 type Props = {
   detail: StudentAssignmentDetail;
+  /** Gợi ý timeline media — chỉ bài speaking/recording có nhận xét theo đoạn. */
+  showMediaTimelineHint?: boolean;
 };
 
-/** Điểm + nhận xét chung GV — chỉ khi `submissionLocked`. */
-export function StudentTeacherFeedbackCard({ detail }: Props) {
+/** Điểm + nhận xét chung GV — khi `submissionLocked`. */
+export function StudentTeacherFeedbackCard({
+  detail,
+  showMediaTimelineHint = false,
+}: Props) {
   const { token } = theme.useToken();
   const result = detail.result;
   const hasScore =
@@ -55,8 +60,9 @@ export function StudentTeacherFeedbackCard({ detail }: Props) {
           </div>
         ) : !hasSummary ? (
           <Text type="secondary">
-            Giáo viên đã ghi nhận trên bài nộp. Xem nhận xét chi tiết theo thời gian
-            bên dưới.
+            {showMediaTimelineHint
+              ? 'Giáo viên đã ghi nhận trên bài nộp. Xem nhận xét chi tiết theo thời gian bên dưới.'
+              : 'Giáo viên đã ghi nhận trên bài nộp.'}
           </Text>
         ) : null}
 
@@ -81,9 +87,11 @@ export function StudentTeacherFeedbackCard({ detail }: Props) {
           </Space>
         ) : null}
 
-        <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-          Nhận xét theo từng đoạn: bấm «Xem nhận xét» trên mỗi bài ghi âm/video.
-        </Text>
+        {showMediaTimelineHint ? (
+          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+            Nhận xét theo từng đoạn: bấm «Xem nhận xét» trên mỗi bài ghi âm/video.
+          </Text>
+        ) : null}
       </Space>
     </Card>
   );

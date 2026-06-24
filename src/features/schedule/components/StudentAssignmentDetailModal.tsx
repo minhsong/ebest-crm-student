@@ -70,10 +70,12 @@ import {
   isSubmissionMimeAllowed,
 } from '@/lib/student-submission-policy';
 import { QuizAssignmentUiMessages } from '@/lib/quiz-assignment-ui-messages';
+import { StudentWritingSubmissionPanel } from '@/features/schedule/components/StudentWritingSubmissionPanel';
 import {
   buildVocabularyDrillStartHref,
   isVocabularyDrillAssignment,
 } from '@/lib/assignment-list-row-actions';
+import { isWritingExerciseType } from '@/lib/writing-assignment';
 
 const { Text, Title } = Typography;
 const SUBMISSION_MIME_REJECT_DETAIL =
@@ -297,6 +299,11 @@ export function StudentAssignmentDetailModal({
     [detail?.exerciseType],
   );
 
+  const isWritingExercise = useMemo(
+    () => isWritingExerciseType(detail?.exerciseType),
+    [detail?.exerciseType],
+  );
+
   const quizAttemptSummary = useMemo(() => {
     if (!detail || !isQuizWithLinkedForm) return null;
     const max = detail.quizMaxAttempts ?? null;
@@ -399,7 +406,9 @@ export function StudentAssignmentDetailModal({
 
   const submissionLocked = detail?.learningAccess?.submissionLocked === true;
   const isSpeakingExercise = isMediaSpeakingExercise(detail?.exerciseType);
-  const showSpeakingFeedback = submissionLocked && isSpeakingExercise;
+  const showTeacherFeedbackCard =
+    submissionLocked && (isSpeakingExercise || isWritingExercise);
+  const showSpeakingFeedback = showTeacherFeedbackCard && isSpeakingExercise;
 
   const submitFiles = useCallback(
     async (files: File[]): Promise<boolean> => {
@@ -667,7 +676,7 @@ export function StudentAssignmentDetailModal({
             labelStyle={{ fontWeight: 600, width: 130 }}
           >
             <Descriptions.Item label="Điểm">
-              {showSpeakingFeedback ? (
+              {showTeacherFeedbackCard ? (
                 <Text type="secondary">Xem mục «Kết quả chấm bài» bên dưới</Text>
               ) : (
                 <Space size="small" wrap>
@@ -750,6 +759,26 @@ export function StudentAssignmentDetailModal({
                 )}
               </Flex>
             </Card>
+          ) : null}
+
+          {isWritingExercise ? (
+            <>
+              <StudentWritingSubmissionPanel
+                assignmentId={detail.assignmentId}
+                open={open}
+                canSubmit={canSubmit}
+                disablePaste={detail.writingDisablePaste === true}
+                resultStatus={detail.result?.resultStatus ?? null}
+                submittedAt={detail.submission?.submittedAt}
+                serverDraftText={detail.submission?.writingDraftText}
+                submittedText={detail.submission?.submittedText}
+                fetchWithAuth={fetchWithAuth}
+                onSubmitted={loadDetail}
+              />
+              {showTeacherFeedbackCard ? (
+                <StudentTeacherFeedbackCard detail={detail} />
+              ) : null}
+            </>
           ) : null}
 
           {isExternalLinkExercise && detail.externalLinkActivityUrl ? (
@@ -851,7 +880,8 @@ export function StudentAssignmentDetailModal({
           {canSubmit &&
           detail.studentUploadEnabled &&
           !isQuizWithLinkedForm &&
-          !isExternalLinkExercise ? (
+          !isExternalLinkExercise &&
+          !isWritingExercise ? (
             <Card size="small">
               <Flex justify="space-between" align="center" gap="middle" wrap>
                 <div style={{ minWidth: 0 }}>
@@ -892,9 +922,14 @@ export function StudentAssignmentDetailModal({
             </Card>
           ) : null}
 
-          {showSpeakingFeedback ? <StudentTeacherFeedbackCard detail={detail} /> : null}
+          {showSpeakingFeedback ? (
+            <StudentTeacherFeedbackCard
+              detail={detail}
+              showMediaTimelineHint
+            />
+          ) : null}
 
-          {!showSpeakingFeedback && submissionLocked ? (
+          {!showTeacherFeedbackCard && submissionLocked ? (
             <Card size="small" title="Nhận xét của giáo viên">
               {detail.result?.teacherNote ? (
                 <Text style={{ display: 'block', marginBottom: token.marginSM }}>

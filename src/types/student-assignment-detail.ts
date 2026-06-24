@@ -68,6 +68,8 @@ export interface StudentAssignmentDetail {
   studentUploadMaxFiles?: number;
   /** URL trang làm bài (external_link) */
   externalLinkActivityUrl?: string | null;
+  /** Chặn paste clipboard (bài writing). Mặc định false. */
+  writingDisablePaste?: boolean;
   /** Bài QUIZ gắn Test form — UUID đề (Gateway). */
   testQuizFormPublicId?: string | null;
   /** Số lần làm tối đa; null = không giới hạn. */
@@ -80,6 +82,8 @@ export interface StudentAssignmentDetail {
     submittedAt?: string | null;
     submittedNote?: string | null;
     submittedExternalUrl?: string | null;
+    submittedText?: string | null;
+    writingDraftText?: string | null;
     attachments?: StudentSubmissionAttachment[];
   };
   result: {

@@ -167,6 +167,14 @@ function parseSubmission(raw: unknown): StudentAssignmentDetail['submission'] {
       o.submittedExternalUrl === null
         ? (o.submittedExternalUrl as string | null)
         : undefined,
+    submittedText:
+      typeof o.submittedText === 'string' || o.submittedText === null
+        ? (o.submittedText as string | null)
+        : undefined,
+    writingDraftText:
+      typeof o.writingDraftText === 'string' || o.writingDraftText === null
+        ? (o.writingDraftText as string | null)
+        : undefined,
     attachments,
   };
 }
@@ -249,6 +257,8 @@ export function normalizeStudentAssignmentDetail(
         : o.externalLinkActivityUrl === null
           ? null
           : undefined,
+    writingDisablePaste:
+      typeof o.writingDisablePaste === 'boolean' ? o.writingDisablePaste : false,
     testQuizFormPublicId:
       typeof o.testQuizFormPublicId === 'string' && o.testQuizFormPublicId.trim() !== ''
         ? o.testQuizFormPublicId
