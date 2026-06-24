@@ -4,10 +4,18 @@ import { useCallback, useMemo, useState } from 'react';
 import { Button, Card, Flex, Input, message, Popconfirm, Typography, theme } from 'antd';
 import { CRM_ASSIGNMENT_RESULT_STATUS } from '@/lib/crm-enums';
 import {
-  countWritingWords,
+  getWritingEditorHint,
+  isWritingDictationMode,
+  normalizeWritingSubmissionText,
+  parseWritingExerciseMode,
+  WRITING_EXERCISE_MODES,
   WRITING_SUBMISSION_MAX_CHARS,
+  countWritingWords,
 } from '@/lib/writing-assignment';
 import { useWritingSubmissionDraft } from '@/features/schedule/hooks/useWritingSubmissionDraft';
+import { StudentWritingDictationAudioPanel } from '@/features/schedule/components/StudentWritingDictationAudioPanel';
+import type { StudentAssignmentAttachment } from '@/types/student-assignment-detail';
+import type { WritingExerciseMode } from '@/lib/writing-assignment';
 
 const { Text } = Typography;
 
@@ -15,6 +23,8 @@ type StudentWritingSubmissionPanelProps = {
   assignmentId: number;
   canSubmit: boolean;
   disablePaste: boolean;
+  writingMode?: WritingExerciseMode;
+  dictationAudioAttachments?: StudentAssignmentAttachment[];
   resultStatus: number | null;
   submittedAt?: string | null;
   serverDraftText?: string | null;
@@ -28,6 +38,8 @@ export function StudentWritingSubmissionPanel({
   assignmentId,
   canSubmit,
   disablePaste,
+  writingMode = WRITING_EXERCISE_MODES.free,
+  dictationAudioAttachments = [],
   resultStatus,
   submittedAt,
   serverDraftText,
@@ -73,13 +85,19 @@ export function StudentWritingSubmissionPanel({
     [canEdit, disablePaste],
   );
 
+  const resolvedMode = parseWritingExerciseMode(writingMode);
+  const editorHint = useMemo(
+    () => getWritingEditorHint(resolvedMode, disablePaste),
+    [resolvedMode, disablePaste],
+  );
+
   const handleSubmit = useCallback(async () => {
-    const trimmed = text.trim();
-    if (!trimmed) {
+    const normalized = normalizeWritingSubmissionText(text);
+    if (!normalized) {
       message.warning('Vui lòng nhập nội dung bài viết trước khi nộp.');
       return;
     }
-    if (trimmed.length > WRITING_SUBMISSION_MAX_CHARS) {
+    if (normalized.length > WRITING_SUBMISSION_MAX_CHARS) {
       message.error(
         `Nội dung vượt quá ${WRITING_SUBMISSION_MAX_CHARS.toLocaleString('vi-VN')} ký tự.`,
       );
@@ -94,7 +112,7 @@ export function StudentWritingSubmissionPanel({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            text: trimmed,
+            text: normalized,
             note: submissionNote.trim() || undefined,
           }),
         },
@@ -138,9 +156,7 @@ export function StudentWritingSubmissionPanel({
           </div>
           {canEdit ? (
             <Text type="secondary" style={{ fontSize: token.fontSize }}>
-              Nhập nội dung dạng văn bản thuần (có xuống dòng). Nội dung được lưu
-              nháp tự động; bấm Nộp bài khi hoàn thành.
-              {disablePaste ? ' Không được dán từ clipboard.' : ''}
+              {editorHint}
             </Text>
           ) : submittedAt ? (
             <Text type="secondary" style={{ fontSize: token.fontSize }}>
@@ -148,6 +164,15 @@ export function StudentWritingSubmissionPanel({
             </Text>
           ) : null}
         </div>
+
+        {isWritingDictationMode(resolvedMode) ? (
+          <div>
+            <div style={{ fontWeight: 600, marginBottom: token.marginXS }}>
+              Nghe và chép
+            </div>
+            <StudentWritingDictationAudioPanel items={dictationAudioAttachments} />
+          </div>
+        ) : null}
 
         <Input.TextArea
           value={text}

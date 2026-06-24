@@ -4,6 +4,7 @@ import type {
   StudentSubmissionAttachment,
 } from '@/types/student-assignment-detail';
 import { commentHasFeedback, sortComments } from '@/components/media-review';
+import { parseWritingExerciseMode } from '@/lib/writing-assignment';
 
 function pickRecord(raw: unknown): Record<string, unknown> | null {
   if (raw == null || typeof raw !== 'object') return null;
@@ -259,6 +260,7 @@ export function normalizeStudentAssignmentDetail(
           : undefined,
     writingDisablePaste:
       typeof o.writingDisablePaste === 'boolean' ? o.writingDisablePaste : false,
+    writingMode: parseWritingExerciseMode(o.writingMode),
     testQuizFormPublicId:
       typeof o.testQuizFormPublicId === 'string' && o.testQuizFormPublicId.trim() !== ''
         ? o.testQuizFormPublicId

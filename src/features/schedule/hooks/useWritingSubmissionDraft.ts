@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   clearWritingDraftFromStorage,
-  normalizeWritingPlainText,
+  normalizeWritingLineEndings,
   readWritingDraftFromStorage,
   writeWritingDraftToStorage,
   WRITING_SUBMISSION_MAX_CHARS,
@@ -51,12 +51,12 @@ export function useWritingSubmissionDraft({
     initializedRef.current = true;
 
     if (isSubmitted) {
-      setText(normalizeWritingPlainText(submittedText ?? ''));
+      setText(normalizeWritingLineEndings(submittedText ?? ''));
       return;
     }
 
     const local = readWritingDraftFromStorage(assignmentId);
-    const server = normalizeWritingPlainText(serverDraftText ?? '');
+    const server = normalizeWritingLineEndings(serverDraftText ?? '');
     setText(server || local);
   }, [
     assignmentId,
@@ -70,7 +70,7 @@ export function useWritingSubmissionDraft({
     async (draftText: string) => {
       if (assignmentId == null || !canEdit || isSubmitted) return;
 
-      const normalized = normalizeWritingPlainText(draftText);
+      const normalized = normalizeWritingLineEndings(draftText);
       writeWritingDraftToStorage(assignmentId, normalized);
 
       if (normalized.length > WRITING_SUBMISSION_MAX_CHARS) {
@@ -115,7 +115,7 @@ export function useWritingSubmissionDraft({
 
   const onTextChange = useCallback(
     (value: string) => {
-      const normalized = normalizeWritingPlainText(value);
+      const normalized = normalizeWritingLineEndings(value);
       setText(normalized);
       if (draftStatus === 'saved') setDraftStatus('idle');
       scheduleDraftSave(normalized);

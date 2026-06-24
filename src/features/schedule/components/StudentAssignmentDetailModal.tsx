@@ -75,7 +75,12 @@ import {
   buildVocabularyDrillStartHref,
   isVocabularyDrillAssignment,
 } from '@/lib/assignment-list-row-actions';
-import { isWritingExerciseType } from '@/lib/writing-assignment';
+import {
+  isWritingExerciseType,
+  isWritingDictationMode,
+  pickDictationAudioAttachments,
+  parseWritingExerciseMode,
+} from '@/lib/writing-assignment';
 
 const { Text, Title } = Typography;
 const SUBMISSION_MIME_REJECT_DETAIL =
@@ -302,6 +307,13 @@ export function StudentAssignmentDetailModal({
   const isWritingExercise = useMemo(
     () => isWritingExerciseType(detail?.exerciseType),
     [detail?.exerciseType],
+  );
+  const writingDictationAudios = useMemo(
+    () =>
+      isWritingDictationMode(detail?.writingMode)
+        ? pickDictationAudioAttachments(detail?.attachments)
+        : [],
+    [detail?.attachments, detail?.writingMode],
   );
 
   const quizAttemptSummary = useMemo(() => {
@@ -768,6 +780,8 @@ export function StudentAssignmentDetailModal({
                 open={open}
                 canSubmit={canSubmit}
                 disablePaste={detail.writingDisablePaste === true}
+                writingMode={parseWritingExerciseMode(detail.writingMode)}
+                dictationAudioAttachments={writingDictationAudios}
                 resultStatus={detail.result?.resultStatus ?? null}
                 submittedAt={detail.submission?.submittedAt}
                 serverDraftText={detail.submission?.writingDraftText}

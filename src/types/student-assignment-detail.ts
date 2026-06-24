@@ -70,6 +70,8 @@ export interface StudentAssignmentDetail {
   externalLinkActivityUrl?: string | null;
   /** Chặn paste clipboard (bài writing). Mặc định false. */
   writingDisablePaste?: boolean;
+  /** `free` | `dictation` */
+  writingMode?: 'free' | 'dictation';
   /** Bài QUIZ gắn Test form — UUID đề (Gateway). */
   testQuizFormPublicId?: string | null;
   /** Số lần làm tối đa; null = không giới hạn. */
