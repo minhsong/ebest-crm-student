@@ -1,7 +1,9 @@
 /**
  * Thông báo an toàn cho học viên — không lộ env, URL nội bộ, lệnh dev, tên service.
- * Chi tiết kỹ thuật chỉ ghi server log (xem logInternalApiError).
+ * Chi tiết kỹ thuật ghi server log + relay CRM (xem reportStudentPortalBffError).
  */
+
+import { reportStudentPortalBffError } from '@/lib/report-bff-error';
 
 const TECHNICAL_MESSAGE_PATTERNS: RegExp[] = [
   /SOCIAL_GATEWAY|NEXT_PUBLIC_|CRM_API_URL|QUIZ_PORTAL/i,
@@ -93,6 +95,12 @@ export function sanitizeApiErrorPayload(
 export function logInternalApiError(
   context: string,
   detail: unknown,
+  options?: {
+    customerId?: number;
+    path?: string;
+    method?: string;
+    errorType?: string;
+  },
 ): void {
   if (process.env.NODE_ENV === 'production') {
     const brief =
@@ -105,6 +113,7 @@ export function logInternalApiError(
   } else {
     console.error(`[student-portal] ${context}`, detail);
   }
+  reportStudentPortalBffError(context, detail, options);
 }
 
 export { USER_MESSAGES as STUDENT_SAFE_USER_MESSAGES };

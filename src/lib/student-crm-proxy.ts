@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getApiBaseUrl } from '@/lib/env';
 import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
-import { sanitizeApiErrorPayload } from '@/lib/student-safe-errors';
+import { logInternalApiError, sanitizeApiErrorPayload } from '@/lib/student-safe-errors';
 
 export const STUDENT_CRM_API_PREFIX = '/api/v1/student';
 
@@ -23,6 +23,11 @@ export async function proxyStudentCrmGet(
 
   const apiBaseUrl = getApiBaseUrl();
   if (!apiBaseUrl) {
+    logInternalApiError('student-crm-proxy:get', 'CRM_API_URL missing', {
+      path: relativePath,
+      method: 'GET',
+      errorType: 'StudentPortalConfigError',
+    });
     return NextResponse.json(
       { message: 'Cấu hình server chưa đúng.' },
       { status: 500 },
@@ -30,9 +35,22 @@ export async function proxyStudentCrmGet(
   }
   const path = relativePath.replace(/^\//, '');
   const url = `${apiBaseUrl.replace(/\/$/, '')}${STUDENT_CRM_API_PREFIX}/${path}`;
-  const res = await fetch(url, {
-    headers: { Accept: 'application/json', Authorization: auth },
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { Accept: 'application/json', Authorization: auth },
+    });
+  } catch (err) {
+    logInternalApiError('student-crm-proxy:get', err, {
+      path: relativePath,
+      method: 'GET',
+      errorType: 'StudentPortalUpstreamFetchFailed',
+    });
+    return NextResponse.json(
+      { message: 'Không thể kết nối dịch vụ. Vui lòng thử lại sau.' },
+      { status: 503 },
+    );
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return NextResponse.json(sanitizeApiErrorPayload(data, res.status), {
@@ -66,6 +84,11 @@ export async function proxyStudentCrmRequest(
 
   const apiBaseUrl = getApiBaseUrl();
   if (!apiBaseUrl) {
+    logInternalApiError('student-crm-proxy:request', 'CRM_API_URL missing', {
+      path: relativePath,
+      method: options.method,
+      errorType: 'StudentPortalConfigError',
+    });
     return NextResponse.json(
       { message: 'Cấu hình server chưa đúng.' },
       { status: 500 },
@@ -84,7 +107,20 @@ export async function proxyStudentCrmRequest(
     init.body = JSON.stringify(options.jsonBody);
   }
 
-  const res = await fetch(url, init);
+  let res: Response;
+  try {
+    res = await fetch(url, init);
+  } catch (err) {
+    logInternalApiError('student-crm-proxy:request', err, {
+      path: relativePath,
+      method: options.method,
+      errorType: 'StudentPortalUpstreamFetchFailed',
+    });
+    return NextResponse.json(
+      { message: 'Không thể kết nối dịch vụ. Vui lòng thử lại sau.' },
+      { status: 503 },
+    );
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return NextResponse.json(sanitizeApiErrorPayload(data, res.status), {

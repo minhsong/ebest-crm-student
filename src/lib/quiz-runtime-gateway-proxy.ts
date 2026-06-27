@@ -891,13 +891,22 @@ export async function proxyQuizRuntimeToGateway(
       causeCode === 'ECONNREFUSED' ||
       (err instanceof TypeError && err.message.includes('fetch failed'))
     ) {
-      logInternalApiError('quiz-runtime-proxy:upstream', err);
+      logInternalApiError('quiz-runtime-proxy:upstream', err, {
+        customerId,
+        path: segments.join('/'),
+        method: request.method,
+        errorType: 'StudentPortalGatewayUpstreamFailed',
+      });
       return NextResponse.json(
         { message: STUDENT_SAFE_USER_MESSAGES.quizUnavailable },
         { status: 503 },
       );
     }
-    logInternalApiError('quiz-runtime-proxy:handler', err);
+    logInternalApiError('quiz-runtime-proxy:handler', err, {
+      customerId,
+      path: segments.join('/'),
+      method: request.method,
+    });
     return NextResponse.json(
       { message: STUDENT_SAFE_USER_MESSAGES.quizUnavailable },
       { status: 500 },
