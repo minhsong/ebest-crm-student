@@ -2,6 +2,8 @@
 
 import { Card, Space, Tag, Typography, theme } from 'antd';
 import { MessageOutlined, TrophyOutlined } from '@ant-design/icons';
+import { QaArticleHtml } from '@/features/qa/components/QaArticleHtml';
+import { looksLikeRichHtml } from '@/lib/rich-html.utils';
 import type { StudentAssignmentDetail } from '@/types/student-assignment-detail';
 
 const { Text, Title } = Typography;
@@ -71,9 +73,15 @@ export function StudentTeacherFeedbackCard({
             <Text strong>
               <MessageOutlined /> Nhận xét chung
             </Text>
-            <Text style={{ display: 'block', marginTop: 8, whiteSpace: 'pre-wrap' }}>
-              {result!.teacherNote}
-            </Text>
+            {looksLikeRichHtml(result!.teacherNote!) ? (
+              <div style={{ marginTop: 8 }}>
+                <QaArticleHtml html={result!.teacherNote!} />
+              </div>
+            ) : (
+              <Text style={{ display: 'block', marginTop: 8, whiteSpace: 'pre-wrap' }}>
+                {result!.teacherNote}
+              </Text>
+            )}
           </div>
         ) : null}
 

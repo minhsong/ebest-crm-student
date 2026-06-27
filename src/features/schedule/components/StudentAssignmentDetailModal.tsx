@@ -58,6 +58,8 @@ import { StudentOpenInNewTabLink } from '@/components/ui/StudentOpenInNewTabLink
 import { StudentMediaPlayModal } from '@/features/schedule/components/StudentMediaPlayModal';
 import { StudentSubmissionMediaReviewModal } from '@/features/schedule/components/StudentSubmissionMediaReviewModal';
 import { StudentTeacherFeedbackCard } from '@/features/schedule/components/StudentTeacherFeedbackCard';
+import { StudentAssignmentBriefCollapse } from '@/features/schedule/components/StudentAssignmentBriefCollapse';
+import { StudentWritingGradedFeedbackSection } from '@/features/schedule/components/StudentWritingGradedFeedbackSection';
 import { StudentSubmissionReviewList } from '@/features/schedule/components/StudentSubmissionReviewList';
 import { sortComments } from '@/components/media-review';
 import { isMediaSpeakingExercise } from '@/lib/speaking-assignment';
@@ -643,6 +645,13 @@ export function StudentAssignmentDetailModal({
               {headerExerciseIcon}
             </span>
             <span style={{ fontWeight: 700 }}>{detail.title}</span>
+            {isWritingExercise &&
+            showTeacherFeedbackCard &&
+            detail.result?.scoreDisplay?.trim() ? (
+              <Tag color="blue" icon={<TrophyOutlined />} style={{ margin: 0 }}>
+                {detail.result.scoreDisplay}
+              </Tag>
+            ) : null}
             {headerStatusTag}
             {readOnlyReason && !(isQuizWithLinkedForm && canStartQuiz) ? (
               <LearningAccessNotice
@@ -775,6 +784,9 @@ export function StudentAssignmentDetailModal({
 
           {isWritingExercise ? (
             <>
+              {detail.content?.trim() ? (
+                <StudentAssignmentBriefCollapse html={detail.content} />
+              ) : null}
               <StudentWritingSubmissionPanel
                 assignmentId={detail.assignmentId}
                 open={open}
@@ -790,7 +802,7 @@ export function StudentAssignmentDetailModal({
                 onSubmitted={loadDetail}
               />
               {showTeacherFeedbackCard ? (
-                <StudentTeacherFeedbackCard detail={detail} />
+                <StudentWritingGradedFeedbackSection detail={detail} />
               ) : null}
             </>
           ) : null}
@@ -1117,7 +1129,7 @@ export function StudentAssignmentDetailModal({
             </div>
           ) : null}
 
-          {detail.content ? (
+          {detail.content && !isWritingExercise ? (
             <div>
               <Title
                 level={5}

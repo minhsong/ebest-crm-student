@@ -174,17 +174,35 @@ export function StudentWritingSubmissionPanel({
           </div>
         ) : null}
 
-        <Input.TextArea
-          value={text}
-          onChange={(e) => onTextChange(e.target.value)}
-          onPaste={handlePaste}
-          rows={10}
-          maxLength={WRITING_SUBMISSION_MAX_CHARS}
-          placeholder="Nhập bài viết của bạn…"
-          disabled={!canEdit || submitting}
-          style={{ fontFamily: 'inherit' }}
-          autoSize={{ minRows: 10, maxRows: 20 }}
-        />
+        {canEdit ? (
+          <Input.TextArea
+            value={text}
+            onChange={(e) => onTextChange(e.target.value)}
+            onPaste={handlePaste}
+            rows={10}
+            maxLength={WRITING_SUBMISSION_MAX_CHARS}
+            placeholder="Nhập bài viết của bạn…"
+            disabled={submitting}
+            style={{ fontFamily: 'inherit' }}
+            autoSize={{ minRows: 10, maxRows: 20 }}
+          />
+        ) : (
+          <div
+            style={{
+              padding: token.paddingMD,
+              borderRadius: token.borderRadius,
+              border: `1px solid ${token.colorBorderSecondary}`,
+              background: token.colorFillAlter,
+              maxHeight: 420,
+              overflow: 'auto',
+              whiteSpace: 'pre-wrap',
+              lineHeight: 1.65,
+              fontSize: token.fontSize,
+            }}
+          >
+            {text || '—'}
+          </div>
+        )}
 
         <Flex justify="space-between" align="center" wrap gap={8}>
           <Text type="secondary" style={{ fontSize: token.fontSize }}>
