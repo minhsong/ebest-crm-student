@@ -21,6 +21,10 @@ import {
 	type GameAnswerFeedback,
 	type GameSessionAnswerResultContext,
 } from '@/features/learning/games/core/use-game-session';
+import {
+	playDrillCorrectSound,
+	playDrillWrongSound,
+} from '@/features/learning/utils/game-sfx';
 
 import type { DrillQuestionClient, DrillSessionClient, DrillAnswerResult } from '@/types/learning';
 
@@ -36,6 +40,9 @@ type Options = {
 	sessionConfig: GameSessionConfig | null;
 	onSessionConfigChange: (config: GameSessionConfig | null) => void;
 	authorizeContext: DrillStartAuthorizeContext | null;
+	authorizeForStart: (
+		selection: DrillPracticeSelection,
+	) => Promise<DrillStartAuthorizeContext>;
 	assignmentMinimumScore?: number;
 	assignmentPoolSize?: number;
 	playIdFromUrl: string | null;
@@ -67,6 +74,7 @@ export function useDrillPracticeSession({
 	sessionConfig,
 	onSessionConfigChange,
 	authorizeContext,
+	authorizeForStart,
 	assignmentMinimumScore,
 	assignmentPoolSize,
 	playIdFromUrl,
@@ -109,6 +117,7 @@ export function useDrillPracticeSession({
 			setFeedback: (v: DrillAnswerFeedback) => void,
 			setStreak: (updater: (s: number) => number) => void,
 		) => {
+			playDrillWrongSound();
 			setFeedback('wrong');
 			setStreak(() => 0);
 			scheduleFeedback(FEEDBACK_WRONG_MS, () => {
@@ -127,6 +136,7 @@ export function useDrillPracticeSession({
 			scheduleFeedback: (delayMs: number, fn: () => void) => void,
 			setFeedback: (v: DrillAnswerFeedback) => void,
 		) => {
+			playDrillCorrectSound();
 			setFeedback('correct');
 			scheduleFeedback(FEEDBACK_CORRECT_MS, () => {
 				const passed =
@@ -164,6 +174,11 @@ export function useDrillPracticeSession({
 
 			if (result.completed) {
 				if (isPoolCoverage && result.progress) {
+					if (result.correct) {
+						playDrillCorrectSound();
+					} else {
+						playDrillWrongSound();
+					}
 					setFeedback(result.correct ? 'correct' : 'wrong');
 					scheduleFeedback(
 						result.correct ? FEEDBACK_CORRECT_MS : FEEDBACK_WRONG_MS,
@@ -192,6 +207,7 @@ export function useDrillPracticeSession({
 					setPoolProgress(result.progress);
 				}
 				setStreak(() => 0);
+				playDrillWrongSound();
 				setFeedback('wrong');
 				scheduleFeedback(FEEDBACK_WRONG_MS, () => {
 					if (result.nextQuestion) {
@@ -209,6 +225,7 @@ export function useDrillPracticeSession({
 				if (result.progress) {
 					setPoolProgress(result.progress);
 				}
+				playDrillCorrectSound();
 				setFeedback('correct');
 				scheduleFeedback(FEEDBACK_CORRECT_MS, () => {
 					if (result.nextQuestion) {
@@ -227,11 +244,15 @@ export function useDrillPracticeSession({
 		if (!effectiveClassId) {
 			throw new Error('Thiếu lớp học.');
 		}
+
+		const context =
+			authorizeContext ?? (await authorizeForStart(resolvedSelection));
+
 		const started = await startDrillSession(effectiveClassId, {
 			assignmentId: assignmentId ?? undefined,
 			modeId: resolvedSelection.modeId,
 			promptType: resolvedSelection.promptType,
-			context: authorizeContext ?? undefined,
+			context,
 		});
 		if (started.sessionConfig) {
 			onSessionConfigChange(started.sessionConfig);
@@ -243,7 +264,14 @@ export function useDrillPracticeSession({
 			scoreInRun: started.scoreInRun,
 			streak: started.streak ?? 0,
 		};
-	}, [assignmentId, authorizeContext, effectiveClassId, onSessionConfigChange, resolvedSelection]);
+	}, [
+		assignmentId,
+		authorizeContext,
+		authorizeForStart,
+		effectiveClassId,
+		onSessionConfigChange,
+		resolvedSelection,
+	]);
 
 	const wsEvents = useMemo(
 		() => ({

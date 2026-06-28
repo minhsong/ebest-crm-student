@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { playTimerTickSound } from '@/features/learning/utils/game-sfx';
 
 type Options = {
   questionId: string | null;
@@ -21,11 +22,13 @@ export function useGameQuestionTimer({
   const [secondsLeft, setSecondsLeft] = useState(seconds);
   const onTimeoutRef = useRef(onTimeout);
   const firedForQuestionRef = useRef<string | null>(null);
+  const prevSecondsLeftRef = useRef<number | null>(null);
   onTimeoutRef.current = onTimeout;
 
   useEffect(() => {
     setSecondsLeft(seconds);
     firedForQuestionRef.current = null;
+    prevSecondsLeftRef.current = null;
   }, [questionId, seconds]);
 
   useEffect(() => {
@@ -35,6 +38,23 @@ export function useGameQuestionTimer({
       firedForQuestionRef.current = null;
     }
   }, [serverSecondsLeft, questionId]);
+
+  useEffect(() => {
+    if (!enabled || paused || !questionId) {
+      prevSecondsLeftRef.current = null;
+      return;
+    }
+
+    if (prevSecondsLeftRef.current === null) {
+      prevSecondsLeftRef.current = secondsLeft;
+      return;
+    }
+
+    if (secondsLeft < prevSecondsLeftRef.current) {
+      playTimerTickSound(secondsLeft);
+    }
+    prevSecondsLeftRef.current = secondsLeft;
+  }, [enabled, paused, questionId, secondsLeft]);
 
   useEffect(() => {
     if (!enabled || paused || !questionId) return;

@@ -32,14 +32,11 @@ function DrillOptionGridInner({
 		<div>
 			<p className="drill-options-section__label">Chọn đáp án đúng</p>
 			<div className="drill-option-grid" role="group" aria-label="Lựa chọn từ">
-				{options.map((opt, index) => (
+				{options.map((opt) => (
 					<DrillOptionCard
 						key={opt.id}
 						id={opt.id}
 						word={opt.label}
-						partOfSpeech={opt.partOfSpeech}
-						partOfSpeechLabel={opt.partOfSpeechLabel}
-						index={index}
 						state={resolveOptionState({
 							optionId: opt.id,
 							selectedOptionId,

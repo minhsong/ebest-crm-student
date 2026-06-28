@@ -382,21 +382,6 @@
 	cursor: not-allowed;
 }
 
-.drill-option-card__letter {
-	flex-shrink: 0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 28px;
-	height: 28px;
-	border-radius: var(--drill-radius-sm);
-	background: var(--drill-primary-bg);
-	border: 1px solid var(--drill-primary-border);
-	font-size: 12px;
-	font-weight: 700;
-	color: var(--drill-primary);
-}
-
 .drill-option-card__content {
 	flex: 1;
 	display: flex;
@@ -424,12 +409,6 @@
 	box-shadow: 0 0 0 2px var(--drill-primary-border);
 }
 
-.drill-option-card.is-selected .drill-option-card__letter {
-	background: var(--drill-primary);
-	border-color: var(--drill-primary);
-	color: #fff;
-}
-
 .drill-option-card.is-correct {
 	border-color: var(--drill-success);
 	background: var(--drill-success-bg);
@@ -437,23 +416,11 @@
 	animation: drill-option-pulse 0.4s ease;
 }
 
-.drill-option-card.is-correct .drill-option-card__letter {
-	background: var(--drill-success);
-	border-color: var(--drill-success);
-	color: #fff;
-}
-
 .drill-option-card.is-wrong {
 	border-color: var(--drill-error);
 	background: var(--drill-error-bg);
 	box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
 	animation: drill-option-shake 0.4s ease;
-}
-
-.drill-option-card.is-wrong .drill-option-card__letter {
-	background: var(--drill-error);
-	border-color: var(--drill-error);
-	color: #fff;
 }
 
 /* ─── Feedback toast ─── */

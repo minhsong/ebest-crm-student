@@ -4,7 +4,11 @@ import {
 	fetchVocabularyPool,
 	fetchWeakWords,
 } from '@/lib/learning-api';
-import { authorizeDrillSession, type DrillStartAuthorizeContext } from '@/lib/drill-authorize-client';
+import {
+	authorizeDrillSession,
+	type DrillAuthorizeResult,
+	type DrillStartAuthorizeContext,
+} from '@/lib/drill-authorize-client';
 import type { GameSessionConfig } from '@/features/learning/games/core/types/game-session-config.types';
 import { parseLearningAccess } from '@/features/learning/utils/learning-access';
 import type {
@@ -31,6 +35,21 @@ type PoolParams = {
 	checklistId?: number | null;
 };
 
+function toAuthorizeContext(
+	auth: Extract<DrillAuthorizeResult, { allowed: true }>,
+): DrillStartAuthorizeContext {
+	return {
+		classId: auth.classId,
+		courseId: auth.courseId,
+		assignmentId: auth.assignmentId,
+		checklistId: auth.checklistId ?? null,
+		sessionConfig: auth.sessionConfig,
+		rules: auth.rules,
+		pool: auth.pool,
+		progress: auth.progress,
+	};
+}
+
 export function useDrillPracticePool({ classId, assignmentId, checklistId }: PoolParams) {
 	const [assignmentCtx, setAssignmentCtx] = useState<AssignmentDrillContextPayload | null>(null);
 	const [selection, setSelection] = useState<DrillPracticeSelection>(DEFAULT_SELECTION);
@@ -41,8 +60,9 @@ export function useDrillPracticePool({ classId, assignmentId, checklistId }: Poo
 	const [weakWords, setWeakWords] = useState<WeakWordsPayload | null>(null);
 	const [weakWordsLoading, setWeakWordsLoading] = useState(false);
 	const [sessionConfig, setSessionConfig] = useState<GameSessionConfig | null>(null);
-	const [authorizeContext, setAuthorizeContext] = useState<DrillStartAuthorizeContext | null>(null);
-	const [sessionConfigLoading, setSessionConfigLoading] = useState(false);
+	const [authorizeContext, setAuthorizeContext] = useState<DrillStartAuthorizeContext | null>(
+		null,
+	);
 	const [sessionConfigError, setSessionConfigError] = useState<string | null>(null);
 
 	const loadPool = useCallback(async () => {
@@ -109,24 +129,16 @@ export function useDrillPracticePool({ classId, assignmentId, checklistId }: Poo
 
 	const canStart = useMemo(() => {
 		if (checklistId) {
-			return Boolean(authorizeContext && sessionConfig);
+			return Boolean(classId && !Number.isNaN(classId));
 		}
 		if (assignmentCtx) {
 			return Boolean(assignmentCtx.canPlay && assignmentCtx.assignmentPoolSize > 0);
 		}
 		const access = parseLearningAccess(pool?.learningAccess);
 		return Boolean(pool?.practiceEnabled && access.canRecordEvents);
-	}, [assignmentCtx, pool, checklistId, authorizeContext, sessionConfig]);
+	}, [assignmentCtx, pool, checklistId, classId]);
 
 	const startBlockReason = useMemo(() => {
-		if (checklistId) {
-			if (!authorizeContext || !sessionConfig) {
-				return sessionConfigError ?? 'Đang tải nhiệm vụ của bạn…';
-			}
-		}
-		if (sessionConfigError) {
-			return sessionConfigError;
-		}
 		if (assignmentCtx) {
 			if (!assignmentCtx.canPlay) {
 				return (
@@ -148,93 +160,45 @@ export function useDrillPracticePool({ classId, assignmentId, checklistId }: Poo
 			}
 		}
 		return null;
-	}, [assignmentCtx, pool, sessionConfigError, checklistId, authorizeContext, sessionConfig]);
+	}, [assignmentCtx, pool, checklistId]);
+
+	/** Authorize + batch đầu — chỉ gọi khi HV bấm Bắt đầu lượt chơi. */
+	const authorizeForStart = useCallback(
+		async (selectionForStart: DrillPracticeSelection): Promise<DrillStartAuthorizeContext> => {
+			const authorizeClassId = checklistId ? classId : effectiveClassId;
+			if (!authorizeClassId || Number.isNaN(authorizeClassId)) {
+				throw new Error('Thiếu lớp học.');
+			}
+			if (checklistId && (!classId || Number.isNaN(classId))) {
+				throw new Error('Thiếu classId cho checklist game.');
+			}
+
+			setSessionConfigError(null);
+
+			const auth = await authorizeDrillSession(authorizeClassId, {
+				assignmentId: assignmentId ?? undefined,
+				checklistId: checklistId ?? undefined,
+				modeId: selectionForStart.modeId,
+				promptType: selectionForStart.promptType,
+			});
+
+			if (!auth.allowed) {
+				const reason = auth.reason ?? 'Không được phép luyện tập.';
+				setSessionConfigError(reason);
+				throw new Error(reason);
+			}
+
+			const ctx = toAuthorizeContext(auth);
+			setSessionConfig(auth.sessionConfig);
+			setAuthorizeContext(ctx);
+			return ctx;
+		},
+		[assignmentId, checklistId, classId, effectiveClassId],
+	);
 
 	useEffect(() => {
 		void loadPool();
 	}, [loadPool]);
-
-	useEffect(() => {
-		const authorizeClassId = checklistId ? classId : effectiveClassId;
-
-		if (!authorizeClassId || Number.isNaN(authorizeClassId)) {
-			setSessionConfig(null);
-			setAuthorizeContext(null);
-			setSessionConfigError(null);
-			return;
-		}
-		if (checklistId && (!classId || Number.isNaN(classId))) {
-			setSessionConfigError('Thiếu classId cho checklist game.');
-			return;
-		}
-		if (assignmentId && assignmentCtx && !assignmentCtx.canPlay) {
-			setSessionConfig(null);
-			setAuthorizeContext(null);
-			setSessionConfigError(
-				assignmentCtx.learningAccess?.readOnlyReason ??
-					'Bạn chưa thể làm bài luyện từ này.',
-			);
-			return;
-		}
-		if (!checklistId && poolLoading) {
-			return;
-		}
-
-		let cancelled = false;
-		setSessionConfigLoading(true);
-		setSessionConfigError(null);
-
-		void authorizeDrillSession(authorizeClassId, {
-			assignmentId: assignmentId ?? undefined,
-			checklistId: checklistId ?? undefined,
-			modeId: resolvedSelection.modeId,
-			promptType: resolvedSelection.promptType,
-		})
-			.then((auth) => {
-				if (cancelled) return;
-				if (auth.allowed) {
-					setSessionConfig(auth.sessionConfig);
-					setAuthorizeContext({
-						classId: auth.classId,
-						courseId: auth.courseId,
-						assignmentId: auth.assignmentId,
-						checklistId: auth.checklistId ?? null,
-						sessionConfig: auth.sessionConfig,
-						rules: auth.rules,
-						pool: auth.pool,
-						progress: auth.progress,
-					});
-					setSessionConfigError(null);
-				} else {
-					setSessionConfig(null);
-					setAuthorizeContext(null);
-					setSessionConfigError(auth.reason ?? 'Không được phép luyện tập.');
-				}
-			})
-			.catch(() => {
-				if (!cancelled) {
-					setSessionConfig(null);
-					setAuthorizeContext(null);
-					setSessionConfigError('Không thể xác thực quyền luyện tập.');
-				}
-			})
-			.finally(() => {
-				if (!cancelled) setSessionConfigLoading(false);
-			});
-
-		return () => {
-			cancelled = true;
-		};
-	}, [
-		assignmentId,
-		assignmentCtx,
-		checklistId,
-		classId,
-		effectiveClassId,
-		poolLoading,
-		resolvedSelection.modeId,
-		resolvedSelection.promptType,
-	]);
 
 	useEffect(() => {
 		if (!classId || Number.isNaN(classId) || assignmentId || checklistId) {
@@ -309,9 +273,9 @@ export function useDrillPracticePool({ classId, assignmentId, checklistId }: Poo
 		canStart,
 		startBlockReason,
 		sessionConfig,
-		sessionConfigLoading,
 		sessionConfigError,
 		authorizeContext,
+		authorizeForStart,
 		weakWords,
 		weakWordsLoading,
 		refreshWeakWords,

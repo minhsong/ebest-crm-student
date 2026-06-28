@@ -33,6 +33,72 @@ function fillLobbyTemplate(
 	);
 }
 
+function resolveFreePracticeSurvivalPresentation(): VocabularyDrillPresentationProfile {
+	return {
+		modeLayoutProfileId: 'survival_streak',
+		resultProfileId: 'survival_result',
+		lobbyProfileId: 'free_practice',
+		detailWidgetId: 'meaning_mcq',
+		modeLabel: 'Survival',
+		usesStreakHud: true,
+		usesPoolProgressBar: false,
+	};
+}
+
+/** Presentation lobby từ assignment context — không cần authorize sớm. */
+function inferSessionConfigFromAssignment(
+	ctx: AssignmentDrillContextPayload,
+): GameSessionConfig {
+	return {
+		gameFamily: 'vocabulary_drill',
+		modeId: ctx.modeId,
+		promptType: ctx.promptType,
+		rules: { answerTimeoutSec: 10, optionCount: 4, allowRetrySameItem: false },
+		scoring: {
+			strategyId:
+				ctx.modeId === 'pool_coverage' ? 'accuracy_ratio' : 'streak_correct',
+			pointsPerCorrect: 1,
+		},
+		completion: {
+			sessionPolicyId:
+				ctx.modeId === 'pool_coverage' ? 'end_on_pool_exhausted' : 'end_on_wrong',
+			syncAssignmentOn: ctx.modeId === 'pool_coverage' ? 'run_completed' : 'never',
+		},
+		source: {
+			kind:
+				ctx.modeId === 'pool_coverage' ? 'vocabulary_selection' : 'vocabulary_pool',
+			itemIds: [],
+			batchSize: 20,
+		},
+		presentation: {
+			coreLayoutProfileId: 'default_game_shell',
+			modeLayoutProfileId:
+				ctx.modeId === 'pool_coverage' ? 'pool_coverage_progress' : 'survival_streak',
+			detailWidgetId:
+				ctx.promptType === 'audio_to_word' ? 'audio_mcq' : 'meaning_mcq',
+			resultProfileId:
+				ctx.modeId === 'pool_coverage' ? 'pool_coverage_result' : 'survival_result',
+		},
+	};
+}
+
+function buildChecklistPenaltyLobbyPlaceholder(
+	presentation: VocabularyDrillPresentationProfile,
+): VocabularyDrillLobbyViewModel {
+	return {
+		profileId: 'assignment_pool_coverage',
+		presentation,
+		eyebrow: 'Thông báo từ lớp',
+		title: 'Bạn đã bị Cô phạt chơi game',
+		description:
+			'Hãy hoàn thành nhiệm vụ — bấm Bắt đầu để xem chi tiết và vào lượt chơi.',
+		stats: [],
+		footerHint: 'Chúc bạn may mắn — cố lên, bạn làm được!',
+		showModePicker: false,
+		ctaLabel: 'Bắt đầu làm bài',
+	};
+}
+
 function buildChecklistPenaltyLobby(
 	presentation: VocabularyDrillPresentationProfile,
 	assignmentCtx: AssignmentDrillContextPayload,
@@ -67,95 +133,104 @@ function buildChecklistPenaltyLobby(
 }
 
 export function buildVocabularyDrillLobbyViewModel(input: {
-	sessionConfig: GameSessionConfig | null;
+	sessionConfig?: GameSessionConfig | null;
 	assignmentCtx: AssignmentDrillContextPayload | null;
-}): VocabularyDrillLobbyViewModel | null {
+}): VocabularyDrillLobbyViewModel {
 	const { sessionConfig, assignmentCtx } = input;
-	if (!sessionConfig) {
-		return null;
-	}
 
-	const presentation = resolveVocabularyDrillPresentationFromSessionConfig(sessionConfig);
-	const lobby = sessionConfig.presentation.lobby;
-
-	if (!assignmentCtx) {
-		const free = lobby?.freePractice;
-		return {
-			profileId: 'free_practice',
-			presentation,
-			eyebrow: free?.eyebrow ?? 'Luyện từ vựng',
-			title: free?.title ?? 'Survival Challenge',
-			description:
-				free?.description ??
-				'Trả lời đúng liên tiếp để ghi điểm. Một câu sai — lượt kết thúc.',
-			stats: [],
-			showModePicker: true,
-			ctaLabel: free?.ctaLabel ?? 'Bắt đầu lượt chơi',
-		};
-	}
-
-	if (assignmentCtx.contextKind === 'checklist_penalty') {
+	if (assignmentCtx?.contextKind === 'checklist_penalty') {
+		const config =
+			sessionConfig ?? inferSessionConfigFromAssignment(assignmentCtx);
+		const presentation = resolveVocabularyDrillPresentationFromSessionConfig(config);
+		if (assignmentCtx.assignmentPoolSize <= 0 || assignmentCtx.minimumScore <= 0) {
+			return buildChecklistPenaltyLobbyPlaceholder(presentation);
+		}
 		return buildChecklistPenaltyLobby(presentation, assignmentCtx);
 	}
 
-	const bestTotal = assignmentCtx.bestTotal ?? assignmentCtx.assignmentPoolSize;
-	const isPool = presentation.usesPoolProgressBar;
-	const profileId: VocabularyDrillLobbyProfileId = isPool
-		? 'assignment_pool_coverage'
-		: 'assignment_survival';
+	if (assignmentCtx) {
+		const config =
+			sessionConfig ?? inferSessionConfigFromAssignment(assignmentCtx);
+		const presentation = resolveVocabularyDrillPresentationFromSessionConfig(config);
+		const lobby = config.presentation.lobby;
+		const bestTotal = assignmentCtx.bestTotal ?? assignmentCtx.assignmentPoolSize;
+		const isPool = presentation.usesPoolProgressBar;
+		const profileId: VocabularyDrillLobbyProfileId = isPool
+			? 'assignment_pool_coverage'
+			: 'assignment_survival';
 
-	const assignmentCopy = lobby?.assignment;
-	const templateVars = {
-		minimumScore: assignmentCtx.minimumScore,
-		bestScore: assignmentCtx.bestScore,
-		bestTotal,
-		poolSize: assignmentCtx.assignmentPoolSize,
-	};
+		const assignmentCopy = lobby?.assignment;
+		const templateVars = {
+			minimumScore: assignmentCtx.minimumScore,
+			bestScore: assignmentCtx.bestScore,
+			bestTotal,
+			poolSize: assignmentCtx.assignmentPoolSize,
+		};
 
-	const description = assignmentCtx.assignmentComplete
-		? fillLobbyTemplate(
-				assignmentCopy?.descriptionComplete ??
-					(isPool
-						? 'Bạn đã hoàn thành bài tập. Kết quả tốt nhất: {{bestScore}}/{{bestTotal}} từ đúng.'
-						: 'Bạn đã đạt yêu cầu. Điểm cao nhất: {{bestScore}}/{{minimumScore}}.'),
-				templateVars,
-			)
-		: fillLobbyTemplate(
-				assignmentCopy?.descriptionActive ??
-					(isPool
-						? 'Làm hết {{poolSize}} câu và trả lời đúng ít nhất {{minimumScore}} từ để hoàn thành bài tập nhé!'
-						: 'Đạt {{minimumScore}} điểm trong một lượt để hoàn thành bài tập. Cố lên!'),
-				templateVars,
-			);
+		const description = assignmentCtx.assignmentComplete
+			? fillLobbyTemplate(
+					assignmentCopy?.descriptionComplete ??
+						(isPool
+							? 'Bạn đã hoàn thành bài tập. Kết quả tốt nhất: {{bestScore}}/{{bestTotal}} từ đúng.'
+							: 'Bạn đã đạt yêu cầu. Điểm cao nhất: {{bestScore}}/{{minimumScore}}.'),
+					templateVars,
+				)
+			: fillLobbyTemplate(
+					assignmentCopy?.descriptionActive ??
+						(isPool
+							? 'Làm hết {{poolSize}} câu và trả lời đúng ít nhất {{minimumScore}} từ để hoàn thành bài tập nhé!'
+							: 'Đạt {{minimumScore}} điểm trong một lượt để hoàn thành bài tập. Cố lên!'),
+					templateVars,
+				);
+
+		return {
+			profileId,
+			presentation,
+			eyebrow: assignmentCopy?.eyebrow ?? 'Bài tập luyện từ',
+			title: assignmentCtx.title,
+			description,
+			stats: [
+				{
+					label: assignmentCopy?.statMinimumLabel ?? (isPool ? 'Cần đạt' : 'Mục tiêu'),
+					value: String(assignmentCtx.minimumScore),
+				},
+				{
+					label: assignmentCopy?.statBestLabel ?? 'Kết quả tốt nhất',
+					value:
+						isPool && bestTotal
+							? `${assignmentCtx.bestScore}/${bestTotal}`
+							: String(assignmentCtx.bestScore),
+				},
+				{
+					label: assignmentCopy?.statPoolLabel ?? 'Số từ',
+					value: String(assignmentCtx.assignmentPoolSize),
+				},
+			],
+			footerHint: isPool
+				? (assignmentCopy?.footerHint ??
+					'Trả lời hết danh sách từ trong một lượt — bạn làm được!')
+				: undefined,
+			showModePicker: false,
+			ctaLabel: assignmentCopy?.ctaLabel ?? 'Bắt đầu làm bài',
+		};
+	}
+
+	const presentation = sessionConfig
+		? resolveVocabularyDrillPresentationFromSessionConfig(sessionConfig)
+		: resolveFreePracticeSurvivalPresentation();
+	const lobby = sessionConfig?.presentation.lobby;
+	const free = lobby?.freePractice;
 
 	return {
-		profileId,
+		profileId: 'free_practice',
 		presentation,
-		eyebrow: assignmentCopy?.eyebrow ?? 'Bài tập luyện từ',
-		title: assignmentCtx.title,
-		description,
-		stats: [
-			{
-				label: assignmentCopy?.statMinimumLabel ?? (isPool ? 'Cần đạt' : 'Mục tiêu'),
-				value: String(assignmentCtx.minimumScore),
-			},
-			{
-				label: assignmentCopy?.statBestLabel ?? 'Kết quả tốt nhất',
-				value:
-					isPool && bestTotal
-						? `${assignmentCtx.bestScore}/${bestTotal}`
-						: String(assignmentCtx.bestScore),
-			},
-			{
-				label: assignmentCopy?.statPoolLabel ?? 'Số từ',
-				value: String(assignmentCtx.assignmentPoolSize),
-			},
-		],
-		footerHint: isPool
-			? (assignmentCopy?.footerHint ??
-				'Trả lời hết danh sách từ trong một lượt — bạn làm được!')
-			: undefined,
-		showModePicker: false,
-		ctaLabel: assignmentCopy?.ctaLabel ?? 'Bắt đầu làm bài',
+		eyebrow: free?.eyebrow ?? 'Luyện từ vựng',
+		title: free?.title ?? 'Survival Challenge',
+		description:
+			free?.description ??
+			'Trả lời đúng liên tiếp để ghi điểm. Một câu sai — lượt kết thúc.',
+		stats: [],
+		showModePicker: true,
+		ctaLabel: free?.ctaLabel ?? 'Bắt đầu lượt chơi',
 	};
 }

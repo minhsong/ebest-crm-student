@@ -25,6 +25,7 @@ import {
 } from '@/features/learning/utils/vocabulary-session-routes';
 import { FlashcardFlipCard } from './FlashcardFlipCard';
 import { playFlashcardFlipSound } from '../utils/flashcard-flip-sound';
+import { primeGameAudio } from '../utils/game-sfx';
 import { useVocabularyAudio } from '@/features/learning/hooks/useVocabularyAudio';
 import { getFlashcardReviewPresentation } from '@/features/learning/games/registry/game-presentation.registry';
 import { FlashcardSessionResultScreen } from '@/features/learning/games/flashcard-review/presentation/FlashcardSessionResultScreen';
@@ -92,6 +93,8 @@ export function FlashcardSessionView() {
 	const [items, setItems] = useState<LearningVocabularyItem[]>([]);
 	const [index, setIndex] = useState(0);
 	const [flipped, setFlipped] = useState(false);
+	/** Mở nút Biết/Chưa thuộc sau lần lật đầu — không khóa lại khi lật về mặt trước. */
+	const [canRate, setCanRate] = useState(false);
 	const [knownCount, setKnownCount] = useState(0);
 	const [unknownCount, setUnknownCount] = useState(0);
 	const [sessionTitle, setSessionTitle] = useState('');
@@ -184,7 +187,14 @@ export function FlashcardSessionView() {
 		stopAudio();
 	}, [index, flipped, stopAudio]);
 
+	useEffect(() => {
+		setFlipped(false);
+		setCanRate(false);
+	}, [index]);
+
 	const handleFlip = useCallback(() => {
+		primeGameAudio();
+		setCanRate(true);
 		setFlipped((prev) => {
 			playFlashcardFlipSound();
 			return !prev;
@@ -223,11 +233,12 @@ export function FlashcardSessionView() {
 			return remapCardOrder([...head, ...tail]);
 		});
 		setFlipped(false);
+		setCanRate(false);
 	}, [canReshuffleRemaining, index, stopAudio]);
 
 	const handleRating = useCallback(
 		async (selfRating: 'known' | 'unknown') => {
-			if (!current || !flipped || !sessionId) return;
+			if (!current || !canRate || !sessionId) return;
 
 			try {
 				await reviewFlashcardCard(sessionId, current.asset.id, selfRating);
@@ -241,7 +252,6 @@ export function FlashcardSessionView() {
 			const nextUnknown = unknownCount + (selfRating === 'unknown' ? 1 : 0);
 			setKnownCount(nextKnown);
 			setUnknownCount(nextUnknown);
-			setFlipped(false);
 
 			if (index + 1 >= items.length) {
 				await finishSession(nextKnown, nextUnknown);
@@ -251,7 +261,7 @@ export function FlashcardSessionView() {
 		},
 		[
 			current,
-			flipped,
+			canRate,
 			sessionId,
 			index,
 			items.length,
@@ -353,7 +363,7 @@ export function FlashcardSessionView() {
 							type="primary"
 							size="large"
 							icon={<CheckOutlined />}
-							disabled={!flipped}
+							disabled={!canRate}
 							onClick={() => void handleRating('known')}
 						>
 							{presentation.knownLabel}
@@ -362,7 +372,7 @@ export function FlashcardSessionView() {
 							danger
 							size="large"
 							icon={<CloseOutlined />}
-							disabled={!flipped}
+							disabled={!canRate}
 							onClick={() => void handleRating('unknown')}
 						>
 							{presentation.unknownLabel}

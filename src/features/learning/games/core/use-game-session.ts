@@ -15,6 +15,7 @@ import {
   type GameRuntimeStateSyncPayload,
 } from '@/features/learning/games/core/use-game-runtime-socket';
 import { useGameQuestionTimer } from '@/features/learning/games/core/use-game-question-timer';
+import { primeGameAudio } from '@/features/learning/utils/game-sfx';
 
 export type { GameAnswerFeedback, GameSessionState };
 export type { GameSessionResumeContext };
@@ -255,6 +256,7 @@ export function useGameSession<
     async (submitOpts: SubmitOptions) => {
       if (!session || !question || submitting || feedback) return;
 
+      primeGameAudio();
       setSubmitting(true);
       if (submitOpts.selectedOptionId) {
         setSelectedOptionId(submitOpts.selectedOptionId);

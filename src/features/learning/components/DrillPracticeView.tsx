@@ -62,9 +62,9 @@ export function DrillPracticeView() {
 		canStart,
 		startBlockReason,
 		sessionConfig: authorizedSessionConfig,
-		sessionConfigLoading,
 		sessionConfigError,
 		authorizeContext,
+		authorizeForStart,
 		weakWords,
 		weakWordsLoading,
 		refreshWeakWords,
@@ -72,31 +72,50 @@ export function DrillPracticeView() {
 	} = useDrillPracticePool({ classId, assignmentId, checklistId });
 
 	const checklistLobbyCtx = useMemo((): AssignmentDrillContextPayload | null => {
-		if (!checklistId || !authorizeContext?.rules) return null;
-		const rawMinimum = authorizeContext.rules.minimumScore;
-		if (rawMinimum == null || !Number.isFinite(rawMinimum)) return null;
-		const minimumScore = Math.floor(rawMinimum);
-		const poolSize =
-			authorizeContext.pool?.batchSize ??
-			authorizeContext.pool?.totalAssetIds?.length ??
-			0;
-		const progress = authorizeContext.progress;
+		if (!checklistId || !classId) return null;
+
+		if (authorizeContext?.rules) {
+			const rawMinimum = authorizeContext.rules.minimumScore;
+			if (rawMinimum == null || !Number.isFinite(rawMinimum)) return null;
+			const minimumScore = Math.floor(rawMinimum);
+			const poolSize =
+				authorizeContext.pool?.batchSize ??
+				authorizeContext.pool?.totalAssetIds?.length ??
+				0;
+			const progress = authorizeContext.progress;
+			return {
+				assignmentId: 0,
+				classId: authorizeContext.classId,
+				title: 'Nhiệm vụ phạt chơi game',
+				minimumScore,
+				modeId: 'pool_coverage',
+				promptType: resolvedSelection.promptType,
+				assignmentPoolSize: poolSize,
+				unlockPoolSize: poolSize,
+				bestScore: progress?.bestScore ?? 0,
+				bestTotal: poolSize,
+				assignmentComplete: progress?.checked ?? false,
+				canPlay: poolSize > 0,
+				contextKind: 'checklist_penalty',
+			};
+		}
+
 		return {
 			assignmentId: 0,
-			classId: authorizeContext.classId,
+			classId,
 			title: 'Nhiệm vụ phạt chơi game',
-			minimumScore,
+			minimumScore: 0,
 			modeId: 'pool_coverage',
 			promptType: resolvedSelection.promptType,
-			assignmentPoolSize: poolSize,
-			unlockPoolSize: poolSize,
-			bestScore: progress?.bestScore ?? 0,
-			bestTotal: poolSize,
-			assignmentComplete: progress?.checked ?? false,
-			canPlay: poolSize > 0,
+			assignmentPoolSize: 0,
+			unlockPoolSize: 0,
+			bestScore: 0,
+			bestTotal: 0,
+			assignmentComplete: false,
+			canPlay: true,
 			contextKind: 'checklist_penalty',
 		};
-	}, [authorizeContext, checklistId, resolvedSelection.promptType]);
+	}, [authorizeContext, checklistId, classId, resolvedSelection.promptType]);
 
 	const lobbyAssignmentCtx = assignmentCtx ?? checklistLobbyCtx;
 	const checklistMinimumScore =
@@ -138,6 +157,7 @@ export function DrillPracticeView() {
 		sessionConfig: activeSessionConfig,
 		onSessionConfigChange: setRuntimeSessionConfig,
 		authorizeContext,
+		authorizeForStart,
 		assignmentMinimumScore: assignmentCtx?.minimumScore ?? checklistMinimumScore,
 		assignmentPoolSize: assignmentCtx?.assignmentPoolSize ?? checklistPoolSize,
 		playIdFromUrl: playIdParam,
@@ -230,7 +250,7 @@ export function DrillPracticeView() {
 				<Alert className="mb-4" type="error" message={actionError} showIcon />
 			) : null}
 
-			{sessionConfigError && !sessionConfigLoading ? (
+			{sessionConfigError && !isPlaying && !starting ? (
 				<Alert className="mb-4" type="warning" message={sessionConfigError} showIcon />
 			) : null}
 
@@ -280,27 +300,19 @@ export function DrillPracticeView() {
 			) : null}
 
 			{showLobby ? (
-				(checklistId ? sessionConfigLoading : poolLoading && !pool) ? (
+				poolLoading && !pool && !checklistId ? (
 					<div className="drill-lobby">
 						<Skeleton active paragraph={{ rows: 5 }} />
 					</div>
 				) : (
 					<DrillPracticeLobby
 						selection={selection}
-						resolvedSelection={resolvedSelection}
 						onSelectionChange={setSelection}
 						pool={pool}
 						assignmentCtx={lobbyAssignmentCtx}
 						sessionConfig={activeSessionConfig}
-						sessionConfigLoading={sessionConfigLoading}
-						canStart={canStart && !sessionConfigLoading && Boolean(activeSessionConfig)}
-						startBlockReason={
-							sessionConfigLoading
-								? checklistId
-									? 'Đang chuẩn bị nhiệm vụ…'
-									: 'Đang chuẩn bị cấu hình lượt chơi…'
-								: startBlockReason
-						}
+						canStart={canStart && !startBlockReason}
+						startBlockReason={startBlockReason}
 						weakWords={weakWords}
 						weakWordsLoading={weakWordsLoading}
 						classId={classId}

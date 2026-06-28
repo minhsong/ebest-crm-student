@@ -108,6 +108,17 @@ describe('buildVocabularyDrillLobbyViewModel', () => {
     expect(vm?.ctaLabel).toBe('Custom CTA');
   });
 
+  it('builds free practice lobby without sessionConfig', () => {
+    const vm = buildVocabularyDrillLobbyViewModel({
+      sessionConfig: null,
+      assignmentCtx: null,
+    });
+
+    expect(vm.profileId).toBe('free_practice');
+    expect(vm.showModePicker).toBe(true);
+    expect(vm.presentation.usesStreakHud).toBe(true);
+  });
+
   it('builds free practice lobby with mode picker', () => {
     const vm = buildVocabularyDrillLobbyViewModel({
       sessionConfig: mockSessionConfig('survival'),
