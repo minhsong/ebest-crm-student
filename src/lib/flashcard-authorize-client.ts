@@ -3,6 +3,7 @@ export type FlashcardAuthorizeSuccess = {
   classId: number;
   classSessionId: number;
   courseSessionId: number | null;
+  sessionTitle?: string;
   modeId?: 'session_review';
   sessionConfig?: {
     gameFamily: 'flashcard_review';
@@ -28,6 +29,7 @@ export type FlashcardStartAuthorizeContext = {
   classId: number;
   classSessionId: number;
   courseSessionId: number | null;
+  sessionTitle?: string;
   sessionConfig: FlashcardAuthorizeSuccess['sessionConfig'];
   cards: FlashcardAuthorizeSuccess['cards'];
 };

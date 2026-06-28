@@ -13,7 +13,6 @@ import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, RetweetOutlined } from
 import { PageHeader } from '@/components/layout';
 import {
 	completeFlashcardSession,
-	fetchSessionVocabulary,
 	reviewFlashcardCard,
 	startFlashcardSession,
 } from '@/lib/learning-api';
@@ -143,14 +142,13 @@ export function FlashcardSessionView() {
 					cards: auth.cards,
 				};
 
-				const [session, vocabMeta] = await Promise.all([
-					startFlashcardSession(classId, classSessionId, { context: startContext }),
-					fetchSessionVocabulary(classId, classSessionId).catch(() => null),
-				]);
+				const session = await startFlashcardSession(classId, classSessionId, {
+					context: startContext,
+				});
 				setSessionId(session.sessionId);
 				setSessionConfig(session.sessionConfig ?? null);
 				setItems(session.cards.map((card, i) => mapCardToVocabularyItem(card, i + 1)));
-				setSessionTitle(vocabMeta?.sessionTitle?.trim() || 'Buổi học');
+				setSessionTitle(auth.sessionTitle?.trim() || 'Buổi học');
 				setPhase('card');
 			} catch (e) {
 				setError(e instanceof Error ? e.message : 'Không bắt đầu được phiên flashcard.');

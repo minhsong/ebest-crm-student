@@ -17,6 +17,7 @@ export type FlashcardAuthorizeResponse =
       classId: number;
       classSessionId: number;
       courseSessionId: number | null;
+      sessionTitle?: string;
       modeId?: 'session_review';
       sessionConfig?: Record<string, unknown>;
       cards: {
