@@ -2,6 +2,7 @@
 
 import { memo } from 'react';
 import type { GameAnswerFeedback } from '@/features/learning/games/core/types/game-session.types';
+import { VocabularyPosBadge } from '@/features/learning/components/VocabularyPosBadge';
 
 export type DrillOptionVisualState = 'default' | 'selected' | 'correct' | 'wrong' | 'disabled';
 
@@ -9,13 +10,23 @@ const LETTERS = ['A', 'B', 'C', 'D'] as const;
 
 type Props = {
 	id: string;
-	label: string;
+	word: string;
+	partOfSpeech?: string;
+	partOfSpeechLabel?: string;
 	index: number;
 	state: DrillOptionVisualState;
 	onSelect: (id: string) => void;
 };
 
-function DrillOptionCardInner({ id, label, index, state, onSelect }: Props) {
+function DrillOptionCardInner({
+	id,
+	word,
+	partOfSpeech,
+	partOfSpeechLabel,
+	index,
+	state,
+	onSelect,
+}: Props) {
 	const classNames = ['drill-option-card'];
 	if (state === 'selected') classNames.push('is-selected');
 	if (state === 'correct') classNames.push('is-correct');
@@ -30,7 +41,14 @@ function DrillOptionCardInner({ id, label, index, state, onSelect }: Props) {
 			onClick={() => onSelect(id)}
 		>
 			<span className="drill-option-card__letter">{letter}</span>
-			<span className="drill-option-card__word">{label}</span>
+			<span className="drill-option-card__content">
+				<span className="drill-option-card__word">{word}</span>
+				<VocabularyPosBadge
+					partOfSpeech={partOfSpeech}
+					partOfSpeechLabel={partOfSpeechLabel}
+					className="drill-option-card__pos"
+				/>
+			</span>
 		</button>
 	);
 }

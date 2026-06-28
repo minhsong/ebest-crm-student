@@ -127,6 +127,17 @@ export interface LearningProgressSummary {
 	lastQuizAt: string | null;
 }
 
+export interface VocabularyFamilyMemberSummary {
+	id: number;
+	word: string;
+	partOfSpeech: string;
+	displayLabel: string;
+	translations?: Record<string, string>;
+	translationPreview?: string;
+	isPrimary: boolean;
+	family?: number | null;
+}
+
 export interface LearningVocabularyItem {
 	order: number;
 	asset: {
@@ -134,7 +145,18 @@ export interface LearningVocabularyItem {
 		assetType: string;
 		word: string;
 		translation?: string;
+		translationPreview?: string;
 		meanings?: string[];
+		meaningEn?: string;
+		translations?: Record<string, string>;
+		partOfSpeech?: string;
+		partOfSpeechLabel?: string;
+		displayLabel?: string;
+		familyRootId?: number;
+		family?: number | null;
+		isPrimary?: boolean;
+		siblingCount?: number;
+		familyMembers?: VocabularyFamilyMemberSummary[];
 		ipaUk?: string;
 		ipaUs?: string;
 		example?: string;
@@ -205,7 +227,13 @@ export interface DrillQuestionClient {
 	prompt: string;
 	promptType: 'meaning' | 'audio';
 	promptAudioUrl?: string;
-	options: Array<{ id: string; label: string; assetId: number }>;
+	options: Array<{
+		id: string;
+		label: string;
+		assetId: number;
+		partOfSpeech?: string;
+		partOfSpeechLabel?: string;
+	}>;
 }
 
 export interface WeakWordRow {
@@ -341,6 +369,8 @@ export interface DrillLeaderboardPayload {
 export interface FlashcardSessionCard {
 	assetId: number;
 	word: string;
+	partOfSpeech?: string;
+	partOfSpeechLabel?: string;
 	meaning?: string;
 	promptAudioUrl?: string;
 	audioUkUrl?: string;

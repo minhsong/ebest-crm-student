@@ -36,7 +36,9 @@ function DrillOptionGridInner({
 					<DrillOptionCard
 						key={opt.id}
 						id={opt.id}
-						label={opt.label}
+						word={opt.label}
+						partOfSpeech={opt.partOfSpeech}
+						partOfSpeechLabel={opt.partOfSpeechLabel}
 						index={index}
 						state={resolveOptionState({
 							optionId: opt.id,

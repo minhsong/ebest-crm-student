@@ -4,13 +4,16 @@ import { Typography } from 'antd';
 import type { LearningVocabularyItem } from '@/types/learning';
 import { MasteryBadge } from '@/features/learning/components/MasteryBadge';
 import { VocabularyPronunciationRow } from '@/features/learning/components/VocabularyPronunciationRow';
+import { VocabularyFamilyPanel } from '@/features/learning/components/VocabularyFamilyPanel';
 import type { VocabularyPlayingLocale } from '@/features/learning/hooks/useVocabularyAudio';
 import {
 	formatAccuracyPercent,
 	getExtraMeanings,
 	getPrimaryMeaning,
+	getVocabularyHeadword,
 	hasVocabularyPronunciation,
 } from '@/features/learning/utils/vocabulary-display.util';
+import { VocabularyPosBadge } from '@/features/learning/components/VocabularyPosBadge';
 
 const { Title } = Typography;
 
@@ -18,16 +21,22 @@ type Props = {
 	item: LearningVocabularyItem;
 	playingLocale: VocabularyPlayingLocale;
 	onPlayAudio: (locale: 'uk' | 'us', url?: string) => void;
+	sessionAssetIds?: Set<number>;
+	onSelectFamilyMember?: (assetId: number) => void;
 };
 
 export function VocabularyWordDetailPanel({
 	item,
 	playingLocale,
 	onPlayAudio,
+	sessionAssetIds,
+	onSelectFamilyMember,
 }: Props) {
 	const { asset, progress } = item;
 	const primaryMeaning = getPrimaryMeaning(asset);
 	const extraMeanings = getExtraMeanings(asset);
+	const heroTitle = getVocabularyHeadword(asset);
+	const familyMembers = asset.familyMembers ?? [];
 
 	return (
 		<div className="vocab-word-detail">
@@ -42,15 +51,31 @@ export function VocabularyWordDetailPanel({
 					</div>
 				) : null}
 				<div className="vocab-word-detail__hero-top">
-					<Title level={2} className="vocab-word-detail__word">
-						{asset.word}
-					</Title>
+					<div className="vocab-word-detail__word-row">
+						<Title level={2} className="vocab-word-detail__word">
+							{heroTitle}
+						</Title>
+						<VocabularyPosBadge
+							partOfSpeech={asset.partOfSpeech}
+							partOfSpeechLabel={asset.partOfSpeechLabel}
+							className="vocab-word-detail__pos"
+						/>
+					</div>
 					<MasteryBadge
 						state={progress.masteryState}
 						label={progress.masteryLabel}
 					/>
 				</div>
 			</div>
+
+			{familyMembers.length > 0 ? (
+				<VocabularyFamilyPanel
+					members={familyMembers}
+					currentId={asset.id}
+					sessionAssetIds={sessionAssetIds}
+					onSelect={onSelectFamilyMember}
+				/>
+			) : null}
 
 			<div className="vocab-word-detail__section">
 				<span className="vocab-word-detail__section-title">Nghĩa</span>

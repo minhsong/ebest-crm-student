@@ -48,6 +48,8 @@ function mapCardToVocabularyItem(
 			id: card.assetId,
 			assetType: 'vocabulary',
 			word: card.word,
+			partOfSpeech: card.partOfSpeech,
+			partOfSpeechLabel: card.partOfSpeechLabel,
 			translation: card.meaning,
 			ipaUk: card.ipaUk,
 			ipaUs: card.ipaUs,

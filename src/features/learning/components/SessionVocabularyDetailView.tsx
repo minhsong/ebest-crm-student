@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Alert, Button, Skeleton, Space } from 'antd';
+import { Alert, Button, Input, Skeleton, Space } from 'antd';
 import {
 	ArrowLeftOutlined,
 	PlayCircleOutlined,
@@ -20,6 +20,10 @@ import {
 	vocabularyPracticeHref,
 } from '@/features/learning/utils/vocabulary-session-routes';
 import { resolveReadOnlyNoticeMessage } from '@/features/learning/utils/learning-access';
+import {
+	filterSessionVocabularyItems,
+	sortSessionVocabularyItems,
+} from '@/features/learning/utils/vocabulary-display.util';
 import type { LearningVocabularyItem } from '@/types/learning';
 import './session-vocabulary-words.css';
 
@@ -40,12 +44,18 @@ export function SessionVocabularyDetailView({
 	const [selectedItem, setSelectedItem] = useState<LearningVocabularyItem | null>(
 		null,
 	);
+	const [searchQuery, setSearchQuery] = useState('');
 
 	const { items, sessionTitle, canRecordEvents, readOnlyReason, loading, error } =
 		useSessionVocabulary({
 			classId,
 			classSessionId,
 		});
+
+	const visibleItems = useMemo(() => {
+		const sorted = sortSessionVocabularyItems(items);
+		return filterSessionVocabularyItems(sorted, searchQuery);
+	}, [items, searchQuery]);
 
 	const pageTitle = sessionTitle
 		? `Từ vựng · ${sessionTitle}`
@@ -69,7 +79,7 @@ export function SessionVocabularyDetailView({
 				}
 				description={
 					items.length > 0
-						? `${items.length} từ · chạm thẻ để xem chi tiết và nghe phát âm`
+						? `${visibleItems.length}/${items.length} từ · chạm thẻ để xem chi tiết và nghe phát âm`
 						: undefined
 				}
 				leading={
@@ -104,13 +114,26 @@ export function SessionVocabularyDetailView({
 
 			{!loading && !error ? (
 				<div className="session-vocabulary-words">
+					{items.length > 0 ? (
+						<Input.Search
+							allowClear
+							placeholder="Tìm từ, loại từ hoặc nghĩa..."
+							value={searchQuery}
+							onChange={(event) => setSearchQuery(event.target.value)}
+							className="session-vocabulary-words__search"
+						/>
+					) : null}
 					{items.length === 0 ? (
 						<p className="session-vocabulary-words__empty">
 							Buổi học chưa có từ vựng.
 						</p>
+					) : visibleItems.length === 0 ? (
+						<p className="session-vocabulary-words__empty">
+							Không có từ nào khớp «{searchQuery.trim()}».
+						</p>
 					) : (
 						<div className="session-vocabulary-words__grid">
-							{items.map((row) => (
+							{visibleItems.map((row) => (
 								<VocabularyWordCard
 									key={row.asset.id}
 									item={row}
@@ -123,7 +146,9 @@ export function SessionVocabularyDetailView({
 					<VocabularyWordDetailModal
 						open={selectedItem != null}
 						item={selectedItem}
+						allItems={items}
 						onClose={() => setSelectedItem(null)}
+						onSelectItem={setSelectedItem}
 					/>
 				</div>
 			) : null}

@@ -397,12 +397,25 @@
 	color: var(--drill-primary);
 }
 
-.drill-option-card__word {
+.drill-option-card__content {
 	flex: 1;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 8px;
+	min-width: 0;
+}
+
+.drill-option-card__word {
+	flex: 0 1 auto;
 	font-size: 15px;
 	font-weight: 600;
 	color: var(--drill-text);
 	line-height: 1.25;
+}
+
+.drill-option-card__pos {
+	font-size: 11px;
 }
 
 .drill-option-card.is-selected {
