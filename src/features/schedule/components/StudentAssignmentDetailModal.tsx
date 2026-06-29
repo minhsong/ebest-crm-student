@@ -60,6 +60,8 @@ import { StudentSubmissionMediaReviewModal } from '@/features/schedule/component
 import { StudentTeacherFeedbackCard } from '@/features/schedule/components/StudentTeacherFeedbackCard';
 import { StudentAssignmentBriefCollapse } from '@/features/schedule/components/StudentAssignmentBriefCollapse';
 import { StudentWritingGradedFeedbackSection } from '@/features/schedule/components/StudentWritingGradedFeedbackSection';
+import { QaArticleHtml } from '@/features/qa/components/QaArticleHtml';
+import { looksLikeRichHtml } from '@/lib/rich-html.utils';
 import { StudentSubmissionReviewList } from '@/features/schedule/components/StudentSubmissionReviewList';
 import { sortComments } from '@/components/media-review';
 import { isMediaSpeakingExercise } from '@/lib/speaking-assignment';
@@ -957,10 +959,22 @@ export function StudentAssignmentDetailModal({
 
           {!showTeacherFeedbackCard && submissionLocked ? (
             <Card size="small" title="Nhận xét của giáo viên">
-              {detail.result?.teacherNote ? (
-                <Text style={{ display: 'block', marginBottom: token.marginSM }}>
-                  {detail.result.teacherNote}
-                </Text>
+              {detail.result?.teacherNote?.trim() ? (
+                looksLikeRichHtml(detail.result.teacherNote) ? (
+                  <div style={{ marginBottom: token.marginSM }}>
+                    <QaArticleHtml html={detail.result.teacherNote} />
+                  </div>
+                ) : (
+                  <Text
+                    style={{
+                      display: 'block',
+                      marginBottom: token.marginSM,
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {detail.result.teacherNote}
+                  </Text>
+                )
               ) : null}
               {detail.result?.assessmentTags?.length ? (
                 <Space wrap size={[4, 4]}>
