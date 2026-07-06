@@ -5,6 +5,7 @@ import { loadPracticeQuizActionState } from '@/lib/quiz-assignment-action';
 import type { AssignmentQuizActionState } from '@/lib/quiz-assignment-action';
 import { getQuizFormContext } from '@/lib/quiz-form-context';
 import { resolveQuizRuntimeAccess } from '@/lib/quiz-runtime-access';
+import { isMockTestOnlineQuizRuntimeActive } from '@/features/quiz-test/quiz-gateway-browser';
 
 type AssignmentActionSlice = Pick<
   AssignmentQuizActionState,
@@ -28,6 +29,12 @@ export function useQuizResultViewGate(
 
   useEffect(() => {
     if (!practiceMode) {
+      setPracticeCanView(false);
+      setPracticeLoading(false);
+      return;
+    }
+
+    if (isMockTestOnlineQuizRuntimeActive()) {
       setPracticeCanView(false);
       setPracticeLoading(false);
       return;

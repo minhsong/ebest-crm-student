@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
 import { STUDENT_API } from '@/lib/student-api';
 import { sanitizeStudentFacingMessage } from '@/lib/student-safe-errors';
+import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
 
 const JSON_HEADERS: HeadersInit = {
   'Content-Type': 'application/json',
@@ -59,6 +60,7 @@ export type ProxyStudentPostOptions = {
   headers?: HeadersInit;
   /** Khi CRM không trả `message` rõ ràng */
   errorFallback: string;
+  method?: 'POST' | 'PATCH' | 'PUT';
 };
 
 export async function proxyStudentPostJson(
@@ -71,7 +73,7 @@ export async function proxyStudentPostJson(
   const url = buildCrmStudentUrl(apiBase, options.path);
   try {
     const res = await fetch(url, {
-      method: 'POST',
+      method: options.method ?? 'POST',
       headers: { ...JSON_HEADERS, ...options.headers },
       body: JSON.stringify(options.body),
     });
@@ -81,7 +83,7 @@ export async function proxyStudentPostJson(
     >;
     if (!res.ok) {
       return NextResponse.json(
-        { message: errorMessageFromCrmPayload(data, options.errorFallback) },
+        mapPortalConflictForClient(data, res.status, options.errorFallback),
         { status: res.status },
       );
     }
@@ -89,5 +91,120 @@ export async function proxyStudentPostJson(
     return NextResponse.json(payload ?? data);
   } catch {
     return NextResponse.json({ message: MSG_CRM_NETWORK }, { status: 502 });
+  }
+}
+
+export type ProxyLeadAuthenticatedPostOptions = {
+  body: unknown;
+  path: string;
+  token: string | null | undefined;
+  errorFallback: string;
+};
+
+/** POST có Bearer lead JWT — tái dùng cho `/api/auth/lead/*` authenticated. */
+export async function proxyLeadAuthenticatedPostJson(
+  options: ProxyLeadAuthenticatedPostOptions,
+): Promise<NextResponse> {
+  const token = options.token?.trim();
+  if (!token) {
+    return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
+  }
+  return proxyStudentPostJson({
+    body: options.body,
+    path: options.path,
+    headers: { Authorization: `Bearer ${token}` },
+    errorFallback: options.errorFallback,
+  });
+}
+
+export type ProxyLeadAuthenticatedPatchOptions = {
+  body: unknown;
+  path: string;
+  token: string | null | undefined;
+  errorFallback: string;
+  transform?: (payload: unknown) => unknown;
+};
+
+/** PATCH có Bearer lead JWT. */
+export async function proxyLeadAuthenticatedPatchJson(
+  options: ProxyLeadAuthenticatedPatchOptions,
+): Promise<NextResponse> {
+  const token = options.token?.trim();
+  if (!token) {
+    return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
+  }
+  const apiBase = getApiBaseUrl();
+  if (!apiBase) {
+    return NextResponse.json({ message: MSG_CRM_CONFIG }, { status: 500 });
+  }
+  const url = buildCrmStudentUrl(apiBase, options.path);
+  try {
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        ...JSON_HEADERS,
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(options.body),
+    });
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!res.ok) {
+      return NextResponse.json(
+        mapPortalConflictForClient(data, res.status, options.errorFallback),
+        { status: res.status },
+      );
+    }
+    const payload = unwrapCrmResponseBody(data) ?? data;
+    const body = options.transform ? options.transform(payload) : payload;
+    return NextResponse.json(body);
+  } catch {
+    return NextResponse.json({ message: MSG_CRM_NETWORK }, { status: 502 });
+  }
+}
+
+export type ProxyLeadAuthenticatedGetOptions = {
+  path: string;
+  token: string | null | undefined;
+  errorFallback?: string;
+  transform?: (payload: unknown) => unknown;
+};
+
+/** GET có Bearer lead JWT — tái dùng cho `/api/lead/*`. */
+export async function proxyLeadAuthenticatedGetJson(
+  options: ProxyLeadAuthenticatedGetOptions,
+): Promise<NextResponse> {
+  const token = options.token?.trim();
+  if (!token) {
+    return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
+  }
+  const apiBase = getApiBaseUrl();
+  if (!apiBase) {
+    return NextResponse.json({ message: MSG_CRM_CONFIG }, { status: 500 });
+  }
+  const url = buildCrmStudentUrl(apiBase, options.path);
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      cache: 'no-store',
+    });
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!res.ok) {
+      return NextResponse.json(
+        mapPortalConflictForClient(
+          data,
+          res.status,
+          options.errorFallback ?? MSG_CRM_NETWORK,
+        ),
+        { status: res.status },
+      );
+    }
+    const payload = unwrapCrmResponseBody(data) ?? data;
+    const body = options.transform ? options.transform(payload) : payload;
+    return NextResponse.json(body);
+  } catch {
+    return NextResponse.json(
+      { message: options.errorFallback ?? MSG_CRM_NETWORK },
+      { status: 502 },
+    );
   }
 }

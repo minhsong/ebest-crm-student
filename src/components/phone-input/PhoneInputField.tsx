@@ -13,6 +13,7 @@ import 'react-phone-number-input/style.css';
 export interface PhoneInputFieldProps {
   value?: string;
   onChange?: (value: string | undefined) => void;
+  onBlur?: () => void;
   className?: string;
   disabled?: boolean;
   placeholder?: string;
@@ -21,6 +22,7 @@ export interface PhoneInputFieldProps {
 export function PhoneInputField({
   value,
   onChange,
+  onBlur,
   className = 'phone-input',
   disabled = false,
   placeholder,
@@ -41,6 +43,7 @@ export function PhoneInputField({
       className={className}
       disabled={disabled}
       placeholder={placeholder}
+      numberInputProps={{ onBlur }}
     />
   );
 }

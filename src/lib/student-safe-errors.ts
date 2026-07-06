@@ -19,6 +19,14 @@ const TECHNICAL_MESSAGE_PATTERNS: RegExp[] = [
   /Social Gateway|Gateway\b.*\b3040/i,
   /at\s+[\w.]+\s+\(/,
   /Exception|stack trace/i,
+  // M7-5 — thuật ngữ nội bộ portal / identity (PI-D16)
+  /\b(tài khoản lead|lead portal|lead account|portal account|customer credential)\b/i,
+  /\b(omniLeadId|customerId|leadAccountId|lead_portal_account|login_key|loginKey)\b/i,
+  /@mto\.ebest\.internal/i,
+  /\b[0-9a-f]{24}\b/i,
+  /\b(conflict\.type|suggestedAction|login_customer|login_lead)\b/i,
+  /\b(omni_lead|customer_portal|lead_portal)\b/i,
+  /\b(chuyển sang khách hàng|đăng nhập cổng học viên)\b/i,
 ];
 
 const USER_MESSAGES = {
@@ -83,7 +91,11 @@ export function sanitizeApiErrorPayload(
           ? o.error
           : undefined;
     const code =
-      typeof o.code === 'string' && /^[A-Z0-9_]+$/.test(o.code) ? o.code : undefined;
+      typeof o.code === 'string' && /^[A-Z0-9_]+$/.test(o.code)
+        ? o.code
+        : typeof o.errorCode === 'string' && /^[A-Z0-9_]+$/.test(o.errorCode)
+          ? o.errorCode
+          : undefined;
     return {
       message: sanitizeStudentFacingMessage(raw, base),
       ...(code ? { code } : {}),

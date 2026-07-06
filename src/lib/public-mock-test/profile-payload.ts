@@ -1,5 +1,13 @@
 import type { PublicMockTestFormValues } from '@/lib/public-mock-test/types';
 
+type ProfilePayloadInput = Pick<
+  PublicMockTestFormValues,
+  'tagsByCategory' | 'universityOther' | 'consultationNote' | 'expectedScore'
+> & {
+  tagIds?: number[];
+  universityTagId?: number;
+};
+
 function normalizeTagSelection(
 	value: number | number[] | undefined,
 ): number[] {
@@ -12,8 +20,21 @@ function normalizeTagSelection(
 }
 
 /** Gom tag theo nhóm form → payload CRM public registration. */
-export function collectPublicProfilePayload(values: PublicMockTestFormValues) {
-	const tagsByCategory = values.tagsByCategory ?? {};
+export function collectPublicProfilePayload(values: ProfilePayloadInput) {
+  if (values.tagIds?.length) {
+    return {
+      tagIds: [...new Set(values.tagIds)],
+      universityTagId: values.universityTagId,
+      universityOther: values.universityOther?.trim() || undefined,
+      consultationNote: values.consultationNote?.trim() || undefined,
+      expectedScore:
+        values.expectedScore != null && Number.isFinite(Number(values.expectedScore))
+          ? Math.round(Number(values.expectedScore))
+          : undefined,
+    };
+  }
+
+  const tagsByCategory = values.tagsByCategory ?? {};
 	const tagIds: number[] = [];
 	let universityTagId: number | undefined;
 

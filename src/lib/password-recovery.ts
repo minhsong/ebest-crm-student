@@ -3,6 +3,11 @@
  */
 
 import { getMessageFromClientApiJson } from '@/lib/parse-client-api-json';
+import type { PortalLoginMode } from '@/components/portal/PortalLoginModePicker';
+import {
+  portalForgotPasswordPath,
+  portalResetPasswordPath,
+} from '@/lib/portal-auth/portal-login-api';
 
 export type PasswordRecoveryResult = {
   ok: boolean;
@@ -11,12 +16,18 @@ export type PasswordRecoveryResult = {
 };
 
 export async function postForgotPassword(
-  email: string,
+  loginId: string,
+  mode: PortalLoginMode = 'customer',
 ): Promise<PasswordRecoveryResult> {
-  const res = await fetch('/api/auth/forgot-password', {
+  const body =
+    mode === 'lead'
+      ? { loginId: loginId.trim() }
+      : { email: loginId.trim().toLowerCase() };
+
+  const res = await fetch(portalForgotPasswordPath(mode), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
   return {
@@ -29,8 +40,9 @@ export async function postForgotPassword(
 export async function postResetPassword(
   token: string,
   password: string,
+  mode: PortalLoginMode = 'customer',
 ): Promise<PasswordRecoveryResult> {
-  const res = await fetch('/api/auth/reset-password', {
+  const res = await fetch(portalResetPasswordPath(mode), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token, password }),

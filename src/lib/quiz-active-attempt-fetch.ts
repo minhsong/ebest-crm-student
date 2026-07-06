@@ -1,7 +1,10 @@
 import type { QuizAttemptStateResponse } from '@/features/quiz-test/types';
 import { getHistoryAssignmentId } from '@/features/quiz-test/lib/quiz-attempt-history';
 import { fetchQuizRuntimeJson } from '@/features/quiz-test/lib/quiz-runtime-http';
-import { quizRuntimePublicUrl } from '@/features/quiz-test/quiz-gateway-browser';
+import {
+  quizRuntimePublicUrl,
+  type QuizRuntimeVariant,
+} from '@/features/quiz-test/quiz-gateway-browser';
 import {
   dedupeInflight,
   setTtlCache,
@@ -44,16 +47,21 @@ export function invalidateActiveQuizAttemptCache(formPublicId?: string): void {
 /** Dedupe + TTL — Entry peek và loadForm dùng chung một request. */
 export async function fetchActiveQuizAttemptState(
   formPublicId: string,
+  options?: { mockTestOnlineRuntime?: boolean },
 ): Promise<QuizAttemptStateResponse | null> {
   const fid = formPublicId.trim();
   if (!fid) return null;
+
+  const runtimeVariant: QuizRuntimeVariant | null = options?.mockTestOnlineRuntime
+    ? 'mock-test-online'
+    : null;
 
   const cached = getCachedActiveAttempt(fid);
   if (cached !== undefined) return cached;
 
   return dedupeInflight(inflight, fid, async () => {
     const res = await fetchQuizRuntimeJson<QuizAttemptStateResponse>(
-      quizRuntimePublicUrl(`forms/${fid}/active-attempt`),
+      quizRuntimePublicUrl(`forms/${fid}/active-attempt`, runtimeVariant),
     );
     const data =
       res.ok && res.data && typeof res.data === 'object'

@@ -42,7 +42,9 @@ function loadRecaptchaScript(): Promise<void> {
 	return scriptLoading;
 }
 
-export async function executeRecaptchaV3(): Promise<string> {
+export async function executeRecaptchaV3(
+	action = RECAPTCHA_ACTION,
+): Promise<string> {
 	const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY?.trim();
 	if (!siteKey) {
 		if (process.env.NODE_ENV === 'development') {
@@ -56,7 +58,7 @@ export async function executeRecaptchaV3(): Promise<string> {
 	return new Promise((resolve, reject) => {
 		window.grecaptcha?.ready(() => {
 			window.grecaptcha
-				?.execute(siteKey, { action: RECAPTCHA_ACTION })
+				?.execute(siteKey, { action })
 				.then(resolve)
 				.catch(reject);
 		});

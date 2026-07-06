@@ -26,7 +26,8 @@ export interface DashboardHeaderProps {
   userDisplayName: string;
   /** Ảnh đại diện từ CRM `/me` (thumbnail); cùng nguồn với cache Redis phía API. */
   avatarUrl?: string | null;
-  profileHref?: string;
+  /** null = lead (chưa có trang hồ sơ) — chỉ hiện tên + đăng xuất. */
+  profileHref?: string | null;
   /** Gọi khi bấm mục profile trong menu (vd. đóng popover) */
   onProfileClick?: () => void;
   onLogout: () => void;
@@ -46,9 +47,10 @@ export default function DashboardHeader({
   onLogout,
   onOpenDrawer,
 }: DashboardHeaderProps) {
-  const accountMenuItems: MenuProps['items'] = useMemo(
-    () => [
-      {
+  const accountMenuItems: MenuProps['items'] = useMemo(() => {
+    const items: MenuProps['items'] = [];
+    if (profileHref) {
+      items.push({
         key: 'profile',
         icon: <UserOutlined />,
         label: (
@@ -56,16 +58,16 @@ export default function DashboardHeader({
             Thông tin cá nhân
           </Link>
         ),
-      },
-      {
-        key: 'logout',
-        icon: <LogoutOutlined />,
-        label: 'Đăng xuất',
-        onClick: onLogout,
-      },
-    ],
-    [profileHref, onProfileClick, onLogout],
-  );
+      });
+    }
+    items.push({
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: 'Đăng xuất',
+      onClick: onLogout,
+    });
+    return items;
+  }, [profileHref, onProfileClick, onLogout]);
 
   return (
     <Header
@@ -123,21 +125,35 @@ export default function DashboardHeader({
           </Dropdown>
         ) : (
           <>
-            <Link
-              href={profileHref}
-              className="flex min-w-0 max-w-[220px] sm:max-w-[280px] items-center gap-2 rounded-lg px-2 py-1 text-left text-gray-900 transition-colors hover:bg-gray-50"
-              onClick={() => onProfileClick?.()}
-            >
-              <Avatar
-                src={avatarUrl || undefined}
-                icon={<UserOutlined />}
-                size={36}
-                className="flex-shrink-0"
-              />
-              <span className="truncate text-sm font-medium">
-                {userDisplayName}
-              </span>
-            </Link>
+            {profileHref ? (
+              <Link
+                href={profileHref}
+                className="flex min-w-0 max-w-[220px] sm:max-w-[280px] items-center gap-2 rounded-lg px-2 py-1 text-left text-gray-900 transition-colors hover:bg-gray-50"
+                onClick={() => onProfileClick?.()}
+              >
+                <Avatar
+                  src={avatarUrl || undefined}
+                  icon={<UserOutlined />}
+                  size={36}
+                  className="flex-shrink-0"
+                />
+                <span className="truncate text-sm font-medium">
+                  {userDisplayName}
+                </span>
+              </Link>
+            ) : (
+              <div className="flex min-w-0 max-w-[220px] sm:max-w-[280px] items-center gap-2 rounded-lg px-2 py-1 text-left text-gray-900">
+                <Avatar
+                  src={avatarUrl || undefined}
+                  icon={<UserOutlined />}
+                  size={36}
+                  className="flex-shrink-0"
+                />
+                <span className="truncate text-sm font-medium">
+                  {userDisplayName}
+                </span>
+              </div>
+            )}
             <Dropdown
               menu={{ items: accountMenuItems }}
               placement="bottomRight"

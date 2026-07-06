@@ -6,6 +6,7 @@ import {
   filterRenderableBlocksBySectionId,
   type QuizRenderableBlock,
 } from '@/features/quiz-test/lib/quiz-renderable-items';
+import { sortQuizFormSections } from '@/features/quiz-test/lib/quiz-section-meta';
 
 /** `id` DOM ổn định theo key câu (formItemId hoặc `parent::child`) — §11.4 / §11.7. */
 /** Đưa viewport về đầu khi đổi section — tránh giữ scroll của phần trước. */
@@ -135,6 +136,27 @@ export function buildQuizAttemptPagePathWithoutNav(
   );
 }
 
+/** Mock test online — `?form=` thay vì path segment `/quiz-test/:id`. */
+export function buildMockTestOnlineExamRunPagePath(
+  formPublicId: string,
+  searchParams: URLSearchParams,
+): string {
+  const params = new URLSearchParams(searchParams.toString());
+  params.set('form', formPublicId);
+  const qs = params.toString();
+  return `/mock-test-online/exam/run${qs ? `?${qs}` : ''}`;
+}
+
+export function buildMockTestOnlineExamRunPagePathWithoutNav(
+  formPublicId: string,
+  searchParams: URLSearchParams,
+): string {
+  return buildMockTestOnlineExamRunPagePath(
+    formPublicId,
+    stripQuizAttemptNavigationParams(new URLSearchParams(searchParams.toString())),
+  );
+}
+
 function isSectionIdOnForm(
   sections: QuizFormSectionPayload[],
   sectionId: number,
@@ -152,20 +174,21 @@ export function resolveQuizAttemptActiveSectionId(
     ignoreUrlNavigation?: boolean;
   } = {},
 ): number | null {
-  if (!sections.length) return null;
-  const firstSectionId = Number(sections[0].sectionId);
+  const sorted = sortQuizFormSections(sections);
+  if (!sorted.length) return null;
+  const firstSectionId = Number(sorted[0]!.sectionId);
 
   if (!options.ignoreUrlNavigation) {
     const fromUrl = options.sectionFromUrl?.trim();
     const urlSectionId = fromUrl ? Number(fromUrl) : NaN;
-    if (Number.isFinite(urlSectionId) && isSectionIdOnForm(sections, urlSectionId)) {
+    if (Number.isFinite(urlSectionId) && isSectionIdOnForm(sorted, urlSectionId)) {
       return urlSectionId;
     }
     const initial = options.initialSectionId;
     if (
       typeof initial === 'number' &&
       Number.isFinite(initial) &&
-      isSectionIdOnForm(sections, initial)
+      isSectionIdOnForm(sorted, initial)
     ) {
       return initial;
     }

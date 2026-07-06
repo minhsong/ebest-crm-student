@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 
 import {
   logInternalApiError,
-  sanitizeApiErrorPayload,
   STUDENT_SAFE_USER_MESSAGES,
 } from '@/lib/student-safe-errors';
+import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
 
 export type SocialGatewayConfig = {
   baseUrl: string;
@@ -39,7 +39,7 @@ export async function proxyGatewayJsonResponse(
     return NextResponse.json(data, { status: upstream.status });
   }
   return NextResponse.json(
-    sanitizeApiErrorPayload(data, upstream.status, fallbackMessage),
+    mapPortalConflictForClient(data, upstream.status, fallbackMessage),
     { status: upstream.status },
   );
 }

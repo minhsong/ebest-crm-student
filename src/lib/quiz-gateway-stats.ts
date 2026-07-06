@@ -1,5 +1,8 @@
 import { fetchQuizRuntimeJson } from '@/features/quiz-test/lib/quiz-runtime-http';
-import { quizRuntimePublicUrl } from '@/features/quiz-test/quiz-gateway-browser';
+import {
+  quizRuntimePublicUrl,
+  isMockTestOnlineQuizRuntimeActive,
+} from '@/features/quiz-test/quiz-gateway-browser';
 import type { QuizAttemptHistoryItem } from '@/features/quiz-test/types';
 import { normalizeQuizAttemptHistoryItem } from '@/features/quiz-test/lib/quiz-attempt-history';
 import type { QuizAttemptEligibilityStats } from '@/features/quiz-test/lib/quiz-result-view-policy';
@@ -45,6 +48,20 @@ export async function fetchGatewayQuizStats(
   formPublicId: string,
   params: FetchGatewayQuizStatsParams,
 ): Promise<GatewayQuizAttemptStats | null> {
+  if (isMockTestOnlineQuizRuntimeActive()) {
+    const maxAttempts =
+      params.maxAttemptsHint != null && params.maxAttemptsHint >= 0
+        ? params.maxAttemptsHint
+        : 1;
+    return {
+      submittedCount: 0,
+      hasPerfectScore: false,
+      maxAttempts,
+      attemptsRemaining: maxAttempts,
+      items: [],
+    };
+  }
+
   const sp = new URLSearchParams();
 
   if (params.channel === 'assignment') {

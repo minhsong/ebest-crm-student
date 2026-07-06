@@ -1,0 +1,288 @@
+.mock-test-online-zalo-btn {
+	background: #0068ff !important;
+	border-color: #0068ff !important;
+}
+
+.mock-test-online-zalo-btn:hover {
+	background: #0052cc !important;
+	border-color: #0052cc !important;
+}
+
+/* Site chrome (header / footer) */
+.mock-test-online-site {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.mock-test-online-site-header {
+	position: sticky;
+	top: 0;
+	z-index: 40;
+	border-bottom: 1px solid #e2e8f0;
+	background: rgba(255, 255, 255, 0.96);
+	backdrop-filter: blur(8px);
+}
+
+.mock-test-online-site-header-inner {
+	max-width: 1120px;
+	margin: 0 auto;
+	padding: 10px 16px;
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	flex-wrap: wrap;
+}
+
+.mock-test-online-site-header--compact .mock-test-online-site-header-inner {
+	justify-content: center;
+}
+
+.mock-test-online-site-nav {
+	display: flex;
+	flex: 1;
+	flex-wrap: wrap;
+	gap: 4px 12px;
+	align-items: center;
+	justify-content: center;
+}
+
+.mock-test-online-site-nav-link {
+	color: #475569;
+	font-size: 14px;
+	font-weight: 500;
+	padding: 6px 10px;
+	border-radius: 8px;
+	text-decoration: none;
+	transition: color 0.15s, background 0.15s;
+}
+
+.mock-test-online-site-nav-link:hover {
+	color: #1677ff;
+	background: #f0f7ff;
+}
+
+.mock-test-online-site-nav-link--active {
+	color: #1677ff;
+	background: #eff6ff;
+}
+
+.mock-test-online-site-header-cta {
+	margin-left: auto;
+}
+
+.mock-test-online-site-main {
+	flex: 1;
+	width: 100%;
+}
+
+.mock-test-online-site-footer {
+	border-top: 1px solid #e2e8f0;
+	padding: 16px;
+	text-align: center;
+	color: #64748b;
+	font-size: 13px;
+}
+
+.mock-test-online-site-footer p {
+	margin: 0;
+}
+
+.mock-test-online-portal-guide {
+	margin-top: 20px;
+	padding: 16px;
+	border: 1px solid #e2e8f0;
+	border-radius: 10px;
+	background: #fff;
+}
+
+.mock-test-online-portal-guide-title {
+	display: block;
+	margin-bottom: 12px;
+	font-size: 15px;
+}
+
+.mock-test-online-portal-guide-steps .ant-steps-item-title {
+	font-size: 14px !important;
+}
+
+/* Funnel layout */
+.mock-test-online-funnel-root {
+	width: 100%;
+	max-width: 720px;
+	margin: 0 auto;
+	padding: 12px 12px 20px;
+}
+
+.mock-test-online-funnel-progress {
+	margin-bottom: 12px;
+	padding: 12px 14px;
+	background: #fafafa;
+	border: 1px solid #f0f0f0;
+	border-radius: 10px;
+}
+
+.mock-test-online-funnel-kicker {
+	display: block;
+	margin-bottom: 8px;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+}
+
+.mock-test-online-funnel-body {
+	margin: 0;
+}
+
+.mock-test-confirm-exam-summary {
+	border-left: 4px solid #1677ff;
+	background: #f6faff;
+}
+
+.mock-test-zalo-message-block {
+	border-radius: 8px;
+	overflow: hidden;
+	border: 1px solid #d9d9d9;
+	background: #fafafa;
+}
+
+.mock-test-zalo-message-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 10px 12px;
+	background: #fff;
+	border-bottom: 1px solid #f0f0f0;
+}
+
+.mock-test-zalo-message-code {
+	margin: 0;
+	padding: 14px 16px;
+	overflow-x: auto;
+	font-size: 14px;
+	line-height: 1.6;
+	color: #262626;
+	white-space: pre-wrap;
+	word-break: break-word;
+	background: #fff;
+}
+
+.mock-test-zalo-message-code code {
+	font-family: inherit;
+	font-size: inherit;
+	color: inherit;
+}
+
+.mock-test-zalo-message-hint {
+	padding: 0 12px 12px;
+	margin: 0 !important;
+	color: #8c8c8c !important;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.mock-test-online-poll-box {
+	margin-top: 12px;
+	padding: 12px;
+	border-radius: 8px;
+	border: 1px solid #f0f0f0;
+	background: #fafafa;
+}
+
+.mock-test-online-steps .ant-steps-item-description {
+	max-width: 100% !important;
+}
+
+/* Campaign card selection (mobile-friendly) */
+.mock-test-campaign-card {
+	width: 100%;
+	border-radius: 10px !important;
+	transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.mock-test-campaign-card--selected {
+	border-color: #1677ff !important;
+	box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+}
+
+.mock-test-campaign-card .ant-card-body {
+	padding: 12px 14px;
+}
+
+.mock-test-variant-radio-group {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	width: 100%;
+}
+
+.mock-test-variant-radio-group .ant-radio-wrapper {
+	margin-inline-end: 0;
+	padding: 10px 12px;
+	border: 1px solid #f0f0f0;
+	border-radius: 8px;
+	background: #fafafa;
+}
+
+.mock-test-variant-radio-group .ant-radio-wrapper-checked {
+	border-color: #1677ff;
+	background: #f6faff;
+}
+
+.mock-test-online-funnel-root--wide {
+	max-width: 100%;
+	padding-left: 8px;
+	padding-right: 8px;
+}
+
+.mock-test-online-funnel-root--wide .mock-test-online-funnel-body {
+	border: none;
+	box-shadow: none;
+	padding: 8px;
+}
+
+@media (max-width: 767px) {
+	.mock-test-online-funnel-root {
+		padding: 8px 8px 16px;
+	}
+
+	.mock-test-online-funnel-progress {
+		padding: 10px 12px;
+	}
+
+	.mock-test-online-steps .ant-steps-item-title {
+		font-size: 12px !important;
+	}
+
+	.mock-test-online-steps.ant-steps-horizontal:not(.ant-steps-label-vertical)
+		.ant-steps-item {
+		padding-inline-start: 8px !important;
+	}
+
+	.mock-test-zalo-message-toolbar {
+		flex-direction: column;
+	}
+
+	.mock-test-zalo-message-toolbar .ant-btn {
+		width: 100%;
+	}
+
+	.mock-test-online-site-header-inner {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.mock-test-online-site-nav {
+		justify-content: flex-start;
+	}
+
+	.mock-test-online-site-header-cta {
+		margin-left: 0;
+		width: 100%;
+	}
+
+	.mock-test-online-site-header-cta .ant-btn {
+		width: 100%;
+	}
+}

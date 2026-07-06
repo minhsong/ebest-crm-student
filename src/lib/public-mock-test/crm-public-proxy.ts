@@ -9,6 +9,7 @@ import {
 	MSG_CRM_NETWORK,
 	unwrapCrmResponseBody,
 } from '@/lib/crm-student-proxy';
+import { mapMockTestBffErrorForClient } from '@/lib/public-mock-test-online/mock-test-bff-response.server';
 
 const JSON_HEADERS: HeadersInit = {
 	'Content-Type': 'application/json',
@@ -22,12 +23,6 @@ function forwardOriginHeaders(req: NextRequest): HeadersInit {
 	if (origin) headers['Origin'] = origin;
 	if (referer) headers['Referer'] = referer;
 	return headers;
-}
-
-function errorMessageFromCrm(data: Record<string, unknown>, fallback: string): string {
-	const msg = data.message;
-	if (typeof msg === 'string' && msg.trim()) return msg;
-	return fallback;
 }
 
 export async function proxyPublicMockTestPost(
@@ -50,7 +45,7 @@ export async function proxyPublicMockTestPost(
 		const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
 		if (!res.ok) {
 			return NextResponse.json(
-				{ message: errorMessageFromCrm(data, errorFallback) },
+				mapMockTestBffErrorForClient(data, res.status, errorFallback),
 				{ status: res.status },
 			);
 		}

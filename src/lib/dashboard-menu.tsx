@@ -15,9 +15,11 @@ import {
   QuestionCircleOutlined,
   FileDoneOutlined,
   ReadOutlined,
+  FormOutlined,
   FontSizeOutlined,
   PlayCircleOutlined,
   TrophyOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
 import { CRM_CLASS_STATUS } from '@/lib/crm-enums';
 
@@ -64,6 +66,57 @@ export interface DashboardMenuDividerEntry {
 
 export type DashboardMenuEntry = DashboardMenuLinkEntry | DashboardMenuDividerEntry;
 
+/**
+ * Menu lead (đã đăng nhập sau Zalo / provision) — cùng chrome dashboard, mục giới hạn.
+ * Home lead = kết quả thi thử.
+ */
+export const LEAD_PORTAL_MENU_ENTRIES: DashboardMenuEntry[] = [
+  {
+    type: 'link',
+    key: 'lead-tests',
+    path: '/lead/tests',
+    label: 'Kết quả thi thử',
+    icon: <FormOutlined />,
+  },
+  {
+    type: 'link',
+    key: 'mock-test-register',
+    path: '/mock-test-online/register',
+    label: 'Đăng ký thi mới',
+    icon: <PlayCircleOutlined />,
+  },
+  { type: 'divider', key: 'lead-divider-explore' },
+  {
+    type: 'link',
+    key: 'lead-about',
+    path: '/lead/about',
+    label: 'Về Ebest',
+    icon: <InfoCircleOutlined />,
+  },
+  {
+    type: 'link',
+    key: 'lead-courses',
+    path: '/lead/courses',
+    label: 'Các khóa học',
+    icon: <ReadOutlined />,
+  },
+  { type: 'divider', key: 'lead-divider-account' },
+  {
+    type: 'link',
+    key: 'lead-profile',
+    path: '/lead/profile',
+    label: 'Thông tin cá nhân',
+    icon: <UserOutlined />,
+  },
+  {
+    type: 'link',
+    key: 'lead-change-password',
+    path: '/lead/change-password',
+    label: 'Đổi mật khẩu',
+    icon: <LockOutlined />,
+  },
+];
+
 /** Thứ tự menu: nhóm chính → divider → tài khoản */
 export const DASHBOARD_MENU_ENTRIES: DashboardMenuEntry[] = [
   {
@@ -107,6 +160,13 @@ export const DASHBOARD_MENU_ENTRIES: DashboardMenuEntry[] = [
     path: '/qa',
     label: 'Hỏi đáp',
     icon: <QuestionCircleOutlined />,
+  },
+  {
+    type: 'link',
+    key: 'mock-test-results',
+    path: '/mock-test-results',
+    label: 'Thi thử online',
+    icon: <FormOutlined />,
   },
   { type: 'divider', key: 'divider-after-main' },
   {
@@ -158,6 +218,13 @@ function isLearningSectionPath(pathname: string): boolean {
 function resolveMenuSelectedKey(pathname: string): string {
   const normalized = pathname?.replace(/\/$/, '') || '/';
 
+  if (normalized === '/lead/tests' || normalized.startsWith('/lead/tests/')) {
+    return '/lead/tests';
+  }
+  if (normalized.startsWith('/mock-test-online')) {
+    return '/mock-test-online/register';
+  }
+
   if (normalized.startsWith('/quiz-test')) {
     return '/assignments';
   }
@@ -206,13 +273,14 @@ export function resolveDashboardMenuKeys(pathname: string): {
 /**
  * Build `items` cho Ant Design Menu (có divider).
  */
-export function buildDashboardMenuAntdItems(
+export function buildPortalMenuAntdItems(
+  entries: DashboardMenuEntry[],
   renderLinkLabel: (path: string, label: string) => ReactNode,
   options?: { classes?: DashboardMenuClassItem[] },
 ): NonNullable<MenuProps['items']> {
   const classes = Array.isArray(options?.classes) ? options?.classes : [];
   const out: NonNullable<MenuProps['items']> = [];
-  for (const entry of DASHBOARD_MENU_ENTRIES) {
+  for (const entry of entries) {
     if (entry.type === 'divider') {
       out.push({ type: 'divider', key: entry.key });
     } else {
@@ -303,9 +371,38 @@ export function buildDashboardMenuAntdItems(
   return out;
 }
 
+/**
+ * Build `items` cho Ant Design Menu (có divider) — customer đầy đủ.
+ */
+export function buildDashboardMenuAntdItems(
+  renderLinkLabel: (path: string, label: string) => ReactNode,
+  options?: { classes?: DashboardMenuClassItem[] },
+): NonNullable<MenuProps['items']> {
+  return buildPortalMenuAntdItems(
+    DASHBOARD_MENU_ENTRIES,
+    renderLinkLabel,
+    options,
+  );
+}
+
+/** Menu lead — kết quả + đăng ký thi. */
+export function buildLeadPortalMenuAntdItems(
+  renderLinkLabel: (path: string, label: string) => ReactNode,
+): NonNullable<MenuProps['items']> {
+  return buildPortalMenuAntdItems(LEAD_PORTAL_MENU_ENTRIES, renderLinkLabel);
+}
+
 /** Map path -> label cho breadcrumb (bao gồm path con, VD /invoices/[id]) */
 const PATH_LABELS: Record<string, string> = {
   '/': 'Tổng quan',
+  '/lead': 'Cổng học viên',
+  '/lead/tests': 'Kết quả thi thử',
+  '/lead/about': 'Về Ebest',
+  '/lead/courses': 'Các khóa học',
+  '/lead/profile': 'Thông tin cá nhân',
+  '/lead/change-password': 'Đổi mật khẩu',
+  '/mock-test-online': 'Thi thử online',
+  '/mock-test-online/register': 'Đăng ký thi mới',
   '/profile': 'Thông tin cá nhân',
   '/change-password': 'Đổi mật khẩu',
   '/classes': 'Lớp học của tôi',
@@ -317,6 +414,7 @@ const PATH_LABELS: Record<string, string> = {
   '/learning/games/leaderboard': 'Bảng xếp hạng',
   '/invoices': 'Hóa Đơn',
   '/qa': 'Hỏi đáp',
+  '/mock-test-results': 'Thi thử online',
   '/assignments': 'Bài tập',
   '/learning/practice': 'Game luyện từ',
   '/learning/leaderboard': 'Bảng xếp hạng',

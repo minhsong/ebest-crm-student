@@ -51,6 +51,8 @@ type QuizAttemptReadySectionProps = CommonMetaProps & {
   startBlockReason?: string | null;
   allowHistoryDetailLinks?: boolean;
   eligibility?: QuizResultEligibility | null;
+  /** Thi thử online public — UI gọn, ẩn lịch sử / quay lại. */
+  mockTestOnlineUi?: boolean;
 };
 
 type QuizAttemptConfirmSectionProps = CommonMetaProps & {
@@ -59,6 +61,7 @@ type QuizAttemptConfirmSectionProps = CommonMetaProps & {
   onRulesAcknowledgedChange: (next: boolean) => void;
   onBack: () => void;
   onStart: () => void;
+  mockTestOnlineUi?: boolean;
 };
 
 type QuizAttemptDoneSectionProps = CommonMetaProps & {
@@ -90,22 +93,23 @@ export function QuizAttemptReadySection({
   startBlockReason,
   allowHistoryDetailLinks = true,
   eligibility,
+  mockTestOnlineUi = false,
 }: QuizAttemptReadySectionProps) {
   const detailAnswersLockedHint = allowHistoryDetailLinks
     ? null
     : describeQuizResultDetailLocked(eligibility);
 
   return (
-    <Card>
+    <Card bordered={mockTestOnlineUi ? false : undefined}>
       <Space direction="vertical" size="middle" className="w-full max-w-3xl">
-        {/* Header */}
-        <Link href={backHref ?? '/assignments'}>
-          <Button type="default" icon={<ArrowLeftOutlined />} size="small">
-            Quay lại
-          </Button>
-        </Link>
+        {!mockTestOnlineUi ? (
+          <Link href={backHref ?? '/assignments'}>
+            <Button type="default" icon={<ArrowLeftOutlined />} size="small">
+              Quay lại
+            </Button>
+          </Link>
+        ) : null}
 
-        {/* Title */}
         <div>
           <Typography.Text
             type="secondary"
@@ -117,16 +121,17 @@ export function QuizAttemptReadySection({
               marginBottom: 6,
             }}
           >
-            Chi tiết đề thi · trước khi vào làm bài
+            {mockTestOnlineUi ? 'Sẵn sàng làm bài' : 'Chi tiết đề thi · trước khi vào làm bài'}
           </Typography.Text>
           <Typography.Title level={3} style={{ margin: 0 }}>
             {title}
           </Typography.Title>
         </div>
 
-        {/* Form info */}
         <div>
-          <Typography.Text strong>Thông tin đề</Typography.Text>
+          <Typography.Text strong>
+            {mockTestOnlineUi ? 'Thông tin bài thi' : 'Thông tin đề'}
+          </Typography.Text>
           <div className="mt-2">
             <QuizFormMetaBlock
               formType={formPayload.type ?? null}
@@ -136,7 +141,6 @@ export function QuizAttemptReadySection({
           </div>
         </div>
 
-        {/* Instructions */}
         {formPayload.instructions?.trim() ? (
           <div>
             <Typography.Text strong>Hướng dẫn</Typography.Text>
@@ -144,40 +148,46 @@ export function QuizAttemptReadySection({
               <QaArticleHtml html={formPayload.instructions} />
             </div>
           </div>
+        ) : mockTestOnlineUi ? (
+          <Typography.Paragraph type="secondary" className="!mb-0">
+            Đọc kỹ hướng dẫn trên màn hình làm bài. Giữ tab mở và đảm bảo kết nối mạng ổn
+            định.
+          </Typography.Paragraph>
         ) : (
           <Typography.Paragraph type="secondary">
             Không có hướng dẫn thêm.
           </Typography.Paragraph>
         )}
 
-        {/* Error message */}
         {errMsg ? <Alert type="error" message={errMsg} /> : null}
 
-        <QuizAttemptQuotaSummary eligibility={eligibility} />
+        {!mockTestOnlineUi ? (
+          <>
+            <QuizAttemptQuotaSummary eligibility={eligibility} />
 
-        {!canStartNew && startBlockReason ? (
-          <Alert type="info" showIcon message={startBlockReason} />
+            {!canStartNew && startBlockReason ? (
+              <Alert type="info" showIcon message={startBlockReason} />
+            ) : null}
+
+            <QuizAttemptHistoryList
+              formPublicId={formPublicId}
+              rows={attemptHistory}
+              title="Các lần làm trước"
+              description={
+                allowHistoryDetailLinks
+                  ? 'Bấm từng lần làm để xem thông tin và kết quả bài của bạn.'
+                  : 'Danh sách các lần đã nộp. Chi tiết đáp án mở khi hết lượt hoặc đạt 100%.'
+              }
+              showScore
+              allowDetailLinks={allowHistoryDetailLinks}
+              detailAnswersLockedHint={detailAnswersLockedHint}
+            />
+          </>
         ) : null}
 
-        {/* History */}
-        <QuizAttemptHistoryList
-          formPublicId={formPublicId}
-          rows={attemptHistory}
-          title="Các lần làm trước"
-          description={
-            allowHistoryDetailLinks
-              ? 'Bấm từng lần làm để xem thông tin và kết quả bài của bạn.'
-              : 'Danh sách các lần đã nộp. Chi tiết đáp án mở khi hết lượt hoặc đạt 100%.'
-          }
-          showScore
-          allowDetailLinks={allowHistoryDetailLinks}
-          detailAnswersLockedHint={detailAnswersLockedHint}
-        />
-
-        {/* Start / xem kết quả */}
         <Space wrap>
           {canStartNew ? (
-            hasPriorQuizAttemptsForUi(attemptHistory) ? (
+            hasPriorQuizAttemptsForUi(attemptHistory) && !mockTestOnlineUi ? (
               <Button color="green" variant="solid" size="large" onClick={onOpenConfirmStart}>
                 Làm bài mới
                 {eligibility?.attemptsRemaining != null && eligibility.attemptsRemaining > 0
@@ -185,19 +195,19 @@ export function QuizAttemptReadySection({
                   : ''}
               </Button>
             ) : (
-              <Button type="primary" size="large" onClick={onOpenConfirmStart}>
-                Bắt đầu làm bài
+              <Button type="primary" size="large" block={mockTestOnlineUi} onClick={onOpenConfirmStart}>
+                {mockTestOnlineUi ? 'Bắt đầu làm bài' : 'Bắt đầu làm bài'}
               </Button>
             )
           ) : null}
-          {!canStartNew && resultsPageHref ? (
+          {!mockTestOnlineUi && !canStartNew && resultsPageHref ? (
             <Link href={resultsPageHref}>
               <Button type="primary" size="large">
                 Xem kết quả các lần làm
               </Button>
             </Link>
           ) : null}
-          {canStartNew && resultsPageHref && attemptHistory.length > 0 ? (
+          {!mockTestOnlineUi && canStartNew && resultsPageHref && attemptHistory.length > 0 ? (
             <Link href={resultsPageHref}>
               <Button size="large">Xem kết quả</Button>
             </Link>
@@ -220,42 +230,52 @@ export function QuizAttemptConfirmSection({
   onRulesAcknowledgedChange,
   onBack,
   onStart,
+  mockTestOnlineUi = false,
 }: QuizAttemptConfirmSectionProps) {
   return (
-    <Card>
+    <Card bordered={mockTestOnlineUi ? false : undefined}>
       <Space direction="vertical" size="middle" className="w-full max-w-3xl">
-        {/* Header */}
-        <Link href={backHref ?? '/assignments'}>
-          <Button type="default" icon={<ArrowLeftOutlined />} size="small">
+        {!mockTestOnlineUi ? (
+          <Link href={backHref ?? '/assignments'}>
+            <Button type="default" icon={<ArrowLeftOutlined />} size="small">
+              Quay lại
+            </Button>
+          </Link>
+        ) : (
+          <Button type="default" icon={<ArrowLeftOutlined />} size="small" onClick={onBack}>
             Quay lại
           </Button>
-        </Link>
+        )}
 
-        {/* Title */}
         <Typography.Title level={4} style={{ margin: 0 }}>
           Xác nhận làm bài
         </Typography.Title>
         <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          Bạn sắp bắt đầu một phiên làm bài có giới hạn thời gian. Hãy đảm bảo mạng ổn định và không đóng trình duyệt giữa chừng.
+          {mockTestOnlineUi
+            ? 'Bạn sắp bắt đầu làm bài. Hãy đảm bảo mạng ổn định và không đóng trình duyệt giữa chừng.'
+            : 'Bạn sắp bắt đầu một phiên làm bài có giới hạn thời gian. Hãy đảm bảo mạng ổn định và không đóng trình duyệt giữa chừng.'}
         </Typography.Paragraph>
 
-        {/* Rules */}
         <Alert
           type="info"
           showIcon
-          message="Quy định & lưu ý (có thể bổ sung sau)"
+          message={mockTestOnlineUi ? 'Lưu ý khi làm bài' : 'Quy định & lưu ý (có thể bổ sung sau)'}
           description={
             <ul className="mb-0 list-disc pl-5">
               <li>Làm bài trung thực, không gian lận.</li>
-              <li>Hết thời gian hệ thống có thể tự nộp bài.</li>
-              <li>Câu trả lời được lưu nháp theo từng thao tác (khi kết nối cho phép).</li>
+              <li>Hết thời gian, bài có thể được nộp tự động.</li>
+              {!mockTestOnlineUi ? (
+                <li>Câu trả lời được lưu nháp theo từng thao tác (khi kết nối cho phép).</li>
+              ) : (
+                <li>Câu trả lời được lưu tự động khi bạn làm bài.</li>
+              )}
             </ul>
           }
         />
 
         {/* Form info */}
         <div>
-          <Typography.Text strong>Đề</Typography.Text>
+          <Typography.Text strong>{mockTestOnlineUi ? 'Bài thi' : 'Đề'}</Typography.Text>
           <div className="mt-2">
             <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 8 }}>
               {title}

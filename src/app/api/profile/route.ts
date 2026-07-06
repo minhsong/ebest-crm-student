@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
 import { patchProfileUrl } from '@/lib/student-api';
+import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
 
-function parseJsonSafe<T>(text: string): T | null {
+function parseJsonSafe(text: string): unknown {
   try {
-    return JSON.parse(text) as T;
+    return JSON.parse(text) as unknown;
   } catch {
     return null;
   }
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
     if (!token || typeof token !== 'string') {
       return NextResponse.json(
         { message: 'Thiếu token.' },
-        { status: 422 }
+        { status: 422 },
       );
     }
 
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
     if (!apiBaseUrl) {
       return NextResponse.json(
         { message: 'Cấu hình server chưa đúng.' },
-        { status: 500 }
+        { status: 500 },
       );
     }
     const url = patchProfileUrl(apiBaseUrl);
@@ -43,22 +44,19 @@ export async function POST(request: Request) {
       body: JSON.stringify(body),
     });
     const text = await res.text();
-    const json = parseJsonSafe<{ message?: string; data?: unknown }>(text);
+    const json = parseJsonSafe(text);
 
     if (!res.ok) {
       return NextResponse.json(
-        {
-          message: (json?.message as string) ?? 'Cập nhật thất bại.',
-          code: (json as { code?: string })?.code,
-        },
-        { status: res.status }
+        mapPortalConflictForClient(json, res.status, 'Cập nhật thất bại.'),
+        { status: res.status },
       );
     }
     return NextResponse.json(json ?? { success: true, data: null });
-  } catch (e) {
+  } catch {
     return NextResponse.json(
       { message: 'Không thể kết nối. Vui lòng thử lại.' },
-      { status: 502 }
+      { status: 502 },
     );
   }
 }

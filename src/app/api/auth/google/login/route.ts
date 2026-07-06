@@ -3,6 +3,7 @@ import { getApiBaseUrl } from '@/lib/env';
 import { STUDENT_API } from '@/lib/student-api';
 import { buildCrmStudentUrl, unwrapCrmResponseBody } from '@/lib/crm-student-proxy';
 import { setStudentAccessTokenCookie } from '@/lib/auth-cookie';
+import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -20,7 +21,11 @@ export async function POST(request: Request) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return NextResponse.json(
-      typeof data?.message === 'string' ? { message: data.message } : data,
+      mapPortalConflictForClient(
+        data,
+        res.status,
+        typeof data?.message === 'string' ? data.message : 'Đăng nhập Google thất bại.',
+      ),
       { status: res.status },
     );
   }

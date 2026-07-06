@@ -4,10 +4,43 @@
  * Redis autosave/WS: phía gateway (spec runtime).
  */
 const QUIZ_RUNTIME_PROXY_PREFIX = '/api/quiz-runtime';
+const MOCK_TEST_ONLINE_QUIZ_RUNTIME_PREFIX =
+  '/api/public/mock-test-online/quiz-runtime';
 
-export function quizRuntimePublicUrl(segment: string): string {
+/** @deprecated Dùng prop `mockTestOnlineRuntime` trên QuizAttemptClient. */
+let legacyActiveQuizRuntimePrefix: string | null = null;
+
+/** @deprecated Dùng prop `mockTestOnlineRuntime` trên QuizAttemptClient. */
+export function setMockTestOnlineQuizRuntimePrefix(enabled: boolean): void {
+  legacyActiveQuizRuntimePrefix = enabled
+    ? MOCK_TEST_ONLINE_QUIZ_RUNTIME_PREFIX
+    : null;
+}
+
+export type QuizRuntimeVariant = 'default' | 'mock-test-online';
+
+export function resolveQuizRuntimePrefix(
+  variant?: QuizRuntimeVariant | null,
+): string {
+  if (variant === 'mock-test-online') return MOCK_TEST_ONLINE_QUIZ_RUNTIME_PREFIX;
+  if (variant === 'default') return QUIZ_RUNTIME_PROXY_PREFIX;
+  return legacyActiveQuizRuntimePrefix ?? QUIZ_RUNTIME_PROXY_PREFIX;
+}
+
+export function isMockTestOnlineQuizRuntimeActive(
+  variant?: QuizRuntimeVariant | null,
+): boolean {
+  if (variant === 'mock-test-online') return true;
+  if (variant === 'default') return false;
+  return legacyActiveQuizRuntimePrefix === MOCK_TEST_ONLINE_QUIZ_RUNTIME_PREFIX;
+}
+
+export function quizRuntimePublicUrl(
+  segment: string,
+  variant?: QuizRuntimeVariant | null,
+): string {
   const path = segment.replace(/^\//, '');
-  return `${QUIZ_RUNTIME_PROXY_PREFIX}/${path}`;
+  return `${resolveQuizRuntimePrefix(variant)}/${path}`;
 }
 
 /**

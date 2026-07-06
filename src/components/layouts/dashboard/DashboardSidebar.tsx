@@ -21,6 +21,8 @@ export interface DashboardSidebarProps {
   selectedKeys: string[];
   openKeys: string[];
   onOpenChange: (keys: string[]) => void;
+  /** Logo home — lead dùng `/lead/tests`, HV dùng `/`. */
+  logoHref?: string;
 }
 
 export default function DashboardSidebar({
@@ -30,6 +32,7 @@ export default function DashboardSidebar({
   selectedKeys,
   openKeys,
   onOpenChange,
+  logoHref = '/',
 }: DashboardSidebarProps) {
   return (
     <Sider
@@ -59,7 +62,7 @@ export default function DashboardSidebar({
           variant={collapsed ? 'sidebar-icon' : 'sidebar-full'}
           priority
           link={{
-            href: '/',
+            href: logoHref,
             title: 'EBest English',
             className: 'flex w-full items-center justify-center py-2',
           }}

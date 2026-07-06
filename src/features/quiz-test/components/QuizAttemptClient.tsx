@@ -20,6 +20,8 @@ import {
 import {
   buildQuizAttemptPagePath,
   buildQuizAttemptPagePathWithoutNav,
+  buildMockTestOnlineExamRunPagePath,
+  buildMockTestOnlineExamRunPagePathWithoutNav,
   findSectionIdForAnchorKey,
   hasQuizAttemptNavigationParams,
   isAnchorKeyInForm,
@@ -27,6 +29,7 @@ import {
   resolveQuizAttemptActiveSectionId,
   scrollQuizAttemptPageToTop,
 } from '@/features/quiz-test/lib/quiz-section-navigation';
+import { sortQuizFormSections } from '@/features/quiz-test/lib/quiz-section-meta';
 import {
   buildBlockStartIndexes,
 } from '@/features/quiz-test/lib/quiz-runtime-view';
@@ -50,6 +53,7 @@ import { APP_BRAND } from '@/lib/ui-constants';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { buildQuizAttemptResultHref } from '@/features/quiz-test/lib/quiz-attempt-deadline-close';
+import { isMockTestOnlineQuizRuntimeActive } from '@/features/quiz-test/quiz-gateway-browser';
 import { shouldAutoNavigateToResultDetail } from '@/features/quiz-test/lib/quiz-attempt-session-lock';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -72,6 +76,8 @@ export function QuizAttemptClient({
   initialSummary,
   initialSectionId,
   initialQuestionKey,
+  mockTestOnlineEntry,
+  mockTestOnlineRuntime,
 }: {
   formPublicId: string;
   /** Từ query `?assignmentId=` khi vào đề từ bài tập — đồng bộ điểm sau submit. */
@@ -84,10 +90,38 @@ export function QuizAttemptClient({
   initialSectionId?: number;
   /** Từ query `?question=` — key thô (formItemId hoặc `parent::child`). */
   initialQuestionKey?: string | null;
+  /** Mock test online: lobby = sẵn sàng; session = xác nhận + làm bài. */
+  mockTestOnlineEntry?: 'lobby' | 'session';
+  /** Mock test online — dùng BFF quiz-runtime public (ưu tiên hơn global prefix). */
+  mockTestOnlineRuntime?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [listeningNavLocked, setListeningNavLocked] = useState(false);
+  const mockTestOnlineActive = isMockTestOnlineQuizRuntimeActive(
+    mockTestOnlineRuntime ? 'mock-test-online' : null,
+  );
+  const isMockLobby = mockTestOnlineActive && mockTestOnlineEntry === 'lobby';
+  const isMockSession = mockTestOnlineActive && mockTestOnlineEntry === 'session';
+  const confirmStartRequested = searchParams.get('confirm') === '1';
+  const mockExamReadyPath = `/mock-test-online/exam/ready?form=${encodeURIComponent(formPublicId)}`;
+  const mockExamRunPath = `/mock-test-online/exam/run?form=${encodeURIComponent(formPublicId)}`;
+
+  const buildAttemptPagePath = useCallback(
+    (params: URLSearchParams) =>
+      mockTestOnlineActive
+        ? buildMockTestOnlineExamRunPagePath(formPublicId, params)
+        : buildQuizAttemptPagePath(formPublicId, params),
+    [formPublicId, mockTestOnlineActive],
+  );
+
+  const buildAttemptPagePathWithoutNav = useCallback(
+    (params: URLSearchParams) =>
+      mockTestOnlineActive
+        ? buildMockTestOnlineExamRunPagePathWithoutNav(formPublicId, params)
+        : buildQuizAttemptPagePathWithoutNav(formPublicId, params),
+    [formPublicId, mockTestOnlineActive],
+  );
 
   const questionKey = useMemo(() => {
     const raw = searchParams.get('question') ?? initialQuestionKey;
@@ -126,7 +160,44 @@ export function QuizAttemptClient({
     closeReason,
     answersLocked,
     sessionLocked,
-  } = useQuizAttemptRuntime({ formPublicId, assignmentId, practiceMode });
+  } = useQuizAttemptRuntime({
+    formPublicId,
+    assignmentId,
+    practiceMode,
+    mockTestOnlineRuntime,
+  });
+
+  const handleOpenConfirmStart = useCallback(() => {
+    if (isMockLobby) {
+      router.push(`${mockExamRunPath}&confirm=1`);
+      return;
+    }
+    openConfirmStart();
+  }, [isMockLobby, mockExamRunPath, openConfirmStart, router]);
+
+  useEffect(() => {
+    if (!isMockLobby || phase !== 'attempting') return;
+    router.replace(mockExamRunPath);
+  }, [isMockLobby, mockExamRunPath, phase, router]);
+
+  /** Run không có ?confirm=1 và chưa mở modal → quay lobby ready. */
+  useEffect(() => {
+    if (!isMockSession || phase !== 'ready') return;
+    if (confirmStartRequested) return;
+    router.replace(mockExamReadyPath);
+  }, [confirmStartRequested, isMockSession, mockExamReadyPath, phase, router]);
+
+  /** Lobby bấm «Bắt đầu» → run?confirm=1: mở modal xác nhận (phase confirm_start). */
+  useEffect(() => {
+    if (!isMockSession || !confirmStartRequested || phase !== 'ready') return;
+    openConfirmStart();
+  }, [confirmStartRequested, isMockSession, openConfirmStart, phase]);
+
+  /** Sau khi đã confirm_start, gỡ ?confirm=1 khỏi URL — tránh redirect về ready. */
+  useEffect(() => {
+    if (!isMockSession || !confirmStartRequested || phase !== 'confirm_start') return;
+    router.replace(mockExamRunPath);
+  }, [confirmStartRequested, isMockSession, mockExamRunPath, phase, router]);
 
   const shouldLoadAssignmentAction =
     assignmentId != null && (phase === 'ready' || phase === 'done');
@@ -153,6 +224,7 @@ export function QuizAttemptClient({
 
   useEffect(() => {
     if (phase !== 'done' || !submitResult?.attemptPublicId?.trim()) return;
+    if (isMockTestOnlineQuizRuntimeActive()) return;
     if (!shouldAutoNavigateToResultDetail(closeReason)) return;
     router.replace(
       buildQuizAttemptResultHref(formPublicId, submitResult.attemptPublicId.trim()),
@@ -188,7 +260,7 @@ export function QuizAttemptClient({
 
   const sectionList = useMemo((): QuizFormSectionPayload[] => {
     const s = formPayload?.sections;
-    return Array.isArray(s) ? (s as QuizFormSectionPayload[]) : [];
+    return Array.isArray(s) ? sortQuizFormSections(s as QuizFormSectionPayload[]) : [];
   }, [formPayload?.sections]);
 
   const prevSectionIdRef = useRef<number | null>(null);
@@ -228,7 +300,7 @@ export function QuizAttemptClient({
     [blockStartIndexes, renderBlocks, visibleBlocks],
   );
 
-  /** Lần làm mới (confirm → starting → attempting): reset về section đầu. */
+  /** Lần làm mới (confirm → starting → attempting) hoặc resume: reset về section đầu. */
   useEffect(() => {
     const prev = prevPhaseRef.current;
     prevPhaseRef.current = phase;
@@ -237,16 +309,28 @@ export function QuizAttemptClient({
       setIgnoreUrlNav(true);
       return;
     }
-    if (phase !== 'attempting' || prev !== 'starting') return;
+
+    const enteredAttemptingFromLoad =
+      phase === 'attempting' && prev === 'loading_form';
+    const enteredAttemptingFromStart =
+      phase === 'attempting' && prev === 'starting';
+
+    if (!enteredAttemptingFromLoad && !enteredAttemptingFromStart) return;
+
+    if (enteredAttemptingFromLoad) {
+      setIgnoreUrlNav(true);
+      sectionVisitRef.current = null;
+    }
+
+    if (enteredAttemptingFromStart) {
+      sectionVisitRef.current = null;
+    }
 
     if (hasQuizAttemptNavigationParams(searchParams)) {
-      router.replace(
-        buildQuizAttemptPagePathWithoutNav(formPublicId, searchParams),
-        { scroll: false },
-      );
+      router.replace(buildAttemptPagePathWithoutNav(searchParams), { scroll: false });
     }
     scrollQuizAttemptPageToTop();
-  }, [formPublicId, phase, router, searchParams]);
+  }, [buildAttemptPagePathWithoutNav, phase, router, searchParams]);
 
   useEffect(() => {
     if (ignoreUrlNav && !hasQuizAttemptNavigationParams(searchParams)) {
@@ -270,11 +354,12 @@ export function QuizAttemptClient({
     if (phase !== 'attempting' && phase !== 'submitting') {
       return;
     }
+    if (ignoreUrlNav) return;
     if (activeSectionId == null || !Number.isFinite(activeSectionId)) return;
     if (sectionVisitRef.current === activeSectionId) return;
     sectionVisitRef.current = activeSectionId;
     void forfeitPriorListeningSections(activeSectionId);
-  }, [activeSectionId, forfeitPriorListeningSections, phase]);
+  }, [activeSectionId, forfeitPriorListeningSections, ignoreUrlNav, phase]);
 
   const onSectionChange = useCallback(
     async (sectionId: number) => {
@@ -295,11 +380,11 @@ export function QuizAttemptClient({
           params.delete('question');
         }
       }
-      router.replace(buildQuizAttemptPagePath(formPublicId, params), { scroll: false });
+      router.replace(buildAttemptPagePath(params), { scroll: false });
     },
     [
       activeSectionId,
-      formPublicId,
+      buildAttemptPagePath,
       formPayload,
       listeningNavLocked,
       maybeForfeitListeningOnLeaveSection,
@@ -341,12 +426,12 @@ export function QuizAttemptClient({
         params.delete('section');
       }
       params.set('question', anchorKey);
-      router.replace(buildQuizAttemptPagePath(formPublicId, params), { scroll: false });
+      router.replace(buildAttemptPagePath(params), { scroll: false });
     },
     [
       activeSectionId,
+      buildAttemptPagePath,
       formPayload,
-      formPublicId,
       listeningNavLocked,
       maybeForfeitListeningOnLeaveSection,
       renderBlocks,
@@ -361,7 +446,7 @@ export function QuizAttemptClient({
     if (!isAnchorKeyInForm(renderBlocks, questionKey)) {
       const params = new URLSearchParams(searchParams.toString());
       params.delete('question');
-      router.replace(buildQuizAttemptPagePath(formPublicId, params), { scroll: false });
+      router.replace(buildAttemptPagePath(params), { scroll: false });
       return;
     }
     const targetSec = findSectionIdForAnchorKey(formPayload, renderBlocks, questionKey);
@@ -375,7 +460,7 @@ export function QuizAttemptClient({
       const params = new URLSearchParams(searchParams.toString());
       params.set('section', String(targetSec));
       params.set('question', questionKey);
-      router.replace(buildQuizAttemptPagePath(formPublicId, params), { scroll: false });
+      router.replace(buildAttemptPagePath(params), { scroll: false });
       return;
     }
     const id = quizAnchorDomId(questionKey);
@@ -385,8 +470,8 @@ export function QuizAttemptClient({
     return () => window.clearTimeout(timer);
   }, [
     activeSectionId,
+    buildAttemptPagePath,
     formPayload,
-    formPublicId,
     listeningNavLocked,
     phase,
     questionKey,
@@ -417,7 +502,7 @@ export function QuizAttemptClient({
   const title =
     formPayload?.name ||
     initialSummary?.name ||
-    `Đề (${formPublicId.slice(0, 8)}…)`;
+    (mockTestOnlineActive ? 'Bài thi thử online' : `Đề (${formPublicId.slice(0, 8)}…)`);
 
 
   if (phase === 'loading_form' || phase === 'starting') {
@@ -429,12 +514,17 @@ export function QuizAttemptClient({
   }
 
   if (phase === 'error' || !formPayload) {
+    const errorBackHref = mockTestOnlineActive
+      ? '/mock-test-online/register'
+      : practiceMode
+        ? '/learning'
+        : '/assignments';
     return (
       <Card>
         <Space direction="vertical" size="middle" className="w-full">
-          <Link href={practiceMode ? '/learning' : '/assignments'}>
+          <Link href={errorBackHref}>
             <Button type="default" size="small" icon={<ArrowLeftOutlined />}>
-              Danh sách đề
+              {mockTestOnlineActive ? 'Quay lại đăng ký' : 'Danh sách đề'}
             </Button>
           </Link>
           {errMsg ? <Alert type="error" message={errMsg} showIcon /> : null}
@@ -444,7 +534,11 @@ export function QuizAttemptClient({
     );
   }
 
-  const backHref = practiceMode ? '/learning' : '/assignments';
+  const backHref = mockTestOnlineActive
+    ? '/mock-test-online/register'
+    : practiceMode
+      ? '/learning'
+      : '/assignments';
 
   if (phase === 'ready') {
     return (
@@ -457,7 +551,7 @@ export function QuizAttemptClient({
         backHref={backHref}
         errMsg={errMsg}
         attemptHistory={assignmentHistoryForList}
-        onOpenConfirmStart={openConfirmStart}
+        onOpenConfirmStart={handleOpenConfirmStart}
         assignmentId={assignmentId}
         canStartNew={
           assignmentId == null || assignmentAction.loading || assignmentAction.canStart
@@ -470,6 +564,7 @@ export function QuizAttemptClient({
         startBlockReason={assignmentAction.startBlockReason}
         allowHistoryDetailLinks={allowHistoryDetailLinks}
         eligibility={assignmentAction.eligibility}
+        mockTestOnlineUi={mockTestOnlineActive}
       />
     );
   }
@@ -486,8 +581,15 @@ export function QuizAttemptClient({
         errMsg={errMsg}
         rulesAcknowledged={rulesAcknowledged}
         onRulesAcknowledgedChange={setRulesAcknowledged}
-        onBack={() => setPhase('ready')}
+        onBack={() => {
+          if (isMockSession) {
+            router.push(mockExamReadyPath);
+            return;
+          }
+          setPhase('ready');
+        }}
         onStart={() => void handleStart()}
+        mockTestOnlineUi={mockTestOnlineActive}
       />
     );
   }
@@ -503,7 +605,7 @@ export function QuizAttemptClient({
         backHref={backHref}
         submitResult={submitResult}
         attemptHistory={assignmentHistoryForList}
-        onOpenConfirmStart={openConfirmStart}
+        onOpenConfirmStart={handleOpenConfirmStart}
         onRefreshHistory={refreshHistory}
         assignmentId={assignmentId}
         canStartNew={
@@ -541,6 +643,7 @@ export function QuizAttemptClient({
       formPayload={formPayload}
       formTagKeys={formTagKeys}
       backHref={backHref}
+      hideBackButton={mockTestOnlineActive}
       errMsg={errMsg}
       attempt={attempt}
       remainingSeconds={remainingSeconds}

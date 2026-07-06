@@ -11,6 +11,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Socket } from 'socket.io-client';
 import type {
   QuizAttemptHistoryItem,
@@ -24,7 +25,15 @@ import {
   quizSectionListeningStorageKey,
 } from '@/features/quiz-test/lib/quiz-listening-rules';
 import { sortQuizFormSections } from '@/features/quiz-test/lib/quiz-section-meta';
-import { quizRuntimePublicUrl } from '@/features/quiz-test/quiz-gateway-browser';
+import {
+  quizRuntimePublicUrl,
+  isMockTestOnlineQuizRuntimeActive,
+  type QuizRuntimeVariant,
+} from '@/features/quiz-test/quiz-gateway-browser';
+import {
+  clearMockTestOnlineExamAuth,
+  patchMockTestOnlineExamAuth,
+} from '@/lib/public-mock-test-online/exam-session';
 import {
   fetchQuizRuntimeJson,
   quizRuntimeErrorMessage,
@@ -40,6 +49,7 @@ import {
 } from '@/features/quiz-test/lib/quiz-attempt-history';
 import { pinAssignmentQuizRuntimeAccess } from '@/lib/quiz-runtime-access';
 import { fetchActiveQuizAttemptState, invalidateActiveQuizAttemptCache } from '@/lib/quiz-resume-access';
+import { mtoClientDebug } from '@/lib/public-mock-test-online/mock-test-online-debug';
 import {
   applyServerTimerSlice,
   normalizeAttemptAnswers,
@@ -85,6 +95,8 @@ type UseQuizAttemptRuntimeArgs = {
   assignmentId?: number;
   /** Ôn luyện — `?mode=practice` trên proxy + snapshot */
   practiceMode?: boolean;
+  /** Mock test online — BFF prefix public thay vì /api/quiz-runtime */
+  mockTestOnlineRuntime?: boolean;
 };
 
 function quizRuntimeQuerySuffix(
@@ -133,7 +145,12 @@ export function useQuizAttemptRuntime({
   formPublicId,
   assignmentId,
   practiceMode,
+  mockTestOnlineRuntime,
 }: UseQuizAttemptRuntimeArgs) {
+  const router = useRouter();
+  const runtimeVariant: QuizRuntimeVariant | null = mockTestOnlineRuntime
+    ? 'mock-test-online'
+    : null;
   const querySuffix = quizRuntimeQuerySuffix(assignmentId, practiceMode);
   // Core state
   const [phase, setPhase] = useState<QuizAttemptPhase>('loading_form');
@@ -188,7 +205,7 @@ export function useQuizAttemptRuntime({
 
   const fetchFormPayload = useCallback(async (opts?: { resume?: boolean }): Promise<QuizPublishedFormPayload> => {
     const suffix = opts?.resume ? '' : querySuffix;
-    const url = quizRuntimePublicUrl(`forms/${formPublicId}${suffix}`);
+    const url = quizRuntimePublicUrl(`forms/${formPublicId}${suffix}`, runtimeVariant);
     const { ok, status, data } = await fetchQuizRuntimeJson<
       QuizPublishedFormPayload & { message?: string }
     >(url);
@@ -205,8 +222,23 @@ export function useQuizAttemptRuntime({
     setErrMsg(null);
 
     try {
+      const mockTestOnline = isMockTestOnlineQuizRuntimeActive(runtimeVariant);
       const activeState = await fetchActiveQuizAttemptState(formPublicId);
       const resumeInProgress = activeState?.state === 'in_progress';
+
+      if (mockTestOnline) {
+        const attemptPublicId =
+          activeState?.state === 'in_progress' || activeState?.state === 'closed'
+            ? String(activeState.attempt.attemptPublicId ?? '')
+            : null;
+        mtoClientDebug('quiz.load_form', {
+          formPublicId,
+          activeState: activeState?.state ?? 'none',
+          resumeInProgress,
+          attemptPublicId: attemptPublicId || null,
+        });
+      }
+
       let rawAttempt: Record<string, unknown> | null =
         resumeInProgress && activeState?.attempt
           ? (activeState.attempt as Record<string, unknown>)
@@ -234,17 +266,20 @@ export function useQuizAttemptRuntime({
           rawAttempt = refreshedState.attempt as Record<string, unknown>;
         }
         void fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
-          quizRuntimePublicUrl(`forms/${formPublicId}/attempts`),
+          quizRuntimePublicUrl(`forms/${formPublicId}/attempts`, runtimeVariant),
         ).then((res) => {
           if (res.ok && res.data) {
             setAttemptHistory(normalizeQuizAttemptHistoryItems(res.data.items));
           }
         });
       } else {
+        const historyPromise = mockTestOnline
+          ? Promise.resolve({ ok: true, status: 200, data: { items: [] as QuizAttemptHistoryItem[] } })
+          : fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
+              quizRuntimePublicUrl(`forms/${formPublicId}/attempts${querySuffix}`, runtimeVariant),
+            );
         const [historyRes, loaded] = await Promise.all([
-          fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
-            quizRuntimePublicUrl(`forms/${formPublicId}/attempts${querySuffix}`),
-          ),
+          historyPromise,
           fetchFormPayload(),
         ]);
         data = loaded;
@@ -286,6 +321,11 @@ export function useQuizAttemptRuntime({
 
       if (activeState?.state === 'closed') {
         const attemptId = String(activeState.attempt?.attemptPublicId ?? '');
+        if (isMockTestOnlineQuizRuntimeActive(runtimeVariant)) {
+          patchMockTestOnlineExamAuth({ attemptPublicId: attemptId });
+          router.replace('/mock-test-online/exam/done');
+          return;
+        }
         setAttempt(null);
         setAnswers({});
         answersRef.current = {};
@@ -329,10 +369,10 @@ export function useQuizAttemptRuntime({
       );
       setPhase('error');
     }
-  }, [applyServerTimerToAttempt, assignmentId, fetchFormPayload, formPublicId, querySuffix]);
+  }, [applyServerTimerToAttempt, assignmentId, fetchFormPayload, formPublicId, querySuffix, router]);
 
   const refreshHistory = useCallback(async () => {
-    const historyUrl = quizRuntimePublicUrl(`forms/${formPublicId}/attempts${querySuffix}`);
+    const historyUrl = quizRuntimePublicUrl(`forms/${formPublicId}/attempts${querySuffix}`, runtimeVariant);
     try {
       const historyRes = await fetchQuizRuntimeJson<{ items?: QuizAttemptHistoryItem[] }>(
         historyUrl,
@@ -371,6 +411,14 @@ export function useQuizAttemptRuntime({
       setSessionLocked(true);
       setCloseReason(reason);
       disconnectQuizSocket();
+
+      if (isMockTestOnlineQuizRuntimeActive(runtimeVariant)) {
+        invalidateActiveQuizAttemptCache(formPublicId);
+        clearMockTestOnlineExamAuth();
+        router.replace('/mock-test-online/exam/done');
+        return;
+      }
+
       setSubmitResult(submitted);
       setErrMsg(userMessage);
       if (userMessage) {
@@ -403,7 +451,7 @@ export function useQuizAttemptRuntime({
 
       setPhase('done');
     },
-    [assignmentId, disconnectQuizSocket, formPublicId, practiceMode, refreshHistory],
+    [assignmentId, disconnectQuizSocket, formPublicId, practiceMode, refreshHistory, router],
   );
 
   const lockAttemptSession = useCallback(
@@ -428,7 +476,7 @@ export function useQuizAttemptRuntime({
       if (p === 'submitting' || p === 'done') return;
 
       const patchRest = async () => {
-        const url = quizRuntimePublicUrl(`attempts/${attemptPublicId}/answers`);
+        const url = quizRuntimePublicUrl(`attempts/${attemptPublicId}/answers`, runtimeVariant);
         const { ok, status, data } = await fetchQuizRuntimeJson(url, {
           method: 'PATCH',
           body: JSON.stringify({ answersByFormItemId: next }),
@@ -484,7 +532,7 @@ export function useQuizAttemptRuntime({
     ) => {
       if (sessionLocked) return false;
       const payload = map ?? answersRef.current;
-      const url = quizRuntimePublicUrl(`attempts/${attemptPublicId}/answers`);
+      const url = quizRuntimePublicUrl(`attempts/${attemptPublicId}/answers`, runtimeVariant);
       const { ok, status, data } = await fetchQuizRuntimeJson(url, {
         method: 'PATCH',
         body: JSON.stringify({ answersByFormItemId: payload }),
@@ -531,7 +579,7 @@ export function useQuizAttemptRuntime({
       return;
     }
 
-    const url = quizRuntimePublicUrl(`attempts/${attemptId}/submit`);
+    const url = quizRuntimePublicUrl(`attempts/${attemptId}/submit`, runtimeVariant);
 
     try {
       const { ok, status, data } = await fetchQuizRuntimeJson<
@@ -592,10 +640,10 @@ export function useQuizAttemptRuntime({
     setPhase('starting');
     setErrMsg(null);
 
-    const url = quizRuntimePublicUrl(`forms/${formPublicId}/attempts${querySuffix}`);
+    const url = quizRuntimePublicUrl(`forms/${formPublicId}/attempts${querySuffix}`, runtimeVariant);
 
     try {
-      if (assignmentId != null && assignmentId >= 1) {
+      if (!isMockTestOnlineQuizRuntimeActive(runtimeVariant) && assignmentId != null && assignmentId >= 1) {
         const gate = await fetchQuizStartEligibility(assignmentId);
         if (!gate.allowed) {
           throw new Error(gate.reason);
@@ -621,9 +669,11 @@ export function useQuizAttemptRuntime({
                     : null,
               }
             : undefined;
-      const startBody = snapshot
-        ? JSON.stringify({ participantSnapshot: snapshot })
-        : JSON.stringify({});
+      const startBodyObj: Record<string, unknown> = {};
+      if (snapshot) {
+        startBodyObj.participantSnapshot = snapshot;
+      }
+      const startBody = JSON.stringify(startBodyObj);
 
       const { ok, status, data } = await fetchQuizRuntimeJson<
         StartAttemptResponse & { message?: string }
@@ -658,6 +708,8 @@ export function useQuizAttemptRuntime({
       if (!data.resumed) {
         setAnswers({});
         answersRef.current = {};
+      } else if (isMockTestOnlineQuizRuntimeActive(runtimeVariant) && data.attemptPublicId) {
+        patchMockTestOnlineExamAuth({ attemptPublicId: data.attemptPublicId });
       }
       setPhase('attempting');
     } catch (e) {
@@ -934,7 +986,7 @@ export function useQuizAttemptRuntime({
       const before = listeningRemainingRef.current[key];
       if (typeof before !== 'number' || before <= 0) return true;
 
-      const url = quizRuntimePublicUrl(`attempts/${id}/listening-cycle`);
+      const url = quizRuntimePublicUrl(`attempts/${id}/listening-cycle`, runtimeVariant);
       const { ok, data } = await fetchQuizRuntimeJson<{
         remainingPlaysByListeningUnit?: unknown;
       }>(url, {
@@ -965,7 +1017,7 @@ export function useQuizAttemptRuntime({
 
       setListeningRemaining((prev) => ({ ...prev, [key]: 0 }));
 
-      const url = quizRuntimePublicUrl(`attempts/${id}/listening-forfeit`);
+      const url = quizRuntimePublicUrl(`attempts/${id}/listening-forfeit`, runtimeVariant);
       const { ok, data } = await fetchQuizRuntimeJson<{
         remainingPlaysByListeningUnit?: unknown;
       }>(url, {

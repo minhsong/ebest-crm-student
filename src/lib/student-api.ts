@@ -18,6 +18,21 @@ export const STUDENT_API = {
   authChangePassword: 'auth/change-password',
   authForgotPassword: 'auth/forgot-password',
   authResetPassword: 'auth/reset-password',
+  authCheckLoginKey: 'auth/check-login-key',
+  authLeadRegister: 'auth/lead/register',
+  authLeadLogin: 'auth/lead/login',
+  authLeadVerifyEmail: 'auth/lead/verify-email',
+  authLeadForgotPassword: 'auth/lead/forgot-password',
+  authLeadResetPassword: 'auth/lead/reset-password',
+  authLeadChangePassword: 'auth/lead/change-password',
+  leadMe: 'lead/me',
+  leadTestResults: 'lead/me/test-results',
+  /** @deprecated Dùng `portalExplore` — marketing Mongo đã gỡ. */
+  portalMarketing: 'portal/marketing',
+  portalExplore: 'portal/explore',
+  portalCourseCatalog: 'portal/course-catalog',
+  portalSiteLinks: 'portal/site-links',
+  mockTestResults: 'me/mock-test-results',
   /** Knowledge base — proxy Next: `/api/qa`, `/api/qa/by-slug/[slug]` */
   qa: 'qa',
 } as const;

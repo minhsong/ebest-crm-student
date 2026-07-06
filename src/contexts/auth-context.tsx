@@ -7,10 +7,14 @@ import {
   parseStudentMeCustomerBrief,
   type StudentMeCustomerBrief,
 } from '@/lib/parse-student-me-customer';
+import { isPublicAnonymousPortalPath } from '@/lib/public-portal-paths';
+
+import type { PortalLoginMode } from '@/components/portal/PortalLoginModePicker';
+import { portalLoginPath } from '@/lib/portal-auth/portal-login-api';
 
 export type AuthCustomer = StudentMeCustomerBrief;
 
-interface AuthState {
+export interface AuthState {
   customer: AuthCustomer | null;
   ready: boolean;
 }
@@ -26,7 +30,11 @@ export type LoginWithGoogleResult =
   | { ok: false; message?: string };
 
 interface AuthContextValue extends AuthState {
-  login: (loginId: string, password: string) => Promise<{ ok: boolean; message?: string }>;
+  login: (
+    loginId: string,
+    password: string,
+    options?: { mode?: PortalLoginMode },
+  ) => Promise<{ ok: boolean; actor?: 'customer' | 'lead'; message?: string }>;
   loginWithGoogle: (idToken: string) => Promise<LoginWithGoogleResult>;
   linkGoogle: (idToken: string) => Promise<{ ok: boolean; message?: string }>;
   logout: () => Promise<void>;
@@ -75,6 +83,13 @@ export function AuthProvider({
 
   useEffect(() => {
     if (initialCustomer) return;
+    if (
+      typeof window !== 'undefined' &&
+      isPublicAnonymousPortalPath(window.location.pathname)
+    ) {
+      setState({ customer: null, ready: true });
+      return;
+    }
     void refreshSession();
   }, [refreshSession, initialCustomer]);
 
@@ -86,29 +101,43 @@ export function AuthProvider({
   }, []);
 
   const login = useCallback(
-    async (loginId: string, password: string) => {
+    async (
+      loginId: string,
+      password: string,
+      options?: { mode?: PortalLoginMode },
+    ) => {
+      const mode = options?.mode ?? 'customer';
       try {
-        const res = await fetch('/api/auth/login', {
+        const res = await fetch(portalLoginPath(mode), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ loginId, password }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
+          const fallback =
+            mode === 'lead'
+              ? 'Đăng nhập thất bại. Nếu bạn là học viên Ebest, hãy chọn «Đang là học viên Ebest» ở trên.'
+              : 'Đăng nhập thất bại.';
           return {
             ok: false,
             message:
               getMessageFromClientApiJson(data) ??
-              (typeof data?.message === 'string' ? data.message : 'Đăng nhập thất bại.'),
+              (typeof data?.message === 'string' ? data.message : fallback),
           };
         }
+        const actor: 'customer' | 'lead' =
+          data?.actor === 'lead' ? 'lead' : 'customer';
+        if (actor === 'lead') {
+          return { ok: true, actor: 'lead' as const };
+        }
         await refreshSession();
-        return { ok: true };
+        return { ok: true, actor: 'customer' as const };
       } catch {
         return { ok: false, message: 'Không thể kết nối. Vui lòng thử lại.' };
       }
     },
-    [refreshSession]
+    [refreshSession],
   );
 
   const loginWithGoogle = useCallback(

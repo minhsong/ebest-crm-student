@@ -3,6 +3,7 @@ import { io, type Socket } from 'socket.io-client';
 import {
   getQuizGatewaySocketIoPath,
   getQuizGatewayWsOrigin,
+  isMockTestOnlineQuizRuntimeActive,
 } from '@/features/quiz-test/quiz-gateway-browser';
 
 /** Khớp `ebest-social-gateway` `quiz-runtime-ws.constants`. */
@@ -25,6 +26,17 @@ export const QUIZ_WS = {
 const NAMESPACE_PATH = '/quiz-runtime';
 
 export async function fetchQuizWsAccessToken(): Promise<string | null> {
+  if (isMockTestOnlineQuizRuntimeActive()) {
+    const res = await fetch('/api/public/mock-test-online/exam-auth-token', {
+      credentials: 'include',
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const j = (await res.json()) as { accessToken?: string };
+    const t = j.accessToken?.trim();
+    return t || null;
+  }
+
   const res = await fetch('/api/quiz-ws/token', {
     credentials: 'include',
     cache: 'no-store',

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
+import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
 
 const STUDENT_BASE = '/api/v1/student';
 
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
     if (!apiBaseUrl) {
       return NextResponse.json(
         { message: 'Cấu hình server chưa đúng.' },
-        { status: 500 }
+        { status: 500 },
       );
     }
     const url = `${apiBaseUrl.replace(/\/$/, '')}${STUDENT_BASE}/auth/register-by-token`;
@@ -22,8 +23,8 @@ export async function POST(request: Request) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       return NextResponse.json(
-        { message: data?.message ?? 'Tạo tài khoản thất bại.' },
-        { status: res.status }
+        mapPortalConflictForClient(data, res.status, 'Tạo tài khoản thất bại.'),
+        { status: res.status },
       );
     }
     const payload = data?.result ?? data?.data ?? data;
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json(
       { message: 'Không thể kết nối. Vui lòng thử lại.' },
-      { status: 502 }
+      { status: 502 },
     );
   }
 }

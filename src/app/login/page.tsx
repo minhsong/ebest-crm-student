@@ -11,14 +11,21 @@ import { APP_BRAND, EBEST_BRAND_ORANGE, FANPAGE_URL } from '@/lib/ui-constants';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { parseStudentPortalGoogleFromPublic } from '@/lib/student-portal-google-settings';
 import { LoginGoogleSection } from '@/features/auth/LoginGoogleSection';
+import { probePortalSession } from '@/lib/portal-auth/probe-portal-session';
+import {
+  PORTAL_MOCK_TEST_RESULTS_ROUTES,
+  resolvePostPortalLoginPath,
+} from '@/lib/portal-auth/session-routes';
+import type { PortalLoginMode } from '@/components/portal/PortalLoginModePicker';
+import { PortalLoginModePicker, parsePortalLoginModeFromQuery } from '@/components/portal/PortalLoginModePicker';
 
 /** Cam brand (~HSL 16° / ~78% sat / ~51% L) — đồng bộ nhận diện với logo. */
 const LOGIN_BRAND_BG = '#e35321';
 
 const GUIDE_ITEMS = [
-  `Đây là cổng thông tin và hệ thống hỗ trợ quản lý chất lượng đào tạo dành riêng cho học viên ${APP_BRAND}.`,
-  'Quyền sử dụng được trao cho học viên sau khi đã hoàn tất xác nhận thông tin và các bước đăng ký theo hướng dẫn của trung tâm.',
-  `${APP_BRAND} tiếp nhận và quản lý thông tin học tập của bạn một cách bảo mật, nhằm nâng cao chất lượng giảng dạy, chăm sóc và đồng hành cùng học viên.`,
+  `Đây là cổng thông tin dành cho học viên và thí sinh thi thử online của ${APP_BRAND}.`,
+  'Học viên đăng nhập bằng email/SĐT đã đăng ký tại trung tâm. Thí sinh thi thử dùng SĐT/email và mật khẩu tạm nhận qua Zalo hoặc email.',
+  `${APP_BRAND} tiếp nhận và quản lý thông tin học tập / kết quả thi thử một cách bảo mật.`,
 ];
 
 /**
@@ -31,6 +38,7 @@ export default function LoginPage() {
   const { message: antMessage } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loginMode, setLoginMode] = useState<PortalLoginMode>('customer');
   const [sessionExpired, setSessionExpired] = useState(false);
   const [googleCfg, setGoogleCfg] = useState<{
     enabled: boolean;
@@ -41,6 +49,7 @@ export default function LoginPage() {
     if (typeof window === 'undefined') return;
     const q = new URLSearchParams(window.location.search);
     setSessionExpired(q.get('session') === 'expired');
+    setLoginMode(parsePortalLoginModeFromQuery(q.get('mode')));
   }, []);
 
   useEffect(() => {
@@ -65,9 +74,23 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (ready && customer) {
+    if (!ready) return;
+    if (customer) {
       router.replace('/');
+      return;
     }
+    let cancelled = false;
+    void probePortalSession().then((probe) => {
+      if (cancelled) return;
+      if (probe.kind === 'lead') {
+        router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.lead);
+      } else if (probe.kind === 'student') {
+        router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.student);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [ready, customer, router]);
 
   const postLoginPath = useCallback(() => {
@@ -83,10 +106,19 @@ export default function LoginPage() {
       setError(null);
       setLoading(true);
       try {
-        const result = await login(values.loginId.trim(), values.password);
+        const result = await login(values.loginId.trim(), values.password, {
+          mode: loginMode,
+        });
         if (result.ok) {
           antMessage.success('Đăng nhập thành công.');
-          router.replace(postLoginPath());
+          const explicitRedirect = postLoginPath();
+          if (explicitRedirect !== '/') {
+            router.replace(explicitRedirect);
+          } else if (result.actor === 'lead') {
+            router.replace(resolvePostPortalLoginPath('lead'));
+          } else {
+            router.replace('/');
+          }
         } else {
           setError(result.message ?? 'Đăng nhập thất bại.');
         }
@@ -94,7 +126,7 @@ export default function LoginPage() {
         setLoading(false);
       }
     },
-    [login, router, antMessage, postLoginPath]
+    [login, router, antMessage, postLoginPath, loginMode],
   );
 
   if (ready && customer) {
@@ -118,6 +150,15 @@ export default function LoginPage() {
               {/* Desktop: trái = đăng nhập; mobile: dưới cùng (sau hướng dẫn) */}
               <Col xs={24} md={12} className="order-3 md:order-1">
                 <div className="flex flex-col items-center px-4 pb-4 pt-4 md:items-start md:border-r md:border-white/25 md:px-5 md:py-4 md:pr-6">
+                  <PortalLoginModePicker
+                    variant="brand"
+                    className="mb-3 w-full max-w-sm"
+                    value={loginMode}
+                    onChange={(mode) => {
+                      setLoginMode(mode);
+                      setError(null);
+                    }}
+                  />
                   <Form
                     layout="vertical"
                     onFinish={onFinish}
@@ -162,7 +203,11 @@ export default function LoginPage() {
                     </Form.Item>
                     <div className="-mt-1 mb-2 text-right">
                       <Link
-                        href="/forgot-password"
+                        href={
+                          loginMode === 'lead'
+                            ? '/forgot-password?mode=lead'
+                            : '/forgot-password'
+                        }
                         className="text-sm text-white/90 underline-offset-2 hover:text-white hover:underline"
                       >
                         Quên mật khẩu?

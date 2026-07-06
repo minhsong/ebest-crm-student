@@ -9,6 +9,7 @@ import { useResetPassword } from '@/hooks/use-password-recovery';
 import { useRedirectIfLoggedIn } from '@/hooks/use-redirect-if-logged-in';
 import { AuthWideFormLayout } from '@/components/auth/AuthWideFormLayout';
 import { FANPAGE_URL } from '@/lib/ui-constants';
+import { parsePortalLoginModeFromQuery } from '@/components/portal/PortalLoginModePicker';
 
 const SIDEBAR_ITEMS = [
   'Liên kết trong email thường có hiệu lực trong 24 giờ.',
@@ -20,22 +21,21 @@ function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
+  const mode = parsePortalLoginModeFromQuery(searchParams.get('mode'));
   const { message: antMessage } = App.useApp();
   const { shouldHide } = useRedirectIfLoggedIn();
-  const { loading, error, submit } = useResetPassword();
+  const { loading, error, submit } = useResetPassword(mode);
 
   const onFinish = useCallback(
     async (values: { password: string; confirm: string }) => {
-      if (!token) {
-        return;
-      }
+      if (!token) return;
       const result = await submit(token, values.password);
       if (result.ok && result.message) {
         antMessage.success(result.message);
-        router.push('/login');
+        router.push(mode === 'lead' ? '/login?mode=lead' : '/login');
       }
     },
-    [submit, antMessage, router, token],
+    [submit, antMessage, router, token, mode],
   );
 
   if (shouldHide) {
@@ -43,6 +43,9 @@ function ResetPasswordForm() {
   }
 
   const missingToken = !token;
+  const loginHref = mode === 'lead' ? '/login?mode=lead' : '/login';
+  const forgotHref =
+    mode === 'lead' ? '/forgot-password?mode=lead' : '/forgot-password';
 
   return (
     <AuthWideFormLayout
@@ -67,7 +70,7 @@ function ResetPasswordForm() {
             description={
               <>
                 Mở trang này từ nút trong email hoặc{' '}
-                <Link href="/forgot-password" className="text-blue-600">
+                <Link href={forgotHref} className="text-blue-600">
                   yêu cầu gửi lại
                 </Link>
                 .
@@ -77,7 +80,9 @@ function ResetPasswordForm() {
         ) : (
           <>
             <p className="mb-4 text-sm text-gray-600">
-              Chọn mật khẩu mới cho tài khoản cổng học viên của bạn.
+              {mode === 'lead'
+                ? 'Chọn mật khẩu mới cho tài khoản thí sinh thi thử online.'
+                : 'Chọn mật khẩu mới cho tài khoản cổng học viên của bạn.'}
             </p>
             <Form layout="vertical" onFinish={onFinish} size="large">
               <Form.Item
@@ -118,9 +123,9 @@ function ResetPasswordForm() {
                   autoComplete="new-password"
                 />
               </Form.Item>
-              {error && (
+              {error ? (
                 <Alert type="error" message={error} className="mb-4" showIcon />
-              )}
+              ) : null}
               <Form.Item className="mb-2">
                 <Button
                   type="primary"
@@ -132,7 +137,7 @@ function ResetPasswordForm() {
                 </Button>
               </Form.Item>
               <p className="mb-0 text-center text-sm">
-                <Link href="/login" className="text-blue-600 hover:underline">
+                <Link href={loginHref} className="text-blue-600 hover:underline">
                   ← Đăng nhập
                 </Link>
               </p>

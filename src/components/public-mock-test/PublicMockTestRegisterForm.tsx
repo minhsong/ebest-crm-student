@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Alert,
   App,
@@ -152,9 +153,15 @@ export function PublicMockTestRegisterForm({
         <Text className="mock-test-meta-text mt-2 block text-sm">
           Mã đăng ký #{success.registrationId}
         </Text>
+        <Link
+          href={`/lead/create-account?registrationId=${success.registrationId}`}
+          className="mt-3 inline-block"
+        >
+          <Button type="primary">Tạo tài khoản theo dõi buổi thi</Button>
+        </Link>
         <Button
           type="link"
-          className="!px-0 mt-2"
+          className="!px-0 mt-2 block"
           onClick={() => setSuccess(null)}
         >
           Đăng ký thêm buổi khác

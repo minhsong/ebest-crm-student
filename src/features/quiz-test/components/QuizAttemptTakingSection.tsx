@@ -44,6 +44,8 @@ export type QuizAttemptTakingSectionProps = {
   onNavigateToBlock?: (sectionId: number | null, anchorKey: string) => void;
   onListeningNavLock?: (locked: boolean) => void;
   backHref?: string;
+  /** Mock test online — ẩn nút «Quay lại» khi đang làm bài. */
+  hideBackButton?: boolean;
   answersLocked?: boolean;
 };
 
@@ -70,6 +72,7 @@ export function QuizAttemptTakingSection({
   onNavigateToBlock,
   onListeningNavLock,
   backHref,
+  hideBackButton = false,
   answersLocked = false,
 }: QuizAttemptTakingSectionProps) {
   const [outlineOpen, setOutlineOpen] = useState(true);
@@ -134,11 +137,13 @@ export function QuizAttemptTakingSection({
         onToggleOutline={() => setOutlineOpen((v) => !v)}
         headerLeft={
           <>
-            <Link href={backHref ?? '/assignments'}>
-              <Button type="default" icon={<ArrowLeftOutlined />} size="small">
-                Quay lại
-              </Button>
-            </Link>
+            {!hideBackButton ? (
+              <Link href={backHref ?? '/assignments'}>
+                <Button type="default" icon={<ArrowLeftOutlined />} size="small">
+                  Quay lại
+                </Button>
+              </Link>
+            ) : null}
             <Typography.Title level={4} style={{ margin: 0 }}>
               {title}
             </Typography.Title>

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   Form,
@@ -31,6 +32,7 @@ import {
   CONSENT_LABEL,
   ADDRESS_CCCD_STEP_NOTE,
 } from '@/lib/complete-profile';
+import { checkLoginKeyAvailability } from '@/lib/complete-profile/check-login-key';
 import { AddressSection } from './AddressSection';
 
 const GET_VALUE_PHONE = (v: string | undefined) => v ?? undefined;
@@ -86,6 +88,13 @@ export function ProfileForm({
     initialStep === 5 ? 5 : 1,
   );
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitErrorAction, setSubmitErrorAction] = useState<
+    'login' | 'contact_support' | null
+  >(null);
+  const [loginKeyWarning, setLoginKeyWarning] = useState<string | null>(null);
+  const [loginKeyWarningAction, setLoginKeyWarningAction] = useState<
+    'login' | 'contact_support' | null
+  >(null);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>(
     customer.tags?.map((t) => t.id) ?? []
   );
@@ -117,6 +126,92 @@ export function ProfileForm({
       termsAccepted: false,
     }),
     [customer, addressData]
+  );
+
+  const emailConflictAlert = submitError ? (
+    <Alert
+      type="error"
+      message={submitError}
+      className="mb-4"
+      showIcon
+      action={
+        submitErrorAction === 'login' ? (
+          <Link href="/login">
+            <Button size="small" type="primary">
+              Đăng nhập
+            </Button>
+          </Link>
+        ) : submitErrorAction === 'contact_support' ? (
+          <Button
+            size="small"
+            href={FANPAGE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Fanpage Ebest
+          </Button>
+        ) : undefined
+      }
+    />
+  ) : null;
+
+  const loginKeyPrecheckAlert =
+    loginKeyWarning && step === 1 ? (
+      <Alert
+        type="warning"
+        message={loginKeyWarning}
+        className="mb-4"
+        showIcon
+        action={
+          loginKeyWarningAction === 'login' ? (
+            <Link href="/login">
+              <Button size="small" type="primary">
+                Đăng nhập
+              </Button>
+            </Link>
+          ) : loginKeyWarningAction === 'contact_support' ? (
+            <Button
+              size="small"
+              href={FANPAGE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Fanpage Ebest
+            </Button>
+          ) : undefined
+        }
+      />
+    ) : null;
+
+  const runLoginKeyPrecheck = useCallback(
+    async (field: 'email' | 'phone') => {
+      const email =
+        field === 'email'
+          ? String(form.getFieldValue('primaryEmail') ?? '').trim()
+          : '';
+      const phone =
+        field === 'phone'
+          ? String(form.getFieldValue('primaryPhone') ?? '').trim()
+          : '';
+      if (!email && !phone) {
+        setLoginKeyWarning(null);
+        setLoginKeyWarningAction(null);
+        return;
+      }
+      const result = await checkLoginKeyAvailability({
+        email: email || undefined,
+        phone: phone || undefined,
+        excludeCustomerId: customer.id,
+      });
+      if (!result.available) {
+        setLoginKeyWarning(MESSAGES.emailAlreadyInSystem);
+        setLoginKeyWarningAction(result.action ?? 'login');
+        return;
+      }
+      setLoginKeyWarning(null);
+      setLoginKeyWarningAction(null);
+    },
+    [customer.id, form],
   );
 
   const tagGroups = useMemo(() => {
@@ -156,6 +251,7 @@ export function ProfileForm({
   const saveProfileAndNext = useCallback(
     async (nextStep: StepNumber) => {
       setSubmitError(null);
+      setSubmitErrorAction(null);
       if (step === 1) {
         try {
           await form.validateFields(STEP_1_FIELDS as unknown as string[]);
@@ -221,10 +317,22 @@ export function ProfileForm({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload as Record<string, unknown>),
         });
-        const json = (await res.json().catch(() => ({}))) as { message?: string; code?: string };
+        const json = (await res.json().catch(() => ({}))) as {
+          message?: string;
+          code?: string;
+          action?: 'login' | 'contact_support';
+        };
         if (!res.ok) {
+          const isEmailConflict =
+            json?.code === 'EMAIL_ALREADY_IN_SYSTEM' ||
+            json?.code === 'DUPLICATE_EMAIL';
           setSubmitError(
-            json?.code === 'DUPLICATE_EMAIL' ? MESSAGES.duplicateEmail : (json?.message ?? MESSAGES.updateFailed)
+            isEmailConflict
+              ? MESSAGES.emailAlreadyInSystem
+              : (json?.message ?? MESSAGES.updateFailed),
+          );
+          setSubmitErrorAction(
+            isEmailConflict ? (json.action ?? 'login') : null,
           );
           return;
         }
@@ -251,6 +359,7 @@ export function ProfileForm({
   const handleCreateAccount = useCallback(
     async (values: { password: string }) => {
       setSubmitError(null);
+      setSubmitErrorAction(null);
       setSubmitting(true);
       try {
         const res = await fetch('/api/auth/register-by-token', {
@@ -396,9 +505,7 @@ export function ProfileForm({
             >
               <Input.Password placeholder="Nhập lại mật khẩu" />
             </Form.Item>
-            {submitError && (
-              <Alert type="error" message={submitError} className="mb-4" showIcon />
-            )}
+            {emailConflictAlert}
             <div className="mt-8 flex justify-center">
               <Button
                 type="primary"
@@ -479,6 +586,8 @@ export function ProfileForm({
           <h2 className="mt-6 text-2xl font-semibold text-gray-900">
             {STEP_TITLES[step]}
           </h2>
+          {loginKeyPrecheckAlert}
+          {emailConflictAlert}
 
           <Form
             form={form}
@@ -528,6 +637,7 @@ export function ProfileForm({
                     type="email"
                     placeholder="Nhập email"
                     maxLength={FIELD_LIMITS.primaryEmail}
+                    onBlur={() => void runLoginKeyPrecheck('email')}
                   />
                 </Form.Item>
                 <Form.Item
@@ -539,6 +649,7 @@ export function ProfileForm({
                   <PhoneInputField
                     placeholder="Nhập số điện thoại"
                     className="w-full"
+                    onBlur={() => void runLoginKeyPrecheck('phone')}
                   />
                 </Form.Item>
                 <Form.Item name="zaloUrl" label="Zalo">
@@ -699,9 +810,7 @@ export function ProfileForm({
             )}
             </div>
 
-            {submitError && (
-              <Alert type="error" message={submitError} className="mb-4" showIcon />
-            )}
+            {emailConflictAlert}
 
             {step <= 4 && (
               <div className="mt-8 flex flex-wrap items-center justify-center gap-6">

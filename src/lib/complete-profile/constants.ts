@@ -40,9 +40,12 @@ export const WELCOME = {
 export const MESSAGES = {
   updateSuccess: 'Cập nhật thông tin thành công.',
   updateFailed: 'Cập nhật thất bại. Vui lòng thử lại.',
-  /** Hiển thị khi email trùng (complete-profile); yêu cầu liên hệ Fanpage/quản lý. */
+  /** BL-Q7 — email trùng / invalid (complete-profile). */
+  emailAlreadyInSystem:
+    'Thông tin email không hợp lệ hoặc đã tồn tại trong hệ thống. Vui lòng kiểm tra lại, đăng nhập nếu bạn đã có tài khoản, hoặc liên hệ Fanpage Ebest để được hỗ trợ.',
+  /** @deprecated dùng emailAlreadyInSystem */
   duplicateEmail:
-    'Email này đã được sử dụng trong hệ thống. Nếu bạn đã có tài khoản, vui lòng liên hệ Fanpage hoặc quản lý để được hỗ trợ kiểm tra.',
+    'Thông tin email không hợp lệ hoặc đã tồn tại trong hệ thống. Vui lòng kiểm tra lại, đăng nhập nếu bạn đã có tài khoản, hoặc liên hệ Fanpage Ebest để được hỗ trợ.',
   networkError: 'Không thể kết nối. Vui lòng thử lại.',
   successTitle: 'Cập nhật thành công',
   successDescription: 'Bạn đã hoàn thành cập nhật thông tin. Cảm ơn bạn và chúc bạn có một khoảng thời gian tuyệt vời tại Ebest. 💖',
