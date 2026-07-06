@@ -74,25 +74,3 @@ export interface PublicRegisterResponse {
 	warnings?: Array<{ code: string; message: string }>;
 	message: string;
 }
-
-export interface PublicMergeCandidate {
-	key: string;
-	source: 'customer' | 'omni_lead';
-	displayName: string;
-	primaryPhoneMasked: string | null;
-	primaryEmailMasked: string | null;
-}
-
-export interface PublicMergeRequiredResponse {
-	status: 'merge_required';
-	mergeToken: string;
-	preview: {
-		incoming: {
-			displayName: string;
-			primaryPhone: string;
-			primaryEmail: string;
-		};
-		candidates: PublicMergeCandidate[];
-	};
-	message: string;
-}

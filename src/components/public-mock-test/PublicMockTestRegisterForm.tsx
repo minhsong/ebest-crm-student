@@ -1,30 +1,17 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  Alert,
-  App,
-  Button,
-  Divider,
-  Empty,
-  Form,
-  Modal,
-  Radio,
-  Space,
-  Typography,
-} from "antd";
+import { Alert, App, Button, Empty, Form, Typography } from "antd";
 import { executeRecaptchaV3 } from "@/lib/public-mock-test/recaptcha";
 import type {
   PublicLocationGroup,
-  PublicMergeRequiredResponse,
   PublicMockTestFormValues,
   PublicRegisterResponse,
   PublicRegistrationOptions,
 } from "@/lib/public-mock-test/types";
 import { collectPublicProfilePayload } from "@/lib/public-mock-test/profile-payload";
-import { MERGE_CONFIRM_COPY } from "@/lib/public-mock-test/merge-confirm-copy";
 import { PublicMockTestContactFields } from "./PublicMockTestContactFields";
 import { PublicMockTestProfileFields } from "./PublicMockTestProfileFields";
 import { PublicMockTestSessionPicker } from "./PublicMockTestSessionPicker";
@@ -56,9 +43,6 @@ export function PublicMockTestRegisterForm({
   const [form] = Form.useForm<PublicMockTestFormValues>();
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<PublicRegisterResponse | null>(null);
-  const [mergePending, setMergePending] =
-    useState<PublicMergeRequiredResponse | null>(null);
-  const [mergeChoice, setMergeChoice] = useState<string>("standalone");
   const locations = initialLocations;
   const selectedLocationKey = Form.useWatch("locationKey", form);
   const selectedSessionId = Form.useWatch("sessionId", form);
@@ -85,23 +69,14 @@ export function PublicMockTestRegisterForm({
             ...profile,
           }),
         });
-        const data = (await res.json()) as
-          | PublicRegisterResponse
-          | PublicMergeRequiredResponse
-          | { message?: string };
+        const data = (await res.json()) as PublicRegisterResponse & {
+          message?: string;
+        };
         if (!res.ok) {
-          throw new Error(
-            (data as { message?: string }).message ?? "Đăng ký thất bại",
-          );
+          throw new Error(data.message ?? "Đăng ký thất bại");
         }
-        if ((data as PublicMergeRequiredResponse).status === "merge_required") {
-          setMergePending(data as PublicMergeRequiredResponse);
-          setMergeChoice("standalone");
-          message.info(MERGE_CONFIRM_COPY.toastHint);
-          return;
-        }
-        setSuccess(data as PublicRegisterResponse);
-        message.success((data as PublicRegisterResponse).message);
+        setSuccess(data);
+        message.success(data.message);
       } catch (e) {
         message.error(e instanceof Error ? e.message : "Đăng ký thất bại");
       } finally {
@@ -110,41 +85,6 @@ export function PublicMockTestRegisterForm({
     },
     [message],
   );
-
-  const submitMergeDecision = useCallback(async () => {
-    if (!mergePending) return;
-    setSubmitting(true);
-    try {
-      const decision =
-        mergeChoice === "standalone"
-          ? { mode: "standalone" }
-          : { mode: "candidate", candidateKey: mergeChoice };
-      const res = await fetch("/api/public/mock-test/register/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mergeToken: mergePending.mergeToken, decision }),
-      });
-      const data = (await res.json()) as PublicRegisterResponse & {
-        message?: string;
-      };
-      if (!res.ok) {
-        throw new Error(data.message ?? MERGE_CONFIRM_COPY.completeError);
-      }
-      setMergePending(null);
-      setSuccess(data);
-      message.success(data.message);
-    } catch (e) {
-      message.error(
-        e instanceof Error ? e.message : MERGE_CONFIRM_COPY.completeError,
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  }, [mergeChoice, mergePending, message]);
-
-  const candidateList = useMemo(() => {
-    return mergePending?.preview.candidates ?? [];
-  }, [mergePending]);
 
   if (success) {
     return (
@@ -253,65 +193,6 @@ export function PublicMockTestRegisterForm({
           </Text>
         )}
       </Form>
-      <Modal
-        open={!!mergePending}
-        maskClosable={false}
-        closable={false}
-        title={MERGE_CONFIRM_COPY.modalTitle}
-        okText={MERGE_CONFIRM_COPY.okText}
-        cancelText={MERGE_CONFIRM_COPY.cancelText}
-        confirmLoading={submitting}
-        onOk={submitMergeDecision}
-        onCancel={() => setMergePending(null)}
-      >
-        <Space direction="vertical" size={12} className="w-full">
-          <Text className="block">{MERGE_CONFIRM_COPY.intro}</Text>
-          <Text className="block">{MERGE_CONFIRM_COPY.instructionConfirm}</Text>
-          <div>
-            <Text strong>{MERGE_CONFIRM_COPY.yourInfoLabel}</Text>
-            <div className="text-sm mt-1 mock-test-merge-your-info">
-              <div>{mergePending?.preview.incoming.displayName}</div>
-              <div>{mergePending?.preview.incoming.primaryPhone}</div>
-              <div>{mergePending?.preview.incoming.primaryEmail}</div>
-            </div>
-          </div>
-          {candidateList.length > 0 ? (
-            <Text strong className="block">
-              {MERGE_CONFIRM_COPY.similarListLabel}
-            </Text>
-          ) : null}
-          <Radio.Group
-            value={mergeChoice}
-            onChange={(e) => setMergeChoice(e.target.value)}
-            className="w-full"
-          >
-            <Space direction="vertical" className="w-full">
-              {candidateList.map((candidate) => (
-                <Radio
-                  key={candidate.key}
-                  value={candidate.key}
-                  className="!items-start"
-                >
-                  <Space direction="vertical" size={0}>
-                    <Text>{candidate.displayName}</Text>
-                    <Text className="text-xs mock-test-meta-text">
-                      {candidate.primaryPhoneMasked || "Không có SĐT"} •{" "}
-                      {candidate.primaryEmailMasked || "Không có email"}
-                    </Text>
-                  </Space>
-                </Radio>
-              ))}
-              <Divider className="!my-1" />
-              <Text className="mock-test-hint-text block text-sm !mb-1">
-                {MERGE_CONFIRM_COPY.instructionSkip}
-              </Text>
-              <Radio value="standalone" className="!items-start">
-                {MERGE_CONFIRM_COPY.notMeOption}
-              </Radio>
-            </Space>
-          </Radio.Group>
-        </Space>
-      </Modal>
     </div>
   );
 }
