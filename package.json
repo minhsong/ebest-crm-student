@@ -4,7 +4,9 @@
   "private": true,
   "description": "Student portal - complete profile & student dashboard (e.g. student.ebest.edu.vn)",
   "scripts": {
+    "predev": "node scripts/ensure-crm-api-types-built.js && node scripts/ensure-game-packages-built.js",
     "dev": "next dev -p 3001",
+    "prebuild": "node scripts/ensure-crm-api-types-built.js && node scripts/ensure-game-packages-built.js",
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "next lint",
