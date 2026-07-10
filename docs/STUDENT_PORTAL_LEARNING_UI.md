@@ -1,9 +1,9 @@
 # Student Portal — Learning UI (tiêu chuẩn triển khai)
 
-> **Cập nhật:** 2026-06-14  
+> **Cập nhật:** 2026-07-10  
 > **Phạm vi:** `ebest-student-portal/src/features/learning/`  
-> **SSOT nghiệp vụ:** [docs/vocabulary-learning-platform/VOCABULARY_DRILL_ENGINE_SPEC.md](../../docs/vocabulary-learning-platform/VOCABULARY_DRILL_ENGINE_SPEC.md)  
-> **SSOT API read-model:** [docs/vocabulary-learning-platform/STUDENT_HUB_VOCABULARY_READ_MODEL.md](../../docs/vocabulary-learning-platform/STUDENT_HUB_VOCABULARY_READ_MODEL.md)
+> **SSOT nghiệp vụ:** [docs/vocabulary-learning-platform/VOCABULARY_DRILL_ENGINE_SPEC.md](../../ebest-crm-api/docs/monorepo/vocabulary-learning-platform/VOCABULARY_DRILL_ENGINE_SPEC.md)  
+> **SSOT API read-model:** [docs/vocabulary-learning-platform/STUDENT_HUB_VOCABULARY_READ_MODEL.md](../../ebest-crm-api/docs/monorepo/vocabulary-learning-platform/STUDENT_HUB_VOCABULARY_READ_MODEL.md)
 
 ---
 
@@ -85,7 +85,7 @@ Theo pattern CRM Client (`REACT_CODE_STANDARDS.md` — áp dụng tương đươ
 
 ## 4. Vocabulary Drill (Game Engine)
 
-> SSOT runtime: [GAME_ENGINE_END_TO_END_SPEC.md](../../docs/learning-platform/GAME_ENGINE_END_TO_END_SPEC.md) · Gateway ADR [DRILL_RUNTIME_GATEWAY_ADR.md](../../docs/vocabulary-learning-platform/DRILL_RUNTIME_GATEWAY_ADR.md)
+> SSOT runtime: [GAME_ENGINE_END_TO_END_SPEC.md](../../ebest-crm-api/docs/monorepo/learning-platform/GAME_ENGINE_END_TO_END_SPEC.md) · Gateway ADR [DRILL_RUNTIME_GATEWAY_ADR.md](../../ebest-crm-api/docs/monorepo/vocabulary-learning-platform/DRILL_RUNTIME_GATEWAY_ADR.md)
 
 ### 4.1 Route & luồng
 
@@ -103,7 +103,7 @@ Theo pattern CRM Client (`REACT_CODE_STANDARDS.md` — áp dụng tương đươ
 
 | Thành phần | Vai trò |
 |------------|---------|
-| `DrillPracticeView` | Orchestration: lobby → play → result |
+| `GameReadyView` / `GamePlayingView` / `GameResultView` | Orchestration theo route segment |
 | `useDrillPracticePool` | Pool, assignment context, **authorize + `authorizeContext`** |
 | `useDrillPracticeSession` | `useGameSession` adapter — answer UX, pool progress |
 | `DrillGameLayout` | HUD + MCQ — presentation registry |
@@ -138,15 +138,38 @@ Layout CSS: `flashcard-session.css` + class `flashcard-layout--{coreLayoutProfil
 
 ## 6. Hub & menu
 
+> **Games Hub:** Route tree mới + reconcile + exit guard — [GAMES_HUB_UX_ARCHITECTURE_SPEC.md](./GAMES_HUB_UX_ARCHITECTURE_SPEC.md) · [GAMES_HUB_IMPLEMENTATION_PLAN.md](./GAMES_HUB_IMPLEMENTATION_PLAN.md). Bảng **as-built** (mục tiêu) bên dưới.
+
 Pattern **dashboard → action → màn chi tiết** (không xử lý nghiệp vụ ngay khi vào route gốc):
 
-| Route gốc | Dashboard | Màn chi tiết (query / bước sau) |
-|-----------|-----------|----------------------------------|
+| Route gốc | Dashboard | Màn chi tiết |
+|-----------|-----------|--------------|
 | `/learning` | `LearningHubView` | card → vocabulary / games / assignments |
 | `/learning/vocabulary` | `VocabularyDashboardView` | `?classId=&view=sessions` → `VocabularySessionsBrowseView` |
-| `/learning/games` | `GamesDashboardView` | `?classId=` / `?assignmentId=` / `?playId=` → `DrillPracticeView` |
+| `/learning/games` | `GameCatalogView` | `[gameSlug]/ready\|playing\|result` |
 | `/learning/games/leaderboard` | `LeaderboardDashboardView` | `?classId=` → `DrillLeaderboardView` |
 | `/assignments` | dashboard Bài tập | «Duyệt tất cả bài» → cây khóa/lớp/buổi |
+
+### 6.1 Games Hub — route *(Phase B–E3)*
+
+| Route | View | Ghi chú |
+|-------|------|---------|
+| `/learning/games` | `GameCatalogView` | 4 game; eligibility audio/image; legacy redirect |
+| `/learning/games/[gameSlug]/ready` | `GameReadyView` | Mode picker, duration, BXH snapshot top 10, active play banner |
+| `/learning/games/[gameSlug]/playing` | `GamePlayingView` | Exit guard (HUD + popstate); image/audio widgets |
+| `/learning/games/[gameSlug]/result` | `GameResultView` | CTA chơi lại + game khác |
+| `/learning/games/leaderboard` | *(giữ)* | BXH đầy đủ |
+| `/learning/games/assignments` | *(giữ)* | |
+
+Redirect: `/learning/games?classId=` → `/meaning-to-word/ready?classId=`; `modeId=best_of` ↔ engine `pool_coverage`.
+
+**Catalog eligibility:** card `audio_to_word` / image games disabled khi pool thiếu media (≥4 từ có file) — counts từ CRM pool summary.
+
+**Exit guard:** HUD + popstate + chặn `<Link>` sidebar khi `in_progress` (`GameExitGuardProvider`).
+
+**Gaming UI (mobile):** `games-hub.css` — catalog card + nút «Chơi ngay», tile picker mode/duration, action bar; padding compact + `safe-area`.
+
+**Legacy (deprecated, không còn route):** `GamesDashboardView`, `DrillPracticeView` — thay bằng catalog + slug routes.
 
 Component dùng chung: `LearningDashboardActionCard` + `learning-dashboard-shared.css`.
 
@@ -154,7 +177,7 @@ Component dùng chung: `LearningDashboardActionCard` + `learning-dashboard-share
 |-------|------|-----|
 | `/learning` | `LearningHubView` | `GET /api/student/learning/hub` |
 | `/learning/vocabulary` | `VocabularyDashboardView` | hub + vocabulary-sessions |
-| `/learning/games` | `GamesDashboardView` → `DrillPracticeView` | GE vocabulary_drill |
+| `/learning/games` | `GameCatalogView` → `[slug]/ready\|playing\|result` | GE vocabulary_drill |
 | `/learning/games/leaderboard` | `LeaderboardDashboardView` → `DrillLeaderboardView` | LB-V2 |
 
 **Alias (redirect):** `/learning/practice` → `/learning/games`; `/learning/leaderboard` → `/learning/games/leaderboard`.

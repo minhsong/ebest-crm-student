@@ -210,6 +210,29 @@
 	padding: 12px 14px;
 }
 
+.mock-test-campaign-card-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.mock-test-campaign-card-title {
+	flex: 1;
+	line-height: 1.4;
+}
+
+.mock-test-campaign-card-meta {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.mock-test-select-exam-summary {
+	border-left: 4px solid #52c41a;
+}
+
 .mock-test-variant-radio-group {
 	display: flex;
 	flex-direction: column;

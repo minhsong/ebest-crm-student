@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Button } from 'antd';
+import { BulbOutlined } from '@ant-design/icons';
 import { PageCard, PageHeader } from '@/components/layout';
 import { LeadConsultCta } from '@/components/lead-portal/LeadConsultCta';
 import { MockTestOnlineAttemptLimitAlert } from '@/components/public-mock-test-online/MockTestOnlineAttemptLimitAlert';
@@ -22,6 +23,8 @@ export function LeadMockTestResultsView({ notice }: Props) {
 
   const showInProgress =
     !inExamLoading && Boolean(inExamStatus?.activeInExam?.resumeAllowed);
+
+  const hasScoredResult = items.some((item) => item.trackingPhase === 'done');
 
   return (
     <>
@@ -46,6 +49,19 @@ export function LeadMockTestResultsView({ notice }: Props) {
           error={error}
           inProgressAttemptStatus={showInProgress ? inExamStatus : null}
         />
+        {hasScoredResult ? (
+          <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3">
+            <p className="mb-2 flex items-center gap-2 text-sm text-gray-800">
+              <BulbOutlined className="text-blue-500" />
+              Dựa trên kết quả thi, xem khóa học gợi ý cho bạn.
+            </p>
+            <Link href="/lead/courses#recommendations">
+              <Button type="primary" size="small">
+                Xem gợi ý khóa học
+              </Button>
+            </Link>
+          </div>
+        ) : null}
         {notice === 'attempt_limit' ? (
           <LeadConsultCta
             siteLinks={siteLinks}

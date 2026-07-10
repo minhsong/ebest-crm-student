@@ -7,7 +7,7 @@ import type { VocabularyDrillDetailWidgetId } from '@/features/learning/games/vo
 
 type Props = {
 	detailWidgetId: VocabularyDrillDetailWidgetId;
-	question: Pick<DrillQuestionClient, 'prompt' | 'promptAudioUrl'>;
+	question: Pick<DrillQuestionClient, 'prompt' | 'promptAudioUrl' | 'promptImageUrl'>;
 };
 
 function DrillPromptCardInner({ detailWidgetId, question }: Props) {
@@ -16,6 +16,7 @@ function DrillPromptCardInner({ detailWidgetId, question }: Props) {
 			detailWidgetId={detailWidgetId}
 			prompt={question.prompt}
 			promptAudioUrl={question.promptAudioUrl}
+			promptImageUrl={question.promptImageUrl}
 		/>
 	);
 }

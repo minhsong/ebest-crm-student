@@ -2,7 +2,6 @@
 
 import { useMemo } from 'react';
 import type { GameSessionConfig } from '@/features/learning/games/core/types/game-session-config.types';
-import type { DrillPracticeSelection } from '@/features/learning/hooks/useDrillPracticePool';
 import type {
 	AssignmentDrillContextPayload,
 	VocabularyPoolPayload,
@@ -15,8 +14,6 @@ import { DrillLobbySharedPanels } from '@/features/learning/games/vocabulary-dri
 import '@/features/learning/components/drill/drill-survival.css';
 
 type Props = {
-	selection: DrillPracticeSelection;
-	onSelectionChange: (selection: DrillPracticeSelection) => void;
 	pool: VocabularyPoolPayload | null;
 	assignmentCtx: AssignmentDrillContextPayload | null;
 	sessionConfig: GameSessionConfig | null;
@@ -30,8 +27,6 @@ type Props = {
 };
 
 export function DrillPracticeLobby({
-	selection,
-	onSelectionChange,
 	pool,
 	assignmentCtx,
 	sessionConfig,
@@ -55,13 +50,7 @@ export function DrillPracticeLobby({
 	return (
 		<div className="drill-lobby">
 			{lobbyVm.showModePicker ? (
-				<FreePracticeLobbyHero
-					vm={lobbyVm}
-					selection={selection}
-					onSelectionChange={onSelectionChange}
-					canStart={canStart}
-					onStart={onStart}
-				/>
+				<FreePracticeLobbyHero vm={lobbyVm} canStart={canStart} onStart={onStart} />
 			) : (
 				<AssignmentLobbyHero
 					vm={lobbyVm}

@@ -1,12 +1,7 @@
 'use client';
 
-import { Suspense } from 'react';
-import { LearningGamesPageContent } from '@/features/learning/components/LearningGamesPageContent';
+import { LearningGamesRouteEntry } from '@/features/learning/components/LearningGamesRouteEntry';
 
 export default function LearningGamesPage() {
-	return (
-		<Suspense fallback={null}>
-			<LearningGamesPageContent />
-		</Suspense>
-	);
+	return <LearningGamesRouteEntry />;
 }

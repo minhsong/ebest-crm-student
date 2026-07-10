@@ -1,7 +1,9 @@
 export { DrillLeaderboardView } from './components/DrillLeaderboardView';
-export { DrillPracticeView } from './components/DrillPracticeView';
-export { LearningHubView } from './components/LearningHubView';
-export { FlashcardSessionView } from './components/FlashcardSessionView';
+export { GameCatalogView } from './games/catalog-ui/GameCatalogView';
+export { GameReadyView } from './games/ready/GameReadyView';
+export { GamePlayingView } from './games/playing/GamePlayingView';
+export { GameResultView } from './games/result/GameResultView';
+export { LearningHubView } from './components/LearningHubView';export { FlashcardSessionView } from './components/FlashcardSessionView';
 export { VocabularyDashboardView } from './components/VocabularyDashboardView';
 /** @deprecated dùng VocabularyDashboardView */
 export { VocabularyDashboardView as VocabularyPracticeHomeView } from './components/VocabularyDashboardView';

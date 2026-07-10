@@ -15,6 +15,30 @@ export function mockTestOnlineTypeLabel(code: string | null | undefined): string
 	return TEST_TYPE_LABELS[code] ?? code.toUpperCase();
 }
 
+/** Hiển thị hạn đăng ký chiến dịch (vi-VN). */
+export function formatMockTestRegistrationDeadline(
+	iso: string | null | undefined,
+): string | null {
+	if (!iso?.trim()) return null;
+	const d = new Date(iso);
+	if (Number.isNaN(d.getTime())) return null;
+	return d.toLocaleString('vi-VN', {
+		hour: '2-digit',
+		minute: '2-digit',
+		day: '2-digit',
+		month: '2-digit',
+		year: 'numeric',
+	});
+}
+
+export function mockTestVariantChoiceLabel(
+	variant: 'full' | 'mini' | null | undefined,
+): string {
+	if (variant === 'mini') return 'Đề rút gọn (50 câu)';
+	if (variant === 'full') return 'Đề đầy đủ (200 câu)';
+	return '';
+}
+
 export function groupCampaignsByTestType<
 	T extends { testTypeCode: string; sessionId: number },
 >(campaigns: T[]): Array<{ testTypeCode: string; label: string; items: T[] }> {

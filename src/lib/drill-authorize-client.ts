@@ -53,8 +53,10 @@ export async function authorizeDrillSession(
   options?: {
     assignmentId?: number;
     checklistId?: number;
+    classSessionId?: number;
     modeId?: GameSessionConfig['modeId'];
     promptType?: GameSessionConfig['promptType'];
+    sessionDurationSec?: 60 | 90 | 120;
   },
 ): Promise<DrillAuthorizeResult> {
   const res = await fetch('/api/student/learning/drill/authorize', {
@@ -64,8 +66,10 @@ export async function authorizeDrillSession(
       classId,
       assignmentId: options?.assignmentId,
       checklistId: options?.checklistId,
+      classSessionId: options?.classSessionId,
       modeId: options?.modeId,
       promptType: options?.promptType,
+      sessionDurationSec: options?.sessionDurationSec,
     }),
     cache: 'no-store',
   });

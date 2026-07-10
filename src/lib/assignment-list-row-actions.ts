@@ -1,6 +1,7 @@
 import type { AssignmentOverviewRow } from '@/lib/assignments-overview-grouping';
 import { CRM_ASSIGNMENT_RESULT_STATUS } from '@/lib/crm-enums';
 import { isQuizExerciseType } from '@/features/quiz-test/lib/quiz-assignment-overview';
+import { buildGameReadyHrefForAssignment } from '@/features/learning/games/session/game-assignment-route.utils';
 
 /** Đã có tóm tắt điểm trên CRM (sau sync quiz hoặc chấm tay). */
 export function assignmentHasGradedSummary(row: {
@@ -79,11 +80,9 @@ export function buildQuizStartHref(
 export function buildVocabularyDrillStartHref(
   classId: number,
   assignmentId: number,
+  promptType?: string | null,
 ): string {
-  const sp = new URLSearchParams();
-  sp.set('classId', String(classId));
-  sp.set('assignmentId', String(assignmentId));
-  return `/learning/games?${sp.toString()}`;
+  return buildGameReadyHrefForAssignment(classId, assignmentId, promptType);
 }
 
 export function isVocabularyDrillAssignment(row: {

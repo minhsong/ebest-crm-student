@@ -6,17 +6,42 @@ export function flashcardSessionHref(classId: number, classSessionId: number): s
 	return `/learning/flashcard?classId=${classId}&classSessionId=${classSessionId}`;
 }
 
-/** Lobby game luyện từ (Survival, pool coverage, resume playId). */
+import { buildGameReadyHref } from '@/features/learning/games/session/game-route.utils';
+import { DEFAULT_GAME_SLUG } from '@/features/learning/games/catalog/game-catalog.registry';
+
+/** Lobby game luyện từ — mặc định meaning-to-word (Q2). */
 export function vocabularyPracticeHref(classId: number): string {
-	return `/learning/games?classId=${classId}`;
+	return buildGameReadyHref(DEFAULT_GAME_SLUG, { classId, modeId: 'survival' });
 }
 
 export function vocabularyGamesHref(query = ''): string {
 	return query ? `/learning/games?${query}` : '/learning/games';
 }
 
-export function vocabularyLeaderboardHref(classId: number): string {
-	return `/learning/games/leaderboard?classId=${classId}`;
+export function vocabularySessionBestOfHref(
+	classId: number,
+	classSessionId: number,
+	slug = DEFAULT_GAME_SLUG,
+): string {
+	return buildGameReadyHref(slug, {
+		classId,
+		classSessionId,
+		modeId: 'pool_coverage',
+	});
+}
+
+export function vocabularyLeaderboardHref(
+	classId: number,
+	filters?: { promptType?: string; modeId?: string },
+): string {
+	const qs = new URLSearchParams({ classId: String(classId) });
+	if (filters?.promptType?.trim()) {
+		qs.set('promptType', filters.promptType.trim());
+	}
+	if (filters?.modeId?.trim()) {
+		qs.set('modeId', filters.modeId.trim());
+	}
+	return `/learning/games/leaderboard?${qs.toString()}`;
 }
 
 /** Danh sách bài tập game (vocabulary drill) — không play ngay. */

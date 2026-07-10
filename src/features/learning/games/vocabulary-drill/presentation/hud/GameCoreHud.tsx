@@ -1,24 +1,23 @@
 'use client';
 
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 
 type Props = {
   modeLabel: string;
   title?: string;
-  backHref: string;
   scoreSlot: ReactNode;
+  onExitClick: () => void;
 };
 
-/** Header shell chung mọi game drill (GE-V4). */
-export function GameCoreHud({ modeLabel, title, backHref, scoreSlot }: Props) {
+/** Header shell chung mọi game drill (GE-V4) — nút thoát touch-friendly. */
+export function GameCoreHud({ modeLabel, title, scoreSlot, onExitClick }: Props) {
   return (
     <header className="drill-game-hud">
-      <Link href={backHref} className="drill-game-hud__exit">
+      <button type="button" className="drill-game-hud__exit" onClick={onExitClick}>
         <ArrowLeftOutlined />
-        <span className="hidden sm:inline">Thoát</span>
-      </Link>
+        <span>Thoát</span>
+      </button>
       <div className="drill-game-hud__center">
         <span className="drill-game-hud__mode">{modeLabel}</span>
         {title ? <span className="drill-game-hud__title">{title}</span> : null}

@@ -14,7 +14,7 @@ import {
 	Tag,
 	Typography,
 } from 'antd';
-import { ClockCircleOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, FileTextOutlined } from '@ant-design/icons';
 import type {
 	MockTestOnlineCampaign,
 	MockTestOnlineAttemptStatus,
@@ -22,6 +22,8 @@ import type {
 } from '@/lib/public-mock-test-online/types';
 import {
 	groupCampaignsByTestType,
+	formatMockTestRegistrationDeadline,
+	mockTestOnlineTypeLabel,
 	writeSelectExamCache,
 } from '@/lib/public-mock-test-online/exam-flow.util';
 import { postMockTestOnlineSelectExam } from '@/lib/public-mock-test-online/mock-test-online-api.client';
@@ -167,8 +169,8 @@ export function MockTestOnlineSelectExamForm({
 				Chọn bài thi
 			</Title>
 			<Paragraph className="mock-test-intro-text !mb-4">
-				Chọn bài thi phù hợp. Sau đó bạn sẽ xác minh qua Zalo và nhận mã để vào làm
-				bài.
+				Chọn đúng loại đề và chiến dịch bạn muốn thi. Bước tiếp theo: xác minh qua Zalo
+				(nhắn tin xác nhận hoặc nhập mã) rồi vào làm bài.
 			</Paragraph>
 
 			<MockTestOnlineInExamResumeAlert attemptStatus={attemptStatus} />
@@ -218,7 +220,11 @@ export function MockTestOnlineSelectExamForm({
 										<Space direction="vertical" className="w-full" size="small">
 											{group.items.map((c) => {
 												const duration = formatDuration(c.estimatedDurationMinutes);
+												const deadline = formatMockTestRegistrationDeadline(
+													c.registrationDeadlineAt,
+												);
 												const selected = sessionId === c.sessionId;
+												const typeLabel = mockTestOnlineTypeLabel(c.testTypeCode);
 												return (
 													<Radio key={c.sessionId} value={c.sessionId} className="!m-0">
 														<Card
@@ -228,15 +234,31 @@ export function MockTestOnlineSelectExamForm({
 																form.setFieldValue('sessionId', c.sessionId)
 															}
 														>
-															<Text strong className="block">
-																{c.title}
-															</Text>
-															{duration ? (
-																<Text type="secondary" className="text-xs">
-																	<ClockCircleOutlined className="mr-1" />
-																	{duration}
+															<div className="mock-test-campaign-card-head">
+																<Text strong className="mock-test-campaign-card-title">
+																	{c.title}
 																</Text>
-															) : null}
+																<Tag color="blue" className="!m-0">
+																	{typeLabel}
+																</Tag>
+															</div>
+															<div className="mock-test-campaign-card-meta">
+																{duration ? (
+																	<Text type="secondary" className="text-xs">
+																		<ClockCircleOutlined className="mr-1" />
+																		Thời lượng {duration}
+																	</Text>
+																) : null}
+																{deadline ? (
+																	<Text type="secondary" className="text-xs">
+																		<FileTextOutlined className="mr-1" />
+																		Hạn đăng ký: {deadline}
+																	</Text>
+																) : null}
+																{c.variantMode === 'user_choice' ? (
+																	<Tag className="!m-0">Chọn Full hoặc Mini</Tag>
+																) : null}
+															</div>
 														</Card>
 													</Radio>
 												);
@@ -254,12 +276,31 @@ export function MockTestOnlineSelectExamForm({
 						</Form.Item>
 						{campaigns[0] ? (
 							<Card size="small" className="mock-test-campaign-card mock-test-campaign-card--selected !mb-4">
-								<Text strong className="block">{campaigns[0].title}</Text>
-								{formatDuration(campaigns[0].estimatedDurationMinutes) ? (
-									<Tag icon={<ClockCircleOutlined />} className="!mt-2">
-										{formatDuration(campaigns[0].estimatedDurationMinutes)}
+								<div className="mock-test-campaign-card-head">
+									<Text strong className="mock-test-campaign-card-title">
+										{campaigns[0].title}
+									</Text>
+									<Tag color="blue">
+										{mockTestOnlineTypeLabel(campaigns[0].testTypeCode)}
 									</Tag>
-								) : null}
+								</div>
+								<div className="mock-test-campaign-card-meta">
+									{formatDuration(campaigns[0].estimatedDurationMinutes) ? (
+										<Tag icon={<ClockCircleOutlined />}>
+											Thời lượng {formatDuration(campaigns[0].estimatedDurationMinutes)}
+										</Tag>
+									) : null}
+									{formatMockTestRegistrationDeadline(
+										campaigns[0].registrationDeadlineAt,
+									) ? (
+										<Tag icon={<FileTextOutlined />}>
+											Hạn đăng ký:{' '}
+											{formatMockTestRegistrationDeadline(
+												campaigns[0].registrationDeadlineAt,
+											)}
+										</Tag>
+									) : null}
+								</div>
 							</Card>
 						) : null}
 					</>
@@ -279,23 +320,44 @@ export function MockTestOnlineSelectExamForm({
 					<Form.Item
 						name="testVariantChoice"
 						label="Chọn loại đề"
+						extra="Full test mô phỏng đầy đủ; Mini test phù hợp thử nhanh trong ~15 phút."
 						rules={[{ required: true, message: 'Vui lòng chọn loại đề.' }]}
 					>
 						<Radio.Group className="mock-test-variant-radio-group">
 							<Radio value="full">
-								<Text strong>Full test</Text>
+								<Text strong>Đề đầy đủ (Full test)</Text>
 								<Text type="secondary" className="block text-xs">
-									200 câu — mô phỏng đầy đủ
+									200 câu — mô phỏng bài thi thật
 								</Text>
 							</Radio>
 							<Radio value="mini">
-								<Text strong>Mini test</Text>
+								<Text strong>Đề rút gọn (Mini test)</Text>
 								<Text type="secondary" className="block text-xs">
-									50 câu — rút gọn, phù hợp thử nhanh
+									50 câu — làm nhanh, phù hợp lần thử đầu
 								</Text>
 							</Radio>
 						</Radio.Group>
 					</Form.Item>
+				) : null}
+
+				{activeCampaign ? (
+					<Alert
+						type="success"
+						showIcon
+						className="!mb-4 mock-test-select-exam-summary"
+						message="Bạn sẽ thi"
+						description={
+							<>
+								<Text strong className="block">{activeCampaign.title}</Text>
+								<Text type="secondary" className="text-sm">
+									Loại đề: {mockTestOnlineTypeLabel(activeCampaign.testTypeCode)}
+									{activeCampaign.variantMode === 'user_choice'
+										? ' — chọn Full hoặc Mini ở trên'
+										: ''}
+								</Text>
+							</>
+						}
+					/>
 				) : null}
 
 				<Form.Item className="!mb-0">

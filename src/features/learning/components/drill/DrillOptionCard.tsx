@@ -8,11 +8,12 @@ export type DrillOptionVisualState = 'default' | 'selected' | 'correct' | 'wrong
 type Props = {
 	id: string;
 	word: string;
+	imageUrl?: string;
 	state: DrillOptionVisualState;
 	onSelect: (id: string) => void;
 };
 
-function DrillOptionCardInner({ id, word, state, onSelect }: Props) {
+function DrillOptionCardInner({ id, word, imageUrl, state, onSelect }: Props) {
 	const classNames = ['drill-option-card'];
 	if (state === 'selected') classNames.push('is-selected');
 	if (state === 'correct') classNames.push('is-correct');
@@ -26,7 +27,16 @@ function DrillOptionCardInner({ id, word, state, onSelect }: Props) {
 			onClick={() => onSelect(id)}
 		>
 			<span className="drill-option-card__content">
-				<span className="drill-option-card__word">{word}</span>
+				{imageUrl ? (
+					// eslint-disable-next-line @next/next/no-img-element
+					<img
+						src={imageUrl}
+						alt={word || 'Lựa chọn hình ảnh'}
+						className="drill-option-card__image"
+					/>
+				) : (
+					<span className="drill-option-card__word">{word}</span>
+				)}
 			</span>
 		</button>
 	);
@@ -43,10 +53,10 @@ export function resolveOptionState(input: {
 	if (input.feedback && input.selectedOptionId === input.optionId) {
 		return input.feedback === 'correct' ? 'correct' : 'wrong';
 	}
+	if (input.selectedOptionId === input.optionId) {
+		return 'selected';
+	}
 	if (input.optionsLocked) {
-		if (input.selectedOptionId === input.optionId) {
-			return 'selected';
-		}
 		return 'disabled';
 	}
 	return 'default';

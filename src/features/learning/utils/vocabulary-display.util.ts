@@ -66,6 +66,19 @@ export function hasVocabularyPronunciation(asset: VocabularyAsset): boolean {
 	);
 }
 
+/** US ưu tiên, fallback UK — auto-play mặt trước flashcard / vocabulary. */
+export function resolvePreferredVocabularyAudio(
+	asset: Pick<VocabularyAsset, 'audioUsUrl' | 'audioUkUrl'>,
+): { locale: 'uk' | 'us'; url: string } | null {
+	if (asset.audioUsUrl?.trim()) {
+		return { locale: 'us', url: asset.audioUsUrl.trim() };
+	}
+	if (asset.audioUkUrl?.trim()) {
+		return { locale: 'uk', url: asset.audioUkUrl.trim() };
+	}
+	return null;
+}
+
 /** API trả `accuracyRate` dạng phần trăm 0–100 (không phải ratio 0–1). */
 export function formatAccuracyPercent(value: number | null): string {
 	if (value == null || Number.isNaN(value)) {

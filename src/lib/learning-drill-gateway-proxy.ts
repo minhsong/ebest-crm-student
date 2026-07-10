@@ -14,6 +14,8 @@ import {
   proxyGatewayJsonResponse,
 } from '@/lib/social-gateway-bff.util';
 import { STUDENT_SAFE_USER_MESSAGES } from '@/lib/student-safe-errors';
+import type { GamePromptType } from '@/features/learning/games/catalog/game-catalog.types';
+import type { VocabularyDrillModeId } from '@/features/learning/games/core/types/game-session-config.types';
 
 const DRILL_INTERNAL_PREFIX =
   '/api/v1/runtime/learning-drill/internal/student/learning/drill';
@@ -71,8 +73,8 @@ export async function proxyDrillRuntimeToGateway(
     const body = (await request.json().catch(() => ({}))) as {
       classId?: number;
       assignmentId?: number;
-      modeId?: 'survival' | 'pool_coverage';
-      promptType?: 'meaning_to_word' | 'audio_to_word';
+      modeId?: VocabularyDrillModeId;
+      promptType?: GamePromptType;
       context?: unknown;
     };
 
@@ -123,6 +125,29 @@ export async function proxyDrillRuntimeToGateway(
     return NextResponse.json(payload, { status: res.status });
   }
 
+  if (
+    request.method === 'GET' &&
+    segments[0] === 'plays' &&
+    segments.length === 2 &&
+    segments[1] === 'active'
+  ) {
+    const classId = request.nextUrl.searchParams.get('classId');
+    const promptType = request.nextUrl.searchParams.get('promptType');
+    if (!classId || !promptType) {
+      return NextResponse.json(
+        { message: 'Thiếu tham số classId hoặc promptType.' },
+        { status: 400 },
+      );
+    }
+    const qs = new URLSearchParams({
+      customerId: String(customerId),
+      classId,
+      promptType,
+    });
+    const res = await fetchDrillGateway(cfg, `plays/active?${qs.toString()}`);
+    return proxyGatewayJsonResponse(res);
+  }
+
   if (request.method === 'GET' && segments[0] === 'plays' && segments.length === 2) {
     const playId = segments[1];
     if (!UUID_RE.test(playId)) {
@@ -131,6 +156,24 @@ export async function proxyDrillRuntimeToGateway(
     const res = await fetchDrillGateway(
       cfg,
       `plays/${playId}?customerId=${customerId}`,
+    );
+    return proxyGatewayJsonResponse(res);
+  }
+
+  if (
+    request.method === 'POST' &&
+    segments[0] === 'plays' &&
+    segments.length === 3 &&
+    segments[2] === 'abandon'
+  ) {
+    const playId = segments[1];
+    if (!UUID_RE.test(playId)) {
+      return NextResponse.json({ message: STUDENT_SAFE_USER_MESSAGES.notFound }, { status: 404 });
+    }
+    const res = await fetchDrillGateway(
+      cfg,
+      `plays/${playId}/abandon?customerId=${customerId}`,
+      { method: 'POST' },
     );
     return proxyGatewayJsonResponse(res);
   }
@@ -156,6 +199,20 @@ export async function proxyDrillRuntimeToGateway(
   return NextResponse.json({ message: STUDENT_SAFE_USER_MESSAGES.notFound }, { status: 404 });
 }
 
+/** Week drill score — rollup Gateway (Hub widget). */
+export async function proxyDrillWeekScoreToGateway(
+  request: NextRequest,
+): Promise<NextResponse> {
+  const ctx = await resolveDrillGatewayContext(request, 'learning-drill-stats-proxy');
+  if (ctx instanceof NextResponse) {
+    return ctx;
+  }
+  const { customerId, cfg } = ctx;
+  const qs = new URLSearchParams({ customerId: String(customerId) });
+  const res = await fetchDrillGateway(cfg, `stats/week-score?${qs.toString()}`);
+  return proxyGatewayJsonResponse(res);
+}
+
 /** Leaderboard — Mongo rollups Gateway + CRM present (ADR DRG-P3). */
 export async function proxyDrillLeaderboardToGateway(
   request: NextRequest,
@@ -173,6 +230,8 @@ export async function proxyDrillLeaderboardToGateway(
   const pageSize = request.nextUrl.searchParams.get('pageSize');
   const q = request.nextUrl.searchParams.get('q');
   const filterClassId = request.nextUrl.searchParams.get('filterClassId');
+  const promptType = request.nextUrl.searchParams.get('promptType');
+  const modeId = request.nextUrl.searchParams.get('modeId');
   if (!classId || !scope || !period) {
     return NextResponse.json(
       { message: 'Thiếu tham số classId, scope hoặc period.' },
@@ -190,6 +249,8 @@ export async function proxyDrillLeaderboardToGateway(
   if (pageSize) qs.set('pageSize', pageSize);
   if (q) qs.set('q', q);
   if (filterClassId) qs.set('filterClassId', filterClassId);
+  if (promptType) qs.set('promptType', promptType);
+  if (modeId) qs.set('modeId', modeId);
   const res = await fetchDrillGateway(cfg, `leaderboards?${qs.toString()}`);
   return proxyGatewayJsonResponse(res);
 }

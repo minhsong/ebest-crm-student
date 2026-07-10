@@ -219,20 +219,28 @@ export interface VocabularyPoolPayload {
 	extendedCount: number;
 	minPoolSize: number;
 	entries: VocabularyPoolEntry[];
+	/** Số từ có phát âm — dùng catalog eligibility (không enrich URL). */
+	audioEntryCount?: number;
+	/** Số từ có ảnh — dùng catalog eligibility. */
+	imageEntryCount?: number;
 	learningAccess?: LearningVocabularyLearningAccess;
 }
+
+import type { GamePromptType } from '@/features/learning/games/catalog/game-catalog.types';
 
 export interface DrillQuestionClient {
 	questionId: string;
 	prompt: string;
-	promptType: 'meaning' | 'audio';
+	promptType: 'meaning' | 'audio' | 'image' | 'word';
 	promptAudioUrl?: string;
+	promptImageUrl?: string;
 	options: Array<{
 		id: string;
 		label: string;
 		assetId: number;
 		partOfSpeech?: string;
 		partOfSpeechLabel?: string;
+		imageUrl?: string;
 	}>;
 }
 
@@ -248,14 +256,19 @@ export interface WeakWordsPayload {
 	rows: WeakWordRow[];
 }
 
-import type { GameSessionConfig } from '@/features/learning/games/core/types/game-session-config.types';
+import type {
+	GameSessionConfig,
+	VocabularyDrillModeId,
+} from '@/features/learning/games/core/types/game-session-config.types';
+
+export type { VocabularyDrillModeId };
 
 export interface DrillSessionClient {
 	playId: string;
 	classId: number;
 	assignmentId: number | null;
-	modeId: 'survival' | 'pool_coverage';
-	promptType: 'meaning_to_word' | 'audio_to_word';
+	modeId: VocabularyDrillModeId;
+	promptType: GamePromptType;
 	scoreInRun: number;
 	streak: number;
 	status: string;
@@ -267,8 +280,8 @@ export interface DrillSessionResumePayload {
 	playId: string;
 	classId: number;
 	assignmentId: number | null;
-	modeId: 'survival' | 'pool_coverage';
-	promptType: 'meaning_to_word' | 'audio_to_word';
+	modeId: VocabularyDrillModeId;
+	promptType: GamePromptType;
 	scoreInRun: number;
 	streak: number;
 	status: string;
@@ -305,8 +318,8 @@ export interface AssignmentDrillContextPayload {
   classId: number;
   title: string;
   minimumScore: number;
-  modeId: 'survival' | 'pool_coverage';
-  promptType: 'meaning_to_word' | 'audio_to_word';
+  modeId: VocabularyDrillModeId;
+  promptType: GamePromptType;
   assignmentPoolSize: number;
   unlockPoolSize: number;
   bestScore: number;

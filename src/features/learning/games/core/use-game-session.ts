@@ -84,6 +84,8 @@ type Options<
   TAnswerResult extends { scoreInRun: number; correct: boolean },
 > = {
   playIdFromUrl: string | null;
+  /** Payload từ GameSlugRouteShell reconcile — bỏ qua GET plays/:id lần 2. */
+  prefetchedPlayPayload?: ResumePayload<TQuestion> | null;
   onPlayIdChange: (playId: string | null) => void;
   answerTimeoutSec: number;
   wsEvents: GameRuntimeWsEvents & WsAnswerEvents;
@@ -99,10 +101,17 @@ type Options<
     options: SubmitOptions,
   ) => Promise<TAnswerResult>;
   getQuestionId: (question: TQuestion) => string;
+  /** Timer anchor — speed_run dùng playId để không reset mỗi câu. */
+  getTimerAnchorId?: (
+    session: TSession | null,
+    question: TQuestion | null,
+  ) => string | null;
   onAnswerResult: (
     args: GameSessionAnswerResultContext<TSession, TQuestion, TAnswerResult>,
   ) => void;
   onSessionStarted?: (started: StartResult<TSession, TQuestion>) => void;
+  onRunFinished?: (playId: string) => void;
+  abandonSessionHttp?: (playId: string) => Promise<{ completed: boolean; scoreInRun: number }>;
   onSessionResumed?: (
     session: TSession,
     question: TQuestion,
@@ -160,15 +169,20 @@ export function useGameSession<
 
   const finishRun = useCallback(
     (wasCorrect: boolean | null) => {
+      const completedPlayId = session?.playId ?? options.playIdFromUrl ?? null;
       setLastCorrect(wasCorrect);
       setFinished(true);
       setQuestion(null);
       setFeedback(null);
       setSelectedOptionId(null);
       setStreak(0);
-      options.onPlayIdChange(null);
+      if (completedPlayId && options.onRunFinished) {
+        options.onRunFinished(completedPlayId);
+      } else {
+        options.onPlayIdChange(null);
+      }
     },
-    [options],
+    [options, session?.playId],
   );
 
   const handleServerPlayClosed = useCallback(
@@ -340,6 +354,10 @@ export function useGameSession<
       try {
         await resumeGameSession<TSession, TQuestion>({
           playId: options.playIdFromUrl!,
+          prefetchedPayload:
+            options.prefetchedPlayPayload?.playId === options.playIdFromUrl
+              ? options.prefetchedPlayPayload
+              : undefined,
           fetchSession: options.fetchSession,
           toSession: options.toSessionFromResume,
           onCompleted: (completedSession, resumeCtx) => {
@@ -379,19 +397,24 @@ export function useGameSession<
           options.onPlayIdChange(null);
         }
       } finally {
-        if (!cancelled) setResuming(false);
+        setResuming(false);
       }
     })();
 
     return () => {
       cancelled = true;
+      resumeAttemptedRef.current = null;
     };
-  }, [finishRun, finished, options, session]);
+  }, [finishRun, finished, options.playIdFromUrl, options.prefetchedPlayPayload, session]);
 
   const optionsLocked = submitting || feedback !== null || resuming || starting;
 
+  const timerAnchorId =
+    options.getTimerAnchorId?.(session, question) ??
+    (question ? options.getQuestionId(question) : null);
+
   const { secondsLeft, totalSeconds } = useGameQuestionTimer({
-    questionId: question ? options.getQuestionId(question) : null,
+    questionId: timerAnchorId,
     enabled: Boolean(session && question && !finished),
     paused: optionsLocked,
     seconds: options.answerTimeoutSec,
@@ -402,6 +425,30 @@ export function useGameSession<
   useEffect(() => {
     setServerTimerSecondsLeft(null);
   }, [question]);
+
+  const abandonSession = useCallback(async () => {
+    const playId = session?.playId ?? options.playIdFromUrl;
+    if (!playId || !options.abandonSessionHttp) {
+      return;
+    }
+    setActionError(null);
+    try {
+      await options.abandonSessionHttp(playId);
+      clearFeedbackTimer();
+      setSession(null);
+      setQuestion(null);
+      setFinished(true);
+      setFeedback(null);
+      setSelectedOptionId(null);
+      options.onRunFinished?.(playId);
+      options.onPlayIdChange(null);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Không kết thúc được lượt chơi.';
+      setActionError(message);
+      throw err;
+    }
+  }, [clearFeedbackTimer, options, session?.playId]);
 
   return {
     session,
@@ -422,5 +469,6 @@ export function useGameSession<
     setActionError,
     handleStart,
     handleAnswer,
+    abandonSession,
   };
 }

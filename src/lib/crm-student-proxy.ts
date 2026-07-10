@@ -5,6 +5,8 @@
 
 import { NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
+import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
+import { getLeadAccessTokenFromCookie } from '@/lib/lead-auth-cookie';
 import { STUDENT_API } from '@/lib/student-api';
 import { sanitizeStudentFacingMessage } from '@/lib/student-safe-errors';
 import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
@@ -201,6 +203,66 @@ export async function proxyLeadAuthenticatedGetJson(
     const payload = unwrapCrmResponseBody(data) ?? data;
     const body = options.transform ? options.transform(payload) : payload;
     return NextResponse.json(body);
+  } catch {
+    return NextResponse.json(
+      { message: options.errorFallback ?? MSG_CRM_NETWORK },
+      { status: 502 },
+    );
+  }
+}
+
+export type ProxyPortalAuthenticatedGetOptions = {
+  path: string;
+  query?: Record<string, string>;
+  errorFallback?: string;
+};
+
+/** GET có Bearer — ưu tiên student JWT, sau đó lead JWT (LP session). */
+export async function proxyPortalAuthenticatedGetJson(
+  options: ProxyPortalAuthenticatedGetOptions,
+): Promise<NextResponse> {
+  const studentToken = getStudentAccessTokenFromCookie()?.trim();
+  if (studentToken) {
+    return proxyAuthenticatedGetWithToken(studentToken, options);
+  }
+  const leadToken = getLeadAccessTokenFromCookie()?.trim();
+  if (leadToken) {
+    return proxyAuthenticatedGetWithToken(leadToken, options);
+  }
+  return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
+}
+
+async function proxyAuthenticatedGetWithToken(
+  token: string,
+  options: ProxyPortalAuthenticatedGetOptions,
+): Promise<NextResponse> {
+  const apiBase = getApiBaseUrl();
+  if (!apiBase) {
+    return NextResponse.json({ message: MSG_CRM_CONFIG }, { status: 500 });
+  }
+  const baseUrl = buildCrmStudentUrl(apiBase, options.path);
+  const qs = options.query
+    ? `?${new URLSearchParams(options.query).toString()}`
+    : '';
+  const url = `${baseUrl}${qs}`;
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      cache: 'no-store',
+    });
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!res.ok) {
+      return NextResponse.json(
+        mapPortalConflictForClient(
+          data,
+          res.status,
+          options.errorFallback ?? MSG_CRM_NETWORK,
+        ),
+        { status: res.status },
+      );
+    }
+    const payload = unwrapCrmResponseBody(data) ?? data;
+    return NextResponse.json(payload);
   } catch {
     return NextResponse.json(
       { message: options.errorFallback ?? MSG_CRM_NETWORK },

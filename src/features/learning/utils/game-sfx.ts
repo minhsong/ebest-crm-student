@@ -116,6 +116,50 @@ export function playDrillWrongSound(): void {
 	osc.stop(t0 + 0.24);
 }
 
+/** Hover card catalog — blip rất nhẹ (khác ting đúng/sai). */
+export function playGameCardHoverSound(): void {
+	const ctx = getGameAudioContext();
+	if (!ctx) return;
+
+	const t0 = ctx.currentTime;
+	const osc = ctx.createOscillator();
+	const gain = ctx.createGain();
+
+	osc.type = 'sine';
+	osc.frequency.setValueAtTime(520, t0);
+	osc.frequency.exponentialRampToValueAtTime(680, t0 + 0.04);
+
+	osc.connect(gain);
+	gain.connect(ctx.destination);
+
+	playGainEnvelope(ctx, gain, t0, 0.003, 0.035, 0.05);
+
+	osc.start(t0);
+	osc.stop(t0 + 0.06);
+}
+
+/** Chọn game trên catalog — click ngắn, tách biệt âm đúng/sai. */
+export function playGameCardClickSound(): void {
+	const ctx = getGameAudioContext();
+	if (!ctx) return;
+
+	const t0 = ctx.currentTime;
+	const osc = ctx.createOscillator();
+	const gain = ctx.createGain();
+
+	osc.type = 'triangle';
+	osc.frequency.setValueAtTime(440, t0);
+	osc.frequency.exponentialRampToValueAtTime(660, t0 + 0.05);
+
+	osc.connect(gain);
+	gain.connect(ctx.destination);
+
+	playGainEnvelope(ctx, gain, t0, 0.004, 0.08, 0.07);
+
+	osc.start(t0);
+	osc.stop(t0 + 0.09);
+}
+
 /** Đồng hồ đếm giờ — tick / tock xen kẽ. */
 export function playTimerTickSound(secondsLeft: number): void {
 	const ctx = getGameAudioContext();

@@ -11,8 +11,11 @@ const STUDENT_BASE = '/api/v1/student';
 export type DrillAuthorizePayload = {
   classId: number;
   assignmentId?: number;
+  checklistId?: number;
+  classSessionId?: number;
   modeId?: GameSessionConfig['modeId'];
   promptType?: GameSessionConfig['promptType'];
+  sessionDurationSec?: 60 | 90 | 120;
 };
 
 export type DrillAuthorizeResponse =

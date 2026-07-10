@@ -10,6 +10,8 @@ type Props = {
   wasWrongEnd: boolean;
   onReplay: () => void;
   leaderboardHref?: string | null;
+  onLeaderboard?: () => void;
+  onGamesHub?: () => void;
 };
 
 export function SurvivalRunResultScreen({
@@ -20,6 +22,8 @@ export function SurvivalRunResultScreen({
   wasWrongEnd,
   onReplay,
   leaderboardHref,
+  onLeaderboard,
+  onGamesHub,
 }: Props) {
   const beatBest = bestScore != null && score > bestScore;
   const assignmentRun = minimumScore != null;
@@ -65,7 +69,8 @@ export function SurvivalRunResultScreen({
       }
       replayLabel="Chơi lại"
       onReplay={onReplay}
-      leaderboardHref={leaderboardHref}
+      onLeaderboard={onLeaderboard}
+      onGamesHub={onGamesHub}
       showLeaderboard
     />
   );

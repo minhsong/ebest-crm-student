@@ -1,9 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo } from 'react';
 import { Button, Descriptions, Space, Tag, Typography, theme } from 'antd';
 import { PlayCircleOutlined } from '@ant-design/icons';
-import Link from 'next/link';
+import { buildGameReadyHref } from '@/features/learning/games/session/game-route.utils';
+import { DEFAULT_GAME_SLUG } from '@/features/learning/games/catalog/game-catalog.registry';
 import type { StudentChecklistDetail } from '@/types/student-checklists';
 import { checklistTypeLabel } from '@/lib/checklist-labels';
 
@@ -18,7 +20,11 @@ export function StudentChecklistDetailBody({ detail }: Props) {
   const isGamePenalty = detail.checklist.typeKey === 'vocab_game_penalty';
   const playHref = useMemo(
     () =>
-      `/learning/games?classId=${detail.checklist.classId}&checklistId=${detail.checklist.id}`,
+      buildGameReadyHref(DEFAULT_GAME_SLUG, {
+        classId: detail.checklist.classId,
+        checklistId: detail.checklist.id,
+        modeId: 'pool_coverage',
+      }),
     [detail.checklist.classId, detail.checklist.id],
   );
 

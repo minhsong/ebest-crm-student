@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
 	Alert,
 	Button,
@@ -11,6 +11,7 @@ import {
 	Flex,
 	Input,
 	Row,
+	Select,
 	Skeleton,
 	Table,
 	Tabs,
@@ -20,8 +21,11 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { CrownOutlined, ReloadOutlined, TrophyOutlined } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout';
+import { GAME_CATALOG_ENTRIES } from '@/features/learning/games/catalog/game-catalog.registry';
+import type { GameModeApiId } from '@/features/learning/games/session/game-mode.utils';
 import {
 	vocabularyPracticeHref,
+	vocabularyLeaderboardHref,
 } from '@/features/learning/utils/vocabulary-session-routes';
 import { fetchDrillLeaderboard } from '@/lib/learning-api';
 import { formatDrillDurationMs } from '@/features/learning/utils/format-drill-duration';
@@ -48,6 +52,17 @@ const BOARD_KIND_TABS: { key: DrillLeaderboardBoardKind; label: string }[] = [
 	{ key: 'total_plays', label: 'Số lượt chơi' },
 	{ key: 'total_correct', label: 'Số câu đúng' },
 ];
+
+const MODE_FILTER_OPTIONS: { value: GameModeApiId; label: string }[] = [
+	{ value: 'survival', label: 'Sinh tồn' },
+	{ value: 'pool_coverage', label: 'Best of' },
+	{ value: 'speed_run', label: 'Tốc độ' },
+];
+
+const GAME_FILTER_OPTIONS = GAME_CATALOG_ENTRIES.map((entry) => ({
+	value: entry.promptType,
+	label: entry.title,
+}));
 
 function isPerPlayRow(row: DrillLeaderboardRow | DrillLeaderboardPerPlayRow): row is DrillLeaderboardPerPlayRow {
 	return 'playId' in row;
@@ -116,10 +131,14 @@ function LeaderboardPanel({
 	classId,
 	scope,
 	title,
+	promptType,
+	modeId,
 }: {
 	classId: number;
 	scope: ScopeTab;
 	title: string;
+	promptType?: string;
+	modeId?: string;
 }) {
 	const perPlayColumns = usePerPlayColumns();
 	const [boardKind, setBoardKind] = useState<DrillLeaderboardBoardKind>('per_play_score');
@@ -143,6 +162,8 @@ function LeaderboardPanel({
 					pageSize: 10,
 					q: appliedQuery || undefined,
 					filterClassId: scope === 'course' ? classId : undefined,
+					promptType,
+					modeId,
 					refresh: true,
 				});
 				setData(payload);
@@ -152,7 +173,7 @@ function LeaderboardPanel({
 				setLoading(false);
 			}
 		},
-		[classId, scope, period, boardKind, page, appliedQuery],
+		[classId, scope, period, boardKind, page, appliedQuery, promptType, modeId],
 	);
 
 	useEffect(() => {
@@ -276,9 +297,33 @@ function LeaderboardPanel({
 }
 
 export function DrillLeaderboardView() {
+	const router = useRouter();
 	const searchParams = useSearchParams();
 	const classIdParam = searchParams.get('classId');
 	const classId = classIdParam ? Number(classIdParam) : null;
+	const promptType = searchParams.get('promptType')?.trim() || undefined;
+	const modeId = searchParams.get('modeId')?.trim() || undefined;
+
+	const filterSummary = useMemo(() => {
+		const parts: string[] = [];
+		const game = GAME_CATALOG_ENTRIES.find((e) => e.promptType === promptType);
+		if (game) parts.push(game.title);
+		const mode = MODE_FILTER_OPTIONS.find((m) => m.value === modeId);
+		if (mode) parts.push(mode.label);
+		return parts.length ? parts.join(' · ') : null;
+	}, [modeId, promptType]);
+
+	const updateFilters = useCallback(
+		(next: { promptType?: string; modeId?: string }) => {
+			if (!classId) return;
+			const href = vocabularyLeaderboardHref(classId, {
+				promptType: next.promptType,
+				modeId: next.modeId,
+			});
+			router.replace(href);
+		},
+		[classId, router],
+	);
 
 	if (!classId || Number.isNaN(classId)) {
 		return null;
@@ -288,7 +333,11 @@ export function DrillLeaderboardView() {
 		<div className="learning-dashboard-root">
 			<PageHeader
 				title="Bảng xếp hạng luyện từ"
-				description="So sánh theo lớp và toàn khóa — quay lại dashboard để đổi lớp."
+				description={
+					filterSummary
+						? `Lọc: ${filterSummary} — so sánh theo lớp và toàn khóa.`
+						: 'So sánh theo lớp và toàn khóa — quay lại dashboard để đổi lớp.'
+				}
 				extra={
 					<Link href="/learning/games/leaderboard">
 						<Button>Về BXH</Button>
@@ -296,12 +345,48 @@ export function DrillLeaderboardView() {
 				}
 			/>
 
+			<Flex gap="small" wrap="wrap" className="mb-4">
+				<Select
+					allowClear
+					placeholder="Tất cả game"
+					style={{ minWidth: 200 }}
+					options={GAME_FILTER_OPTIONS}
+					value={promptType}
+					onChange={(value) =>
+						updateFilters({ promptType: value ?? undefined, modeId })
+					}
+				/>
+				<Select
+					allowClear
+					placeholder="Tất cả chế độ"
+					style={{ minWidth: 160 }}
+					options={MODE_FILTER_OPTIONS}
+					value={modeId as GameModeApiId | undefined}
+					onChange={(value) =>
+						updateFilters({ promptType, modeId: value ?? undefined })
+					}
+				/>
+				{filterSummary ? <Tag color="blue">Đang lọc: {filterSummary}</Tag> : null}
+			</Flex>
+
 			<Row gutter={[16, 16]}>
 				<Col xs={24} lg={12}>
-					<LeaderboardPanel classId={classId} scope="class" title="Lớp hiện tại" />
+					<LeaderboardPanel
+						classId={classId}
+						scope="class"
+						title="Lớp hiện tại"
+						promptType={promptType}
+						modeId={modeId}
+					/>
 				</Col>
 				<Col xs={24} lg={12}>
-					<LeaderboardPanel classId={classId} scope="course" title="Toàn khóa" />
+					<LeaderboardPanel
+						classId={classId}
+						scope="course"
+						title="Toàn khóa"
+						promptType={promptType}
+						modeId={modeId}
+					/>
 				</Col>
 			</Row>
 

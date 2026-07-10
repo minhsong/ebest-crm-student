@@ -18,6 +18,7 @@ type PortalExploreState = {
   explore: PortalExplorePayload | null;
   courses: PortalExplorePayload['courses'];
   siteLinks: PortalExplorePayload['siteLinks'] | null;
+  recommendations: PortalExplorePayload['recommendations'] | null;
 };
 
 const PortalExploreContext = createContext<PortalExploreState | null>(null);
@@ -40,7 +41,9 @@ export function PortalExploreProvider({
     let cancelled = false;
     void (async () => {
       try {
-        const data = await fetchPortalExplore(locale);
+        const data = await fetchPortalExplore(locale, {
+          includeRecommendations: true,
+        });
         if (!cancelled) setExplore(data);
       } catch (e) {
         if (!cancelled) {
@@ -62,6 +65,7 @@ export function PortalExploreProvider({
       explore,
       courses: explore?.courses ?? [],
       siteLinks: explore?.siteLinks ?? null,
+      recommendations: explore?.recommendations ?? null,
     }),
     [loading, error, explore],
   );

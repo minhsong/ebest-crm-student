@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { PortalDashboardShell } from '@/components/layouts/dashboard';
+import { GameExitGuardProvider } from '@/features/learning/games/session/game-exit-guard.context';
 import { buildDashboardMenuAntdItems } from '@/lib/dashboard-menu';
 import { probePortalSession } from '@/lib/portal-auth/probe-portal-session';
 import { PORTAL_MOCK_TEST_RESULTS_ROUTES } from '@/lib/portal-auth/session-routes';
@@ -62,17 +63,19 @@ export default function DashboardLayoutClient({
   };
 
   return (
-    <PortalDashboardShell
-      ready={ready && gateReady && Boolean(customer)}
-      loadingTip="Đang tải..."
-      menuItems={menuItems}
-      userDisplayName={customer?.fullName ?? 'Học viên'}
-      avatarUrl={customer?.avatarUrl}
-      profileHref="/profile"
-      homeHref="/"
-      onLogout={handleLogout}
-    >
-      {children}
-    </PortalDashboardShell>
+    <GameExitGuardProvider>
+      <PortalDashboardShell
+        ready={ready && gateReady && Boolean(customer)}
+        loadingTip="Đang tải..."
+        menuItems={menuItems}
+        userDisplayName={customer?.fullName ?? 'Học viên'}
+        avatarUrl={customer?.avatarUrl}
+        profileHref="/profile"
+        homeHref="/"
+        onLogout={handleLogout}
+      >
+        {children}
+      </PortalDashboardShell>
+    </GameExitGuardProvider>
   );
 }

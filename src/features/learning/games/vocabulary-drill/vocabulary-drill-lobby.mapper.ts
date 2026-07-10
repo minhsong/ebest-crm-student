@@ -6,6 +6,7 @@ import {
 	type VocabularyDrillLobbyProfileId,
 	type VocabularyDrillPresentationProfile,
 } from './vocabulary-drill-presentation.mapper';
+import { inferVocabularyDrillSessionConfigFromAssignment } from './vocabulary-drill-session-config.utils';
 
 export type VocabularyDrillLobbyStat = {
 	label: string;
@@ -49,37 +50,7 @@ function resolveFreePracticeSurvivalPresentation(): VocabularyDrillPresentationP
 function inferSessionConfigFromAssignment(
 	ctx: AssignmentDrillContextPayload,
 ): GameSessionConfig {
-	return {
-		gameFamily: 'vocabulary_drill',
-		modeId: ctx.modeId,
-		promptType: ctx.promptType,
-		rules: { answerTimeoutSec: 10, optionCount: 4, allowRetrySameItem: false },
-		scoring: {
-			strategyId:
-				ctx.modeId === 'pool_coverage' ? 'accuracy_ratio' : 'streak_correct',
-			pointsPerCorrect: 1,
-		},
-		completion: {
-			sessionPolicyId:
-				ctx.modeId === 'pool_coverage' ? 'end_on_pool_exhausted' : 'end_on_wrong',
-			syncAssignmentOn: ctx.modeId === 'pool_coverage' ? 'run_completed' : 'never',
-		},
-		source: {
-			kind:
-				ctx.modeId === 'pool_coverage' ? 'vocabulary_selection' : 'vocabulary_pool',
-			itemIds: [],
-			batchSize: 20,
-		},
-		presentation: {
-			coreLayoutProfileId: 'default_game_shell',
-			modeLayoutProfileId:
-				ctx.modeId === 'pool_coverage' ? 'pool_coverage_progress' : 'survival_streak',
-			detailWidgetId:
-				ctx.promptType === 'audio_to_word' ? 'audio_mcq' : 'meaning_mcq',
-			resultProfileId:
-				ctx.modeId === 'pool_coverage' ? 'pool_coverage_result' : 'survival_result',
-		},
-	};
+	return inferVocabularyDrillSessionConfigFromAssignment(ctx);
 }
 
 function buildChecklistPenaltyLobbyPlaceholder(

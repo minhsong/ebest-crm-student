@@ -17,7 +17,7 @@ import { useSessionVocabulary } from '@/features/learning/hooks/useSessionVocabu
 import {
 	flashcardSessionHref,
 	vocabularyHomeHref,
-	vocabularyPracticeHref,
+	vocabularySessionBestOfHref,
 } from '@/features/learning/utils/vocabulary-session-routes';
 import { resolveReadOnlyNoticeMessage } from '@/features/learning/utils/learning-access';
 import {
@@ -65,7 +65,10 @@ export function SessionVocabularyDetailView({
 
 	const flashcardHref =
 		classId && classSessionId ? flashcardSessionHref(classId, classSessionId) : null;
-	const gamesHref = classId ? vocabularyPracticeHref(classId) : null;
+	const bestOfHref =
+		classId && classSessionId
+			? vocabularySessionBestOfHref(classId, classSessionId)
+			: null;
 	const vocabularyHomeHrefValue = vocabularyHomeHref(classId, backHref);
 	const accessNotice = resolveReadOnlyNoticeMessage(readOnlyReason);
 
@@ -93,9 +96,9 @@ export function SessionVocabularyDetailView({
 				}
 				extra={
 					<Space wrap>
-						{gamesHref && canRecordEvents ? (
-							<Link href={gamesHref}>
-								<Button icon={<ThunderboltOutlined />}>Games</Button>
+						{bestOfHref && canRecordEvents ? (
+							<Link href={bestOfHref}>
+								<Button icon={<ThunderboltOutlined />}>Best of buổi</Button>
 							</Link>
 						) : null}
 						{flashcardHref && canRecordEvents ? (

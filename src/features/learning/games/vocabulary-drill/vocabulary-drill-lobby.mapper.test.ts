@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { buildVocabularyDrillLobbyViewModel } from './vocabulary-drill-lobby.mapper';
 import type { GameSessionConfig } from '@/features/learning/games/core/types/game-session-config.types';
 

@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button, Skeleton } from 'antd';
 import { ReloadOutlined, TrophyOutlined } from '@ant-design/icons';
 import { LearningAccessNotice } from '@/features/learning/components/LearningAccessNotice';
@@ -30,6 +30,7 @@ export function DrillLobbySharedPanels({
   showPoolSummary = true,
   onRefresh,
 }: Props) {
+  const router = useRouter();
   const poolSize = pool?.poolSize ?? 0;
   const minPool = pool?.minPoolSize ?? 10;
 
@@ -93,9 +94,12 @@ export function DrillLobbySharedPanels({
           </Button>
         ) : null}
         {classId ? (
-          <Link href={vocabularyLeaderboardHref(classId)}>
-            <Button icon={<TrophyOutlined />}>Bảng xếp hạng</Button>
-          </Link>
+          <Button
+            icon={<TrophyOutlined />}
+            onClick={() => router.push(vocabularyLeaderboardHref(classId))}
+          >
+            Bảng xếp hạng
+          </Button>
         ) : null}
       </div>
     </>

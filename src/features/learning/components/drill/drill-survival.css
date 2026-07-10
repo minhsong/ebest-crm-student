@@ -301,6 +301,21 @@
 	height: 40px;
 }
 
+.drill-prompt-card__image-wrap {
+	width: 100%;
+	max-width: 280px;
+	margin-top: 4px;
+}
+
+.drill-prompt-card__image {
+	display: block;
+	width: 100%;
+	max-height: 200px;
+	object-fit: contain;
+	border-radius: 12px;
+	background: #f5f5f5;
+}
+
 .drill-prompt-card__audio-btn {
 	display: inline-flex;
 	align-items: center;
@@ -397,6 +412,14 @@
 	font-weight: 600;
 	color: var(--drill-text);
 	line-height: 1.25;
+}
+
+.drill-option-card__image {
+	display: block;
+	width: 100%;
+	max-height: 120px;
+	object-fit: contain;
+	border-radius: 8px;
 }
 
 .drill-option-card__pos {
@@ -538,6 +561,12 @@
 	margin: 16px 0 0;
 	font-size: 13px;
 	color: var(--drill-text-tertiary);
+}
+
+.drill-run-result__hint-btn {
+	margin-top: 12px;
+	font-size: 13px;
+	font-weight: 600;
 }
 
 /* ─── Lobby ─── */

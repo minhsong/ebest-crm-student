@@ -31,6 +31,7 @@ type Props = {
 	secondsLeft: number;
 	totalSeconds: number;
 	onSelect: (optionId: string) => void;
+	onExitClick?: () => void;
 };
 
 function DrillGameLayoutInner({
@@ -48,6 +49,7 @@ function DrillGameLayoutInner({
 	secondsLeft,
 	totalSeconds,
 	onSelect,
+	onExitClick,
 }: Props) {
 	const { token } = theme.useToken();
 	const themeVars = drillAntdCssVars(token);
@@ -66,6 +68,7 @@ function DrillGameLayoutInner({
 				backHref={backHref}
 				score={score}
 				streak={streak}
+				onExitClick={onExitClick}
 			/>
 			{showAssignmentBar ? (
 				<VocabularyDrillAssignmentProgress

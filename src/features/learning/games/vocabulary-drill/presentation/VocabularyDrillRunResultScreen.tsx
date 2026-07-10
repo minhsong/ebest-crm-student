@@ -2,6 +2,7 @@
 
 import type { VocabularyDrillResultProfileId } from '@/features/learning/games/vocabulary-drill/vocabulary-drill-presentation.mapper';
 import { PoolCoverageRunResultScreen } from '@/features/learning/games/vocabulary-drill/presentation/PoolCoverageRunResultScreen';
+import { SpeedRunRunResultScreen } from '@/features/learning/games/vocabulary-drill/presentation/SpeedRunRunResultScreen';
 import { SurvivalRunResultScreen } from '@/features/learning/games/vocabulary-drill/presentation/SurvivalRunResultScreen';
 
 import type { DrillResultStudentTone } from '@/features/learning/copy/drill-result-tone';
@@ -21,6 +22,8 @@ type SharedProps = {
   passed?: boolean | null;
   onReplay: () => void;
   leaderboardHref?: string | null;
+  onLeaderboard?: () => void;
+  onGamesHub?: () => void;
 };
 
 type Props = SharedProps & {
@@ -49,6 +52,19 @@ export function VocabularyDrillRunResultScreen({
     );
   }
 
+  if (resultProfileId === 'speed_run_result') {
+    return (
+      <SpeedRunRunResultScreen
+        score={props.score}
+        bestScore={props.bestScore}
+        onReplay={props.onReplay}
+        leaderboardHref={props.leaderboardHref}
+        onLeaderboard={props.onLeaderboard}
+        onGamesHub={props.onGamesHub}
+      />
+    );
+  }
+
   return (
     <SurvivalRunResultScreen
       score={props.score}
@@ -58,6 +74,8 @@ export function VocabularyDrillRunResultScreen({
       wasWrongEnd={props.wasWrongEnd}
       onReplay={props.onReplay}
       leaderboardHref={props.leaderboardHref}
+      onLeaderboard={props.onLeaderboard}
+      onGamesHub={props.onGamesHub}
     />
   );
 }

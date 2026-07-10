@@ -147,6 +147,28 @@ Public endpoints:
 
 ---
 
+## M5b — Course Recommendation Engine (CRE) — SPEC
+
+> SSOT: [COURSE_RECOMMENDATION_ENGINE_SPEC.md](../../ebest-crm-api/docs/modules/student-portal/COURSE_RECOMMENDATION_ENGINE_SPEC.md)
+
+| ID | Việc | Trạng thái |
+|----|------|------------|
+| CRE-P0a | Taxonomy catalog + band TOEIC v1 | ✅ |
+| CRE-P0b | Module `course-recommendation` + pipeline 6 lớp | ✅ |
+| CRE-P0c | `GET student/portal/recommendations` (output **2** khóa) | ✅ |
+| CRE-P0d | Portal `/lead/courses` block gợi ý | ✅ |
+| CRE-P1a | Taxonomy + pipeline 7 chiều + lead tags | ✅ |
+| CRE-P1b | CRM Client gợi ý tag + admin preview API | ✅ |
+| CRE-P1c | Portal CTA tests → courses, post-exam link | ✅ |
+| CRE-P1 | `courseId` catalog + Course `targetTestTypes` | ✅ P1f |
+| CRE-P2 | `course_test_affinities` + audience rules + explore merge | ✅ P2 core |
+| CRE-P2b | Band guard (TOEIC &lt;350 loại Master) + merge partAnalytics persisted | ✅ |
+| CRE-P2ops | Catalog `courseId` CRM UI + `relink:portal-catalog-courses` | ✅ script + form |
+| CRE-P2polish | Rules: course/catalog picker + tag search + affinity cache + seed | ✅ |
+| CRE-P3 | communication / kids / vstep bands | ⬜ |
+
+---
+
 ## Future
 
 | ID | Việc | Trạng thái |
@@ -159,7 +181,7 @@ Public endpoints:
 
 ## M6 — Portal email / login key conflict (PI-D14, PI-D15) 🟢 Phase 1 done
 
-> SSOT: [PORTAL_LOGIN_KEY_EMAIL_CONFLICT_SPEC.md](../../ebest-crm-api/docs/system/PORTAL_LOGIN_KEY_EMAIL_CONFLICT_SPEC.md) · Tracker: [PORTAL_LOGIN_KEY_IMPLEMENTATION_TRACKER.md](../../docs/portal-identity/PORTAL_LOGIN_KEY_IMPLEMENTATION_TRACKER.md)
+> SSOT: [PORTAL_LOGIN_KEY_EMAIL_CONFLICT_SPEC.md](../../ebest-crm-api/docs/system/PORTAL_LOGIN_KEY_EMAIL_CONFLICT_SPEC.md) · Tracker: [PORTAL_LOGIN_KEY_IMPLEMENTATION_TRACKER.md](../../ebest-crm-api/docs/monorepo/portal-identity/PORTAL_LOGIN_KEY_IMPLEMENTATION_TRACKER.md)
 
 | ID | Việc | Trạng thái |
 |----|------|------------|
@@ -171,8 +193,8 @@ Public endpoints:
 | M6-5 | Zalo provision guard (W5) | ✅ |
 | M6-6 | Portal UI `ProfileForm` — `action` từ BFF (PI-D16) | ✅ |
 | M6-7 | CRM `changePrimaryEmail` (W6) | ✅ |
-| M6-8 | AC-1…AC-8 QA | ⬜ → [PORTAL_LOGIN_KEY_QA_CHECKLIST.md](../../docs/portal-identity/PORTAL_LOGIN_KEY_QA_CHECKLIST.md) §2 |
-| PL-INTAKE | Lead intake + merge + history | ✅ P0/P1 — [PORTAL_LEAD_INTAKE_AND_MERGE_SPEC.md](../../docs/portal-identity/PORTAL_LEAD_INTAKE_AND_MERGE_SPEC.md) |
+| M6-8 | AC-1…AC-8 QA | ⬜ → [PORTAL_LOGIN_KEY_QA_CHECKLIST.md](../../ebest-crm-api/docs/monorepo/portal-identity/PORTAL_LOGIN_KEY_QA_CHECKLIST.md) §2 |
+| PL-INTAKE | Lead intake + merge + history | ✅ P0/P1 — [PORTAL_LEAD_INTAKE_AND_MERGE_SPEC.md](../../ebest-crm-api/docs/monorepo/portal-identity/PORTAL_LEAD_INTAKE_AND_MERGE_SPEC.md) |
 | M6-9a | Internal API `portal/login-key/check` | ✅ |
 | M6-9b | Gateway hook create/patch omni | ✅ |
 | M6-9c | CRM staff `omni/leads/portal-login-key/check` | ✅ |
@@ -196,7 +218,7 @@ Public endpoints:
 | M7-6 | CRM exception copy audit (bỏ «lead»/«HV» user-facing) | ✅ lead auth paths |
 | M7-7 | `/api/lead/me` public DTO | ✅ |
 | M7-8 | Mock test routes 🔴 sanitize | ✅ |
-| M7-9 | SP-SEC AC regression | ⬜ → [PORTAL_LOGIN_KEY_QA_CHECKLIST.md](../../docs/portal-identity/PORTAL_LOGIN_KEY_QA_CHECKLIST.md) §5 |
+| M7-9 | SP-SEC AC regression | ⬜ → [PORTAL_LOGIN_KEY_QA_CHECKLIST.md](../../ebest-crm-api/docs/monorepo/portal-identity/PORTAL_LOGIN_KEY_QA_CHECKLIST.md) §5 |
 | M7-10 | **PI-D18** session DTO SSR-only (BL-Q9) | ✅ |
 | M7-11 | Audit client `omniLeadId` → SSR/BFF | ✅ |
 
@@ -206,7 +228,7 @@ Public endpoints:
 
 1. **M0-4 / LP-QA-01** — QA Zalo guard T1–T6 trên staging  
 2. ~~**LP-ID-01** — Migration portal identity~~ ✅ `npm run migration:run` local — **no pending** (staging/prod: chạy cùng lệnh trước deploy)  
-3. **M6 + M7 Phase 1** — email conflict + BFF sanitize (gate: [PORTAL_LOGIN_KEY_AND_BFF_MASTER_PLAN.md](../../docs/portal-identity/PORTAL_LOGIN_KEY_AND_BFF_MASTER_PLAN.md) §Gate 0)  
+3. **M6 + M7 Phase 1** — email conflict + BFF sanitize (gate: [PORTAL_LOGIN_KEY_AND_BFF_MASTER_PLAN.md](../../ebest-crm-api/docs/monorepo/portal-identity/PORTAL_LOGIN_KEY_AND_BFF_MASTER_PLAN.md) §Gate 0)  
 4. **LP-QA-01** — E2E checklist bên dưới
 
 ---

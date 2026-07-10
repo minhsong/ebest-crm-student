@@ -17,17 +17,23 @@ function parseExplorePayload(data: unknown): PortalExplorePayload {
       facebookMessengerUrl: 'https://www.facebook.com/ebestenglish',
     },
     courses: Array.isArray(payload?.courses) ? payload.courses : [],
+    recommendations: payload?.recommendations,
   };
 }
 
-/** Client — SSOT 1 request (site links + course catalog). */
+/** Client — SSOT 1 request (site links + course catalog + optional recommendations). */
 export async function fetchPortalExplore(
   locale = 'vi-VN',
+  options?: { includeRecommendations?: boolean },
 ): Promise<PortalExplorePayload> {
-  const res = await fetch(
-    `/api/portal/explore?locale=${encodeURIComponent(locale)}`,
-    { cache: 'no-store' },
-  );
+  const params = new URLSearchParams({ locale });
+  if (options?.includeRecommendations) {
+    params.set('include', 'recommendations');
+  }
+  const res = await fetch(`/api/portal/explore?${params.toString()}`, {
+    cache: 'no-store',
+    credentials: 'include',
+  });
   const data = (await res.json().catch(() => ({}))) as PortalExplorePayload & {
     message?: string;
   };

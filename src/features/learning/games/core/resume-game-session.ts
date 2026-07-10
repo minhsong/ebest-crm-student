@@ -13,8 +13,22 @@ export type GameSessionResumeContext = {
   gradebookSyncFailed?: boolean;
 };
 
+type ResumePayload<TQuestion> = {
+  playId: string;
+  classId: number;
+  assignmentId: number | null;
+  modeId: string;
+  promptType: string;
+  scoreInRun: number;
+  streak: number;
+  status: string;
+  question?: TQuestion;
+} & Omit<GameSessionResumeContext, 'scoreInRun'>;
+
 type ResumeOptions<TSession extends GameSessionState<TQuestion>, TQuestion> = {
   playId: string;
+  /** Khi shell reconcile đã GET play — tránh fetch trùng. */
+  prefetchedPayload?: ResumePayload<TQuestion> | null;
   fetchSession: (playId: string) => Promise<
     {
       playId: string;
@@ -43,6 +57,7 @@ export async function resumeGameSession<TSession extends GameSessionState<TQuest
 ): Promise<void> {
   const {
     playId,
+    prefetchedPayload,
     fetchSession,
     toSession,
     onCompleted,
@@ -51,7 +66,10 @@ export async function resumeGameSession<TSession extends GameSessionState<TQuest
     missingQuestionMessage = 'Không tìm thấy câu hỏi đang chờ trong lượt chơi.',
   } = options;
 
-  const resumed = await fetchSession(playId);
+  const resumed =
+    prefetchedPayload?.playId === playId
+      ? prefetchedPayload
+      : await fetchSession(playId);
   const resumeCtx: GameSessionResumeContext = {
     scoreInRun: resumed.scoreInRun,
     progress: resumed.progress,

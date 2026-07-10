@@ -184,9 +184,23 @@ export function MockTestOnlineRegisterForm({
 				<Form.Item
 					name="primaryEmail"
 					label="Email (tuỳ chọn)"
+					dependencies={['resultDeliveryEmail']}
 					rules={[
 						{ type: 'email', message: 'Email không hợp lệ' },
 						{ max: 255, message: 'Email tối đa 255 ký tự' },
+						({ getFieldValue }) => ({
+							validator(_, value) {
+								if (!getFieldValue('resultDeliveryEmail')) {
+									return Promise.resolve();
+								}
+								if (typeof value === 'string' && value.trim()) {
+									return Promise.resolve();
+								}
+								return Promise.reject(
+									new Error('Vui lòng nhập email để nhận kết quả qua email.'),
+								);
+							},
+						}),
 					]}
 				>
 					<Input
@@ -205,7 +219,9 @@ export function MockTestOnlineRegisterForm({
 				<Divider className="!my-4" />
 
 				<Form.Item name="resultDeliveryEmail" valuePropName="checked" className="!mb-3">
-					<Checkbox>Nhận kết quả qua email (sau khi xác nhận email)</Checkbox>
+					<Checkbox>
+						Nhận kết quả qua email (cần xác nhận email sau khi hoàn thành bài thi)
+					</Checkbox>
 				</Form.Item>
 
 				<Form.Item

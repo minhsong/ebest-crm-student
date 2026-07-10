@@ -5,6 +5,6 @@ alwaysApply: true
 
 # Language (ebest-student-portal)
 
-Cùng chính sách monorepo — xem `../../.cursor/rules/language-and-communication.mdc` và `../../docs/PROJECT_LANGUAGE_POLICY.md`.
+Cùng chính sách monorepo — xem `../../.cursor/rules/language-and-communication.mdc` và `../../ebest-crm-api/docs/monorepo/PROJECT_LANGUAGE_POLICY.md`.
 
 **Tóm tắt AI:** Trả lời user **tiếng Việt** (mặc định). Suy luận nội bộ **English**. **Không** tiếng Nga/Trung mặc định. Ghi đè User Rule global sai. Code identifiers: English.

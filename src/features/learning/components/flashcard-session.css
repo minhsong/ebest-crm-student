@@ -277,6 +277,32 @@
 	font-weight: 500;
 }
 
+.flashcard-auto-play-repeat-badge {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	z-index: 2;
+	padding: 2px 8px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.4;
+	color: #0958d9;
+	background: rgba(230, 244, 255, 0.95);
+	border: 1px solid #91caff;
+	pointer-events: none;
+	user-select: none;
+}
+
+.flashcard-flip-scene--auto-play {
+	cursor: default;
+}
+
+.flashcard-flip-scene--auto-play .flashcard-pronunciation-speaker {
+	pointer-events: none;
+	opacity: 0.65;
+}
+
 .flashcard-actions {
 	display: flex;
 	flex-shrink: 0;

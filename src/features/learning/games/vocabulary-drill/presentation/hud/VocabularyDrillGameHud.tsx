@@ -1,5 +1,7 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+
 import type { VocabularyDrillPresentationProfile } from '@/features/learning/games/vocabulary-drill/vocabulary-drill-presentation.mapper';
 import { GameCoreHud } from '@/features/learning/games/vocabulary-drill/presentation/hud/GameCoreHud';
 import { PoolCoverageScoreHud } from '@/features/learning/games/vocabulary-drill/presentation/hud/PoolCoverageScoreHud';
@@ -11,6 +13,7 @@ type Props = {
   backHref: string;
   score: number;
   streak: number;
+  onExitClick?: () => void;
 };
 
 export function VocabularyDrillGameHud({
@@ -19,19 +22,23 @@ export function VocabularyDrillGameHud({
   backHref,
   score,
   streak,
+  onExitClick,
 }: Props) {
+  const router = useRouter();
   const scoreSlot = presentation.usesStreakHud ? (
     <SurvivalScoreHud score={score} streak={streak} />
   ) : (
     <PoolCoverageScoreHud score={score} />
   );
 
+  const handleExit = onExitClick ?? (() => router.push(backHref));
+
   return (
     <GameCoreHud
       modeLabel={presentation.modeLabel}
       title={title}
-      backHref={backHref}
       scoreSlot={scoreSlot}
+      onExitClick={handleExit}
     />
   );
 }

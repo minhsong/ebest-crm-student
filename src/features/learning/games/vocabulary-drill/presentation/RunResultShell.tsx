@@ -1,9 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Button } from 'antd';
-import { FireOutlined, TrophyOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, FireOutlined, HomeOutlined, TrophyOutlined } from '@ant-design/icons';
 import '@/features/learning/components/drill/drill-survival.css';
 
 type Props = {
@@ -16,6 +15,8 @@ type Props = {
   replayLabel: string;
   onReplay: () => void;
   leaderboardHref?: string | null;
+  onLeaderboard?: () => void;
+  onGamesHub?: () => void;
   showLeaderboard?: boolean;
 };
 
@@ -29,7 +30,8 @@ export function RunResultShell({
   subtitle,
   replayLabel,
   onReplay,
-  leaderboardHref,
+  onLeaderboard,
+  onGamesHub,
   showLeaderboard = false,
 }: Props) {
   return (
@@ -47,21 +49,25 @@ export function RunResultShell({
         <Button type="primary" size="large" block onClick={onReplay}>
           <FireOutlined /> {replayLabel}
         </Button>
-        <Link href="/learning">
-          <Button size="large" block>
+        {onGamesHub ? (
+          <Button size="large" block icon={<AppstoreOutlined />} onClick={onGamesHub}>
+            Game khác
+          </Button>
+        ) : (
+          <Button size="large" block icon={<HomeOutlined />} onClick={() => window.location.assign('/learning')}>
             Về Học tập
           </Button>
-        </Link>
+        )}
       </div>
-      {showLeaderboard && leaderboardHref ? (
-        <p className="drill-run-result__hint">
-          <Link
-            href={`${leaderboardHref}&refresh=${Date.now()}`}
-            className="text-blue-600 hover:underline"
-          >
-            <TrophyOutlined /> Xem bảng xếp hạng lớp
-          </Link>
-        </p>
+      {showLeaderboard && onLeaderboard ? (
+        <Button
+          type="link"
+          className="drill-run-result__hint-btn"
+          icon={<TrophyOutlined />}
+          onClick={onLeaderboard}
+        >
+          Xem bảng xếp hạng lớp
+        </Button>
       ) : null}
     </div>
   );

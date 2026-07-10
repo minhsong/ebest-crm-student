@@ -23,7 +23,7 @@
 | Sanitize message (as-built) | `ebest-student-portal/src/lib/student-safe-errors.ts` |
 | Proxy CRM | `crm-student-proxy.ts`, `student-crm-proxy.ts` |
 | Email trùng (logic nội bộ) | [PORTAL_LOGIN_KEY_EMAIL_CONFLICT_SPEC.md](../../ebest-crm-api/docs/system/PORTAL_LOGIN_KEY_EMAIL_CONFLICT_SPEC.md) |
-| Master plan | [PORTAL_LOGIN_KEY_AND_BFF_MASTER_PLAN.md](../../docs/portal-identity/PORTAL_LOGIN_KEY_AND_BFF_MASTER_PLAN.md) |
+| Master plan | [PORTAL_LOGIN_KEY_AND_BFF_MASTER_PLAN.md](../../ebest-crm-api/docs/monorepo/portal-identity/PORTAL_LOGIN_KEY_AND_BFF_MASTER_PLAN.md) |
 | UX không lộ thuật ngữ | [LEAD_PORTAL_SESSION_AND_MARKETING_SPEC.md](./LEAD_PORTAL_SESSION_AND_MARKETING_SPEC.md) UX-1 |
 
 ---

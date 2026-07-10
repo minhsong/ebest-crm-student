@@ -32,6 +32,7 @@ export const STUDENT_API = {
   portalExplore: 'portal/explore',
   portalCourseCatalog: 'portal/course-catalog',
   portalSiteLinks: 'portal/site-links',
+  portalRecommendations: 'portal/recommendations',
   mockTestResults: 'me/mock-test-results',
   /** Knowledge base — proxy Next: `/api/qa`, `/api/qa/by-slug/[slug]` */
   qa: 'qa',
