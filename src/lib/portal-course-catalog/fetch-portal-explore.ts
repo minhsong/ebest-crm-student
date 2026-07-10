@@ -1,7 +1,9 @@
 import { getApiBaseUrl } from '@/lib/env';
-import { unwrapCrmResponseBody } from '@/lib/crm-student-proxy';
+import {
+  buildCrmStudentUrl,
+  unwrapCrmResponseBody,
+} from '@/lib/crm-student-proxy.shared';
 import { STUDENT_API } from '@/lib/student-api';
-import { buildCrmStudentUrl } from '@/lib/crm-student-proxy';
 import type { PortalExplorePayload } from './types';
 
 function parseExplorePayload(data: unknown): PortalExplorePayload {

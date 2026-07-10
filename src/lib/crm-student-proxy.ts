@@ -7,9 +7,14 @@ import { NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
 import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
 import { getLeadAccessTokenFromCookie } from '@/lib/lead-auth-cookie';
-import { STUDENT_API } from '@/lib/student-api';
 import { sanitizeStudentFacingMessage } from '@/lib/student-safe-errors';
 import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
+import {
+  buildCrmStudentUrl,
+  unwrapCrmResponseBody,
+} from '@/lib/crm-student-proxy.shared';
+
+export { buildCrmStudentUrl, unwrapCrmResponseBody } from '@/lib/crm-student-proxy.shared';
 
 const JSON_HEADERS: HeadersInit = {
   'Content-Type': 'application/json',
@@ -18,19 +23,6 @@ const JSON_HEADERS: HeadersInit = {
 
 export const MSG_CRM_CONFIG = 'Cấu hình server chưa đúng.';
 export const MSG_CRM_NETWORK = 'Không thể kết nối. Vui lòng thử lại.';
-
-export function buildCrmStudentUrl(apiBaseUrl: string, relativePath: string): string {
-  const base = apiBaseUrl.replace(/\/$/, '');
-  const path = relativePath.replace(/^\//, '');
-  return `${base}${STUDENT_API.basePath}/${path}`;
-}
-
-/** CRM thường bọc `{ success, result | data }`. */
-export function unwrapCrmResponseBody(data: unknown): unknown {
-  if (!data || typeof data !== 'object') return data;
-  const o = data as Record<string, unknown>;
-  return o.result ?? o.data ?? data;
-}
 
 function errorMessageFromCrmPayload(
   data: Record<string, unknown>,
