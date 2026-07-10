@@ -99,7 +99,7 @@ export function resolveRunPassedFromResume(input: {
 	modeId: VocabularyDrillModeId;
 	lastAnswerCorrect?: boolean | null;
 	runPassed?: boolean | null;
-	progress?: PoolCoverageProgress;
+	progress?: PoolCoverageProgress | null;
 	assignmentMinimumScore?: number;
 }): boolean | null {
 	if (input.runPassed != null) {

@@ -42,6 +42,7 @@ export function SpeedRunRunResultScreen({
         </>
       }
       onReplay={onReplay}
+      replayLabel="Chơi lại"
       onLeaderboard={onLeaderboard}
       onGamesHub={onGamesHub}
       showLeaderboard={Boolean(onLeaderboard)}

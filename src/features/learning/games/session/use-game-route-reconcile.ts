@@ -8,7 +8,7 @@ import type { GameCatalogEntry } from '@/features/learning/games/catalog/game-ca
 import { resolveGameSlugFromPromptType } from '@/features/learning/games/catalog/game-catalog.registry';
 import { modeIdFromUrlParam } from '@/features/learning/games/session/game-mode.utils';
 import { reconcileGameRoute } from '@/features/learning/games/session/game-route-reconcile.utils';
-import type { GameRouteQuery } from '@/features/learning/games/session/game-route-query.utils';
+import type { ParsedGameRouteQuery } from '@/features/learning/games/session/game-route-query.utils';
 import {
 	buildGamePlayingHref,
 	buildGameReadyHref,
@@ -21,8 +21,8 @@ import type { DrillSessionResumePayload } from '@/types/learning';
 type Options = {
 	gameSlug: string;
 	urlSegment: GameUrlSegment;
-	routeQuery: GameRouteQuery;
-	catalogEntry: GameCatalogEntry | undefined;
+	routeQuery: ParsedGameRouteQuery;
+	catalogEntry: GameCatalogEntry | null | undefined;
 };
 
 export function useGameRouteReconcile({

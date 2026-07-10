@@ -106,8 +106,21 @@ export async function startVocabularyDrillPlay(input: {
 	};
 }
 
+export type DrillSessionResumeInput = {
+	playId: string;
+	classId: number;
+	assignmentId: number | null;
+	modeId: string;
+	promptType: string;
+	scoreInRun: number;
+	streak: number;
+	status: string;
+	sessionConfig?: GameSessionConfig | null;
+	question?: DrillQuestionClient;
+};
+
 export function toDrillSessionFromResume(
-	resumed: Awaited<ReturnType<typeof fetchDrillSession>>,
+	resumed: DrillSessionResumeInput,
 ): DrillSessionClient {
 	return {
 		playId: resumed.playId,
