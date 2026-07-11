@@ -47,7 +47,8 @@ export function FlashcardFlipCard({
 
 	const meaning = getPrimaryMeaning(item.asset);
 	const hasPronunciation = hasVocabularyPronunciation(item.asset);
-	const hasImage = Boolean(item.asset.imageUrl);
+	const imageUrl = item.asset.imageUrl?.trim();
+	const hasImage = Boolean(imageUrl);
 	const headword = getVocabularyHeadword(item.asset);
 
 	return (
@@ -81,7 +82,7 @@ export function FlashcardFlipCard({
 					{hasImage ? (
 						<div className="flashcard-face-media">
 							<img
-								src={item.asset.imageUrl}
+								src={imageUrl}
 								alt={headword}
 								className="flashcard-face-image"
 								draggable={false}

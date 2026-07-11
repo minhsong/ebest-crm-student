@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, Button, Progress, Skeleton } from 'antd';
-import { ArrowLeftOutlined, RetweetOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, SwapOutlined } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout';
 import { FlashcardSessionResultScreen } from '@/features/learning/games/flashcard-review/presentation/FlashcardSessionResultScreen';
 import { FlashcardSessionActions } from '@/features/learning/games/flashcard-review/presentation/FlashcardSessionActions';
@@ -88,12 +88,13 @@ export function FlashcardSessionView() {
 					<Button
 						type="default"
 						size="small"
-						icon={<RetweetOutlined />}
+						icon={<SwapOutlined />}
 						disabled={!session.canReshuffleRemaining || session.autoPlayActive}
 						onClick={session.handleReshuffleRemaining}
 						className="flashcard-reshuffle-btn"
+						aria-label="Xáo lại thẻ còn lại"
 					>
-						Xáo lại thẻ còn lại
+						Shuffle
 					</Button>
 				</div>
 

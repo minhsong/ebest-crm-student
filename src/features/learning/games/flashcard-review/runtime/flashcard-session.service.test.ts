@@ -20,6 +20,19 @@ describe('flashcard-session.service', () => {
 		expect(item.asset.id).toBe(5);
 	});
 
+	it('mapFlashcardCardToVocabularyItem preserves imageUrl', () => {
+		const item = mapFlashcardCardToVocabularyItem(
+			{
+				assetId: 5,
+				word: 'apple',
+				meaning: 'táo',
+				imageUrl: 'https://cdn.example/apple.jpg',
+			},
+			1,
+		);
+		expect(item.asset.imageUrl).toBe('https://cdn.example/apple.jpg');
+	});
+
 	it('resolveFlashcardProgressPercent at mid session', () => {
 		expect(resolveFlashcardProgressPercent(2, 10, 'card')).toBe(20);
 		expect(resolveFlashcardProgressPercent(9, 10, 'done')).toBe(100);

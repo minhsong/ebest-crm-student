@@ -20,20 +20,21 @@
 
 .flashcard-session-progress-row {
 	display: flex;
-	flex-direction: column;
-	align-items: stretch;
+	flex-direction: row;
+	align-items: center;
 	width: 100%;
 	gap: 8px;
 	flex-shrink: 0;
 }
 
 .flashcard-session-progress {
-	width: 100%;
-	flex-shrink: 0;
+	flex: 1 1 auto;
+	min-width: 0;
 }
 
 .flashcard-reshuffle-btn {
-	align-self: flex-end;
+	flex: 0 0 auto;
+	white-space: nowrap;
 }
 
 .flashcard-stage {
@@ -54,7 +55,37 @@
 }
 
 .flashcard-flip-scene--with-image {
-	height: min(470px, 58dvh);
+	height: min(420px, 52dvh);
+}
+
+.flashcard-flip-scene--with-image .flashcard-face--front {
+	gap: 12px;
+}
+
+.flashcard-flip-scene--with-image .flashcard-face-media {
+	min-height: 0;
+	max-height: 136px;
+	margin-bottom: 0;
+	padding: 6px 8px 0;
+}
+
+.flashcard-flip-scene--with-image .flashcard-face-image {
+	max-height: 128px;
+}
+
+.flashcard-flip-scene--with-image .flashcard-face-main {
+	flex: 0 1 auto;
+	justify-content: flex-start;
+	padding-top: 0;
+	gap: 8px;
+}
+
+.flashcard-flip-scene--with-image .flashcard-pronunciation-list {
+	margin-top: 0;
+}
+
+.flashcard-flip-scene--with-image .flashcard-face-footer {
+	padding-top: 8px;
 }
 
 .flashcard-flip-inner {
@@ -244,7 +275,7 @@
 
 .flashcard-flip-scene--with-image .flashcard-word {
 	font-size: 1.35rem !important;
-	margin-bottom: 2px !important;
+	margin-bottom: 0 !important;
 }
 
 .flashcard-hint {
