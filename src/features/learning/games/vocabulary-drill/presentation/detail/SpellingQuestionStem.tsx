@@ -14,7 +14,7 @@ export function SpellingQuestionStem({ prompt, promptImageUrl }: Props) {
 		<div className="spelling-question-stage__stem">
 			<div className="drill-prompt-card">
 				{promptImageUrl ? (
-					<ImageMcqPrompt promptImageUrl={promptImageUrl} />
+					<ImageMcqPrompt promptImageUrl={promptImageUrl} showEyebrow={false} />
 				) : (
 					<MeaningMcqPrompt prompt={prompt} />
 				)}

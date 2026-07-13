@@ -279,6 +279,7 @@ export function useVocabularyDrillSession({
 		submitAnswerHttp: vocabularyDrillRuntimeAdapter.submitAnswer,
 		getQuestionId: (q) => q.questionId,
 		spellingAnswerMode: activePromptType === 'spelling',
+		perQuestionTimer: activePromptType === 'spelling' && !isSpeedRun,
 		onAnswerResult,
 		onSessionStarted: (started) => {
 			if (isPoolCoverage && assignmentPoolSize) {

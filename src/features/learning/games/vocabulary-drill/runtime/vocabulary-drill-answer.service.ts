@@ -68,10 +68,11 @@ export function planVocabularyDrillAnswerHandling(
 
 	return {
 		kind: 'feedback_then_continue',
-		correct: true,
+		correct: result.correct,
 		progress: result.progress,
 		nextQuestion: result.nextQuestion,
-		incrementStreak: true,
+		incrementStreak: result.correct,
+		resetStreak: !result.correct,
 	};
 }
 

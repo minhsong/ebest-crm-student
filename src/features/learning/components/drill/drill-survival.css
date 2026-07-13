@@ -908,11 +908,30 @@
 }
 
 /* Spelling game — letter tiles */
+.spelling-question-stage.drill-survival-stage {
+	gap: 10px;
+}
+
 .spelling-question-stage__stem {
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
-	margin-bottom: 8px;
+	gap: 6px;
+	margin-bottom: 0;
+}
+
+.spelling-question-stage__stem .drill-prompt-card {
+	padding: 8px 12px 10px;
+	box-shadow: none;
+}
+
+.spelling-question-stage__stem .drill-prompt-card__image-wrap {
+	max-width: 240px;
+	margin-top: 0;
+}
+
+.spelling-question-stage__stem .drill-prompt-card__image {
+	max-height: 160px;
+	border-radius: 8px;
 }
 
 .spelling-question-stage__meaning {
@@ -924,7 +943,11 @@
 }
 
 .spelling-question-stage__section {
-	margin-bottom: 16px;
+	margin-bottom: 12px;
+}
+
+.spelling-question-stage__section--pool {
+	margin-bottom: 8px;
 }
 
 .spelling-question-stage__label {

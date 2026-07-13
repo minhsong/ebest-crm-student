@@ -3,6 +3,8 @@ import { playTimerTickSound } from '@/features/learning/utils/game-sfx';
 
 type Options = {
   questionId: string | null;
+  /** Đổi khi sang câu mới (spelling survival) — reset countdown tách khỏi anchor speed_run. */
+  resetKey?: string | null;
   enabled: boolean;
   paused: boolean;
   seconds: number;
@@ -13,12 +15,14 @@ type Options = {
 /** Countdown câu hỏi — dùng chung mọi game MCQ/timed (GE-V4). */
 export function useGameQuestionTimer({
   questionId,
+  resetKey,
   enabled,
   paused,
   seconds,
   onTimeout,
   serverSecondsLeft,
 }: Options) {
+  const resetAnchor = resetKey ?? questionId;
   const [secondsLeft, setSecondsLeft] = useState(seconds);
   const onTimeoutRef = useRef(onTimeout);
   const firedForQuestionRef = useRef<string | null>(null);
@@ -30,23 +34,24 @@ export function useGameQuestionTimer({
 
   useEffect(() => {
     suppressTimeoutUntilReadyRef.current = true;
-    ignoreServerSyncUntilRef.current = Date.now() + 400;
+    ignoreServerSyncUntilRef.current = Date.now() + 800;
     setSecondsLeft(seconds);
     firedForQuestionRef.current = null;
     prevSecondsLeftRef.current = null;
-  }, [questionId, seconds]);
+  }, [resetAnchor, seconds]);
 
   useEffect(() => {
-    if (suppressTimeoutUntilReadyRef.current && secondsLeft > 0) {
+    if (suppressTimeoutUntilReadyRef.current && secondsLeft >= seconds) {
       suppressTimeoutUntilReadyRef.current = false;
     }
-  }, [secondsLeft, questionId]);
+  }, [secondsLeft, seconds, resetAnchor]);
 
   useEffect(() => {
     if (serverSecondsLeft == null) return;
     if (Date.now() < ignoreServerSyncUntilRef.current) return;
+    if (suppressTimeoutUntilReadyRef.current) return;
     setSecondsLeft(serverSecondsLeft);
-  }, [serverSecondsLeft, questionId]);
+  }, [serverSecondsLeft, resetAnchor]);
 
   useEffect(() => {
     if (!enabled || paused || !questionId) {
@@ -70,8 +75,8 @@ export function useGameQuestionTimer({
     if (suppressTimeoutUntilReadyRef.current) return;
 
     if (secondsLeft <= 0) {
-      if (firedForQuestionRef.current === questionId) return;
-      firedForQuestionRef.current = questionId;
+      if (firedForQuestionRef.current === resetAnchor) return;
+      firedForQuestionRef.current = resetAnchor;
       onTimeoutRef.current();
       return;
     }
@@ -81,7 +86,7 @@ export function useGameQuestionTimer({
     }, 1000);
 
     return () => window.clearInterval(id);
-  }, [enabled, paused, questionId, secondsLeft]);
+  }, [enabled, paused, questionId, resetAnchor, secondsLeft]);
 
   return { secondsLeft, totalSeconds: seconds };
 }

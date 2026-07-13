@@ -112,6 +112,8 @@ type Options<
     session: TSession | null,
     question: TQuestion | null,
   ) => string | null;
+  /** Spelling survival — reset countdown theo questionId dù anchor là playId. */
+  perQuestionTimer?: boolean;
   onAnswerResult: (
     args: GameSessionAnswerResultContext<TSession, TQuestion, TAnswerResult>,
   ) => void;
@@ -364,13 +366,15 @@ export function useGameSession<
   );
 
   const handleTimeout = useCallback(() => {
+    if (submitting || feedback) return;
+
     if (options.spellingAnswerMode === true) {
       const tiles = spellingGetAnswerTilesRef.current?.() ?? [];
       void submitAnswer({ spellingTileIds: tiles }, { spellingTimeup: true });
       return;
     }
     void submitAnswer({ timedOut: true });
-  }, [options.spellingAnswerMode, submitAnswer]);
+  }, [feedback, options.spellingAnswerMode, submitAnswer, submitting]);
 
   useEffect(() => {
     if (!options.playIdFromUrl || session || finished) return;
@@ -445,8 +449,14 @@ export function useGameSession<
     options.getTimerAnchorId?.(session, question) ??
     (question ? options.getQuestionId(question) : null);
 
+  const timerResetKey =
+    options.perQuestionTimer && question
+      ? options.getQuestionId(question)
+      : timerAnchorId;
+
   const { secondsLeft, totalSeconds } = useGameQuestionTimer({
     questionId: timerAnchorId,
+    resetKey: timerResetKey,
     enabled: Boolean(session && question && !finished),
     paused: optionsLocked,
     seconds: options.answerTimeoutSec,
@@ -456,7 +466,6 @@ export function useGameSession<
 
   useEffect(() => {
     setServerTimerSecondsLeft(null);
-    spellingGetAnswerTilesRef.current = null;
   }, [activeQuestionId]);
 
   const abandonSession = useCallback(async () => {

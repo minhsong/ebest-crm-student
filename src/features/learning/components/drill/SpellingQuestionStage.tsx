@@ -41,10 +41,15 @@ export function SpellingQuestionStage({
 		getAnswerTileIds,
 	} = useSpellingTileState(question.questionId, tiles, optionsLocked);
 
+	// Đăng ký lại khi đổi câu; chỉ hủy ref khi unmount — tránh null giữa cleanup/setup.
 	useEffect(() => {
 		onRegisterGetAnswerTiles?.(getAnswerTileIds);
-		return () => onRegisterGetAnswerTiles?.(null);
-	}, [getAnswerTileIds, onRegisterGetAnswerTiles]);
+	}, [question.questionId, getAnswerTileIds, onRegisterGetAnswerTiles]);
+
+	useEffect(
+		() => () => onRegisterGetAnswerTiles?.(null),
+		[onRegisterGetAnswerTiles],
+	);
 
 	return (
 		<div className="drill-survival-stage spelling-question-stage">
@@ -54,10 +59,7 @@ export function SpellingQuestionStage({
 				promptImageUrl={question.promptImageUrl}
 			/>
 
-			<div className="spelling-question-stage__section">
-				<Text type="secondary" className="spelling-question-stage__label">
-					Chữ cái
-				</Text>
+			<div className="spelling-question-stage__section spelling-question-stage__section--pool">
 				<div className="spelling-tile-grid spelling-tile-grid--pool">
 					{slotTileIds.map((tileId) => {
 						const tile = tileById.get(tileId);
