@@ -7,6 +7,10 @@ import {
 	type VocabularyDrillPresentationProfile,
 } from './vocabulary-drill-presentation.mapper';
 import { inferVocabularyDrillSessionConfigFromAssignment } from './vocabulary-drill-session-config.utils';
+import {
+	formatGamePromptTypeLabel,
+	formatSpellingDifficultyLabel,
+} from './game-config-labels';
 
 export type VocabularyDrillLobbyStat = {
 	label: string;
@@ -32,6 +36,24 @@ function fillLobbyTemplate(
 	return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) =>
 		vars[key] != null ? String(vars[key]) : '',
 	);
+}
+
+function buildConfiguredGameStats(
+	assignmentCtx: AssignmentDrillContextPayload,
+): VocabularyDrillLobbyStat[] {
+	const stats: VocabularyDrillLobbyStat[] = [
+		{
+			label: 'Loại game',
+			value: formatGamePromptTypeLabel(assignmentCtx.promptType),
+		},
+	];
+	const difficultyLabel = formatSpellingDifficultyLabel(
+		assignmentCtx.spellingDifficulty,
+	);
+	if (assignmentCtx.promptType === 'spelling' && difficultyLabel) {
+		stats.push({ label: 'Độ khó', value: difficultyLabel });
+	}
+	return stats;
 }
 
 function resolveFreePracticeSurvivalPresentation(): VocabularyDrillPresentationProfile {
@@ -90,6 +112,7 @@ function buildChecklistPenaltyLobby(
 		title: copy.title,
 		description: copy.description,
 		stats: [
+			...buildConfiguredGameStats(assignmentCtx),
 			{ label: copy.statMinimumLabel, value: String(assignmentCtx.minimumScore) },
 			{
 				label: copy.statBestLabel,
@@ -161,6 +184,7 @@ export function buildVocabularyDrillLobbyViewModel(input: {
 			title: assignmentCtx.title,
 			description,
 			stats: [
+				...buildConfiguredGameStats(assignmentCtx),
 				{
 					label: assignmentCopy?.statMinimumLabel ?? (isPool ? 'Cần đạt' : 'Mục tiêu'),
 					value: String(assignmentCtx.minimumScore),

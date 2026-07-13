@@ -1,7 +1,12 @@
 import type { GameCatalogEntry } from '@/features/learning/games/catalog/game-catalog.types';
+import {
+	MIN_SPELLING_ELIGIBLE_ENTRIES,
+	MIN_VOCABULARY_DRILL_MEDIA_ENTRIES,
+	SPELLING_POOL_ELIGIBILITY_MESSAGE,
+} from '@ebest/game-vocabulary-drill';
 import type { VocabularyPoolPayload } from '@/types/learning';
 
-const MIN_MEDIA_ENTRIES = 4;
+const MIN_MEDIA_ENTRIES = MIN_VOCABULARY_DRILL_MEDIA_ENTRIES;
 
 export type GameCatalogEligibility = {
 	eligible: boolean;
@@ -10,7 +15,7 @@ export type GameCatalogEligibility = {
 
 export type GameCatalogPoolMeta = Pick<
 	VocabularyPoolPayload,
-	'practiceEnabled' | 'audioEntryCount' | 'imageEntryCount'
+	'practiceEnabled' | 'audioEntryCount' | 'imageEntryCount' | 'spellingEligibleEntryCount'
 >;
 
 /** Catalog card — disable + tooltip theo pool meta (spec §4.1). */
@@ -52,6 +57,16 @@ export function resolveGameCatalogEligibility(
 			return {
 				eligible: false,
 				reason: 'Cần ít nhất 4 từ có ảnh minh họa trong pool',
+			};
+		}
+	}
+
+	if (entry.promptType === 'spelling') {
+		const spellingCount = pool.spellingEligibleEntryCount;
+		if (spellingCount == null || spellingCount < MIN_SPELLING_ELIGIBLE_ENTRIES) {
+			return {
+				eligible: false,
+				reason: SPELLING_POOL_ELIGIBILITY_MESSAGE,
 			};
 		}
 	}

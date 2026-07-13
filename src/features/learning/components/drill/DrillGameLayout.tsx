@@ -31,6 +31,8 @@ type Props = {
 	secondsLeft: number;
 	totalSeconds: number;
 	onSelect: (optionId: string) => void;
+	onSpellingSubmit?: (tileIds: string[]) => void;
+	onRegisterSpellingGetAnswerTiles?: (getter: (() => string[]) | null) => void;
 	onExitClick?: () => void;
 };
 
@@ -49,6 +51,8 @@ function DrillGameLayoutInner({
 	secondsLeft,
 	totalSeconds,
 	onSelect,
+	onSpellingSubmit,
+	onRegisterSpellingGetAnswerTiles,
 	onExitClick,
 }: Props) {
 	const { token } = theme.useToken();
@@ -88,6 +92,8 @@ function DrillGameLayoutInner({
 					secondsLeft={secondsLeft}
 					totalSeconds={totalSeconds}
 					onSelect={onSelect}
+					onSpellingSubmit={onSpellingSubmit}
+					onRegisterSpellingGetAnswerTiles={onRegisterSpellingGetAnswerTiles}
 				/>
 			</div>
 		</div>

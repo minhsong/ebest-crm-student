@@ -13,6 +13,7 @@ import { buildChecklistLobbyContext } from '@/features/learning/games/ready/buil
 import { GameBestOfPoolScopePicker } from '@/features/learning/games/ready/GameBestOfPoolScopePicker';
 import { GameModePicker } from '@/features/learning/games/ready/GameModePicker';
 import { GameSessionDurationPicker } from '@/features/learning/games/ready/GameSessionDurationPicker';
+import { GameSpellingDifficultyPicker } from '@/features/learning/games/ready/GameSpellingDifficultyPicker';
 import { GameHubLeaderboardPanel } from '@/features/learning/games/ready/GameHubLeaderboardPanel';
 import { useActiveDrillPlay } from '@/features/learning/games/ready/use-active-drill-play';
 import { useGameRouteContext, useGameSlug } from '@/features/learning/games/session/GameSlugRouteShell';
@@ -148,6 +149,8 @@ export function GameReadyView() {
 		classId,
 		authorizeContext,
 		resolvedSelection.promptType,
+		authorizedSessionConfig?.rules?.spellingDifficulty ??
+			authorizeContext?.sessionConfig?.rules?.spellingDifficulty,
 	);
 
 	const mergedStartBlockReason =
@@ -164,8 +167,16 @@ export function GameReadyView() {
 
 	useGameSlugRedirect({
 		urlSegment: 'ready',
-		promptType: assignmentCtx?.promptType,
-		enabled: reconciled && Boolean(assignmentCtx),
+		promptType:
+			assignmentCtx?.promptType ??
+			authorizedSessionConfig?.promptType ??
+			(checklistId ? authorizeContext?.sessionConfig?.promptType : undefined),
+		enabled:
+			reconciled &&
+			Boolean(
+				assignmentCtx ||
+					(checklistId && (authorizedSessionConfig || authorizeContext?.sessionConfig)),
+			),
 	});
 
 	const navigateToPlaying = useCallback(
@@ -273,6 +284,14 @@ export function GameReadyView() {
 							handleSelectionChange({ ...selection, sessionDurationSec: sec })
 						}
 					/>
+					{resolvedSelection.promptType === 'spelling' ? (
+						<GameSpellingDifficultyPicker
+							selection={selection}
+							onDifficultyChange={(spellingDifficulty) =>
+								handleSelectionChange({ ...selection, spellingDifficulty })
+							}
+						/>
+					) : null}
 					{resolvedSelection.modeId === 'pool_coverage' && effectiveClassId ? (
 						<GameBestOfPoolScopePicker
 							classId={effectiveClassId}

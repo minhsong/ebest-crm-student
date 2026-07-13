@@ -23,20 +23,29 @@ export function useGameQuestionTimer({
   const onTimeoutRef = useRef(onTimeout);
   const firedForQuestionRef = useRef<string | null>(null);
   const prevSecondsLeftRef = useRef<number | null>(null);
+  const ignoreServerSyncUntilRef = useRef(0);
+  /** Chặn false timeout khi đổi câu — secondsLeft stale = 0 trước khi reset effect flush. */
+  const suppressTimeoutUntilReadyRef = useRef(false);
   onTimeoutRef.current = onTimeout;
 
   useEffect(() => {
+    suppressTimeoutUntilReadyRef.current = true;
+    ignoreServerSyncUntilRef.current = Date.now() + 400;
     setSecondsLeft(seconds);
     firedForQuestionRef.current = null;
     prevSecondsLeftRef.current = null;
   }, [questionId, seconds]);
 
   useEffect(() => {
-    if (serverSecondsLeft == null) return;
-    setSecondsLeft(serverSecondsLeft);
-    if (serverSecondsLeft <= 0) {
-      firedForQuestionRef.current = null;
+    if (suppressTimeoutUntilReadyRef.current && secondsLeft > 0) {
+      suppressTimeoutUntilReadyRef.current = false;
     }
+  }, [secondsLeft, questionId]);
+
+  useEffect(() => {
+    if (serverSecondsLeft == null) return;
+    if (Date.now() < ignoreServerSyncUntilRef.current) return;
+    setSecondsLeft(serverSecondsLeft);
   }, [serverSecondsLeft, questionId]);
 
   useEffect(() => {
@@ -58,6 +67,7 @@ export function useGameQuestionTimer({
 
   useEffect(() => {
     if (!enabled || paused || !questionId) return;
+    if (suppressTimeoutUntilReadyRef.current) return;
 
     if (secondsLeft <= 0) {
       if (firedForQuestionRef.current === questionId) return;

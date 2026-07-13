@@ -22,7 +22,13 @@ export type { GameSessionResumeContext };
 
 type SubmitOptions = {
   selectedOptionId?: string;
+  spellingTileIds?: string[];
   timedOut?: boolean;
+};
+
+type SubmitAnswerMeta = {
+  /** Spelling timeup — bỏ qua lock feedback, đọc tiles trực tiếp từ stage. */
+  spellingTimeup?: boolean;
 };
 
 export type GameSessionAnswerResultContext<
@@ -125,6 +131,8 @@ type Options<
   onResumeError?: (message: string) => void;
   onSubmitError?: (message: string) => void;
   resetSessionExtras?: () => void;
+  /** Spelling — timeout gửi tiles thay vì timedOut. */
+  spellingAnswerMode?: boolean;
 };
 
 /**
@@ -152,6 +160,13 @@ export function useGameSession<
 
   const feedbackTimerRef = useRef<number | null>(null);
   const resumeAttemptedRef = useRef<string | null>(null);
+  const spellingGetAnswerTilesRef = useRef<(() => string[]) | null>(null);
+
+  const registerSpellingGetAnswerTiles = useCallback((getter: (() => string[]) | null) => {
+    spellingGetAnswerTilesRef.current = getter;
+  }, []);
+
+  const activeQuestionId = question ? options.getQuestionId(question) : null;
 
   const clearFeedbackTimer = useCallback(() => {
     if (feedbackTimerRef.current != null) {
@@ -267,8 +282,10 @@ export function useGameSession<
   }, [options, resetRunState]);
 
   const submitAnswer = useCallback(
-    async (submitOpts: SubmitOptions) => {
-      if (!session || !question || submitting || feedback) return;
+    async (submitOpts: SubmitOptions, meta?: SubmitAnswerMeta) => {
+      if (!session || !question) return;
+      if (!meta?.spellingTimeup && (submitting || feedback)) return;
+      if (meta?.spellingTimeup && submitting) return;
 
       primeGameAudio();
       setSubmitting(true);
@@ -279,12 +296,18 @@ export function useGameSession<
 
       const questionId = options.getQuestionId(question);
 
+      const isSpellingAnswer = options.spellingAnswerMode === true;
+      const spellingTileIds = submitOpts.spellingTileIds;
+      const sendTimedOut =
+        Boolean(submitOpts.timedOut) && !isSpellingAnswer && spellingTileIds === undefined;
+
       try {
         const wsPayload = {
           playId: session.playId,
           questionId,
           ...(submitOpts.selectedOptionId ? { selectedOptionId: submitOpts.selectedOptionId } : {}),
-          ...(submitOpts.timedOut ? { timedOut: true } : {}),
+          ...(spellingTileIds !== undefined ? { spellingTileIds } : {}),
+          ...(sendTimedOut ? { timedOut: true } : {}),
         };
 
         const result = await submitGameAnswerViaWsOrHttp({
@@ -335,10 +358,19 @@ export function useGameSession<
     [submitAnswer],
   );
 
-  const handleTimeout = useCallback(
-    () => void submitAnswer({ timedOut: true }),
+  const handleSpellingSubmit = useCallback(
+    (spellingTileIds: string[]) => void submitAnswer({ spellingTileIds }),
     [submitAnswer],
   );
+
+  const handleTimeout = useCallback(() => {
+    if (options.spellingAnswerMode === true) {
+      const tiles = spellingGetAnswerTilesRef.current?.() ?? [];
+      void submitAnswer({ spellingTileIds: tiles }, { spellingTimeup: true });
+      return;
+    }
+    void submitAnswer({ timedOut: true });
+  }, [options.spellingAnswerMode, submitAnswer]);
 
   useEffect(() => {
     if (!options.playIdFromUrl || session || finished) return;
@@ -424,7 +456,8 @@ export function useGameSession<
 
   useEffect(() => {
     setServerTimerSecondsLeft(null);
-  }, [question]);
+    spellingGetAnswerTilesRef.current = null;
+  }, [activeQuestionId]);
 
   const abandonSession = useCallback(async () => {
     const playId = session?.playId ?? options.playIdFromUrl;
@@ -469,6 +502,8 @@ export function useGameSession<
     setActionError,
     handleStart,
     handleAnswer,
+    handleSpellingSubmit,
+    registerSpellingGetAnswerTiles,
     abandonSession,
   };
 }

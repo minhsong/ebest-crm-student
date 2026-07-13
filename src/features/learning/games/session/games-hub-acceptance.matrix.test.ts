@@ -89,6 +89,12 @@ describe('Games Hub acceptance matrix (vitest)', () => {
 		expect(href).toContain('assignmentId=99');
 	});
 
+	it('T7b spelling assignment deep link', () => {
+		const href = buildGameReadyHrefForAssignment(12, 88, 'spelling');
+		expect(href).toContain('/spelling/ready');
+		expect(href).toContain('assignmentId=88');
+	});
+
 	it('T8 checklist deep link', () => {
 		const href = buildGameReadyHref('meaning-to-word', {
 			classId: 12,

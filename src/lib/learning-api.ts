@@ -12,6 +12,11 @@ import type {
 	VocabularyPoolPayload,
 	FlashcardSessionPayload,
 	WeakWordsPayload,
+	DictionaryDetailPayload,
+	DictionaryLookupSource,
+	DictionaryProgressPayload,
+	DictionarySearchPayload,
+	DictionarySuggestPayload,
 } from '@/types/learning';
 import type { DrillStartAuthorizeContext } from '@/lib/drill-authorize-client';
 import type { FlashcardStartAuthorizeContext } from '@/lib/flashcard-authorize-client';
@@ -198,11 +203,14 @@ export async function abandonDrillSession(
 export async function submitDrillAnswer(
 	playId: string,
 	questionId: string,
-	options?: { selectedOptionId?: string; timedOut?: boolean },
+	options?: { selectedOptionId?: string; spellingTileIds?: string[]; timedOut?: boolean },
 ): Promise<DrillAnswerResult> {
 	const body: Record<string, unknown> = { questionId };
 	if (options?.selectedOptionId) {
 		body.selectedOptionId = options.selectedOptionId;
+	}
+	if (options?.spellingTileIds !== undefined) {
+		body.spellingTileIds = options.spellingTileIds;
 	}
 	if (options?.timedOut) {
 		body.timedOut = true;
@@ -287,6 +295,51 @@ export async function fetchWeekDrillScore(): Promise<{ score: number; playCount:
 		cache: 'no-store',
 	});
 	return parseJsonResponse(res, 'Không tải được điểm tuần.');
+}
+
+export async function fetchDictionarySuggest(
+	q: string,
+): Promise<DictionarySuggestPayload> {
+	const qs = new URLSearchParams({ q });
+	const res = await fetch(`/api/student/learning/dictionary/suggest?${qs.toString()}`, {
+		cache: 'no-store',
+	});
+	return parseJsonResponse(res, 'Không tải được gợi ý từ.');
+}
+
+export async function fetchDictionarySearch(
+	q: string,
+	page = 1,
+): Promise<DictionarySearchPayload> {
+	const qs = new URLSearchParams({ q, page: String(page) });
+	const res = await fetch(`/api/student/learning/dictionary/search?${qs.toString()}`, {
+		cache: 'no-store',
+	});
+	return parseJsonResponse(res, 'Không tìm được từ trong từ điển.');
+}
+
+export async function fetchDictionaryDetail(
+	assetId: number,
+	source: DictionaryLookupSource = 'direct',
+): Promise<DictionaryDetailPayload> {
+	const qs = new URLSearchParams();
+	if (source !== 'direct') {
+		qs.set('source', source);
+	}
+	const suffix = qs.toString() ? `?${qs.toString()}` : '';
+	const res = await fetch(`/api/student/learning/dictionary/${assetId}${suffix}`, {
+		cache: 'no-store',
+	});
+	return parseJsonResponse(res, 'Không tải được chi tiết từ.');
+}
+
+export async function fetchDictionaryProgress(
+	assetId: number,
+): Promise<DictionaryProgressPayload> {
+	const res = await fetch(`/api/student/learning/dictionary/${assetId}/progress`, {
+		cache: 'no-store',
+	});
+	return parseJsonResponse(res, 'Không tải được tiến độ từ.');
 }
 
 export async function startFlashcardSession(

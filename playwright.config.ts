@@ -26,7 +26,7 @@ export default defineConfig({
   projects: [
     {
       name: 'games-hub-public',
-      testMatch: /games-hub\/(public|playing-mock|assignment-ready-mock|assignment-start-mock|checklist-ready-mock)\.spec\.ts/,
+      testMatch: /games-hub\/(public|playing-mock|spelling-playing-mock|assignment-ready-mock|assignment-start-mock|checklist-ready-mock)\.spec\.ts/,
     },
     {
       name: 'setup-auth',

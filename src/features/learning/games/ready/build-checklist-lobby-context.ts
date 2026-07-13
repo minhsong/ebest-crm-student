@@ -1,6 +1,7 @@
 import type { GamePromptType } from '@/features/learning/games/catalog/game-catalog.types';
 import type { DrillStartAuthorizeContext } from '@/lib/drill-authorize-client';
 import type { AssignmentDrillContextPayload } from '@/types/learning';
+import type { SpellingDifficulty } from '@ebest/game-engine-core';
 
 /** VM checklist penalty — dùng chung ready/legacy. */
 export function buildChecklistLobbyContext(
@@ -8,6 +9,7 @@ export function buildChecklistLobbyContext(
 	classId: number | null,
 	authorizeContext: DrillStartAuthorizeContext | null,
 	promptType: GamePromptType,
+	spellingDifficulty?: SpellingDifficulty | null,
 ): AssignmentDrillContextPayload | null {
 	if (!checklistId || !classId || !authorizeContext?.rules) {
 		return null;
@@ -31,6 +33,9 @@ export function buildChecklistLobbyContext(
 		minimumScore,
 		modeId: 'pool_coverage',
 		promptType,
+		...(promptType === 'spelling' && spellingDifficulty
+			? { spellingDifficulty }
+			: {}),
 		assignmentPoolSize: poolSize,
 		unlockPoolSize: poolSize,
 		bestScore: authorizeContext.progress?.bestScore ?? 0,

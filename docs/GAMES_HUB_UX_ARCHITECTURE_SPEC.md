@@ -4,7 +4,7 @@
 > **Trạng thái:** Đã triển khai core — Phase D/E còn mở  
 > **Kế hoạch chi tiết:** [GAMES_HUB_IMPLEMENTATION_PLAN.md](./GAMES_HUB_IMPLEMENTATION_PLAN.md)  
 > **Phạm vi:** `/learning/games` và cây route con  
-> **Liên quan:** [STUDENT_PORTAL_LEARNING_UI.md](./STUDENT_PORTAL_LEARNING_UI.md) · [GAME_ENGINE_ARCHITECTURE_SPEC.md](../../ebest-crm-api/docs/monorepo/learning-platform/GAME_ENGINE_ARCHITECTURE_SPEC.md) · [VOCABULARY_DRILL_ENGINE_SPEC.md](../../ebest-crm-api/docs/monorepo/vocabulary-learning-platform/VOCABULARY_DRILL_ENGINE_SPEC.md)
+> **Liên quan:** [STUDENT_PORTAL_LEARNING_UI.md](./STUDENT_PORTAL_LEARNING_UI.md) · [GAME_ENGINE_ARCHITECTURE_SPEC.md](../../ebest-crm-api/docs/monorepo/learning-platform/GAME_ENGINE_ARCHITECTURE_SPEC.md) · [VOCABULARY_DRILL_ENGINE_SPEC.md](../../ebest-crm-api/docs/monorepo/vocabulary-learning-platform/VOCABULARY_DRILL_ENGINE_SPEC.md) · [SPELLING_GAME_SPEC.md](../../ebest-crm-api/docs/monorepo/vocabulary-learning-platform/SPELLING_GAME_SPEC.md) (planned)
 
 ---
 
@@ -34,6 +34,7 @@ flowchart TB
     G2[audio_to_word]
     G3[image_to_word]
     G4[word_to_image]
+    G5[spelling]
   end
   subgraph Mode["Tầng 2 — Mode (modeId)"]
     M1[survival]
@@ -44,6 +45,7 @@ flowchart TB
     R1[answerTimeoutSec]
     R2[sessionDurationSec]
     R3[optionCount]
+    R4[spellingDifficulty]
   end
   Catalog --> Mode
   Mode --> Rules
@@ -121,6 +123,7 @@ Mỗi game (`gameSlug`) có **các segment state** cố định — dễ bookmar
 | `audio-to-word` | `audio_to_word` |
 | `image-to-word` | `image_to_word` |
 | `word-to-image` | `word_to_image` |
+| `spelling` | `spelling` *(title UI: **Spelling** — planned SP-0)* |
 
 **Query params theo state:**
 
@@ -128,6 +131,7 @@ Mỗi game (`gameSlug`) có **các segment state** cố định — dễ bookmar
 |-------|:---:|:---:|:---:|
 | `classId` | ✅ | ✅ | optional |
 | `modeId` | ✅ | *(snapshot trên play)* | optional |
+| `difficulty` | ✅ *(spelling only: easy/medium/hard)* | — | — |
 | `assignmentId` / `checklistId` | khi có | khi có | optional |
 | `playId` | — | **bắt buộc** | **bắt buộc** |
 | `classSessionId` | Best of buổi | — | — |
@@ -357,10 +361,11 @@ flowchart TD
 
 1. **Hero** — tên game, icon, mô tả
 2. **Mode picker** — 3 card: Survival | Speed run | Best of…
-3. **Config panel** (theo mode):
-   - Survival: ghi chú timer 10s/câu (từ `rules.answerTimeoutSec`)
+3. **Config panel** (theo mode + prompt):
+   - Survival: ghi chú timer/câu (MCQ 10s; **Spelling 15s** — `rules.answerTimeoutSec`)
    - Speed run: chọn 60s / 90s / 120s (`rules.sessionDurationSec`) — product quyết default
    - Best of…: chọn nguồn pool — «Cả lớp» / «Buổi học» / «Bài tập» (khi có assignment)
+   - **Spelling only:** `GameSpellingDifficultyPicker` — Dễ / Trung bình / Khó → `rules.spellingDifficulty` ([SPELLING_GAME_SPEC §4.3](../../ebest-crm-api/docs/monorepo/vocabulary-learning-platform/SPELLING_GAME_SPEC.md#43-spellingdifficulty--độ-khó-pool-chữ))
 4. **Leaderboard snapshot** — top 10 + **self row**
 5. **CTA** — «Bắt đầu» → authorize + navigate `/playing?playId=…`
 
@@ -483,6 +488,7 @@ app/(dashboard)/learning/games/[gameSlug]/result/page.tsx
 - [x] Chốt ADR tên mode: Speed run, Best of…
 - [x] Cập nhật spec CRM + Portal doc này
 - [x] Catalog `GAME_CATALOG_ENTRIES` (4 game — meaning, audio, image×2)
+- [ ] Catalog entry **Spelling** (`shipped: false` → pilot) — [SPELLING_GAME_WORK_TRACKER](../../ebest-crm-api/docs/monorepo/vocabulary-learning-platform/SPELLING_GAME_WORK_TRACKER.md)
 
 ### Phase B — Route tree + Catalog UI (1 sprint)
 

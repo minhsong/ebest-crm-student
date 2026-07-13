@@ -14,7 +14,8 @@ export type VocabularyDrillDetailWidgetId =
   | 'meaning_mcq'
   | 'audio_mcq'
   | 'image_mcq'
-  | 'word_image_mcq';
+  | 'word_image_mcq'
+  | 'spelling_tiles';
 
 export type VocabularyDrillLobbyProfileId =
   | 'free_practice'

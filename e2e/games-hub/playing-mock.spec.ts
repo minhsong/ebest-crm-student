@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { stubStudentPortalSession } from '../fixtures/student-session';
 
-const MOCK_PLAY_ID = 'e2e-play-mock-1';
+const MOCK_PLAY_ID = '00000000-0000-4000-8000-000000000001';
 
 const mockQuestion = {
 	questionId: 'q1',
@@ -36,7 +36,7 @@ function buildPlayPayload(status: 'in_progress' | 'completed', scoreInRun = 0) {
 				resultProfileId: 'survival_result',
 			},
 			rules: {
-				answerTimeoutSec: 15,
+				answerTimeoutSec: 10,
 				optionCount: 4,
 				allowRetrySameItem: false,
 			},

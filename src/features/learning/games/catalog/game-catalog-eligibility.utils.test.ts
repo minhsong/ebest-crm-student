@@ -39,4 +39,29 @@ describe('game-catalog-eligibility.utils', () => {
 		expect(result.eligible).toBe(false);
 		expect(result.reason).toMatch(/ảnh/);
 	});
+
+	it('blocks spelling when fewer than 4 spelling-eligible entries (AC-SP-01)', () => {
+		const spelling = GAME_CATALOG_ENTRIES.find((e) => e.slug === 'spelling')!;
+		expect(spelling.shipped).toBe(true);
+		const blocked = resolveGameCatalogEligibility(spelling, {
+			...poolOk,
+			spellingEligibleEntryCount: 3,
+			imageEntryCount: 10,
+		});
+		expect(blocked.eligible).toBe(false);
+		const allowed = resolveGameCatalogEligibility(spelling, {
+			...poolOk,
+			spellingEligibleEntryCount: 4,
+		});
+		expect(allowed.eligible).toBe(true);
+	});
+
+	it('blocks spelling when spellingEligibleEntryCount is missing', () => {
+		const spelling = GAME_CATALOG_ENTRIES.find((e) => e.slug === 'spelling')!;
+		const result = resolveGameCatalogEligibility(spelling, {
+			...poolOk,
+			imageEntryCount: 10,
+		});
+		expect(result.eligible).toBe(false);
+	});
 });

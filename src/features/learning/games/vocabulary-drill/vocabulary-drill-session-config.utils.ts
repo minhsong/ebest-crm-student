@@ -9,12 +9,16 @@ export { isVocabularyDrillPromptType };
 
 /** Lobby stub — delegate catalog assembler (GE SSOT). */
 export function inferVocabularyDrillSessionConfigFromAssignment(
-	ctx: Pick<AssignmentDrillContextPayload, 'modeId' | 'promptType' | 'assignmentId'>,
+	ctx: Pick<
+		AssignmentDrillContextPayload,
+		'modeId' | 'promptType' | 'assignmentId' | 'spellingDifficulty'
+	>,
 ): GameSessionConfig {
 	return buildVocabularyDrillSessionConfigStub({
 		modeId: ctx.modeId,
 		promptType: ctx.promptType,
 		assignmentId: ctx.assignmentId,
 		minimumScore: null,
+		spellingDifficulty: ctx.spellingDifficulty,
 	});
 }

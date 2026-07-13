@@ -97,7 +97,7 @@ describe('resolveVocabularyDrillPresentationFromSessionConfig', () => {
     expect(profile.usesStreakHud).toBe(true);
   });
 
-  it('maps speed_run with session timer layout', () => {
+	it('maps speed_run with session timer layout', () => {
     const profile = resolveVocabularyDrillPresentationFromSessionConfig(
       mockSessionConfig({ modeId: 'speed_run', promptType: 'meaning_to_word' }),
     );
@@ -106,5 +106,22 @@ describe('resolveVocabularyDrillPresentationFromSessionConfig', () => {
     expect(profile.modeLabel).toBe('Speed run');
     expect(profile.usesStreakHud).toBe(false);
     expect(profile.usesPoolProgressBar).toBe(false);
+  });
+
+  it('maps survival spelling to spelling_tiles widget', () => {
+    const profile = resolveVocabularyDrillPresentationFromSessionConfig(
+      mockSessionConfig({
+        modeId: 'survival',
+        promptType: 'spelling',
+        presentation: {
+          coreLayoutProfileId: 'default_game_shell',
+          modeLayoutProfileId: 'survival_streak',
+          detailWidgetId: 'spelling_tiles',
+          resultProfileId: 'survival_result',
+        },
+      }),
+    );
+    expect(profile.detailWidgetId).toBe('spelling_tiles');
+    expect(profile.usesStreakHud).toBe(true);
   });
 });

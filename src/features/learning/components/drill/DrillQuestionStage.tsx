@@ -8,6 +8,7 @@ import { DrillPromptCard } from './DrillPromptCard';
 import { DrillOptionGrid } from './DrillOptionGrid';
 import { DrillFeedbackBurst } from './DrillFeedbackBurst';
 import { DrillQuestionTimer } from './DrillQuestionTimer';
+import { SpellingQuestionStage } from './SpellingQuestionStage';
 
 type Props = {
 	detailWidgetId: VocabularyDrillDetailWidgetId;
@@ -18,6 +19,8 @@ type Props = {
 	secondsLeft: number;
 	totalSeconds: number;
 	onSelect: (optionId: string) => void;
+	onSpellingSubmit?: (tileIds: string[]) => void;
+	onRegisterSpellingGetAnswerTiles?: (getter: (() => string[]) | null) => void;
 };
 
 function DrillQuestionStageInner({
@@ -29,7 +32,23 @@ function DrillQuestionStageInner({
 	secondsLeft,
 	totalSeconds,
 	onSelect,
+	onSpellingSubmit,
+	onRegisterSpellingGetAnswerTiles,
 }: Props) {
+	if (detailWidgetId === 'spelling_tiles') {
+		return (
+			<SpellingQuestionStage
+				question={question}
+				feedback={feedback}
+				optionsLocked={optionsLocked}
+				secondsLeft={secondsLeft}
+				totalSeconds={totalSeconds}
+				onSubmit={(tileIds) => onSpellingSubmit?.(tileIds)}
+				onRegisterGetAnswerTiles={onRegisterSpellingGetAnswerTiles}
+			/>
+		);
+	}
+
 	return (
 		<div className="drill-survival-stage">
 			<DrillQuestionTimer secondsLeft={secondsLeft} totalSeconds={totalSeconds} />

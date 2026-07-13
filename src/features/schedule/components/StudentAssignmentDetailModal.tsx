@@ -79,6 +79,12 @@ import {
   buildVocabularyDrillStartHref,
   isVocabularyDrillAssignment,
 } from '@/lib/assignment-list-row-actions';
+import { fetchAssignmentDrillContext } from '@/lib/learning-api';
+import type { AssignmentDrillContextPayload } from '@/types/learning';
+import {
+  formatGamePromptTypeLabel,
+  formatSpellingDifficultyLabel,
+} from '@/features/learning/games/vocabulary-drill/game-config-labels';
 import {
   isWritingExerciseType,
   isWritingDictationMode,
@@ -137,6 +143,7 @@ export function StudentAssignmentDetailModal({
   const { fetchWithAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<StudentAssignmentDetail | null>(null);
+  const [drillCtx, setDrillCtx] = useState<AssignmentDrillContextPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<
@@ -247,6 +254,7 @@ export function StudentAssignmentDetailModal({
   useEffect(() => {
     if (!open || assignmentId == null) {
       setDetail(null);
+      setDrillCtx(null);
       setError(null);
       setLoading(false);
       setSubmissionNote('');
@@ -255,6 +263,7 @@ export function StudentAssignmentDetailModal({
 
     let cancelled = false;
     setDetail(null);
+    setDrillCtx(null);
     setError(null);
     setLoading(true);
     setSubmissionNote('');
@@ -366,10 +375,34 @@ export function StudentAssignmentDetailModal({
     [detail],
   );
 
+  useEffect(() => {
+    if (!open || !isVocabularyDrillExercise || !detail?.assignmentId) {
+      setDrillCtx(null);
+      return;
+    }
+
+    let cancelled = false;
+    void fetchAssignmentDrillContext(detail.assignmentId)
+      .then((ctx) => {
+        if (!cancelled) setDrillCtx(ctx);
+      })
+      .catch(() => {
+        if (!cancelled) setDrillCtx(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, isVocabularyDrillExercise, detail?.assignmentId]);
+
   const vocabularyDrillStartHref = useMemo(() => {
     if (!detail?.classId || !Number.isFinite(detail.classId)) return null;
-    return buildVocabularyDrillStartHref(detail.classId, detail.assignmentId);
-  }, [detail?.assignmentId, detail?.classId]);
+    return buildVocabularyDrillStartHref(
+      detail.classId,
+      detail.assignmentId,
+      drillCtx?.promptType,
+    );
+  }, [detail?.assignmentId, detail?.classId, drillCtx?.promptType]);
 
   const canStartVocabularyDrill = useMemo(() => {
     if (!isVocabularyDrillExercise || !vocabularyDrillStartHref) return false;
@@ -384,13 +417,25 @@ export function StudentAssignmentDetailModal({
 
   const vocabularyDrillCardDescription = useMemo(() => {
     if (!detail) return '';
+    const gameLine =
+      drillCtx?.promptType != null
+        ? [
+            formatGamePromptTypeLabel(drillCtx.promptType),
+            drillCtx.promptType === 'spelling'
+              ? formatSpellingDifficultyLabel(drillCtx.spellingDifficulty)
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        : null;
     if (canStartVocabularyDrill) {
       const hasScore =
         detail.result?.resultStatus === CRM_ASSIGNMENT_RESULT_STATUS.GRADED ||
         Boolean(detail.result?.scoreDisplay?.trim());
-      return hasScore
+      const actionLine = hasScore
         ? 'Chơi lại để cải thiện điểm — kết quả đồng bộ sổ điểm sau khi hoàn thành.'
         : 'Luyện từ theo pool GV giao — hoàn thành để nộp điểm vào sổ điểm.';
+      return gameLine ? `${gameLine}. ${actionLine}` : actionLine;
     }
     if (detail.learningAccess?.readOnlyReason) {
       return detail.learningAccess.readOnlyReason;
@@ -399,7 +444,7 @@ export function StudentAssignmentDetailModal({
       return 'Đã quá hạn — chỉ xem lại thông tin bài.';
     }
     return 'Không mở được game luyện từ cho bài này.';
-  }, [canStartVocabularyDrill, deadlinePassed, detail]);
+  }, [canStartVocabularyDrill, deadlinePassed, detail, drillCtx]);
 
   const headerExerciseIcon = useMemo(() => {
     const t = (detail?.exerciseType ?? '').trim().toLowerCase();

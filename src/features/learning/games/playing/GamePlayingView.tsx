@@ -95,6 +95,8 @@ export function GamePlayingView() {
 		secondsLeft,
 		totalSeconds,
 		handleAnswer,
+		handleSpellingSubmit,
+		registerSpellingGetAnswerTiles,
 		poolProgress,
 		gradebookSyncFailed,
 		abandonSession,
@@ -191,6 +193,8 @@ export function GamePlayingView() {
 					secondsLeft={secondsLeft}
 					totalSeconds={totalSeconds}
 					onSelect={(id) => void handleAnswer(id)}
+					onSpellingSubmit={(tileIds) => void handleSpellingSubmit(tileIds)}
+					onRegisterSpellingGetAnswerTiles={registerSpellingGetAnswerTiles}
 				/>
 			) : (
 				<DrillGameSplashScreen title="Đang tải câu hỏi…" />

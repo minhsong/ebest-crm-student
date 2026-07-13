@@ -17,20 +17,28 @@ export const mockDrillQuestion = {
 export function buildMockDrillSessionConfig(overrides?: {
 	modeId?: string;
 	promptType?: string;
+	spellingDifficulty?: 'easy' | 'medium' | 'hard';
 }) {
+	const promptType = overrides?.promptType ?? 'meaning_to_word';
+	const isSpelling = promptType === 'spelling';
+	const spellingDifficulty = overrides?.spellingDifficulty ?? 'easy';
+	const answerTimeoutSec = isSpelling
+		? ({ easy: 30, medium: 20, hard: 15 } as const)[spellingDifficulty]
+		: 10;
 	return {
 		gameFamily: 'vocabulary_drill',
 		modeId: overrides?.modeId ?? 'survival',
-		promptType: overrides?.promptType ?? 'meaning_to_word',
+		promptType,
 		presentation: {
 			modeLayoutProfileId: 'survival_streak',
-			detailWidgetId: 'meaning_mcq',
+			detailWidgetId: isSpelling ? 'spelling_tiles' : 'meaning_mcq',
 			resultProfileId: 'survival_result',
 		},
 		rules: {
-			answerTimeoutSec: 15,
-			optionCount: 4,
-			allowRetrySameItem: false,
+			answerTimeoutSec,
+			...(isSpelling
+				? { spellingDifficulty, allowRetrySameItem: false }
+				: { optionCount: 4, allowRetrySameItem: false }),
 		},
 	};
 }
@@ -58,7 +66,10 @@ export function buildMockDrillAuthorizeSuccess(overrides?: {
 		promptType: overrides?.promptType ?? 'meaning_to_word',
 		rules: {
 			minimumScore: overrides?.minimumScore ?? 10,
-			answerTimeoutSec: 15,
+			answerTimeoutSec:
+				overrides?.promptType === 'spelling'
+					? 30
+					: 10,
 		},
 		pool: {
 			totalAssetIds: assetIds,

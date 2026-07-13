@@ -1,9 +1,11 @@
 import { parseLearningAccess } from '@/features/learning/utils/learning-access';
 import type { DrillPracticeSelection } from '@/features/learning/games/core/types/game-drill-shared.types';
+import type { GameSessionConfig } from '@/features/learning/games/core/types/game-session-config.types';
 import type {
 	AssignmentDrillContextPayload,
 	VocabularyPoolPayload,
 } from '@/types/learning';
+import { DEFAULT_SPELLING_DIFFICULTY } from '@/features/learning/games/vocabulary-drill/spelling.constants';
 
 const DEFAULT_SELECTION: DrillPracticeSelection = {
 	modeId: 'survival',
@@ -32,12 +34,47 @@ export function resolveVocabularyDrillSelection(input: {
 		return {
 			modeId: input.assignmentCtx.modeId,
 			promptType: input.assignmentCtx.promptType,
+			...(input.assignmentCtx.promptType === 'spelling'
+				? {
+						spellingDifficulty:
+							input.assignmentCtx.spellingDifficulty ?? DEFAULT_SPELLING_DIFFICULTY,
+					}
+				: {}),
 		};
 	}
 	if (input.promptTypeFromSlug) {
-		return { ...input.selection, promptType: input.promptTypeFromSlug };
+		return {
+			...input.selection,
+			promptType: input.promptTypeFromSlug,
+			spellingDifficulty:
+				input.promptTypeFromSlug === 'spelling'
+					? (input.selection.spellingDifficulty ?? DEFAULT_SPELLING_DIFFICULTY)
+					: undefined,
+		};
 	}
 	return input.selection;
+}
+
+/** Đồng bộ lobby selection sau authorize / prefetch checklist (sessionConfig SSOT). */
+export function selectionFromVocabularyDrillSessionConfig(
+	sessionConfig: GameSessionConfig,
+): DrillPracticeSelection {
+	return {
+		modeId: sessionConfig.modeId,
+		promptType: sessionConfig.promptType,
+		...(sessionConfig.modeId === 'speed_run' &&
+		sessionConfig.rules.sessionDurationSec != null
+			? {
+					sessionDurationSec: sessionConfig.rules.sessionDurationSec as 60 | 90 | 120,
+				}
+			: {}),
+		...(sessionConfig.promptType === 'spelling'
+			? {
+					spellingDifficulty:
+						sessionConfig.rules.spellingDifficulty ?? DEFAULT_SPELLING_DIFFICULTY,
+				}
+			: {}),
+	};
 }
 
 export function resolveVocabularyDrillCanStart(input: {

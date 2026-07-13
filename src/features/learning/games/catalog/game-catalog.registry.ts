@@ -31,6 +31,13 @@ export const GAME_CATALOG_ENTRIES: GameCatalogEntry[] = [
 		description: 'Đọc từ tiếng Anh, chọn đúng hình minh họa.',
 		shipped: true,
 	},
+	{
+		slug: 'spelling',
+		promptType: 'spelling',
+		title: 'Spelling',
+		description: 'Nhìn ảnh, đọc nghĩa tiếng Việt, sắp chữ cái thành từ tiếng Anh.',
+		shipped: true,
+	},
 ];
 
 const SLUG_TO_ENTRY = new Map(GAME_CATALOG_ENTRIES.map((e) => [e.slug, e]));

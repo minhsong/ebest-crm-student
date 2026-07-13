@@ -1,7 +1,7 @@
 /* Games Hub — mobile-first gaming UI (catalog, ready, result) */
 
 .games-hub-page {
-	max-width: 520px;
+	max-width: min(100%, 520px);
 	margin: 0 auto;
 	padding: 10px max(10px, env(safe-area-inset-left)) max(20px, env(safe-area-inset-bottom))
 		max(10px, env(safe-area-inset-right));
@@ -13,16 +13,104 @@
 	}
 }
 
+@media (min-width: 768px) {
+	.games-hub-page {
+		max-width: min(100%, 680px);
+	}
+}
+
+@media (min-width: 1024px) {
+	.games-hub-page.games-hub-page--catalog {
+		max-width: min(100%, 1200px);
+		padding: 20px 24px 32px;
+	}
+}
+
 .games-hub-page .games-hub-page-header {
 	margin-bottom: 12px;
+}
+
+@media (min-width: 1024px) {
+	.games-hub-page .games-hub-page-header {
+		margin-bottom: 20px;
+	}
 }
 
 .games-hub-page .games-hub-page-header h2 {
 	font-size: 1.125rem;
 }
 
+@media (min-width: 1024px) {
+	.games-hub-page .games-hub-page-header h2 {
+		font-size: 1.375rem;
+	}
+}
+
 .games-hub-page .games-hub-page-header .text-\[13px\] {
 	font-size: 12px;
+}
+
+/* ─── Catalog hub: 2 cột desktop (trái: stats, phải: game) ─── */
+
+.games-hub-layout {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	margin-top: 4px;
+}
+
+.games-hub-layout__main {
+	order: 1;
+	min-width: 0;
+}
+
+.games-hub-layout__aside {
+	order: 2;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding-top: 16px;
+	border-top: 1px solid var(--drill-border, #d9d9d9);
+}
+
+.games-hub-main__title {
+	margin: 0 0 8px;
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--drill-text-secondary, rgba(0, 0, 0, 0.65));
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+
+.games-hub-main__hint {
+	display: block;
+	margin-top: 12px;
+	font-size: 12px;
+}
+
+@media (min-width: 1024px) {
+	.games-hub-layout {
+		display: grid;
+		grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+		gap: 28px;
+		align-items: start;
+	}
+
+	.games-hub-layout__main {
+		order: unset;
+	}
+
+	.games-hub-layout__aside {
+		order: unset;
+		position: sticky;
+		top: 16px;
+		padding-top: 0;
+		border-top: none;
+	}
+
+	.games-hub-main__title {
+		display: none;
+	}
 }
 
 /* ─── Quick actions toolbar ─── */
@@ -85,6 +173,19 @@
 		display: grid;
 		grid-template-columns: repeat(2, 1fr);
 		gap: 12px;
+	}
+}
+
+@media (min-width: 1024px) {
+	.games-hub-layout__main .games-hub-catalog {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 14px;
+	}
+}
+
+@media (min-width: 1280px) {
+	.games-hub-layout__main .games-hub-catalog {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
 }
 
@@ -424,6 +525,9 @@
 
 .games-hub-page .drill-game-shell {
 	min-height: min(100dvh - 88px, 720px);
+	max-width: 640px;
+	margin-left: auto;
+	margin-right: auto;
 	border-radius: 16px;
 	border-width: 2px;
 }

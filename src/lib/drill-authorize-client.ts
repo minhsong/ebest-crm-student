@@ -1,4 +1,4 @@
-import type { GameSessionConfig } from '@/features/learning/games/core/types/game-session-config.types';
+import type { GameSessionConfig, SpellingDifficulty } from '@/features/learning/games/core/types/game-session-config.types';
 
 export type DrillAuthorizeSuccess = {
   allowed: true;
@@ -57,6 +57,7 @@ export async function authorizeDrillSession(
     modeId?: GameSessionConfig['modeId'];
     promptType?: GameSessionConfig['promptType'];
     sessionDurationSec?: 60 | 90 | 120;
+    spellingDifficulty?: SpellingDifficulty;
   },
 ): Promise<DrillAuthorizeResult> {
   const res = await fetch('/api/student/learning/drill/authorize', {
@@ -70,6 +71,7 @@ export async function authorizeDrillSession(
       modeId: options?.modeId,
       promptType: options?.promptType,
       sessionDurationSec: options?.sessionDurationSec,
+      spellingDifficulty: options?.spellingDifficulty,
     }),
     cache: 'no-store',
   });

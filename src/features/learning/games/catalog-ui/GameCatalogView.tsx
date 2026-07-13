@@ -64,72 +64,77 @@ export function GameCatalogView() {
 	}, [selectedClassId]);
 
 	return (
-		<div className="games-hub-page drill-page">
+		<div className="games-hub-page games-hub-page--catalog drill-page">
 			<PageHeader
 				className="games-hub-page-header"
 				title="Game luyện từ"
 				description="Chọn dạng game — Survival, Speed run hoặc Best of…"
 			/>
 
-			<div className="games-hub-catalog games-hub-catalog--primary">
-				{GAME_CATALOG_ENTRIES.map((entry) => {
-					const eligibility = resolveGameCatalogEligibility(
-						entry,
-						selectedClassId ? poolMeta : null,
-					);
-					const disabled = !eligibility.eligible || poolLoading;
+			<div className="games-hub-layout">
+				<aside className="games-hub-layout__aside" aria-label="Thống kê và tiện ích">
+					<h2 className="games-hub-secondary__title">Thống kê &amp; tiện ích</h2>
 
-					return (
-						<GameCatalogCard
-							key={entry.slug}
-							title={entry.title}
-							description={entry.description}
-							icon={catalogIcon(entry.promptType)}
-							shipped={entry.shipped}
-							disabled={disabled}
-							disabledReason={eligibility.reason}
-							onPlay={() => {
-								if (!selectedClassId || disabled) return;
-								router.push(
-									buildGameReadyHref(entry.slug, {
-										classId: selectedClassId,
-										modeId: 'survival',
-									}),
-								);
-							}}
-						/>
-					);
-				})}
+					<LearningDashboardClassContextCard
+						hub={data}
+						hubLoading={hubLoading}
+						selectedClassId={selectedClassId}
+						onClassChange={setSelectedClassId}
+						selectedClass={selectedClass}
+						label="Lớp cho game & BXH"
+					/>
+
+					<LearningWeekStatsPart
+						title="Tuần này"
+						loading={hubLoading}
+						stats={weekStats}
+						items={GAMES_WEEK_STAT_ITEMS}
+						gridClassName="learning-dashboard-stats"
+					/>
+
+					<GameHubQuickActions classId={selectedClassId} />
+				</aside>
+
+				<main className="games-hub-layout__main">
+					<h2 className="games-hub-main__title">Chọn game</h2>
+					<div className="games-hub-catalog games-hub-catalog--primary">
+						{GAME_CATALOG_ENTRIES.map((entry) => {
+							const eligibility = resolveGameCatalogEligibility(
+								entry,
+								selectedClassId ? poolMeta : null,
+							);
+							const disabled = !eligibility.eligible || poolLoading;
+
+							return (
+								<GameCatalogCard
+									key={entry.slug}
+									title={entry.title}
+									description={entry.description}
+									icon={catalogIcon(entry.promptType)}
+									shipped={entry.shipped}
+									disabled={disabled}
+									disabledReason={eligibility.reason}
+									onPlay={() => {
+										if (!selectedClassId || disabled) return;
+										router.push(
+											buildGameReadyHref(entry.slug, {
+												classId: selectedClassId,
+												modeId: 'survival',
+											}),
+										);
+									}}
+								/>
+							);
+						})}
+					</div>
+
+					{!selectedClassId ? (
+						<Text type="secondary" className="games-hub-main__hint">
+							Chọn lớp ở cột bên trái để bắt đầu chơi.
+						</Text>
+					) : null}
+				</main>
 			</div>
-
-			{!selectedClassId ? (
-				<Text type="secondary" className="mt-3 block text-xs">
-					Chọn lớp ở mục bên dưới để bắt đầu chơi.
-				</Text>
-			) : null}
-
-			<section className="games-hub-secondary" aria-label="Thống kê và tiện ích">
-				<h2 className="games-hub-secondary__title">Thống kê &amp; tiện ích</h2>
-
-				<LearningDashboardClassContextCard
-					hub={data}
-					hubLoading={hubLoading}
-					selectedClassId={selectedClassId}
-					onClassChange={setSelectedClassId}
-					selectedClass={selectedClass}
-					label="Lớp cho game & BXH"
-				/>
-
-				<LearningWeekStatsPart
-					title="Tuần này"
-					loading={hubLoading}
-					stats={weekStats}
-					items={GAMES_WEEK_STAT_ITEMS}
-					gridClassName="learning-dashboard-stats"
-				/>
-
-				<GameHubQuickActions classId={selectedClassId} />
-			</section>
 		</div>
 	);
 }

@@ -138,6 +138,93 @@ export interface VocabularyFamilyMemberSummary {
 	family?: number | null;
 }
 
+export interface DictionarySuggestItem {
+	assetId: number;
+	word: string;
+	partOfSpeech: string;
+	displayLabel: string;
+	translationPreview: string;
+}
+
+export interface DictionarySuggestPayload {
+	items: DictionarySuggestItem[];
+	meta: { query: string; count: number };
+}
+
+export interface DictionarySearchItem {
+	assetId: number;
+	word: string;
+	partOfSpeech: string;
+	partOfSpeechLabel?: string;
+	displayLabel: string;
+	translationPreview: string;
+	hasAudio: boolean;
+	hasImage: boolean;
+	isPrimary: boolean;
+	siblingCount: number;
+}
+
+export interface DictionarySearchPayload {
+	items: DictionarySearchItem[];
+	pagination: {
+		total: number;
+		current: number;
+		pageSize: number;
+		totalPages: number;
+	};
+	meta: { query: string };
+}
+
+export interface DictionaryDetailFamilyMember {
+	assetId: number;
+	word: string;
+	partOfSpeech: string;
+	displayLabel: string;
+	translationPreview: string;
+	isPrimary: boolean;
+}
+
+export interface DictionaryDetailAsset {
+	id: number;
+	word: string;
+	partOfSpeech: string;
+	partOfSpeechLabel?: string;
+	displayLabel: string;
+	meaningEn?: string;
+	translations: Record<string, string>;
+	ipaUk?: string;
+	ipaUs?: string;
+	audioUkUrl?: string;
+	audioUsUrl?: string;
+	imageUrl?: string;
+	example?: string;
+	exampleTranslation?: string;
+	synonyms?: string[];
+	antonyms?: string[];
+	domainTags?: Array<{ code: string; name: string }>;
+	familyMembers?: DictionaryDetailFamilyMember[];
+}
+
+export type DictionaryLookupSource = 'suggest' | 'search' | 'direct';
+
+export interface DictionaryDetailPayload {
+	asset: DictionaryDetailAsset;
+	practice?: {
+		canPractice: boolean;
+		reason?: string;
+		flashcardHref?: string;
+		drillHref?: string;
+	} | null;
+}
+
+export interface DictionaryProgressPayload {
+	assetId: number;
+	masteryState: string;
+	masteryLabel: string;
+	timesSeen: number;
+	accuracyRate: number | null;
+}
+
 export interface LearningVocabularyItem {
 	order: number;
 	asset: {
@@ -164,6 +251,9 @@ export interface LearningVocabularyItem {
 		audioUkUrl?: string;
 		audioUsUrl?: string;
 		imageUrl?: string;
+		synonyms?: string[];
+		antonyms?: string[];
+		domainTags?: Array<{ code: string; name: string }>;
 		status: string;
 	};
 	progress: LearningProgressSummary;
@@ -223,6 +313,8 @@ export interface VocabularyPoolPayload {
 	audioEntryCount?: number;
 	/** Số từ có ảnh — dùng catalog eligibility. */
 	imageEntryCount?: number;
+	/** Spelling — ảnh + nghĩa VI + headword hợp lệ. */
+	spellingEligibleEntryCount?: number;
 	learningAccess?: LearningVocabularyLearningAccess;
 }
 
@@ -242,6 +334,9 @@ export interface DrillQuestionClient {
 		partOfSpeechLabel?: string;
 		imageUrl?: string;
 	}>;
+	spellingTiles?: Array<{ tileId: string; letter: string }>;
+	letterCount?: number;
+	spellingDifficulty?: SpellingDifficulty;
 }
 
 export interface WeakWordRow {
@@ -258,6 +353,7 @@ export interface WeakWordsPayload {
 
 import type {
 	GameSessionConfig,
+	SpellingDifficulty,
 	VocabularyDrillModeId,
 } from '@/features/learning/games/core/types/game-session-config.types';
 
@@ -326,6 +422,8 @@ export interface AssignmentDrillContextPayload {
   bestTotal?: number;
   assignmentComplete: boolean;
   canPlay: boolean;
+  /** GV assignment — độ khó Spelling (SPELLING_GAME_SPEC §4.3). */
+  spellingDifficulty?: SpellingDifficulty;
   /** Phân biệt bài tập lớp vs checklist phạt — copy học viên. */
   contextKind?: 'assignment' | 'checklist_penalty';
   learningAccess?: LearningVocabularyLearningAccess;

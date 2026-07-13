@@ -16,6 +16,7 @@ import {
 	resolveVocabularyDrillCanStart,
 	resolveVocabularyDrillSelection,
 	resolveVocabularyDrillStartBlockReason,
+	selectionFromVocabularyDrillSessionConfig,
 } from '@/features/learning/games/vocabulary-drill/runtime/vocabulary-drill-pool.service';
 import type {
 	AssignmentDrillContextPayload,
@@ -189,6 +190,10 @@ export function useVocabularyDrillPool({
 					selectionForStart.modeId === 'speed_run'
 						? selectionForStart.sessionDurationSec
 						: undefined,
+				spellingDifficulty:
+					selectionForStart.promptType === 'spelling'
+						? (selectionForStart.spellingDifficulty ?? 'easy')
+						: undefined,
 			});
 
 			if (!auth.allowed) {
@@ -200,6 +205,7 @@ export function useVocabularyDrillPool({
 			const ctx = toAuthorizeContext(auth);
 			setSessionConfig(auth.sessionConfig);
 			setAuthorizeContext(ctx);
+			setSelection(selectionFromVocabularyDrillSessionConfig(auth.sessionConfig));
 			return ctx;
 		},
 		[assignmentId, checklistId, classId, classSessionId, effectiveClassId],
@@ -235,6 +241,7 @@ export function useVocabularyDrillPool({
 			const ctx = toAuthorizeContext(auth);
 			setSessionConfig(auth.sessionConfig);
 			setAuthorizeContext(ctx);
+			setSelection(selectionFromVocabularyDrillSessionConfig(auth.sessionConfig));
 		});
 
 		return () => {

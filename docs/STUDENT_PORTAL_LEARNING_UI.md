@@ -3,7 +3,8 @@
 > **Cập nhật:** 2026-07-10  
 > **Phạm vi:** `ebest-student-portal/src/features/learning/`  
 > **SSOT nghiệp vụ:** [docs/vocabulary-learning-platform/VOCABULARY_DRILL_ENGINE_SPEC.md](../../ebest-crm-api/docs/monorepo/vocabulary-learning-platform/VOCABULARY_DRILL_ENGINE_SPEC.md)  
-> **SSOT API read-model:** [docs/vocabulary-learning-platform/STUDENT_HUB_VOCABULARY_READ_MODEL.md](../../ebest-crm-api/docs/monorepo/vocabulary-learning-platform/STUDENT_HUB_VOCABULARY_READ_MODEL.md)
+> **SSOT API read-model:** [docs/vocabulary-learning-platform/STUDENT_HUB_VOCABULARY_READ_MODEL.md](../../ebest-crm-api/docs/monorepo/vocabulary-learning-platform/STUDENT_HUB_VOCABULARY_READ_MODEL.md)  
+> **Từ điển HV:** [VOCABULARY_DICTIONARY_SPEC.md](../../ebest-crm-api/docs/monorepo/vocabulary-learning-platform/VOCABULARY_DICTIONARY_SPEC.md) · [STUDENT_PORTAL_VOCABULARY_DICTIONARY_UI.md](./STUDENT_PORTAL_VOCABULARY_DICTIONARY_UI.md)
 
 ---
 

@@ -4,8 +4,14 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 import { Button, Descriptions, Space, Tag, Typography, theme } from 'antd';
 import { PlayCircleOutlined } from '@ant-design/icons';
-import { buildGameReadyHref } from '@/features/learning/games/session/game-route.utils';
-import { DEFAULT_GAME_SLUG } from '@/features/learning/games/catalog/game-catalog.registry';
+import {
+	buildChecklistGameReadyHref,
+	parseChecklistGameConfig,
+} from '@/features/learning/games/vocabulary-drill/checklist-game-config.util';
+import {
+	formatGamePromptTypeLabel,
+	formatSpellingDifficultyLabel,
+} from '@/features/learning/games/vocabulary-drill/game-config-labels';
 import type { StudentChecklistDetail } from '@/types/student-checklists';
 import { checklistTypeLabel } from '@/lib/checklist-labels';
 
@@ -18,14 +24,15 @@ type Props = {
 export function StudentChecklistDetailBody({ detail }: Props) {
   const { token } = theme.useToken();
   const isGamePenalty = detail.checklist.typeKey === 'vocab_game_penalty';
+  const gameConfig = parseChecklistGameConfig(detail.checklist.gameConfig ?? null);
   const playHref = useMemo(
     () =>
-      buildGameReadyHref(DEFAULT_GAME_SLUG, {
-        classId: detail.checklist.classId,
-        checklistId: detail.checklist.id,
-        modeId: 'pool_coverage',
-      }),
-    [detail.checklist.classId, detail.checklist.id],
+      buildChecklistGameReadyHref(
+        detail.checklist.classId,
+        detail.checklist.id,
+        detail.checklist.gameConfig ?? null,
+      ),
+    [detail.checklist.classId, detail.checklist.id, detail.checklist.gameConfig],
   );
 
   return (
@@ -47,6 +54,19 @@ export function StudentChecklistDetailBody({ detail }: Props) {
 
       {isGamePenalty && detail.gameProgress ? (
         <Descriptions bordered size="small" column={1}>
+          {gameConfig ? (
+            <>
+              <Descriptions.Item label="Loại game">
+                {formatGamePromptTypeLabel(gameConfig.promptType)}
+              </Descriptions.Item>
+              {gameConfig.promptType === 'spelling' &&
+              formatSpellingDifficultyLabel(gameConfig.spellingDifficulty) ? (
+                <Descriptions.Item label="Độ khó">
+                  {formatSpellingDifficultyLabel(gameConfig.spellingDifficulty)}
+                </Descriptions.Item>
+              ) : null}
+            </>
+          ) : null}
           <Descriptions.Item label="Nhiệm vụ">
             Trả lời đúng ít nhất {detail.gameProgress.minimumScore} từ trong một lượt chơi
           </Descriptions.Item>

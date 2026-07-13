@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 
-import { DRILL_ANSWER_TIMEOUT_SEC } from '@/features/learning/constants/drill-timing';
 import type { GameSessionConfig } from '@/features/learning/games/core/types/game-session-config.types';
 import type { DrillPracticeSelection } from '@/features/learning/games/core/types/game-drill-shared.types';
 import {
@@ -251,6 +250,9 @@ export function useVocabularyDrillSession({
 		resolvedSelection,
 	]);
 
+	const activePromptType =
+		sessionConfig?.promptType ?? resolvedSelection.promptType;
+
 	const gameSession = useGameSession<
 		DrillSessionClient,
 		DrillQuestionClient,
@@ -276,6 +278,7 @@ export function useVocabularyDrillSession({
 		},
 		submitAnswerHttp: vocabularyDrillRuntimeAdapter.submitAnswer,
 		getQuestionId: (q) => q.questionId,
+		spellingAnswerMode: activePromptType === 'spelling',
 		onAnswerResult,
 		onSessionStarted: (started) => {
 			if (isPoolCoverage && assignmentPoolSize) {
@@ -343,6 +346,6 @@ export function useVocabularyDrillSession({
 		gradebookSyncFailed,
 		isPoolCoverage,
 		isSpeedRun,
-		answerTimeoutSec: sessionConfig?.rules?.answerTimeoutSec ?? DRILL_ANSWER_TIMEOUT_SEC,
+		answerTimeoutSec: timerConfig.timerSeconds,
 	};
 }
