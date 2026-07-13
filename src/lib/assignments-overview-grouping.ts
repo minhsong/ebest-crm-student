@@ -10,6 +10,8 @@ export type AssignmentOverviewRow = {
   deadline: string | null;
   testQuizFormPublicId: string | null;
   quizMaxAttempts: number | null;
+  vocabularyDrillPromptType?: string | null;
+  vocabularyDrillModeId?: string | null;
   sessionId: number;
   sessionTitle: string;
   scheduledDate: string;
@@ -81,6 +83,8 @@ export function groupAssignmentsFromOverview(
           testQuizFormPublicId: a.testQuizFormPublicId?.trim() || null,
           quizMaxAttempts:
             typeof a.quizMaxAttempts === 'number' ? a.quizMaxAttempts : null,
+          vocabularyDrillPromptType: a.vocabularyDrillPromptType ?? null,
+          vocabularyDrillModeId: a.vocabularyDrillModeId ?? null,
           sessionId: session.sessionId,
           sessionTitle: session.title ?? 'Buổi học',
           scheduledDate: session.scheduledDate,

@@ -193,6 +193,7 @@ export const DASHBOARD_MENU_ITEMS: DashboardMenuItem[] = DASHBOARD_MENU_ENTRIES.
 /** Submenu «Học tập» — thứ tự hiển thị (khớp hub cards + trang). */
 const LEARNING_MENU_CHILDREN: Array<{ path: string; label: string; icon?: ReactNode }> = [
   { path: '/learning', label: 'Tổng quan', icon: <ReadOutlined /> },
+  { path: '/learning/dictionary', label: 'Từ điển', icon: <BookOutlined /> },
   { path: '/learning/vocabulary', label: 'Luyện từ vựng', icon: <FontSizeOutlined /> },
   { path: '/learning/games', label: 'Game luyện từ', icon: <PlayCircleOutlined /> },
   { path: '/learning/games/leaderboard', label: 'Bảng xếp hạng', icon: <TrophyOutlined /> },
@@ -408,6 +409,7 @@ const PATH_LABELS: Record<string, string> = {
   '/classes': 'Lớp học của tôi',
   '/schedule': 'Lịch học',
   '/learning': 'Học tập',
+  '/learning/dictionary': 'Từ điển',
   '/learning/vocabulary': 'Luyện từ vựng',
   '/learning/flashcard': 'Flashcard',
   '/learning/games': 'Game luyện từ',

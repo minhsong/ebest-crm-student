@@ -30,7 +30,11 @@ export function AssignmentOverviewRowActions({
   const action = deriveAssignmentListRowAction(row, { canInteract });
 
   if (action.kind === 'vocabulary_drill_start') {
-    const href = buildVocabularyDrillStartHref(action.classId, action.assignmentId);
+    const href = buildVocabularyDrillStartHref(
+      action.classId,
+      action.assignmentId,
+      row.vocabularyDrillPromptType,
+    );
     return (
       <Link href={href} prefetch={false}>
         <Button type="primary" size={size} icon={<PlayCircleOutlined />}>

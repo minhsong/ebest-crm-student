@@ -35,6 +35,8 @@ export interface OverviewSessionRow {
     testQuizFormPublicId?: string | null;
     /** null = không giới hạn lần làm. */
     quizMaxAttempts?: number | null;
+    vocabularyDrillPromptType?: string | null;
+    vocabularyDrillModeId?: string | null;
   }>;
 }
 

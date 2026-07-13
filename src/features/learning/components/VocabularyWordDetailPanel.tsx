@@ -1,6 +1,6 @@
 'use client';
 
-import { Typography } from 'antd';
+import { Typography, Tag, Space } from 'antd';
 import type { LearningVocabularyItem } from '@/types/learning';
 import { MasteryBadge } from '@/features/learning/components/MasteryBadge';
 import { VocabularyPronunciationRow } from '@/features/learning/components/VocabularyPronunciationRow';
@@ -23,6 +23,11 @@ type Props = {
 	onPlayAudio: (locale: 'uk' | 'us', url?: string) => void;
 	sessionAssetIds?: Set<number>;
 	onSelectFamilyMember?: (assetId: number) => void;
+	/** Dictionary mode — hiện meaningEn, synonyms, domain tags */
+	showExtendedDictionaryFields?: boolean;
+	hideProgress?: boolean;
+	/** Card grid biến thể đầy đủ (từ điển) vs list buổi học */
+	familyPanelMode?: 'session' | 'dictionary';
 };
 
 export function VocabularyWordDetailPanel({
@@ -31,6 +36,9 @@ export function VocabularyWordDetailPanel({
 	onPlayAudio,
 	sessionAssetIds,
 	onSelectFamilyMember,
+	showExtendedDictionaryFields = false,
+	hideProgress = false,
+	familyPanelMode = 'session',
 }: Props) {
 	const { asset, progress } = item;
 	const primaryMeaning = getPrimaryMeaning(asset);
@@ -61,10 +69,12 @@ export function VocabularyWordDetailPanel({
 							className="vocab-word-detail__pos"
 						/>
 					</div>
-					<MasteryBadge
-						state={progress.masteryState}
-						label={progress.masteryLabel}
-					/>
+					{hideProgress ? null : (
+						<MasteryBadge
+							state={progress.masteryState}
+							label={progress.masteryLabel}
+						/>
+					)}
 				</div>
 			</div>
 
@@ -74,12 +84,16 @@ export function VocabularyWordDetailPanel({
 					currentId={asset.id}
 					sessionAssetIds={sessionAssetIds}
 					onSelect={onSelectFamilyMember}
+					mode={familyPanelMode}
 				/>
 			) : null}
 
 			<div className="vocab-word-detail__section">
 				<span className="vocab-word-detail__section-title">Nghĩa</span>
 				<p className="vocab-word-detail__meaning">{primaryMeaning}</p>
+				{showExtendedDictionaryFields && asset.meaningEn?.trim() ? (
+					<p className="vocab-word-detail__meaning-en">{asset.meaningEn}</p>
+				) : null}
 				{extraMeanings.length > 0 ? (
 					<ul className="vocab-word-detail__meanings-list">
 						{extraMeanings.map((meaning) => (
@@ -88,6 +102,39 @@ export function VocabularyWordDetailPanel({
 					</ul>
 				) : null}
 			</div>
+
+			{showExtendedDictionaryFields &&
+			(asset.synonyms?.length || asset.antonyms?.length) ? (
+				<div className="vocab-word-detail__section">
+					{asset.synonyms?.length ? (
+						<>
+							<span className="vocab-word-detail__section-title">Đồng nghĩa</span>
+							<p className="vocab-word-detail__tags-line">
+								{asset.synonyms.join(', ')}
+							</p>
+						</>
+					) : null}
+					{asset.antonyms?.length ? (
+						<>
+							<span className="vocab-word-detail__section-title">Trái nghĩa</span>
+							<p className="vocab-word-detail__tags-line">
+								{asset.antonyms.join(', ')}
+							</p>
+						</>
+					) : null}
+				</div>
+			) : null}
+
+			{showExtendedDictionaryFields && asset.domainTags?.length ? (
+				<div className="vocab-word-detail__section">
+					<span className="vocab-word-detail__section-title">Chủ đề</span>
+					<Space size={[4, 4]} wrap>
+						{asset.domainTags.map((tag) => (
+							<Tag key={tag.code}>{tag.name}</Tag>
+						))}
+					</Space>
+				</div>
+			) : null}
 
 			{hasVocabularyPronunciation(asset) ? (
 				<div className="vocab-word-detail__section">
@@ -127,6 +174,7 @@ export function VocabularyWordDetailPanel({
 				</div>
 			) : null}
 
+			{hideProgress ? null : (
 			<div className="vocab-word-detail__section">
 				<span className="vocab-word-detail__section-title">Tiến độ ôn tập</span>
 				<div className="vocab-word-detail__progress-grid">
@@ -156,6 +204,7 @@ export function VocabularyWordDetailPanel({
 					</div>
 				</div>
 			</div>
+			)}
 		</div>
 	);
 }
