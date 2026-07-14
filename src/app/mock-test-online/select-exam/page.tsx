@@ -1,11 +1,14 @@
+import { redirect } from 'next/navigation';
 import { MockTestOnlineSelectExamForm } from '@/components/public-mock-test-online/MockTestOnlineSelectExamForm';
 import { MockTestOnlineSeoJsonLd } from '@/components/public-mock-test-online/MockTestOnlineSeoJsonLd';
 import { loadMockTestOnlineSelectExamPageData } from '@/lib/public-mock-test-online/fetch-online.server';
-import { getMockTestOnlinePendingLeadId } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
+import { getMockTestOnlineFunnelSessionId } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
 import { fetchMockTestOnlineSeo } from '@/lib/public-mock-test-online/seo/fetch-seo.server';
 import { buildPageMetadata } from '@/lib/metadata';
 import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
 import { resolveSelectExamAttemptStatus } from '@/lib/public-mock-test-online/resolve-select-exam-attempt-status.server';
+import { fetchGatewayFunnelSession } from '@/lib/public-mock-test-online/ssr/fetch-mock-test-online-gateway.server';
+import { buildMockTestOnlineConfirmExamPath } from '@/lib/public-mock-test-online/select-exam-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +27,24 @@ export default async function MockTestOnlineSelectExamPage({
 }: PageProps) {
 	const sp = await searchParams;
 	const pendingLeadId =
-		sp.lead?.trim() || getMockTestOnlinePendingLeadId() || '';
+		sp.lead?.trim() || getMockTestOnlineFunnelSessionId() || '';
+
+	if (pendingLeadId) {
+		const funnel = await fetchGatewayFunnelSession(pendingLeadId);
+		if (
+			funnel?.resumeStep === 'verify' &&
+			funnel.pendingRegistrationId?.trim()
+		) {
+			redirect(
+				buildMockTestOnlineConfirmExamPath({
+					pendingRegistrationId: funnel.pendingRegistrationId.trim(),
+					pendingLeadId: funnel.funnelSessionId,
+					sessionId: funnel.selectedSessionId ?? undefined,
+				}),
+			);
+		}
+	}
+
 	const campaignRaw = sp.campaign?.trim();
 	const campaignId = campaignRaw ? parseInt(campaignRaw, 10) : undefined;
 

@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { MockTestOnlineRegisterForm } from '@/components/public-mock-test-online/MockTestOnlineRegisterForm';
 import { MockTestOnlineSeoJsonLd } from '@/components/public-mock-test-online/MockTestOnlineSeoJsonLd';
 import { loadMockTestOnlineLeadRegisterPageData } from '@/lib/public-mock-test-online/fetch-online.server';
-import { getMockTestOnlinePendingLeadId } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
+import { getMockTestOnlineFunnelSessionId } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
 import { redirectLeadRegisterIfAttemptBlocked } from '@/lib/public-mock-test-online/register-attempt-precheck.server';
 import { resolveRegisterAttemptStatus } from '@/lib/public-mock-test-online/resolve-register-attempt-status.server';
 import {
@@ -10,6 +10,8 @@ import {
 	pickSeoWidgetCopy,
 } from '@/lib/public-mock-test-online/seo/fetch-seo.server';
 import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
+import { fetchGatewayFunnelSession } from '@/lib/public-mock-test-online/ssr/fetch-mock-test-online-gateway.server';
+import { buildMockTestOnlineConfirmExamPath } from '@/lib/public-mock-test-online/select-exam-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,15 +21,28 @@ export default async function MockTestOnlineRegisterPage({
 	searchParams: Promise<{ new?: string }>;
 }) {
 	const sp = await searchParams;
-	const existingLead = getMockTestOnlinePendingLeadId();
+	const existingLead = getMockTestOnlineFunnelSessionId();
 	if (existingLead && sp.new !== '1') {
+		const funnel = await fetchGatewayFunnelSession(existingLead);
+		if (
+			funnel?.resumeStep === 'verify' &&
+			funnel.pendingRegistrationId?.trim()
+		) {
+			redirect(
+				buildMockTestOnlineConfirmExamPath({
+					pendingRegistrationId: funnel.pendingRegistrationId.trim(),
+					pendingLeadId: funnel.funnelSessionId,
+					sessionId: funnel.selectedSessionId ?? undefined,
+				}),
+			);
+		}
 		redirect(
 			`/mock-test-online/select-exam?lead=${encodeURIComponent(existingLead)}`,
 		);
 	}
 
 	const session = await resolvePortalSessionFromCookies();
-	let attemptStatus = await resolveRegisterAttemptStatus({
+	const attemptStatus = await resolveRegisterAttemptStatus({
 		session,
 		pendingLeadId: existingLead || undefined,
 	});

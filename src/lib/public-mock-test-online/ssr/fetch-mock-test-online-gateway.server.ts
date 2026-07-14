@@ -80,6 +80,17 @@ export type GatewayLeadPendingAttemptContext = {
 	primaryPhoneE164: string;
 };
 
+export type GatewayFunnelSessionPublic = {
+	funnelSessionId: string;
+	pendingLeadId: string;
+	omniLeadId: string;
+	resumeStep: 'select' | 'verify';
+	status: 'lead_registered' | 'awaiting_verify';
+	selectedSessionId: number | null;
+	pendingRegistrationId: string | null;
+	primaryPhoneE164: string;
+};
+
 export async function fetchGatewayLeadPendingAttemptContext(
 	pendingLeadId: string,
 ): Promise<GatewayLeadPendingAttemptContext | null> {
@@ -88,6 +99,18 @@ export async function fetchGatewayLeadPendingAttemptContext(
 	const res = await fetchGatewayPublic<GatewayLeadPendingAttemptContext>(
 		`lead-pending/${encodeURIComponent(id)}/attempt-context`,
 		'Không tải được thông tin đăng ký.',
+	);
+	return res.data;
+}
+
+export async function fetchGatewayFunnelSession(
+	funnelSessionId: string,
+): Promise<GatewayFunnelSessionPublic | null> {
+	const id = funnelSessionId.trim();
+	if (!id) return null;
+	const res = await fetchGatewayPublic<GatewayFunnelSessionPublic>(
+		`funnel-session/${encodeURIComponent(id)}`,
+		'Không tải được phiên đăng ký.',
 	);
 	return res.data;
 }

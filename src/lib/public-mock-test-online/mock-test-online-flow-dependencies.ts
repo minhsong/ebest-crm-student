@@ -23,14 +23,15 @@ export type MockTestOnlineFunnelStep =
  *
  * | Bước | URL params hợp lệ | Redis / state server | Sau bước này |
  * |------|-------------------|----------------------|--------------|
- * | B1 intake | — | `lead-pending:{pendingLeadId}` TTL ~24h | Cookie `mto_pending_lead` 7d; xóa localStorage draft |
- * | B2 select-exam POST | body `pendingLeadId` | **Xóa** lead; tạo `pending:{uuid}` + `lead-selected:{leadId}`→pending | localStorage select-exam cache 7d |
- * | B2c confirm | `pending` **bắt buộc** (+ lead/session lịch sử) | `pending` + `zaloConfirmTokenPlain` | — |
+ * | B1 intake | — | FunnelSession `lead-pending:{id}` resumeStep=select · TTL funnel | Cookie `mto_funnel_session` (+ dual `mto_pending_lead`) 7d |
+ * | B2 select-exam POST | body `pendingLeadId` | **Giữ** FunnelSession; set resumeStep=verify + pendingRegistrationId; `pending:{uuid}` + `lead-selected` | localStorage select-exam cache 7d |
+ * | B2c confirm | `pending` **bắt buộc** (+ lead/session) | `pending` + FunnelSession resume verify | — |
  * | B3 exam | sessionStorage exam auth | PG registration; mã 6 ký tự TTL ≤30 phút | — |
  *
- * Recovery khi Redis hết hạn / bookmark URL cũ:
- * - **Luôn** về `/mock-test-online` (entry tự route register hoặc resume exam nếu còn auth hợp lệ).
- * - **Không** gợi ý `select-exam?lead=…` sau khi đã POST B2 — lead thường đã xóa.
+ * Recovery:
+ * - Cookie funnel còn + resumeStep=verify → `/confirm-exam?pending=…` (register page).
+ * - Cookie funnel còn + resumeStep=select → `/select-exam?lead=…`.
+ * - Redis hết hạn → `/mock-test-online` restart.
  */
 export type MockTestOnlineRecoveryKind = 'restart_landing';
 
