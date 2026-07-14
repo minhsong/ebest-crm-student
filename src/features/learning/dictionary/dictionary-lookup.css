@@ -122,11 +122,32 @@
 }
 
 .dictionary-lookup__back {
-	margin-bottom: 1rem;
+	margin-bottom: 0.25rem;
 	padding-left: 0;
 }
 
-.dictionary-lookup--detail .dictionary-lookup__detail-stack {
+.dictionary-lookup__detail-panel {
+	width: 100%;
+}
+
+.dictionary-lookup__detail-toolbar {
+	margin-bottom: 0.75rem;
+}
+
+.dictionary-lookup__detail-title-block {
+	margin-top: 0.25rem;
+}
+
+.dictionary-lookup__detail-title {
+	margin: 0 !important;
+}
+
+.dictionary-lookup__detail-sub {
+	display: block;
+	margin-top: 0.25rem;
+}
+
+.dictionary-lookup__detail-stack {
 	width: 100%;
 }
 

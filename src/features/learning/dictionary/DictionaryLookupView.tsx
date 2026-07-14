@@ -16,13 +16,16 @@ import {
 import { SearchOutlined } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout';
 import { DictionarySearchCard } from '@/features/learning/dictionary/DictionarySearchCard';
+import { DictionaryWordDetailView } from '@/features/learning/dictionary/DictionaryWordDetailView';
 import { useDictionarySuggest } from '@/features/learning/hooks/useDictionarySuggest';
 import { useDictionarySearch } from '@/features/learning/hooks/useDictionarySearch';
 import {
+  dictionaryLookupHref,
   dictionarySearchHref,
-  dictionaryWordHref,
+  parseDictionaryAssetId,
+  parseDictionaryLookupSource,
 } from '@/features/learning/utils/dictionary-routes';
-import type { DictionarySuggestItem } from '@/types/learning';
+import type { DictionaryLookupSource, DictionarySuggestItem } from '@/types/learning';
 import '@/features/learning/dictionary/dictionary-lookup.css';
 
 const { Paragraph, Text } = Typography;
@@ -32,6 +35,8 @@ export function DictionaryLookupView() {
   const searchParams = useSearchParams();
   const queryFromUrl = searchParams.get('q') ?? '';
   const pageFromUrl = Number(searchParams.get('page') ?? '1');
+  const selectedAssetId = parseDictionaryAssetId(searchParams.get('id'));
+  const lookupSource = parseDictionaryLookupSource(searchParams.get('source'));
 
   const [input, setInput] = useState(queryFromUrl);
 
@@ -60,19 +65,56 @@ export function DictionaryLookupView() {
     [suggestItems],
   );
 
+  const navigateLookup = (next: {
+    q?: string;
+    page?: number;
+    id?: number | null;
+    source?: DictionaryLookupSource;
+  }) => {
+    const q = next.q !== undefined ? next.q : queryFromUrl;
+    const page = next.page !== undefined ? next.page : pageFromUrl;
+    const id =
+      next.id === null
+        ? undefined
+        : next.id !== undefined
+          ? next.id
+          : selectedAssetId ?? undefined;
+    const source =
+      next.id === null
+        ? undefined
+        : next.source !== undefined
+          ? next.source
+          : id != null
+            ? lookupSource
+            : undefined;
+
+    router.replace(
+      dictionaryLookupHref({
+        q: q.trim() || undefined,
+        page,
+        id,
+        source,
+      }),
+      { scroll: false },
+    );
+  };
+
   const runSearch = (value?: string) => {
     const q = (value ?? input).trim();
     if (q.length < 2) return;
-    router.push(dictionarySearchHref(q));
+    router.replace(dictionarySearchHref(q), { scroll: false });
   };
 
-  const onSuggestSelect = (assetId: string) => {
-    const id = Number(assetId);
-    if (!Number.isFinite(id)) return;
-    router.push(dictionaryWordHref(id, 'suggest'));
+  const openWord = (assetId: number, source: DictionaryLookupSource) => {
+    navigateLookup({ id: assetId, source });
+  };
+
+  const clearSelectedWord = () => {
+    navigateLookup({ id: null });
   };
 
   const hasQuery = queryFromUrl.trim().length >= 2;
+  const showingDetail = selectedAssetId != null;
 
   return (
     <div className="dictionary-lookup">
@@ -87,7 +129,11 @@ export function DictionaryLookupView() {
             className="dictionary-lookup__autocomplete"
             value={input}
             options={input.trim().length >= 2 ? suggestOptions : []}
-            onSelect={onSuggestSelect}
+            onSelect={(assetId) => {
+              const id = Number(assetId);
+              if (!Number.isFinite(id)) return;
+              openWord(id, 'suggest');
+            }}
             onChange={setInput}
             notFoundContent={
               input.trim().length < 2 ? null : suggestLoading ? (
@@ -109,47 +155,54 @@ export function DictionaryLookupView() {
         </Card>
       </div>
 
-      {error ? <Alert type="error" showIcon message={error} className="mb-4" /> : null}
-
-      {!hasQuery ? (
-        <Empty description="Nhập ít nhất 2 ký tự để bắt đầu tra cứu." />
-      ) : loading ? (
-        <Skeleton active paragraph={{ rows: 8 }} />
-      ) : items.length ? (
-        <>
-          <Text type="secondary" className="dictionary-lookup__result-meta">
-            {pagination.total} kết quả cho «{queryFromUrl.trim()}»
-          </Text>
-          <div className="dictionary-lookup__grid">
-            {items.map((item) => (
-              <DictionarySearchCard
-                key={item.assetId}
-                item={item}
-                onSelect={(assetId) =>
-                  router.push(dictionaryWordHref(assetId, 'search'))
-                }
-              />
-            ))}
-          </div>
-          {pagination.totalPages > 1 ? (
-            <Pagination
-              className="dictionary-lookup__pagination"
-              current={pagination.current}
-              pageSize={pagination.pageSize}
-              total={pagination.total}
-              showSizeChanger={false}
-              onChange={(page) => {
-                const params = new URLSearchParams({
-                  q: queryFromUrl.trim(),
-                  page: String(page),
-                });
-                router.push(`/learning/dictionary?${params.toString()}`);
-              }}
-            />
-          ) : null}
-        </>
+      {showingDetail ? (
+        <DictionaryWordDetailView
+          assetId={selectedAssetId}
+          lookupSource={lookupSource}
+          onSelectFamilyMember={(id) => openWord(id, lookupSource)}
+          onBackToResults={hasQuery ? clearSelectedWord : undefined}
+        />
       ) : (
-        <Empty description="Không tìm thấy từ phù hợp trong từ điển Ebest." />
+        <>
+          {error ? (
+            <Alert type="error" showIcon message={error} className="mb-4" />
+          ) : null}
+
+          {!hasQuery ? (
+            <Empty description="Nhập ít nhất 2 ký tự để bắt đầu tra cứu." />
+          ) : loading ? (
+            <Skeleton active paragraph={{ rows: 8 }} />
+          ) : items.length ? (
+            <>
+              <Text type="secondary" className="dictionary-lookup__result-meta">
+                {pagination.total} kết quả cho «{queryFromUrl.trim()}»
+              </Text>
+              <div className="dictionary-lookup__grid">
+                {items.map((item) => (
+                  <DictionarySearchCard
+                    key={item.assetId}
+                    item={item}
+                    onSelect={(assetId) => openWord(assetId, 'search')}
+                  />
+                ))}
+              </div>
+              {pagination.totalPages > 1 ? (
+                <Pagination
+                  className="dictionary-lookup__pagination"
+                  current={pagination.current}
+                  pageSize={pagination.pageSize}
+                  total={pagination.total}
+                  showSizeChanger={false}
+                  onChange={(page) => {
+                    navigateLookup({ page, id: null });
+                  }}
+                />
+              ) : null}
+            </>
+          ) : (
+            <Empty description="Không tìm thấy từ phù hợp trong từ điển Ebest." />
+          )}
+        </>
       )}
     </div>
   );

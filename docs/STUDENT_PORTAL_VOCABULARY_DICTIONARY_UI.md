@@ -24,9 +24,12 @@
 
 | Route | View | Mô tả |
 |-------|------|--------|
-| `/learning/dictionary` | `DictionaryLookupView` | Ô tìm kiếm + empty state |
-| `/learning/dictionary?q={q}` | `DictionarySearchResultsView` | Kết quả search (paginated) |
-| `/learning/dictionary/[assetId]` | `DictionaryWordDetailView` | Chi tiết 1 từ (deep link) |
+| `/learning/dictionary` | `DictionaryLookupView` | Search bar cố định + empty / kết quả / chi tiết |
+| `/learning/dictionary?q={q}` | (cùng view) | Kết quả search (paginated) — search bar giữ nguyên |
+| `/learning/dictionary?q=&id=` | (cùng view) | Chi tiết từ **inline** dưới search bar — **không** đổi page |
+| `/learning/dictionary/[assetId]` | redirect → `?id=` | Deep link cũ chuyển về trang lookup |
+
+**UX:** Chọn suggest / card → chỉ cập nhật query `id` (`router.replace`); thanh search và input không mất. «Quay lại kết quả» xóa `id`, giữ `q`.
 
 **Menu sidebar** (submenu «Học tập»): **Từ điển** — sau «Tổng quan», trước «Luyện từ vựng».
 
@@ -68,8 +71,8 @@ User gõ → debounce 300ms
 | Hành vi | Chi tiết |
 |---------|----------|
 | Keyboard ↑↓ | Chọn item dropdown |
-| Enter (có selection) | Navigate detail `[assetId]` |
-| Enter (không selection) | Navigate `/learning/dictionary?q=` → search view |
+| Enter (có selection) | Mở chi tiết inline (`?id=`), giữ search bar |
+| Enter (không selection) | `?q=` → danh sách kết quả trên cùng trang |
 | Escape | Đóng dropdown |
 | Click outside | Đóng dropdown |
 
@@ -82,13 +85,15 @@ User gõ → debounce 300ms
 - UI: grid `VocabularyWordCard` (variant compact — không mastery badge bắt buộc)
 - Pagination: Ant Design `Pagination`, max 20/trang — **không** infinite scroll (tránh scrape UX)
 
-### 4.3 Detail
+### 4.3 Detail (inline trên trang search)
 
-- Trigger: click card · chọn suggest · deep link `/dictionary/[assetId]`
+- Trigger: click card · chọn suggest · deep link `/dictionary/[assetId]` (redirect `?id=`)
+- UI: thay khối kết quả bằng `DictionaryWordDetailView` — **search bar sticky vẫn hiện**
 - API: `GET .../dictionary/[assetId]`
 - Panel: `VocabularyWordDetailPanel` mở rộng (synonyms, meaningEn, domain tags)
 - Progress: lazy `GET .../progress` — skeleton khi load
 - Practice CTA: hiện nút flashcard/drill **chỉ khi** `practice.canPractice === true`
+- Quay lại kết quả: xóa `id`, giữ `q` / pagination
 
 ---
 
