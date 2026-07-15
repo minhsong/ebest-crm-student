@@ -200,6 +200,16 @@ export function ProfileForm({
         setLoginKeyWarningAction(null);
         return;
       }
+      // Email trùng chính KH đang complete-profile → không pre-check trùng.
+      if (
+        email &&
+        customer.primaryEmail?.trim() &&
+        email.toLowerCase() === customer.primaryEmail.trim().toLowerCase()
+      ) {
+        setLoginKeyWarning(null);
+        setLoginKeyWarningAction(null);
+        return;
+      }
       const result = await checkLoginKeyAvailability({
         email: email || undefined,
         phone: phone || undefined,
@@ -213,7 +223,7 @@ export function ProfileForm({
       setLoginKeyWarning(null);
       setLoginKeyWarningAction(null);
     },
-    [customer.id, form],
+    [customer.id, customer.primaryEmail, form],
   );
 
   const tagGroups = useMemo(() => {
