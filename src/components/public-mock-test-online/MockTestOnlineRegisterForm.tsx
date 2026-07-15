@@ -1,8 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
+	Alert,
 	App,
 	Button,
 	Checkbox,
@@ -30,8 +32,23 @@ import {
 	readIntakeDraft,
 	writeIntakeDraft,
 } from '@/lib/public-mock-test-online/mock-test-online-intake-draft';
+import { extractMockTestOnlineApiError } from '@/lib/public-mock-test-online/mock-test-online-api-error';
+import {
+	mockTestOnlineErrorCopyFromUnknown,
+	resolveMockTestOnlineApiErrorCopy,
+} from '@/lib/public-mock-test-online/mock-test-online-session-errors.util';
+import { PORTAL_MOCK_TEST_RESULTS_ROUTES } from '@/lib/portal-auth/session-routes';
+import { useFanpageContactUrl } from '@/contexts/portal-contact-links-context';
+import { ContactSupportRichText } from '@/components/portal-contact/ContactSupportRichText';
 
 const { Text, Title, Paragraph } = Typography;
+
+type IntakeUiError = {
+	title: string;
+	description: string;
+	errorCode?: string;
+	action?: 'login' | 'contact_support' | 'retry';
+};
 
 export type MockTestOnlineRegisterFormProps = {
 	profileOptions: PublicRegistrationOptions | null;
@@ -52,16 +69,23 @@ export function MockTestOnlineRegisterForm({
 	profileOptions,
 	profileOptionsError = null,
 	initialContact = null,
-	widgetTitle = 'Đăng ký thi thử TOEIC online miễn phí',
+	widgetTitle = 'Đăng ký',
 	widgetIntro = 'Điền thông tin liên hệ để bắt đầu. Sau bước này bạn sẽ chọn bài thi và xác minh qua Zalo.',
 	attemptStatus = null,
 	intakeBlocked = false,
 }: MockTestOnlineRegisterFormProps) {
 	const router = useRouter();
 	const { message } = App.useApp();
+	const fanpageUrl = useFanpageContactUrl();
 	const [form] = Form.useForm<MockTestOnlineRegisterFormValues>();
 	const [submitting, setSubmitting] = useState(false);
+	const [intakeError, setIntakeError] = useState<IntakeUiError | null>(null);
 	const draftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	const loginHref = useMemo(() => {
+		const returnUrl = encodeURIComponent('/mock-test-online');
+		return `${PORTAL_MOCK_TEST_RESULTS_ROUTES.login}?returnUrl=${returnUrl}`;
+	}, []);
 
 	useEffect(() => {
 		const draft = readIntakeDraft();
@@ -93,9 +117,12 @@ export function MockTestOnlineRegisterForm({
 	const onFinish = useCallback(
 		async (values: MockTestOnlineRegisterFormValues) => {
 			setSubmitting(true);
+			setIntakeError(null);
 			try {
 				const recaptchaToken = await executeRecaptchaMockTestOnlineIntake();
 				const profile = collectPublicProfilePayload(values);
+				const { expectedScore: _omitExpected, ...profileWithoutExpected } =
+					profile;
 				const res = await fetch('/api/public/mock-test-online/intake', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
@@ -106,18 +133,59 @@ export function MockTestOnlineRegisterForm({
 						resultDeliveryEmail: Boolean(values.resultDeliveryEmail),
 						consentMarketing: values.consentMarketing,
 						recaptchaToken,
-						...profile,
+						...profileWithoutExpected,
 					}),
 				});
-				const data = (await res.json()) as MockTestOnlineLeadIntakeResponse & {
-					message?: string;
-				};
+				const data = (await res.json()) as MockTestOnlineLeadIntakeResponse &
+					Record<string, unknown>;
 				if (!res.ok) {
-					throw new Error(data.message ?? 'Đăng ký thất bại.');
+					const extracted = extractMockTestOnlineApiError(data);
+					const inferredCode =
+						extracted.errorCode ??
+						(/email.*đã được dùng|đã được dùng trên cổng/i.test(
+							extracted.message,
+						)
+							? 'EMAIL_ALREADY_IN_SYSTEM'
+							: /số điện thoại này đã gắn/i.test(extracted.message)
+								? 'PHONE_ALREADY_IN_SYSTEM'
+								: undefined);
+					const copy = resolveMockTestOnlineApiErrorCopy({
+						message: extracted.message,
+						errorCode: inferredCode,
+						step: 'b1_register_intake',
+					});
+					const action =
+						extracted.action ??
+						(copy.recovery === 'login' ||
+						copy.recovery === 'contact_support' ||
+						copy.recovery === 'retry'
+							? copy.recovery
+							: 'retry');
+					const description =
+						inferredCode === 'RATE_LIMITED' && extracted.message.trim()
+							? extracted.message
+							: inferredCode &&
+								  extracted.message.trim() &&
+								  extracted.message.trim() !== copy.title
+								? extracted.message
+								: copy.description;
+					setIntakeError({
+						title: copy.title,
+						description,
+						errorCode: inferredCode,
+						action,
+					});
+					return;
 				}
 
 				if (!data.pendingLeadId) {
-					throw new Error('Không nhận được phản hồi. Vui lòng thử lại.');
+					setIntakeError({
+						title: 'Không nhận được phản hồi đăng ký',
+						description:
+							'Vui lòng thử lại. Nếu vẫn lỗi, liên hệ Fanpage Ebest để được hỗ trợ.',
+						action: 'retry',
+					});
+					return;
 				}
 
 				message.success('Đăng ký thành công. Chọn bài thi tiếp theo nhé!');
@@ -126,9 +194,21 @@ export function MockTestOnlineRegisterForm({
 					`/mock-test-online/select-exam?lead=${encodeURIComponent(data.pendingLeadId)}`,
 				);
 			} catch (e) {
-				message.error(
-					e instanceof Error ? e.message : 'Đăng ký thất bại. Thử lại sau.',
+				const copy = mockTestOnlineErrorCopyFromUnknown(
+					e,
+					'b1_register_intake',
+					'Đăng ký thất bại',
 				);
+				setIntakeError({
+					title: copy.title,
+					description: copy.description,
+					action:
+						copy.recovery === 'login' ||
+						copy.recovery === 'contact_support' ||
+						copy.recovery === 'retry'
+							? copy.recovery
+							: 'retry',
+				});
 			} finally {
 				setSubmitting(false);
 			}
@@ -150,117 +230,182 @@ export function MockTestOnlineRegisterForm({
 					Hoàn thành bài thi đang làm dở trước khi đăng ký lượt thi mới.
 				</Paragraph>
 			) : (
-			<Form
-				form={form}
-				layout="vertical"
-				onFinish={onFinish}
-				onValuesChange={(_, allValues) => scheduleDraftSave(allValues)}
-				initialValues={{
-					displayName: initialContact?.displayName ?? '',
-					primaryPhone: initialContact?.primaryPhone ?? '',
-					primaryEmail: initialContact?.primaryEmail ?? '',
-					consentMarketing: false,
-					resultDeliveryEmail: false,
-				}}
-			>
-				<Text strong className="mock-test-section-title">
-					Thông tin liên hệ
-				</Text>
-				<Form.Item
-					name="displayName"
-					label="Họ và tên"
-					rules={publicMockTestFormRules.displayName}
+				<Form
+					form={form}
+					layout="vertical"
+					onFinish={onFinish}
+					onValuesChange={(_, allValues) => {
+						setIntakeError(null);
+						scheduleDraftSave(allValues);
+					}}
+					initialValues={{
+						displayName: initialContact?.displayName ?? '',
+						primaryPhone: initialContact?.primaryPhone ?? '',
+						primaryEmail: initialContact?.primaryEmail ?? '',
+						consentMarketing: false,
+						resultDeliveryEmail: false,
+					}}
 				>
-					<Input placeholder="Nguyễn Văn A" maxLength={255} autoComplete="name" />
-				</Form.Item>
-				<Form.Item
-					name="primaryPhone"
-					label="Số điện thoại"
-					rules={publicMockTestFormRules.primaryPhone}
-					getValueFromEvent={(v: string | undefined) => v}
-				>
-					<PhoneInputField placeholder="0901234567" />
-				</Form.Item>
-				<Form.Item
-					name="primaryEmail"
-					label="Email (tuỳ chọn)"
-					dependencies={['resultDeliveryEmail']}
-					rules={[
-						{ type: 'email', message: 'Email không hợp lệ' },
-						{ max: 255, message: 'Email tối đa 255 ký tự' },
-						({ getFieldValue }) => ({
-							validator(_, value) {
-								if (!getFieldValue('resultDeliveryEmail')) {
-									return Promise.resolve();
-								}
-								if (typeof value === 'string' && value.trim()) {
-									return Promise.resolve();
-								}
-								return Promise.reject(
-									new Error('Vui lòng nhập email để nhận kết quả qua email.'),
-								);
-							},
-						}),
-					]}
-				>
-					<Input
-						type="email"
-						placeholder="email@example.com"
-						maxLength={255}
-						autoComplete="email"
-					/>
-				</Form.Item>
+					{intakeError ? (
+						<Alert
+							className="!mb-4"
+							type="warning"
+							showIcon
+							message={
+								<ContactSupportRichText text={intakeError.title} />
+							}
+							description={
+								<ContactSupportRichText text={intakeError.description} />
+							}
+							action={
+								<Space direction="vertical" size="small">
+									{intakeError.action === 'login' ? (
+										<Link href={loginHref}>
+											<Button type="primary" size="small">
+												Đăng nhập cổng học viên
+											</Button>
+										</Link>
+									) : null}
+									{intakeError.action === 'contact_support' ||
+									intakeError.action === 'login' ||
+									intakeError.action === 'retry' ? (
+										<Button
+											size="small"
+											href={fanpageUrl}
+											target="_blank"
+											rel="noopener noreferrer"
+										>
+											Nhắn tin Fanpage Ebest
+										</Button>
+									) : null}
+									{intakeError.action === 'retry' ? (
+										<Button
+											size="small"
+											onClick={() => {
+												setIntakeError(null);
+												form.submit();
+											}}
+										>
+											Thử lại
+										</Button>
+									) : null}
+								</Space>
+							}
+						/>
+					) : null}
 
-				<PublicMockTestProfileFields
-					options={profileOptions}
-					optionsError={profileOptionsError}
-				/>
-
-				<Divider className="!my-4" />
-
-				<Form.Item name="resultDeliveryEmail" valuePropName="checked" className="!mb-3">
-					<Checkbox>
-						Nhận kết quả qua email (cần xác nhận email sau khi hoàn thành bài thi)
-					</Checkbox>
-				</Form.Item>
-
-				<Form.Item
-					name="consentMarketing"
-					valuePropName="checked"
-					className="!mb-4"
-					rules={[
-						{
-							validator: (_, v) =>
-								v
-									? Promise.resolve()
-									: Promise.reject(
-											new Error('Vui lòng đồng ý điều khoản nhận thông tin.'),
+					<Text strong className="mock-test-section-title">
+						Thông tin liên hệ
+					</Text>
+					<Form.Item
+						name="displayName"
+						label="Họ và tên"
+						rules={publicMockTestFormRules.displayName}
+					>
+						<Input
+							placeholder="Nguyễn Văn A"
+							maxLength={255}
+							autoComplete="name"
+						/>
+					</Form.Item>
+					<Form.Item
+						name="primaryPhone"
+						label="Số điện thoại"
+						rules={publicMockTestFormRules.primaryPhone}
+						getValueFromEvent={(v: string | undefined) => v}
+					>
+						<PhoneInputField placeholder="0901234567" />
+					</Form.Item>
+					<Form.Item
+						name="primaryEmail"
+						label="Email (tuỳ chọn)"
+						dependencies={['resultDeliveryEmail']}
+						rules={[
+							{ type: 'email', message: 'Email không hợp lệ' },
+							{ max: 255, message: 'Email tối đa 255 ký tự' },
+							({ getFieldValue }) => ({
+								validator(_, value) {
+									if (!getFieldValue('resultDeliveryEmail')) {
+										return Promise.resolve();
+									}
+									if (typeof value === 'string' && value.trim()) {
+										return Promise.resolve();
+									}
+									return Promise.reject(
+										new Error(
+											'Vui lòng nhập email để nhận kết quả qua email.',
 										),
-						},
-					]}
-				>
-					<Checkbox>
-						Tôi đồng ý nhận thông tin tư vấn và ưu đãi từ Ebest.
-					</Checkbox>
-				</Form.Item>
+									);
+								},
+							}),
+						]}
+					>
+						<Input
+							type="email"
+							placeholder="email@example.com"
+							maxLength={255}
+							autoComplete="email"
+						/>
+					</Form.Item>
 
-				<Form.Item className="!mb-0">
-					<Space direction="vertical" className="w-full" size="small">
-						<Button
-							type="primary"
-							htmlType="submit"
-							size="large"
-							block
-							loading={submitting}
-						>
-							Tiếp tục — chọn bài thi
-						</Button>
-						<Text type="secondary" className="text-xs block text-center">
-							Bước tiếp theo: chọn bài thi, xác minh Zalo và làm bài.
-						</Text>
-					</Space>
-				</Form.Item>
-			</Form>
+					<PublicMockTestProfileFields
+						options={profileOptions}
+						optionsError={profileOptionsError}
+						includeExpectedScore={false}
+					/>
+
+					<Divider className="!my-4" />
+
+					<Form.Item
+						name="resultDeliveryEmail"
+						valuePropName="checked"
+						className="!mb-3"
+					>
+						<Checkbox>
+							Nhận kết quả qua email (cần xác nhận email sau khi hoàn thành bài
+							thi)
+						</Checkbox>
+					</Form.Item>
+
+					<Form.Item
+						name="consentMarketing"
+						valuePropName="checked"
+						className="!mb-4"
+						rules={[
+							{
+								validator: (_, v) =>
+									v
+										? Promise.resolve()
+										: Promise.reject(
+												new Error(
+													'Vui lòng đồng ý điều khoản nhận thông tin.',
+												),
+											),
+							},
+						]}
+					>
+						<Checkbox>
+							Tôi đồng ý nhận thông tin tư vấn và ưu đãi từ Ebest.
+						</Checkbox>
+					</Form.Item>
+
+					<Form.Item className="!mb-0">
+						<Space direction="vertical" className="w-full" size="small">
+							<Button
+								type="primary"
+								htmlType="submit"
+								size="large"
+								block
+								loading={submitting}
+							>
+								Tiếp tục — chọn bài thi
+							</Button>
+							<Text type="secondary" className="text-xs block text-center">
+								Bước tiếp theo: chọn bài thi, xác minh Zalo và làm bài.
+							</Text>
+						</Space>
+					</Form.Item>
+				</Form>
 			)}
 		</MockTestOnlineFunnelShell>
 	);

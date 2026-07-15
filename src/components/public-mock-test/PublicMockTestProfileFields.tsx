@@ -12,6 +12,11 @@ const UNIVERSITY_TAG_CATEGORY = 'education_institution';
 interface Props {
 	options: PublicRegistrationOptions | null;
 	optionsError?: string | null;
+	/**
+	 * Online funnel: điểm kỳ vọng thu trước khi làm bài (theo lần thi).
+	 * @default true — form trung tâm vẫn giữ field.
+	 */
+	includeExpectedScore?: boolean;
 }
 
 function TagGroupField({ group }: { group: PublicRegistrationTagGroup }) {
@@ -63,7 +68,11 @@ function UniversityOtherField() {
 	);
 }
 
-export function PublicMockTestProfileFields({ options, optionsError = null }: Props) {
+export function PublicMockTestProfileFields({
+	options,
+	optionsError = null,
+	includeExpectedScore = true,
+}: Props) {
 	if (optionsError && !options?.groups?.length) {
 		return (
 			<Alert type="warning" showIcon message={optionsError} className="!mb-4" />
@@ -100,27 +109,33 @@ export function PublicMockTestProfileFields({ options, optionsError = null }: Pr
 				))}
 			</div>
 
-			<Form.Item
-				name="expectedScore"
-				label="Điểm kỳ vọng (TOEIC L/R)"
-				extra="Điểm bạn muốn đạt trong lần thi này — tùy chọn, giúp hỗ trợ bạn tốt hơn."
-				rules={publicMockTestFormRules.expectedScore}
-			>
-				<InputNumber
-					className="!w-full"
-					min={10}
-					max={990}
-					step={5}
-					placeholder="VD: 650"
-				/>
-			</Form.Item>
+			{includeExpectedScore ? (
+				<Form.Item
+					name="expectedScore"
+					label="Điểm kỳ vọng"
+					extra="Tùy chọn — đăng ký tại trung tâm. Thi online hỏi điểm kỳ vọng trước mỗi lần làm bài (theo loại đề)."
+					rules={publicMockTestFormRules.expectedScore}
+				>
+					<InputNumber
+						className="!w-full"
+						min={0}
+						max={9999}
+						step={1}
+						placeholder="VD: 650"
+					/>
+				</Form.Item>
+			) : null}
 
 			<Form.Item name="consultationNote" label="Ghi chú thêm (tùy chọn)">
 				<Input.TextArea
 					rows={3}
 					maxLength={500}
 					showCount
-					placeholder="Mục tiêu TOEIC, thời gian dự kiến thi, ghi chú thêm…"
+					placeholder={
+						includeExpectedScore
+							? 'Mục tiêu học, thời gian dự kiến thi, ghi chú thêm…'
+							: 'Ghi chú thêm (nếu có)…'
+					}
 				/>
 			</Form.Item>
 		</>

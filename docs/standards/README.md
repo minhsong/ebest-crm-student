@@ -34,6 +34,9 @@
 | `src/lib/portal-bff-get-route.ts` | GET BFF pattern |
 | `src/lib/student-safe-errors.ts` | Sanitize lỗi |
 | `src/lib/env.ts` | Server-only env |
+| `src/contexts/portal-session-context.tsx` | **SSOT identity actor** (guest/lead/customer) |
+| `src/lib/portal-auth/portal-session.client.ts` | Client fetch session + logout |
+| `src/lib/portal-auth/portal-session-nav.ts` | Home / post-login path helpers |
 
 ---
 

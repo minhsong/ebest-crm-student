@@ -14,11 +14,15 @@ async function parseJson<T>(res: Response): Promise<T & { message?: string; erro
 }
 
 function throwApiError(res: Response, data: unknown): never {
-	const { message, errorCode } = extractMockTestOnlineApiError(data);
+	const { message, errorCode, action } = extractMockTestOnlineApiError(data);
 	if (res.status === 429) {
-		throw new MockTestOnlineApiError(message, errorCode ?? 'RATE_LIMITED');
+		throw new MockTestOnlineApiError(
+			message,
+			errorCode ?? 'RATE_LIMITED',
+			action ?? 'retry',
+		);
 	}
-	throw new MockTestOnlineApiError(message, errorCode);
+	throw new MockTestOnlineApiError(message, errorCode, action);
 }
 
 export async function fetchMockTestOnlinePendingStatus(

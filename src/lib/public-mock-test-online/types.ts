@@ -96,7 +96,6 @@ export type MockTestOnlineSelectExamResponse = {
 
 
 export type MockTestOnlinePollStatus = {
-
 	pendingRegistrationId?: string;
 
 	registrationId: number | null;
@@ -117,6 +116,12 @@ export type MockTestOnlinePollStatus = {
 
 	autoProceedAvailable?: boolean;
 
+	/** Chặn xác minh Zalo — copy từ Gateway, sẵn sàng hiện trên web. */
+	verifyIssue?: {
+		kind: 'zalo_linked_other_account' | 'zalo_used_for_other_registration';
+		title: string;
+		description: string;
+	};
 };
 
 

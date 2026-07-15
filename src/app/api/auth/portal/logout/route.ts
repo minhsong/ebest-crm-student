@@ -1,10 +1,8 @@
-import { clearLeadAccessTokenCookie } from '@/lib/lead-auth-cookie';
-import { clearStudentAccessTokenCookie } from '@/lib/auth-cookie';
+import { clearAllPortalAuthCookies } from '@/lib/portal-auth/portal-auth-session.server';
 import { NextResponse } from 'next/server';
 
-/** Xóa cả cookie học viên + lead (LP-API-02). */
+/** Xóa cả cookie học viên + lead (LP-API-02 / Q9). */
 export async function POST() {
-  clearStudentAccessTokenCookie();
-  clearLeadAccessTokenCookie();
-  return NextResponse.json({ ok: true });
+	clearAllPortalAuthCookies();
+	return NextResponse.json({ ok: true });
 }

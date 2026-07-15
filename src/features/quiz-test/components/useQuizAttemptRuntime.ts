@@ -162,6 +162,8 @@ export function useQuizAttemptRuntime({
   const [attemptHistory, setAttemptHistory] = useState<QuizAttemptHistoryItem[]>([]);
   const [remainingSeconds, setRemainingSeconds] = useState<number>(REMAINING_UNSET);
   const [rulesAcknowledged, setRulesAcknowledged] = useState(false);
+  const [mtoExpectedScore, setMtoExpectedScore] = useState<number | null>(null);
+  const [mtoSpeakerChecked, setMtoSpeakerChecked] = useState(false);
   const [listeningRemaining, setListeningRemaining] = useState<Record<string, number>>({});
   const listeningRemainingRef = useRef<Record<string, number>>({});
   listeningRemainingRef.current = listeningRemaining;
@@ -635,7 +637,7 @@ export function useQuizAttemptRuntime({
   // Start Attempt
   // ============================================================================
 
-  const handleStart = useCallback(async () => {
+  const handleStart = useCallback(async (opts?: { expectedScore?: number | null }) => {
     if (!formPayload) return;
     setPhase('starting');
     setErrMsg(null);
@@ -651,7 +653,13 @@ export function useQuizAttemptRuntime({
       }
 
       const stored = getQuizFormContext(formPublicId);
-      const snapshot =
+      const mtoActive = isMockTestOnlineQuizRuntimeActive(runtimeVariant);
+      const expectedScore =
+        mtoActive && opts?.expectedScore != null && Number.isFinite(opts.expectedScore)
+          ? opts.expectedScore
+          : null;
+
+      const snapshot: Record<string, unknown> | undefined =
         assignmentId != null && assignmentId >= 1
           ? {
               assignmentId,
@@ -668,7 +676,9 @@ export function useQuizAttemptRuntime({
                     ? (stored.quizMaxAttempts ?? null)
                     : null,
               }
-            : undefined;
+            : mtoActive && expectedScore != null
+              ? { expectedScore }
+              : undefined;
       const startBodyObj: Record<string, unknown> = {};
       if (snapshot) {
         startBodyObj.participantSnapshot = snapshot;
@@ -684,6 +694,22 @@ export function useQuizAttemptRuntime({
 
       if (!ok) {
         throw new Error(quizRuntimeErrorMessage(status, data, 'start'));
+      }
+
+      if (mtoActive && expectedScore != null) {
+        const { loadMockTestOnlineExamAuth } = await import(
+          '@/lib/public-mock-test-online/exam-session'
+        );
+        const { persistMockTestOnlineExpectedScore } = await import(
+          '@/lib/public-mock-test-online/exam-expected-score.util'
+        );
+        const auth = loadMockTestOnlineExamAuth({ allowExpiredToken: true });
+        if (auth?.registrationId) {
+          persistMockTestOnlineExpectedScore({
+            registrationId: auth.registrationId,
+            expectedScore,
+          });
+        }
       }
 
       invalidateActiveQuizAttemptCache(formPublicId);
@@ -708,7 +734,7 @@ export function useQuizAttemptRuntime({
       if (!data.resumed) {
         setAnswers({});
         answersRef.current = {};
-      } else if (isMockTestOnlineQuizRuntimeActive(runtimeVariant) && data.attemptPublicId) {
+      } else if (mtoActive && data.attemptPublicId) {
         patchMockTestOnlineExamAuth({ attemptPublicId: data.attemptPublicId });
       }
       setPhase('attempting');
@@ -721,7 +747,7 @@ export function useQuizAttemptRuntime({
       );
       setPhase('confirm_start');
     }
-  }, [assignmentId, fetchFormPayload, formPayload, formPublicId, practiceMode, querySuffix]);
+  }, [assignmentId, fetchFormPayload, formPayload, formPublicId, practiceMode, querySuffix, runtimeVariant]);
 
   const onAnswerChange = useCallback(
     (formItemId: string, value: string | string[]) => {
@@ -974,6 +1000,8 @@ export function useQuizAttemptRuntime({
 
   const openConfirmStart = useCallback(() => {
     setRulesAcknowledged(false);
+    setMtoExpectedScore(null);
+    setMtoSpeakerChecked(false);
     setPhase('confirm_start');
   }, []);
 
@@ -1088,12 +1116,15 @@ export function useQuizAttemptRuntime({
     attemptHistory,
     remainingSeconds,
     rulesAcknowledged,
+    setRulesAcknowledged,
+    mtoExpectedScore,
+    setMtoExpectedScore,
+    mtoSpeakerChecked,
+    setMtoSpeakerChecked,
     listeningRemaining,
     sessionLocked,
     closeReason,
     answersLocked,
-    // Setters
-    setRulesAcknowledged,
     setPhase,
     // Actions
     loadForm,

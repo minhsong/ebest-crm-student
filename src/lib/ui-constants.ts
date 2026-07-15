@@ -1,6 +1,10 @@
 /**
  * UI constants – Student Portal.
  * Dùng thống nhất cho layout, spacing, tên app.
+ *
+ * Contact URLs (Messenger / Zalo): SSOT = CRM `portal_site_links`
+ * (Portal học viên → Catalog khóa học → tab Liên kết site).
+ * Các hằng bên dưới chỉ là fallback offline khi CRM chưa tải.
  */
 
 export const APP_NAME = 'Student Portal';
@@ -9,8 +13,12 @@ export const APP_BRAND = 'Ebest English';
 /** Cam nhận diện Ebest (sidebar active, CTA, v.v.) */
 export const EBEST_BRAND_ORANGE = '#e35321';
 
-/** Fanpage – khi không có link, liên hệ tại đây */
-export const FANPAGE_URL = 'https://www.facebook.com/ebestmsvy';
+/** Fallback — đồng bộ DEFAULT CRM `portal_site_links` (vi-VN). */
+export const MESSENGER_CHAT_URL = 'https://www.messenger.com/t/ebestmsvy';
+export const FANPAGE_PROFILE_URL = 'https://www.facebook.com/ebestmsvy';
+/** @deprecated Ưu tiên `usePortalContactLinks().messengerUrl` / CRM siteLinks. */
+export const FANPAGE_URL = MESSENGER_CHAT_URL;
+export const ZALO_OA_CHAT_URL = 'https://zalo.me/ebestenglish';
 
 /** Padding content desktop (px) — mobile dùng 8px trong globals `.dashboard-layout-content` */
 export const CONTENT_PADDING = 24;

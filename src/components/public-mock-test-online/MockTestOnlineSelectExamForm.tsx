@@ -170,7 +170,7 @@ export function MockTestOnlineSelectExamForm({
 			</Title>
 			<Paragraph className="mock-test-intro-text !mb-4">
 				Chọn đúng loại đề và chiến dịch bạn muốn thi. Bước tiếp theo: xác minh qua Zalo
-				(nhắn tin xác nhận hoặc nhập mã) rồi vào làm bài.
+				— trang sẽ tự chuyển vào phòng thi sau khi xác nhận thành công.
 			</Paragraph>
 
 			<MockTestOnlineInExamResumeAlert attemptStatus={attemptStatus} />

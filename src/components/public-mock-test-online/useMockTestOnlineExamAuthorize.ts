@@ -22,7 +22,10 @@ import {
 	isValidMockTestUnlockCode,
 	normalizeMockTestUnlockCode,
 } from '@/lib/public-mock-test-online/unlock-code.util';
-import { mockTestOnlineToastMessage } from '@/lib/public-mock-test-online/mock-test-online-session-errors.util';
+import {
+	mockTestOnlineErrorCopyFromUnknown,
+	type MockTestOnlineErrorCopy,
+} from '@/lib/public-mock-test-online/mock-test-online-session-errors.util';
 
 async function resolveExamSessionToken(
 	examSession: CachedSelectExamResult,
@@ -60,11 +63,18 @@ export function useMockTestOnlineExamAuthorize() {
 	const { message } = App.useApp();
 	const [autoProceeding, setAutoProceeding] = useState(false);
 	const [submittingUnlock, setSubmittingUnlock] = useState(false);
+	const [authorizeError, setAuthorizeError] = useState<MockTestOnlineErrorCopy | null>(
+		null,
+	);
 	const autoProceedRef = useRef(false);
 
 	const navigateToReady = useCallback(() => {
 		router.push('/mock-test-online/exam/ready');
 	}, [router]);
+
+	const clearAuthorizeError = useCallback(() => {
+		setAuthorizeError(null);
+	}, []);
 
 	const saveAuthorizeAndNavigate = useCallback(
 		async (
@@ -77,6 +87,7 @@ export function useMockTestOnlineExamAuthorize() {
 				examSessionToken,
 				keepAttemptPublicIdOnSameForm: false,
 			});
+			setAuthorizeError(null);
 			message.success('Xác minh thành công. Đang chuyển tới bài thi…');
 			navigateToReady();
 		},
@@ -93,10 +104,15 @@ export function useMockTestOnlineExamAuthorize() {
 
 			const sessionToken = await resolveExamSessionToken(examSession);
 			if (!sessionToken) {
+				const copy: MockTestOnlineErrorCopy = {
+					title: 'Chưa sẵn sàng vào phòng thi',
+					description:
+						'Đã xác minh Zalo nhưng chưa lấy được phiên làm bài. Bấm «Tiếp tục làm bài» hoặc nhập mã dự phòng từ tin nhắn Zalo.',
+					recovery: 'retry',
+				};
+				setAuthorizeError(copy);
 				if (!opts?.manual) {
-					message.warning(
-						'Đã xác minh Zalo nhưng thiếu phiên làm bài. Bấm «Tiếp tục làm bài» hoặc nhập mã từ Zalo.',
-					);
+					message.warning(copy.title);
 				}
 				return;
 			}
@@ -105,6 +121,7 @@ export function useMockTestOnlineExamAuthorize() {
 				autoProceedRef.current = true;
 			}
 			setAutoProceeding(true);
+			setAuthorizeError(null);
 			try {
 				const authData = await postMockTestOnlineAuthorize({
 					examSessionToken: sessionToken,
@@ -115,21 +132,19 @@ export function useMockTestOnlineExamAuthorize() {
 				await saveAuthorizeAndNavigate(authData, sessionToken);
 			} catch (e) {
 				autoProceedRef.current = false;
+				const copy = mockTestOnlineErrorCopyFromUnknown(
+					e,
+					'b2c_confirm_zalo',
+					opts?.manual
+						? 'Không vào được phòng làm bài'
+						: 'Chưa tự chuyển vào phòng thi được',
+				);
+				setAuthorizeError(copy);
 				if (opts?.manual) {
-					message.error(
-						mockTestOnlineToastMessage(
-							e,
-							'b2c_confirm_zalo',
-							'Không vào được phòng làm bài. Thử lại hoặc nhập mã từ Zalo.',
-						),
-					);
+					message.error(copy.title);
 				} else {
 					message.warning(
-						mockTestOnlineToastMessage(
-							e,
-							'b2c_confirm_zalo',
-							'Không tự mở khóa được. Bấm «Tiếp tục làm bài» hoặc nhập mã từ Zalo.',
-						),
+						`${copy.title}. Bạn có thể bấm «Tiếp tục làm bài» hoặc nhập mã dự phòng.`,
 					);
 				}
 			} finally {
@@ -159,6 +174,7 @@ export function useMockTestOnlineExamAuthorize() {
 			}
 
 			setSubmittingUnlock(true);
+			setAuthorizeError(null);
 			try {
 				const verifyBody: Record<string, unknown> = { examUnlockCode: normalized };
 				if (registrationId) {
@@ -179,12 +195,17 @@ export function useMockTestOnlineExamAuthorize() {
 					examSessionToken: examSession.examSessionToken?.trim() || undefined,
 					keepAttemptPublicIdOnSameForm: false,
 				});
+				setAuthorizeError(null);
 				message.success('Mã hợp lệ. Xem hướng dẫn và bắt đầu làm bài.');
 				navigateToReady();
 			} catch (e) {
-				message.error(
-					mockTestOnlineToastMessage(e, 'b2c_confirm_zalo', 'Không xác minh được mã.'),
+				const copy = mockTestOnlineErrorCopyFromUnknown(
+					e,
+					'b2c_confirm_zalo',
+					'Không xác minh được mã',
 				);
+				setAuthorizeError(copy);
+				message.error(copy.title);
 			} finally {
 				setSubmittingUnlock(false);
 			}
@@ -195,6 +216,8 @@ export function useMockTestOnlineExamAuthorize() {
 	return {
 		autoProceeding,
 		submittingUnlock,
+		authorizeError,
+		clearAuthorizeError,
 		proceedWithSessionToken,
 		proceedAfterZaloVerified,
 		proceedWithUnlockCode,

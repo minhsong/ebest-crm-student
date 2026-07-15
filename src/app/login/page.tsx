@@ -7,15 +7,16 @@ import Link from 'next/link';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/auth-context';
 import { EbestLogo } from '@/components/branding/EbestLogo';
-import { APP_BRAND, EBEST_BRAND_ORANGE, FANPAGE_URL } from '@/lib/ui-constants';
+import { APP_BRAND, EBEST_BRAND_ORANGE } from '@/lib/ui-constants';
+import { FanpageContactLink } from '@/components/portal-contact/FanpageContactLink';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { parseStudentPortalGoogleFromPublic } from '@/lib/student-portal-google-settings';
 import { LoginGoogleSection } from '@/features/auth/LoginGoogleSection';
-import { probePortalSession } from '@/lib/portal-auth/probe-portal-session';
+import { usePortalSession } from '@/contexts/portal-session-context';
 import {
-  PORTAL_MOCK_TEST_RESULTS_ROUTES,
-  resolvePostPortalLoginPath,
-} from '@/lib/portal-auth/session-routes';
+  homePathForPortalActor,
+  postLoginPathForPortalActor,
+} from '@/lib/portal-auth/portal-session-nav';
 import type { PortalLoginMode } from '@/components/portal/PortalLoginModePicker';
 import { PortalLoginModePicker, parsePortalLoginModeFromQuery } from '@/components/portal/PortalLoginModePicker';
 
@@ -35,6 +36,7 @@ const GUIDE_ITEMS = [
 export default function LoginPage() {
   const router = useRouter();
   const { login, customer, ready } = useAuth();
+  const portal = usePortalSession();
   const { message: antMessage } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,31 +76,19 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (!ready) return;
-    if (customer) {
-      router.replace('/');
+    if (portal.status === 'loading' || !ready) return;
+    if (customer || portal.actor === 'customer') {
+      router.replace(homePathForPortalActor('customer'));
       return;
     }
-    let cancelled = false;
-    void probePortalSession().then((probe) => {
-      if (cancelled) return;
-      if (probe.kind === 'lead') {
-        router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.lead);
-      } else if (probe.kind === 'student') {
-        router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.student);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [ready, customer, router]);
+    if (portal.actor === 'lead') {
+      router.replace(homePathForPortalActor('lead'));
+    }
+  }, [portal, ready, customer, router]);
 
-  const postLoginPath = useCallback(() => {
-    if (typeof window === 'undefined') return '/';
-    const q = new URLSearchParams(window.location.search);
-    const raw = q.get('redirect');
-    if (raw && raw.startsWith('/') && !raw.startsWith('//')) return raw;
-    return '/';
+  const explicitRedirect = useCallback(() => {
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get('redirect');
   }, []);
 
   const onFinish = useCallback(
@@ -111,14 +101,8 @@ export default function LoginPage() {
         });
         if (result.ok) {
           antMessage.success('Đăng nhập thành công.');
-          const explicitRedirect = postLoginPath();
-          if (explicitRedirect !== '/') {
-            router.replace(explicitRedirect);
-          } else if (result.actor === 'lead') {
-            router.replace(resolvePostPortalLoginPath('lead'));
-          } else {
-            router.replace('/');
-          }
+          const actor = result.actor === 'lead' ? 'lead' : 'customer';
+          router.replace(postLoginPathForPortalActor(actor, explicitRedirect()));
         } else {
           setError(result.message ?? 'Đăng nhập thất bại.');
         }
@@ -126,10 +110,14 @@ export default function LoginPage() {
         setLoading(false);
       }
     },
-    [login, router, antMessage, postLoginPath, loginMode],
+    [login, router, antMessage, explicitRedirect, loginMode],
   );
 
-  if (ready && customer) {
+  if (
+    ready &&
+    portal.status === 'ready' &&
+    (customer || portal.actor === 'customer' || portal.actor === 'lead')
+  ) {
     return null;
   }
 
@@ -233,6 +221,15 @@ export default function LoginPage() {
                         Đăng nhập
                       </Button>
                     </Form.Item>
+                    <p className="mt-3 mb-0 text-center text-sm text-white/90">
+                      Chưa có tài khoản?{' '}
+                      <Link
+                        href="/register"
+                        className="font-semibold text-white underline decoration-white/50 underline-offset-2 hover:decoration-white"
+                      >
+                        Đăng ký
+                      </Link>
+                    </p>
                   </Form>
 
                   {googleCfg?.enabled && googleCfg.clientId ? (
@@ -256,7 +253,11 @@ export default function LoginPage() {
                       <LoginGoogleSection
                         className="mt-1.5"
                         noteClassName="!text-white/75"
-                        onLoggedIn={() => router.replace(postLoginPath())}
+                        onLoggedIn={() =>
+                          router.replace(
+                            postLoginPathForPortalActor('customer', explicitRedirect()),
+                          )
+                        }
                       />
                     </GoogleOAuthProvider>
                   ) : null}
@@ -279,14 +280,10 @@ export default function LoginPage() {
                   <p className="mb-0 mt-3 text-xs leading-relaxed text-white/90">
                     Mọi thắc mắc về tài khoản hoặc đăng nhập, vui lòng liên hệ
                     trực tiếp trung tâm {APP_BRAND} hoặc{' '}
-                    <a
-                      href={FANPAGE_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <FanpageContactLink
+                      label="Fanpage chính thức"
                       className="font-medium text-white underline decoration-white/50 underline-offset-2 hover:text-white hover:decoration-white"
-                    >
-                      Fanpage chính thức
-                    </a>
+                    />
                     .
                   </p>
                 </div>

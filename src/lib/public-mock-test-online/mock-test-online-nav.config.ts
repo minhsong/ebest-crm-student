@@ -6,31 +6,19 @@ export type MockTestOnlineNavItem = {
   matchPrefix?: string;
 };
 
-/** Menu header trang thi thử online — mở rộng thêm item tại đây. */
+/** Header thi thử online — chỉ Đăng nhập / Đăng ký (tài khoản cổng). */
 export const MOCK_TEST_ONLINE_NAV_ITEMS: MockTestOnlineNavItem[] = [
-  {
-    key: 'home',
-    label: 'Thi thử online',
-    href: '/mock-test-online',
-    matchPrefix: '/mock-test-online',
-  },
-  {
-    key: 'register',
-    label: 'Đăng ký thi',
-    href: '/mock-test-online/register',
-    matchPrefix: '/mock-test-online/register',
-  },
-  {
-    key: 'results',
-    label: 'Kết quả thi',
-    href: '/lead/tests',
-    matchPrefix: '/lead/tests',
-  },
   {
     key: 'login',
     label: 'Đăng nhập',
-    href: '/login',
+    href: '/login?mode=lead',
     matchPrefix: '/login',
+  },
+  {
+    key: 'register',
+    label: 'Đăng ký',
+    href: '/register',
+    matchPrefix: '/register',
   },
 ];
 

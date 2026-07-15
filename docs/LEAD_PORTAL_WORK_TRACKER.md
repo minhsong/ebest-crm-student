@@ -245,7 +245,7 @@ Public endpoints:
 | Q6 | Lead forgot → reset email | `?mode=lead` trên link; đăng nhập lại OK | ⬜ |
 | Q7 | Zalo guard T1–T6 | Parent unlock hộ → chặn; cùng HV retake OK | ⬜ |
 | Q8 | Đã login funnel | Sidebar chrome hiển thị | ⬜ |
-| Q9 | Logout unified | Xóa cả `student_portal_at` + `lead_portal_at` | ⬜ |
+| Q9 | Logout unified | Xóa cả `student_portal_at` + `lead_portal_at` | ✅ P0 — UI/`AuthProvider`/`leadLogout` → `portal/logout`; alias logout routes clear cả hai; login set cookie xóa sibling |
 | Q10 | Silent upgrade lead→customer | Cookie đổi; dashboard HV | ⬜ |
 | Q11 | Complete-profile email trùng (bất kỳ nguồn portal) | 409 `EMAIL_ALREADY_IN_SYSTEM` + nút Đăng nhập; **cùng message** mọi case | ⬜ M6+M7 |
 | Q12 | *(gộp Q11)* — không phân biệt HV vs lead trên client | SP-AC-2 | ⬜ M7 |

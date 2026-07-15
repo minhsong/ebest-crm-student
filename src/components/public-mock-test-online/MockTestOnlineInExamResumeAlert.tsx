@@ -38,8 +38,8 @@ export function MockTestOnlineInExamResumeAlert({
 			message="Bạn đang có bài thi làm dở"
 			description={
 				deadline
-					? `Vui lòng tiếp tục làm bài trước khi đăng ký lượt mới. Hạn làm bài: ${deadline}.`
-					: 'Vui lòng tiếp tục làm bài trước khi đăng ký lượt mới.'
+					? `Hãy tiếp tục làm bài trước khi đăng ký lượt mới. Bạn cần vào phòng thi trước ${deadline}.`
+					: 'Hãy tiếp tục làm bài trước khi đăng ký lượt mới.'
 			}
 			action={
 				<Button

@@ -5,7 +5,6 @@ import {
 } from '@/lib/social-gateway-bff.util';
 import { mapMockTestBffErrorForClient } from '@/lib/public-mock-test-online/mock-test-bff-response.server';
 import { STUDENT_SAFE_USER_MESSAGES } from '@/lib/student-safe-errors';
-import { clearMockTestOnlinePendingLeadCookie } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
 
 const JSON_HEADERS: HeadersInit = {
 	Accept: 'application/json',
@@ -21,7 +20,10 @@ function forwardOriginHeaders(req: NextRequest): HeadersInit {
 	return headers;
 }
 
-/** POST select-exam — xóa cookie lead sau khi consume lead Redis. */
+/**
+ * POST select-exam — giữ cookie FunnelSession (`mto_funnel_session` / dual `mto_pending_lead`).
+ * Phase 1: select promote Redis `resumeStep=verify`, không xóa continuity (ADR FunnelSession).
+ */
 export async function POST(req: NextRequest) {
 	const body = await req.json().catch(() => ({}));
 	const cfg = getSocialGatewayConfig();
@@ -49,9 +51,7 @@ export async function POST(req: NextRequest) {
 			);
 		}
 
-		const nextRes = NextResponse.json(data, { status: res.status });
-		clearMockTestOnlinePendingLeadCookie(nextRes);
-		return nextRes;
+		return NextResponse.json(data, { status: res.status });
 	} catch {
 		return NextResponse.json(
 			{ message: STUDENT_SAFE_USER_MESSAGES.generic },

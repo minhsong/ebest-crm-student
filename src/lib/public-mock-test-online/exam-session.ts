@@ -26,6 +26,10 @@ export type MockTestOnlineExamAuth = {
 
   examSessionToken?: string;
 
+  /** AE / authorize `effectiveMaxAttempts` (MVP=1). */
+
+  effectiveMaxAttempts?: number;
+
 };
 
 

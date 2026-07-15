@@ -13,7 +13,7 @@ import { buildMockTestOnlineConfirmExamPath } from '@/lib/public-mock-test-onlin
 export const dynamic = 'force-dynamic';
 
 export const metadata = buildPageMetadata({
-	title: 'Chọn bài thi thử TOEIC online',
+	title: 'Chọn bài thi thử online',
 	description: 'Chọn bài thi sau khi đăng ký thi thử online Ebest.',
 	path: '/mock-test-online/select-exam',
 });

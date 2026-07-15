@@ -18,9 +18,9 @@ import {
   formHasOnDemandPlaybackListeningSection,
 } from '@/features/quiz-test/lib/quiz-listening-rules';
 import { unlockQuizAudioSession } from '@/features/quiz-test/lib/quiz-audio-session';
-import { Alert, Button, Card, Checkbox, Divider, Space, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Checkbox, Divider, InputNumber, Space, Tag, Typography } from 'antd';
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { QuizAttemptQuotaSummary } from '@/features/quiz-test/components/QuizAttemptQuotaSummary';
 import {
   hasPriorQuizAttemptsForUi,
@@ -29,6 +29,11 @@ import {
   describeQuizResultDetailLocked,
   type QuizResultEligibility,
 } from '@/features/quiz-test/lib/quiz-result-view-policy';
+import { MockTestOnlineSpeakerTest } from '@/components/public-mock-test-online/MockTestOnlineSpeakerTest';
+import {
+  normalizeExamExpectedScore,
+  resolveExamExpectedScoreScale,
+} from '@/lib/public-mock-test-online/exam-expected-score.util';
 
 // ==================== Types ====================
 type CommonMetaProps = {
@@ -60,8 +65,12 @@ type QuizAttemptConfirmSectionProps = CommonMetaProps & {
   rulesAcknowledged: boolean;
   onRulesAcknowledgedChange: (next: boolean) => void;
   onBack: () => void;
-  onStart: () => void;
+  onStart: (opts?: { expectedScore?: number | null }) => void;
   mockTestOnlineUi?: boolean;
+  expectedScore?: number | null;
+  onExpectedScoreChange?: (next: number | null) => void;
+  speakerChecked?: boolean;
+  onSpeakerCheckedChange?: (next: boolean) => void;
 };
 
 type QuizAttemptDoneSectionProps = CommonMetaProps & {
@@ -159,6 +168,28 @@ export function QuizAttemptReadySection({
           </Typography.Paragraph>
         )}
 
+        {mockTestOnlineUi ? (
+          <Alert
+            type="info"
+            showIcon
+            message="Chuẩn bị trước khi làm bài"
+            description={
+              <ul className="mb-0 list-disc pl-5">
+                <li>Chỗ yên tĩnh, điện thoại đủ pin, kết nối mạng ổn định.</li>
+                <li>
+                  Nếu bài có phần nghe: chuẩn bị tai nghe/loa và kiểm tra âm thanh ở bước
+                  xác nhận.
+                </li>
+                <li>Không đóng / tải lại trang khi đang làm bài.</li>
+                <li>
+                  Mỗi lần thi bạn sẽ nhập điểm kỳ vọng riêng để đối chiếu với kết quả sau
+                  khi nộp.
+                </li>
+              </ul>
+            }
+          />
+        ) : null}
+
         {errMsg ? <Alert type="error" message={errMsg} /> : null}
 
         {!mockTestOnlineUi ? (
@@ -196,7 +227,7 @@ export function QuizAttemptReadySection({
               </Button>
             ) : (
               <Button type="primary" size="large" block={mockTestOnlineUi} onClick={onOpenConfirmStart}>
-                {mockTestOnlineUi ? 'Bắt đầu làm bài' : 'Bắt đầu làm bài'}
+                {mockTestOnlineUi ? 'Tiếp tục — chuẩn bị & xác nhận' : 'Bắt đầu làm bài'}
               </Button>
             )
           ) : null}
@@ -231,7 +262,26 @@ export function QuizAttemptConfirmSection({
   onBack,
   onStart,
   mockTestOnlineUi = false,
+  expectedScore = null,
+  onExpectedScoreChange,
+  speakerChecked = false,
+  onSpeakerCheckedChange,
 }: QuizAttemptConfirmSectionProps) {
+  const expectedScale = useMemo(
+    () =>
+      resolveExamExpectedScoreScale({
+        formType: formPayload.type,
+        tagKeys: formTagKeys,
+      }),
+    [formPayload.type, formTagKeys],
+  );
+
+  const canStartMockOnline =
+    !mockTestOnlineUi ||
+    (rulesAcknowledged &&
+      speakerChecked &&
+      normalizeExamExpectedScore(expectedScore, expectedScale) != null);
+
   return (
     <Card bordered={mockTestOnlineUi ? false : undefined}>
       <Space direction="vertical" size="middle" className="w-full max-w-3xl">
@@ -248,11 +298,11 @@ export function QuizAttemptConfirmSection({
         )}
 
         <Typography.Title level={4} style={{ margin: 0 }}>
-          Xác nhận làm bài
+          {mockTestOnlineUi ? 'Xác nhận sẵn sàng & bắt đầu' : 'Xác nhận làm bài'}
         </Typography.Title>
         <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
           {mockTestOnlineUi
-            ? 'Bạn sắp bắt đầu làm bài. Hãy đảm bảo mạng ổn định và không đóng trình duyệt giữa chừng.'
+            ? 'Kiểm tra loa, nhập điểm kỳ vọng cho lần thi này, rồi xác nhận trước khi đồng hồ bắt đầu chạy.'
             : 'Bạn sắp bắt đầu một phiên làm bài có giới hạn thời gian. Hãy đảm bảo mạng ổn định và không đóng trình duyệt giữa chừng.'}
         </Typography.Paragraph>
 
@@ -269,11 +319,13 @@ export function QuizAttemptConfirmSection({
               ) : (
                 <li>Câu trả lời được lưu tự động khi bạn làm bài.</li>
               )}
+              {mockTestOnlineUi ? (
+                <li>Điểm kỳ vọng chỉ áp dụng cho lần làm bài này — thi lại có thể nhập khác.</li>
+              ) : null}
             </ul>
           }
         />
 
-        {/* Form info */}
         <div>
           <Typography.Text strong>{mockTestOnlineUi ? 'Bài thi' : 'Đề'}</Typography.Text>
           <div className="mt-2">
@@ -288,7 +340,37 @@ export function QuizAttemptConfirmSection({
           </div>
         </div>
 
-        {/* Listening requirements (section settings) */}
+        {mockTestOnlineUi ? (
+          <>
+            <div>
+              <Typography.Text strong className="block mb-2">
+                Điểm kỳ vọng (lần thi này)
+              </Typography.Text>
+              <InputNumber
+                className="!w-full max-w-xs"
+                min={expectedScale.min}
+                max={expectedScale.max}
+                step={expectedScale.step}
+                value={expectedScore ?? undefined}
+                onChange={(v) => {
+                  onExpectedScoreChange?.(
+                    v == null ? null : normalizeExamExpectedScore(v, expectedScale),
+                  );
+                }}
+                placeholder={`${expectedScale.min} – ${expectedScale.max}`}
+              />
+              <Typography.Paragraph type="secondary" className="!mt-2 !mb-0 text-sm">
+                {expectedScale.hint} Dùng để so sánh với kết quả thực tế sau khi nộp bài.
+              </Typography.Paragraph>
+            </div>
+
+            <MockTestOnlineSpeakerTest
+              checked={speakerChecked}
+              onCheckedChange={(next) => onSpeakerCheckedChange?.(next)}
+            />
+          </>
+        ) : null}
+
         {formHasAutoPlaybackListeningSection(formPayload) ||
         formHasOnDemandPlaybackListeningSection(formPayload) ? (
           <Alert
@@ -317,7 +399,6 @@ export function QuizAttemptConfirmSection({
           />
         ) : null}
 
-        {/* Acknowledge checkbox */}
         <Checkbox
           checked={rulesAcknowledged}
           onChange={(e) => onRulesAcknowledgedChange(e.target.checked)}
@@ -325,24 +406,32 @@ export function QuizAttemptConfirmSection({
           Tôi đã đọc và đồng ý bắt đầu làm bài trong phạm vi thời gian quy định.
         </Checkbox>
 
-        {/* Error message */}
         {errMsg ? <Alert type="error" message={errMsg} /> : null}
 
-        {/* Action buttons */}
         <Space wrap>
           <Button onClick={onBack}>Quay lại</Button>
           <Button
             type="primary"
             size="large"
-            disabled={!rulesAcknowledged}
+            disabled={mockTestOnlineUi ? !canStartMockOnline : !rulesAcknowledged}
             onClick={() => {
-              if (formHasAutoPlaybackListeningSection(formPayload)) {
+              if (
+                formHasAutoPlaybackListeningSection(formPayload) ||
+                mockTestOnlineUi
+              ) {
                 void unlockQuizAudioSession();
               }
-              onStart();
+              const score = mockTestOnlineUi
+                ? normalizeExamExpectedScore(expectedScore, expectedScale)
+                : null;
+              onStart(
+                mockTestOnlineUi
+                  ? { expectedScore: score }
+                  : undefined,
+              );
             }}
           >
-            Xác nhận và bắt đầu làm bài
+            {mockTestOnlineUi ? 'Sẵn sàng — bắt đầu làm bài' : 'Xác nhận và bắt đầu làm bài'}
           </Button>
         </Space>
       </Space>

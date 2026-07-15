@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
 import { STUDENT_API } from '@/lib/student-api';
 import { buildCrmStudentUrl, unwrapCrmResponseBody } from '@/lib/crm-student-proxy';
-import { setStudentAccessTokenCookie } from '@/lib/auth-cookie';
+import { setPortalSessionCookie } from '@/lib/portal-auth/portal-auth-session.server';
 import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
 
 export async function POST(request: Request) {
@@ -31,16 +31,14 @@ export async function POST(request: Request) {
   }
 
   const payload = unwrapCrmResponseBody(data) as Record<string, unknown>;
-  // Case: CRM trả completeProfileUrl/reason → pass-through
   if (typeof payload?.completeProfileUrl === 'string') {
     return NextResponse.json(payload);
   }
 
-  // Case: session: { accessToken, customer }
   const token =
     typeof payload?.accessToken === 'string' ? (payload.accessToken as string).trim() : '';
   if (token) {
-    setStudentAccessTokenCookie(token);
+    setPortalSessionCookie('customer', token);
   }
 
   const out = { ...payload };

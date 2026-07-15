@@ -41,6 +41,7 @@ type Result = {
 	transport: MockTestOnlineZaloVerifyTransport;
 	wsConnected: boolean;
 	error: string | null;
+	verifyIssue: MockTestOnlinePollStatus['verifyIssue'] | null;
 };
 
 export function useMockTestOnlineZaloVerifySession({
@@ -54,6 +55,9 @@ export function useMockTestOnlineZaloVerifySession({
 	const [transport, setTransport] = useState<MockTestOnlineZaloVerifyTransport>('idle');
 	const [wsConnected, setWsConnected] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [verifyIssue, setVerifyIssue] = useState<
+		MockTestOnlinePollStatus['verifyIssue'] | null
+	>(null);
 
 	const onUnlockReadyRef = useRef(onUnlockReady);
 	onUnlockReadyRef.current = onUnlockReady;
@@ -96,9 +100,11 @@ export function useMockTestOnlineZaloVerifySession({
 	/** `ready` = verified + registrationId — có thể auto-proceed; `verified` = chờ sync CRM. */
 	const applyStatus = useCallback((next: MockTestOnlinePollStatus): 'ready' | 'verified' | 'pending' => {
 		setStatus(next);
+		setVerifyIssue(next.verifyIssue ?? null);
 		const verified = isMockTestOnlineZaloVerified(next);
 		setZaloVerified(verified);
 		if (verified) {
+			setVerifyIssue(null);
 			maybeProvisionLeadSession(next);
 		}
 		if (verified && next.registrationId && next.registrationId >= 1) {
@@ -210,6 +216,7 @@ export function useMockTestOnlineZaloVerifySession({
 		setTransport('idle');
 		setWsConnected(false);
 		setError(null);
+		setVerifyIssue(null);
 
 		void (async () => {
 			try {
@@ -235,11 +242,11 @@ export function useMockTestOnlineZaloVerifySession({
 			if (!wsAvailable) {
 				if (!token) {
 					setError(
-						'Thiếu phiên realtime (examSessionToken). Vui lòng chọn lại bài thi hoặc tải lại trang.',
+						'Chưa sẵn sàng cập nhật tự động. Bạn vẫn có thể gửi tin Zalo; nếu trang không tự chuyển, nhập mã từ tin nhắn hoặc tải lại trang.',
 					);
 				} else if (!wsConfigured) {
 					setError(
-						'Chưa cấu hình NEXT_PUBLIC_SOCIAL_GATEWAY_WS_ORIGIN — dùng kiểm tra HTTP định kỳ.',
+						'Đang kiểm tra trạng thái định kỳ. Giữ tab này mở sau khi gửi tin Zalo.',
 					);
 				}
 				startPollFallback();
@@ -320,5 +327,6 @@ export function useMockTestOnlineZaloVerifySession({
 		transport,
 		wsConnected,
 		error,
+		verifyIssue,
 	};
 }

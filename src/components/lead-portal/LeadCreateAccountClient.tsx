@@ -9,34 +9,55 @@ import { leadRegister } from '@/lib/lead-portal/client-api';
 import { EbestLogo } from '@/components/branding/EbestLogo';
 
 type FormValues = {
+  displayName?: string;
   phone: string;
   email: string;
   password: string;
   confirmPassword: string;
 };
 
-export function LeadCreateAccountClient() {
+type Props = {
+  /**
+   * `self-serve` — `/register`: tạo tài khoản không cần mã đăng ký thi.
+   * `proof` — `/lead/create-account`: bắt buộc `registrationId` (sau đăng ký thi).
+   */
+  mode?: 'self-serve' | 'proof';
+};
+
+export function LeadCreateAccountClient({ mode = 'proof' }: Props) {
   const searchParams = useSearchParams();
   const { message } = App.useApp();
   const [form] = Form.useForm<FormValues>();
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  const registrationId = Number(searchParams.get('registrationId'));
+  const registrationIdRaw = Number(searchParams.get('registrationId'));
+  const registrationId =
+    Number.isFinite(registrationIdRaw) && registrationIdRaw >= 1
+      ? registrationIdRaw
+      : null;
+
+  const isSelfServe = mode === 'self-serve';
+  const canSubmit = isSelfServe || registrationId != null;
 
   const onFinish = useCallback(
     async (values: FormValues) => {
-      if (!Number.isFinite(registrationId) || registrationId < 1) {
-        message.error('Thiếu mã đăng ký thi thử. Vui lòng mở lại từ trang đăng ký.');
+      if (!isSelfServe && registrationId == null) {
+        message.error(
+          'Thiếu mã đăng ký thi thử. Vui lòng mở lại từ trang đăng ký.',
+        );
         return;
       }
       setLoading(true);
       try {
         const result = await leadRegister({
-          registrationId,
+          ...(registrationId != null ? { registrationId } : {}),
           phone: values.phone.trim(),
           email: values.email.trim(),
           password: values.password,
+          ...(values.displayName?.trim()
+            ? { displayName: values.displayName.trim() }
+            : {}),
         });
         setDone(true);
         message.success(result.message);
@@ -46,10 +67,10 @@ export function LeadCreateAccountClient() {
         setLoading(false);
       }
     },
-    [message, registrationId],
+    [message, registrationId, isSelfServe],
   );
 
-  if (!Number.isFinite(registrationId) || registrationId < 1) {
+  if (!canSubmit) {
     return (
       <Card className="mx-auto max-w-md">
         <Alert
@@ -59,8 +80,8 @@ export function LeadCreateAccountClient() {
           description="Vui lòng đăng ký thi thử trước, sau đó tạo tài khoản từ liên kết trên trang xác nhận."
         />
         <div className="mt-4 flex gap-2">
-          <Link href="/mock-test-register">
-            <Button type="primary">Đăng ký thi tại trung tâm</Button>
+          <Link href="/register">
+            <Button type="primary">Đăng ký tài khoản</Button>
           </Link>
           <Link href="/mock-test-online/register">
             <Button>Thi thử online</Button>
@@ -92,12 +113,23 @@ export function LeadCreateAccountClient() {
         <EbestLogo variant="login-hero" />
       </div>
       <h1 className="mb-2 text-center text-lg font-semibold text-gray-900">
-        Tạo tài khoản theo dõi thi thử
+        {isSelfServe ? 'Đăng ký tài khoản' : 'Tạo tài khoản theo dõi thi thử'}
       </h1>
       <p className="mb-4 text-center text-sm text-gray-600">
-        Mã đăng ký #{registrationId}. Sử dụng cùng SĐT đã đăng ký buổi thi.
+        {isSelfServe
+          ? 'Nhập thông tin và mật khẩu để dùng cổng thi thử Ebest.'
+          : `Mã đăng ký #${registrationId}. Sử dụng cùng SĐT đã đăng ký buổi thi.`}
       </p>
       <Form form={form} layout="vertical" onFinish={onFinish}>
+        {isSelfServe ? (
+          <Form.Item
+            name="displayName"
+            label="Họ và tên"
+            rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}
+          >
+            <Input placeholder="Nguyễn Văn A" autoComplete="name" />
+          </Form.Item>
+        ) : null}
         <Form.Item
           name="phone"
           label="Số điện thoại"
@@ -113,7 +145,7 @@ export function LeadCreateAccountClient() {
             { type: 'email', message: 'Email không hợp lệ' },
           ]}
         >
-          <Input placeholder="email@example.com" />
+          <Input placeholder="email@example.com" autoComplete="email" />
         </Form.Item>
         <Form.Item
           name="password"
@@ -123,7 +155,7 @@ export function LeadCreateAccountClient() {
             { min: 8, message: 'Tối thiểu 8 ký tự' },
           ]}
         >
-          <Input.Password />
+          <Input.Password autoComplete="new-password" />
         </Form.Item>
         <Form.Item
           name="confirmPassword"
@@ -141,15 +173,18 @@ export function LeadCreateAccountClient() {
             }),
           ]}
         >
-          <Input.Password />
+          <Input.Password autoComplete="new-password" />
         </Form.Item>
         <Button type="primary" htmlType="submit" loading={loading} block>
-          Tạo tài khoản
+          {isSelfServe ? 'Đăng ký' : 'Tạo tài khoản'}
         </Button>
       </Form>
       <p className="mt-4 text-center text-sm text-gray-500">
         Đã có tài khoản?{' '}
-        <Link href="/login?mode=lead" className="text-orange-600 hover:underline">
+        <Link
+          href="/login?mode=lead"
+          className="text-orange-600 hover:underline"
+        >
           Đăng nhập
         </Link>
       </p>

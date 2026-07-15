@@ -12,8 +12,8 @@ const LIMITS = {
 	primaryPhone: 32,
 	universityOther: 200,
 	consultationNote: 500,
-	expectedScoreMax: 990,
-	expectedScoreMin: 10,
+	expectedScoreMax: 9999,
+	expectedScoreMin: 0,
 } as const;
 
 

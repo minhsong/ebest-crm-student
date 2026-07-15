@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
-import { setLeadAccessTokenCookie } from '@/lib/lead-auth-cookie';
+import { setPortalSessionCookie } from '@/lib/portal-auth/portal-auth-session.server';
 import { unwrapCrmResponseBody } from '@/lib/crm-student-proxy';
 import { mapMockTestBffErrorForClient } from '@/lib/public-mock-test-online/mock-test-bff-response.server';
 import { STUDENT_SAFE_USER_MESSAGES } from '@/lib/student-safe-errors';
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     }
     const payload = (unwrapCrmResponseBody(data) ?? data) as ConfirmEmailPayload;
     if (payload.leadSession?.accessToken) {
-      setLeadAccessTokenCookie(payload.leadSession.accessToken);
+      setPortalSessionCookie('lead', payload.leadSession.accessToken);
     }
     return NextResponse.json({
       email: payload.email,

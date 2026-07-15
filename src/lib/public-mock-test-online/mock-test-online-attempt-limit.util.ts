@@ -1,6 +1,6 @@
 import type { MockTestOnlineAttemptStatus } from '@/lib/public-mock-test-online/types';
 
-/** Copy Alert hết lượt — dùng chung select-exam + /lead/tests. */
+/** Copy Alert hết lượt — dùng chung select-exam + /lead/tests (góc nhìn người dùng). */
 export function getMockTestOnlineAttemptLimitDescription(
   status: MockTestOnlineAttemptStatus | null | undefined,
 ): string {
@@ -16,7 +16,14 @@ export function getMockTestOnlineAttemptLimitDescription(
     return `Bạn đã dùng hết ${status.sessionCap.maxAttemptsPerPhone} lượt cho chiến dịch này. Hãy chọn chiến dịch khác cùng loại đề hoặc liên hệ Ebest.`;
   }
 
-  return `Bạn đã sử dụng ${status.verifiedCount}/${status.maxAttempts} lượt cho loại đề này. Vui lòng liên hệ Ebest để được tư vấn thêm.`;
+  const used = status.verifiedCount;
+  const max = status.maxAttempts;
+  if (max === 1) {
+    return used >= 1
+      ? 'Bạn đã dùng hết 1 lượt thi thử online cho loại đề này. Liên hệ Ebest nếu cần tư vấn thêm.'
+      : 'Bạn còn 1 lượt thi thử online cho loại đề này.';
+  }
+  return `Bạn đã sử dụng ${used}/${max} lượt thi thử cho loại đề này. Vui lòng liên hệ Ebest để được tư vấn thêm.`;
 }
 
 export function isMockTestOnlineAttemptBlocked(

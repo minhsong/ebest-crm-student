@@ -24,9 +24,9 @@ export type MockTestOnlineFunnelStep =
  * | Bước | URL params hợp lệ | Redis / state server | Sau bước này |
  * |------|-------------------|----------------------|--------------|
  * | B1 intake | — | FunnelSession `lead-pending:{id}` resumeStep=select · TTL funnel | Cookie `mto_funnel_session` (+ dual `mto_pending_lead`) 7d |
- * | B2 select-exam POST | body `pendingLeadId` | **Giữ** FunnelSession; set resumeStep=verify + pendingRegistrationId; `pending:{uuid}` + `lead-selected` | localStorage select-exam cache 7d |
+ * | B2 select-exam POST | body `pendingLeadId` | **Giữ** FunnelSession; set resumeStep=verify + pendingRegistrationId; Portal BFF **không** clear cookie | localStorage select-exam cache 7d |
  * | B2c confirm | `pending` **bắt buộc** (+ lead/session) | `pending` + FunnelSession resume verify | — |
- * | B3 exam | sessionStorage exam auth | PG registration; mã 6 ký tự TTL ≤30 phút | — |
+ * | B3 authorize OK | sessionStorage / httpOnly exam auth | PG registration; **clear** cookie funnel | Exam ready/run |
  *
  * Recovery:
  * - Cookie funnel còn + resumeStep=verify → `/confirm-exam?pending=…` (register page).

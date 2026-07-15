@@ -1,6 +1,7 @@
 import type { PortalAuthActor } from '@/lib/portal-auth/portal-auth-session';
 import type { LeadProfile, LeadSessionProbe, LeadTestResultSummary } from './types';
 import { isLeadIdentityUpgraded } from '@/lib/portal-auth/portal-auth-session';
+import { portalLogoutClient } from '@/lib/portal-auth/portal-session.client';
 import { LeadPortalUnauthorizedError } from './errors';
 
 async function parseJsonMessage(res: Response): Promise<{ message?: string }> {
@@ -34,15 +35,33 @@ export async function leadLogin(
 }
 
 export async function leadRegister(input: {
-  registrationId: number;
   phone: string;
   email: string;
   password: string;
+  /** Có = tạo tài khoản gắn đăng ký thi; không = đăng ký tự phục vụ */
+  registrationId?: number;
+  displayName?: string;
 }): Promise<{ message: string }> {
+  const body: Record<string, unknown> = {
+    phone: input.phone,
+    email: input.email,
+    password: input.password,
+  };
+  if (
+    typeof input.registrationId === 'number' &&
+    Number.isFinite(input.registrationId) &&
+    input.registrationId >= 1
+  ) {
+    body.registrationId = input.registrationId;
+  }
+  if (input.displayName?.trim()) {
+    body.displayName = input.displayName.trim();
+  }
+
   const res = await fetch('/api/auth/lead/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify(body),
   });
   const data = await parseJsonMessage(res);
   if (!res.ok) {
@@ -52,7 +71,7 @@ export async function leadRegister(input: {
 }
 
 export async function leadLogout(): Promise<void> {
-  await fetch('/api/auth/lead/logout', { method: 'POST' });
+  await portalLogoutClient();
 }
 
 export async function fetchLeadProfile(): Promise<LeadProfile> {

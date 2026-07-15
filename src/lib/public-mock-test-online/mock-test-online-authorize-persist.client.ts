@@ -37,6 +37,11 @@ export function applyMockTestOnlineAuthorizeResponse(
 		portalAuthorizeExpiresAt: data.portalAuthorizeExpiresAt,
 		attemptPublicId: keepAttempt ? prev?.attemptPublicId : undefined,
 		examSessionToken: opts?.examSessionToken?.trim() || undefined,
+		effectiveMaxAttempts:
+			typeof data.effectiveMaxAttempts === 'number' &&
+			data.effectiveMaxAttempts >= 1
+				? data.effectiveMaxAttempts
+				: prev?.effectiveMaxAttempts,
 	};
 
 	saveMockTestOnlineExamAuth(auth);

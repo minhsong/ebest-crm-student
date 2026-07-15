@@ -85,6 +85,8 @@ export function MockTestOnlineConfirmExamClient({
 	const {
 		autoProceeding,
 		submittingUnlock,
+		authorizeError,
+		clearAuthorizeError,
 		proceedWithSessionToken,
 		proceedAfterZaloVerified,
 		proceedWithUnlockCode,
@@ -98,7 +100,7 @@ export function MockTestOnlineConfirmExamClient({
 		[examSession, proceedWithSessionToken],
 	);
 
-	const { zaloVerified, error: verifyError, status: verifyStatus } =
+	const { zaloVerified, error: verifyError, status: verifyStatus, verifyIssue } =
 		useMockTestOnlineZaloVerifySession({
 			pendingRegistrationId: examSession?.pendingRegistrationId,
 			examSessionToken: examSession?.examSessionToken,
@@ -222,9 +224,98 @@ export function MockTestOnlineConfirmExamClient({
 				Xác minh qua Zalo
 			</Title>
 			<Paragraph className="mock-test-intro-text !mb-4">
-				Gửi tin nhắn xác nhận cho Zalo OA Ebest. Sau khi xác minh, bạn sẽ nhận mã để
-				vào làm bài.
+				Gửi tin nhắn xác nhận cho Zalo OA Ebest. Sau khi xác minh thành công, trang
+				sẽ tự chuyển bạn vào phòng thi. Mã 6 ký tự chỉ dùng khi trang không tự chuyển.
 			</Paragraph>
+
+			{authorizeError ? (
+				<Alert
+					type="error"
+					showIcon
+					className="!mb-4"
+					message={authorizeError.title}
+					description={
+						<div className="space-y-3">
+							<p className="mb-0">{authorizeError.description}</p>
+							<div className="flex flex-wrap gap-2">
+								{authorizeError.recovery === 'lead_tests' ? (
+									<>
+										<Button
+											type="primary"
+											onClick={() => {
+												window.location.assign('/lead/tests');
+											}}
+										>
+											Xem lịch sử thi
+										</Button>
+										<Button
+											onClick={() => {
+												window.location.assign('/mock-test-online/register');
+											}}
+										>
+											Đăng ký lại
+										</Button>
+									</>
+								) : null}
+								{authorizeError.recovery === 'restart' ? (
+									<Button
+										type="primary"
+										onClick={() => {
+											window.location.assign('/mock-test-online/register');
+										}}
+									>
+										Bắt đầu lại
+									</Button>
+								) : null}
+								{authorizeError.recovery === 'retry' || !authorizeError.recovery ? (
+									<Button
+										type="primary"
+										onClick={() => {
+											clearAuthorizeError();
+											if (canProceedAfterZalo) onContinueAfterZalo();
+										}}
+									>
+										Thử lại
+									</Button>
+								) : null}
+							</div>
+						</div>
+					}
+				/>
+			) : null}
+
+			{verifyIssue && !zaloVerified ? (
+				<Alert
+					type="error"
+					showIcon
+					className="!mb-4"
+					message={verifyIssue.title}
+					description={
+						<div className="space-y-3">
+							<p className="mb-0">{verifyIssue.description}</p>
+							<div className="flex flex-wrap gap-2">
+								<Button
+									type="primary"
+									onClick={() => {
+										window.location.assign('/mock-test-online/register');
+									}}
+								>
+									Đăng ký lại
+								</Button>
+								{verifyIssue.kind === 'zalo_linked_other_account' ? (
+									<Button
+										onClick={() => {
+											window.location.assign('/login');
+										}}
+									>
+										Đăng nhập cổng học viên
+									</Button>
+								) : null}
+							</div>
+						</div>
+					}
+				/>
+			) : null}
 
 			<Card className="mb-4 mock-test-confirm-exam-summary" bordered={false}>
 				<Text type="secondary" className="text-xs block mb-1">
@@ -267,8 +358,8 @@ export function MockTestOnlineConfirmExamClient({
 			>
 				<Paragraph className="!mb-3 text-sm">
 					Sao chép hoặc bấm <strong>Mở Zalo và gửi</strong>, rồi gửi{' '}
-					<strong>nguyên văn</strong> nội dung bên dưới. Zalo OA sẽ trả lời mã gồm{' '}
-					<strong>6 ký tự</strong>.
+					<strong>nguyên văn</strong> nội dung bên dưới. Sau khi Zalo OA xác nhận,
+					trang web sẽ tự chuyển bạn vào phòng thi.
 				</Paragraph>
 				{zaloDeadline ? (
 					<Alert
@@ -335,6 +426,21 @@ export function MockTestOnlineConfirmExamClient({
 								</Button>
 							) : null}
 						</>
+					) : verifyIssue ? (
+						<div>
+							<Text strong className="block">
+								Không xác minh được với Zalo hiện tại
+							</Text>
+							<Text type="secondary" className="text-sm">
+								Xem hướng dẫn phía trên. Sau khi dùng đúng Zalo và gửi lại tin, trang
+								sẽ cập nhật.
+							</Text>
+							{verifyError ? (
+								<Text type="danger" className="text-sm block mt-1">
+									{verifyError}
+								</Text>
+							) : null}
+						</div>
 					) : (
 						<div className="flex items-start gap-3">
 							<Spin size="small" className="!mt-1" />
@@ -343,7 +449,8 @@ export function MockTestOnlineConfirmExamClient({
 									Đang chờ xác minh…
 								</Text>
 								<Text type="secondary" className="text-sm">
-									Sau khi gửi tin Zalo, trang sẽ tự chuyển bước. Giữ tab này mở.
+									Sau khi gửi tin Zalo thành công, trang sẽ tự chuyển. Giữ tab này
+									mở.
 								</Text>
 								{verifyError ? (
 									<Text type="danger" className="text-sm block mt-1">
@@ -361,17 +468,17 @@ export function MockTestOnlineConfirmExamClient({
 					needsUnlockCode
 						? 'Bước 2 — Nhập mã làm bài'
 						: canProceedAfterZalo
-							? 'Bước 2 — Nhập mã làm bài (dự phòng)'
-							: 'Bước 2 — Nhập mã làm bài (nếu cần)'
+							? 'Bước 2 — Mã dự phòng (nếu cần)'
+							: 'Bước 2 — Mã dự phòng (nếu trang không tự chuyển)'
 				}
 				size="small"
 			>
 				<Paragraph className="!mb-3 text-sm" type="secondary">
 					{needsUnlockCode
-						? 'Nhập mã 6 ký tự từ tin nhắn Zalo OA Ebest để vào phòng làm bài. Mất mã? Gửi lại tin nhắn xác nhận trên Zalo — OA sẽ gửi lại mã.'
+						? 'Nhập mã 6 ký tự từ tin nhắn Zalo OA Ebest để vào phòng làm bài. Mất mã? Gửi lại tin xác nhận trên Zalo — OA sẽ gửi lại mã.'
 						: canProceedAfterZalo
-							? 'Chỉ dùng khi nút «Tiếp tục làm bài» không hoạt động. Nhập mã 6 ký tự từ tin nhắn OA Ebest.'
-							: 'Chỉ dùng khi trang không tự chuyển sau xác minh Zalo. Nhập mã 6 ký tự từ tin nhắn OA Ebest.'}
+							? 'Chỉ cần khi nút «Tiếp tục làm bài» không hoạt động. Nhập mã 6 ký tự từ tin nhắn OA Ebest.'
+							: 'Trên web, sau khi xác minh Zalo trang thường tự chuyển — không cần nhập mã. Chỉ dùng ô này nếu trang vẫn đứng yên sau khi đã gửi tin thành công.'}
 				</Paragraph>
 				<Form form={form} layout="vertical" onFinish={onUnlockFinish}>
 					<Form.Item

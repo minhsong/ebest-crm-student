@@ -3,7 +3,8 @@
 import { Alert, Card, ConfigProvider } from 'antd';
 import { BrandedPublicShell } from '@/components/branding/BrandedPublicShell';
 import { ebestPublicAntdTheme } from '@/lib/ebest-public-antd-theme';
-import { APP_BRAND, EBEST_BRAND_ORANGE, FANPAGE_URL } from '@/lib/ui-constants';
+import { APP_BRAND, EBEST_BRAND_ORANGE } from '@/lib/ui-constants';
+import { FanpageContactLink } from '@/components/portal-contact/FanpageContactLink';
 
 interface TokenErrorProps {
   message: string;
@@ -31,15 +32,11 @@ export function TokenError({ message }: TokenErrorProps) {
                 <p className="mt-3 text-neutral-600">
                   Nếu bạn cần link mới, vui lòng liên hệ trung tâm {APP_BRAND}{' '}
                   hoặc nhắn tin qua{' '}
-                  <a
-                    href={FANPAGE_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <FanpageContactLink
+                    label="Fanpage E-best English"
                     className="font-medium underline underline-offset-2 hover:opacity-90"
                     style={{ color: EBEST_BRAND_ORANGE }}
-                  >
-                    Fanpage E-best English
-                  </a>
+                  />
                   .
                 </p>
               </div>

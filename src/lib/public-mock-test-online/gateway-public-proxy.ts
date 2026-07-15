@@ -12,6 +12,7 @@ import {
 	applyMockTestOnlineExamAuthCookie,
 	stripPortalAuthorizeTokenFromGatewayBody,
 } from '@/lib/public-mock-test-online/mock-test-online-exam-auth-cookie';
+import { clearMockTestOnlineFunnelSessionCookie } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
 import { mtoServerDebug } from '@/lib/public-mock-test-online/mock-test-online-debug';
 import { mapMockTestBffErrorForClient } from '@/lib/public-mock-test-online/mock-test-bff-response.server';
 
@@ -19,6 +20,22 @@ const JSON_HEADERS: HeadersInit = {
 	Accept: 'application/json',
 	'Content-Type': 'application/json',
 };
+
+/** Deny terminal — không giữ funnel cookie để resume. */
+const FUNNEL_TERMINAL_DENY_CODES = new Set([
+	'MAX_ATTEMPTS_EXCEEDED',
+	'PHONE_MIRROR_EXCEEDED',
+	'CHANNEL_ALREADY_CONSUMED',
+	'ACCESS_DENIED',
+]);
+
+function shouldClearFunnelCookieOnAuthorizeDeny(data: {
+	errorCode?: unknown;
+}): boolean {
+	const code =
+		typeof data.errorCode === 'string' ? data.errorCode.trim() : '';
+	return Boolean(code) && FUNNEL_TERMINAL_DENY_CODES.has(code);
+}
 
 function forwardOriginHeaders(req: NextRequest): HeadersInit {
 	const headers: Record<string, string> = {};
@@ -81,7 +98,7 @@ export async function proxyMockTestOnlineAuthorizePost(
 			portalAuthorizeExpiresAt?: string;
 		};
 		if (!res.ok) {
-			return NextResponse.json(
+			let response = NextResponse.json(
 				mapMockTestBffErrorForClient(
 					data,
 					res.status,
@@ -89,6 +106,15 @@ export async function proxyMockTestOnlineAuthorizePost(
 				),
 				{ status: res.status },
 			);
+			if (shouldClearFunnelCookieOnAuthorizeDeny(data)) {
+				response = clearMockTestOnlineFunnelSessionCookie(response);
+			}
+			mtoServerDebug(`auth.${path}.deny`, {
+				status: res.status,
+				errorCode:
+					typeof data.errorCode === 'string' ? data.errorCode : null,
+			});
+			return response;
 		}
 		const token =
 			typeof data.portalAuthorizeToken === 'string'
@@ -102,11 +128,22 @@ export async function proxyMockTestOnlineAuthorizePost(
 			stripPortalAuthorizeTokenFromGatewayBody(data),
 			{ status: res.status },
 		);
-		if (data.allowed && token) {
-			response = applyMockTestOnlineExamAuthCookie(response, {
-				portalAuthorizeToken: token,
-				portalAuthorizeExpiresAt: expiresAt,
-			});
+		if (data.allowed === true) {
+			if (token) {
+				response = applyMockTestOnlineExamAuthCookie(response, {
+					portalAuthorizeToken: token,
+					portalAuthorizeExpiresAt: expiresAt,
+				});
+			} else {
+				mtoServerDebug(`auth.${path}.missing_token`, {
+					registrationId: data.registrationId ?? null,
+				});
+			}
+			// B3: kết thúc FunnelSession continuity kể cả khi thiếu token (misconfig).
+			response = clearMockTestOnlineFunnelSessionCookie(response);
+		} else if (shouldClearFunnelCookieOnAuthorizeDeny(data)) {
+			// Terminal deny — dừng continuity để tránh loop confirm/select.
+			response = clearMockTestOnlineFunnelSessionCookie(response);
 		}
 		mtoServerDebug(`auth.${path}`, {
 			allowed: data.allowed === true,

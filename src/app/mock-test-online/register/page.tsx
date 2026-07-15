@@ -7,7 +7,6 @@ import { redirectLeadRegisterIfAttemptBlocked } from '@/lib/public-mock-test-onl
 import { resolveRegisterAttemptStatus } from '@/lib/public-mock-test-online/resolve-register-attempt-status.server';
 import {
 	fetchMockTestOnlineSeo,
-	pickSeoWidgetCopy,
 } from '@/lib/public-mock-test-online/seo/fetch-seo.server';
 import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
 import { fetchGatewayFunnelSession } from '@/lib/public-mock-test-online/ssr/fetch-mock-test-online-gateway.server';
@@ -51,14 +50,17 @@ export default async function MockTestOnlineRegisterPage({
 
 	// Fast path retake (BL-Q4): lead portal cookie → bootstrap pending — trừ khi đang làm dở.
 	if (sp.new !== '1' && session.actor === 'lead' && !resumeInExam) {
-		await redirectLeadRegisterIfAttemptBlocked(session.omniLeadId);
+		await redirectLeadRegisterIfAttemptBlocked(
+			session.omniLeadId,
+			undefined,
+			session.profile.phoneE164,
+		);
 		redirect('/api/public/mock-test-online/bootstrap-retake');
 	}
 
 	const { profileOptions, profileOptionsError, initialContact } =
 		await loadMockTestOnlineLeadRegisterPageData();
 	const seo = await fetchMockTestOnlineSeo();
-	const widgetCopy = pickSeoWidgetCopy(seo);
 
 	return (
 		<>
@@ -67,7 +69,7 @@ export default async function MockTestOnlineRegisterPage({
 				profileOptions={profileOptions}
 				profileOptionsError={profileOptionsError}
 				initialContact={initialContact}
-				widgetTitle={widgetCopy.widgetTitle}
+				widgetTitle="Đăng ký"
 				widgetIntro="Điền thông tin liên hệ để bắt đầu. Sau bước này bạn sẽ chọn bài thi và xác minh qua Zalo."
 				attemptStatus={attemptStatus}
 				intakeBlocked={resumeInExam}

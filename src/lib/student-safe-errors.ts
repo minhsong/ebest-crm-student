@@ -19,6 +19,9 @@ const TECHNICAL_MESSAGE_PATTERNS: RegExp[] = [
   /Social Gateway|Gateway\b.*\b3040/i,
   /at\s+[\w.]+\s+\(/,
   /Exception|stack trace/i,
+  /\b(entitlement|AccessEntitlement|grantId|grant TTL|AE-|MOCK_TEST_ENTITLEMENT)\b/i,
+  /\b(examSessionToken|pendingRegistrationId|NEXT_PUBLIC_)\b/i,
+  /\b(CRM intake|Phản hồi CRM|assert-mock-test-intake|portal_login_key)\b/i,
   // M7-5 — thuật ngữ nội bộ portal / identity (PI-D16)
   /\b(tài khoản lead|lead portal|lead account|portal account|customer credential)\b/i,
   /\b(omniLeadId|customerId|leadAccountId|lead_portal_account|login_key|loginKey)\b/i,

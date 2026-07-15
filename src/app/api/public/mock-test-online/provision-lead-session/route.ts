@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
-import { setLeadAccessTokenCookie } from '@/lib/lead-auth-cookie';
+import { setPortalSessionCookie } from '@/lib/portal-auth/portal-auth-session.server';
 import { unwrapCrmResponseBody } from '@/lib/crm-student-proxy';
 import {
   mapMockTestBffErrorForClient,
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
     const payload = unwrapCrmResponseBody(data) as { accessToken?: string };
     if (payload?.accessToken) {
-      setLeadAccessTokenCookie(payload.accessToken);
+      setPortalSessionCookie('lead', payload.accessToken);
     }
     return NextResponse.json(mapProvisionLeadSessionForClient(payload));
   } catch {

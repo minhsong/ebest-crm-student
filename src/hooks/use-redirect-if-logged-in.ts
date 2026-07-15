@@ -1,19 +1,30 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/auth-context';
+import { usePortalSession } from '@/contexts/portal-session-context';
+import { homePathForPortalActor } from '@/lib/portal-auth/portal-session-nav';
 
-/** Cổng public: đã có token thì về dashboard. */
+/**
+ * Trang public (forgot/reset): đã có phiên portal → redirect zone tương ứng.
+ */
 export function useRedirectIfLoggedIn() {
-  const router = useRouter();
-  const { customer, ready } = useAuth();
+	const router = useRouter();
+	const session = usePortalSession();
+	const [shouldHide, setShouldHide] = useState(false);
 
-  useEffect(() => {
-    if (ready && customer) {
-      router.replace('/');
-    }
-  }, [ready, customer, router]);
+	useEffect(() => {
+		if (session.status === 'loading') return;
+		if (session.actor === 'guest') {
+			setShouldHide(false);
+			return;
+		}
+		setShouldHide(true);
+		router.replace(homePathForPortalActor(session.actor));
+	}, [session, router]);
 
-  return { ready, customer, shouldHide: ready && !!customer };
+	return {
+		ready: session.status === 'ready',
+		shouldHide,
+	};
 }

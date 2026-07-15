@@ -1,0 +1,69 @@
+.portal-contact-fab {
+	position: fixed;
+	right: 14px;
+	bottom: 18px;
+	z-index: 1100;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+	pointer-events: none;
+}
+
+.portal-contact-fab__btn {
+	pointer-events: auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	color: #fff;
+	box-shadow: 0 4px 14px rgba(15, 23, 42, 0.22);
+	transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+	text-decoration: none;
+}
+
+.portal-contact-fab__btn:hover {
+	transform: translateY(-2px) scale(1.04);
+	box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
+	filter: brightness(1.05);
+	color: #fff;
+}
+
+.portal-contact-fab__btn:focus-visible {
+	outline: 2px solid #fff;
+	outline-offset: 3px;
+}
+
+.portal-contact-fab__btn--messenger {
+	background: #0084ff;
+}
+
+.portal-contact-fab__btn--zalo {
+	background: #0068ff;
+}
+
+.portal-contact-fab__svg {
+	width: 26px;
+	height: 26px;
+	display: block;
+}
+
+@media (max-width: 640px) {
+	.portal-contact-fab {
+		right: 10px;
+		bottom: 14px;
+		gap: 8px;
+	}
+
+	.portal-contact-fab__btn {
+		width: 44px;
+		height: 44px;
+	}
+
+	.portal-contact-fab__svg {
+		width: 24px;
+		height: 24px;
+	}
+}

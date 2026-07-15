@@ -5,7 +5,7 @@ import {
 	gatewayConfigErrorResponse,
 } from '@/lib/social-gateway-bff.util';
 import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
-import { applyMockTestOnlinePendingLeadCookie } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
+import { applyMockTestOnlinePendingLeadCookie, clearMockTestOnlineFunnelSessionCookie } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
 import { mapMockTestBffErrorForClient } from '@/lib/public-mock-test-online/mock-test-bff-response.server';
 
 /** Fast path retake (BL-Q4): lead cookie → GW bootstrap pending → select-exam. */
@@ -32,9 +32,10 @@ export async function GET(request: NextRequest) {
 	};
 	if (!res.ok || !data.pendingLeadId?.trim()) {
 		if (res.status === 403) {
-			return NextResponse.redirect(
+			const redirect = NextResponse.redirect(
 				new URL('/lead/tests?notice=attempt_limit', request.url),
 			);
+			return clearMockTestOnlineFunnelSessionCookie(redirect);
 		}
 		const message =
 			typeof data.message === 'string'

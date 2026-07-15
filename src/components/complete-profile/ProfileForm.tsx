@@ -19,7 +19,8 @@ import { ArrowLeftOutlined, ArrowRightOutlined, SafetyCertificateOutlined } from
 import dayjs from 'dayjs';
 import type { ProfileByTokenResult, ProfileAddressData } from '@/types/profile';
 import { PhoneInputField } from '@/components/phone-input';
-import { EBEST_BRAND_ORANGE, FANPAGE_URL } from '@/lib/ui-constants';
+import { EBEST_BRAND_ORANGE } from '@/lib/ui-constants';
+import { useFanpageContactUrl } from '@/contexts/portal-contact-links-context';
 import { ebestPublicAntdTheme } from '@/lib/ebest-public-antd-theme';
 import { BrandedPublicShell } from '@/components/branding/BrandedPublicShell';
 import { CompleteProfileBrandHeader } from './CompleteProfileBrandHeader';
@@ -83,6 +84,7 @@ export function ProfileForm({
 }: ProfileFormProps) {
   const { customer, availableTags } = initialData;
   const [form] = Form.useForm();
+  const fanpageUrl = useFanpageContactUrl();
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState<StepNumber | 'done'>(() =>
     initialStep === 5 ? 5 : 1,
@@ -144,7 +146,7 @@ export function ProfileForm({
         ) : submitErrorAction === 'contact_support' ? (
           <Button
             size="small"
-            href={FANPAGE_URL}
+            href={fanpageUrl}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -172,7 +174,7 @@ export function ProfileForm({
           ) : loginKeyWarningAction === 'contact_support' ? (
             <Button
               size="small"
-              href={FANPAGE_URL}
+              href={fanpageUrl}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -553,7 +555,7 @@ export function ProfileForm({
                   <>
                     Mọi thắc mắc khi đăng ký, bạn vui lòng nhắn tin qua{' '}
                     <a
-                      href={FANPAGE_URL}
+                      href={fanpageUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-medium hover:underline"

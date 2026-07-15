@@ -6,103 +6,138 @@ import { useRouter } from 'next/navigation';
 import { PortalDashboardShell } from '@/components/layouts/dashboard';
 import { buildLeadPortalMenuAntdItems } from '@/lib/dashboard-menu';
 import type { LeadProfile } from '@/lib/lead-portal/types';
-import { probePortalSession } from '@/lib/portal-auth/probe-portal-session';
+import { fetchLeadProfile } from '@/lib/lead-portal/client-api';
+import { isLeadPortalUnauthorizedError } from '@/lib/lead-portal/errors';
+import { isLeadIdentityUpgraded } from '@/lib/portal-auth/portal-auth-session';
+import { usePortalSession } from '@/contexts/portal-session-context';
 import { PORTAL_MOCK_TEST_RESULTS_ROUTES } from '@/lib/portal-auth/session-routes';
 import { LeadMarketingStrip } from '@/components/lead-portal/LeadMarketingStrip';
 import { usePortalSiteLinks } from '@/hooks/use-portal-site-links';
 import { PortalExploreProvider } from '@/contexts/portal-explore-context';
 
 function resolveLeadDisplayName(profile: LeadProfile): string {
-  const name = profile.displayName?.trim();
-  if (name) return name;
-  const phone = profile.phoneE164?.trim();
-  if (phone) return phone;
-  const email = profile.email?.trim();
-  if (email && !email.endsWith('@mto.ebest.internal')) return email;
-  return 'Thí sinh';
+	const name = profile.displayName?.trim();
+	if (name) return name;
+	const phone = profile.phoneE164?.trim();
+	if (phone) return phone;
+	const email = profile.email?.trim();
+	if (email && !email.endsWith('@mto.ebest.internal')) return email;
+	return 'Thí sinh';
 }
 
 type Props = {
-  children: ReactNode;
-  initialProfile?: LeadProfile | null;
-  skipInitialProbe?: boolean;
-  allowMockTestFunnel?: boolean;
-  sidebarCollapsedDefault?: boolean;
+	children: ReactNode;
+	initialProfile?: LeadProfile | null;
+	skipInitialProbe?: boolean;
+	allowMockTestFunnel?: boolean;
+	sidebarCollapsedDefault?: boolean;
 };
 
 function LeadAuthenticatedLayoutInner({
-  children,
-  initialProfile = null,
-  skipInitialProbe = false,
-  allowMockTestFunnel = false,
-  sidebarCollapsedDefault = false,
+	children,
+	initialProfile = null,
+	skipInitialProbe = false,
+	allowMockTestFunnel = false,
+	sidebarCollapsedDefault = false,
 }: Props) {
-  const router = useRouter();
-  const [ready, setReady] = useState(skipInitialProbe && Boolean(initialProfile));
-  const [profile, setProfile] = useState<LeadProfile | null>(initialProfile);
-  const { siteLinks } = usePortalSiteLinks();
+	const router = useRouter();
+	const portal = usePortalSession();
+	const [ready, setReady] = useState(skipInitialProbe && Boolean(initialProfile));
+	const [profile, setProfile] = useState<LeadProfile | null>(initialProfile);
+	const { siteLinks } = usePortalSiteLinks();
 
-  useEffect(() => {
-    if (skipInitialProbe && initialProfile) {
-      setProfile(initialProfile);
-      setReady(true);
-      return;
-    }
+	useEffect(() => {
+		if (skipInitialProbe && initialProfile) {
+			setProfile(initialProfile);
+			setReady(true);
+			return;
+		}
 
-    let cancelled = false;
-    void (async () => {
-      const probe = await probePortalSession();
-      if (cancelled) return;
-      if (probe.kind === 'student') {
-        if (allowMockTestFunnel) {
-          router.replace('/mock-test-online');
-          return;
-        }
-        router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.student);
-        return;
-      }
-      if (probe.kind === 'none') {
-        router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
-        return;
-      }
-      setProfile(probe.profile);
-      setReady(true);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [router, skipInitialProbe, initialProfile, allowMockTestFunnel]);
+		if (portal.status === 'loading') return;
 
-  const menuItems = useMemo(
-    () =>
-      buildLeadPortalMenuAntdItems((path, label) => (
-        <Link href={path}>{label}</Link>
-      )),
-    [],
-  );
+		if (portal.actor === 'customer') {
+			router.replace(
+				allowMockTestFunnel
+					? '/mock-test-online'
+					: PORTAL_MOCK_TEST_RESULTS_ROUTES.student,
+			);
+			return;
+		}
+		if (portal.actor === 'guest') {
+			router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
+			return;
+		}
 
-  const handleLogout = useCallback(() => {
-    void (async () => {
-      await fetch('/api/auth/portal/logout', { method: 'POST' });
-      router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
-    })();
-  }, [router]);
+		let cancelled = false;
+		void (async () => {
+			try {
+				const next = await fetchLeadProfile();
+				if (cancelled) return;
+				if (isLeadIdentityUpgraded(next)) {
+					await portal.refresh();
+					router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.student);
+					return;
+				}
+				setProfile(next);
+				setReady(true);
+			} catch (e) {
+				if (cancelled) return;
+				if (isLeadPortalUnauthorizedError(e)) {
+					router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
+					return;
+				}
+				router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
+			}
+		})();
 
-  return (
-    <PortalDashboardShell
-      ready={ready && Boolean(profile)}
-      loadingTip="Đang tải phiên đăng nhập…"
-      menuItems={menuItems}
-      userDisplayName={profile ? resolveLeadDisplayName(profile) : 'Thí sinh'}
-      profileHref="/lead/profile"
-      homeHref={PORTAL_MOCK_TEST_RESULTS_ROUTES.lead}
-      onLogout={handleLogout}
-      defaultSidebarCollapsed={sidebarCollapsedDefault}
-    >
-      <LeadMarketingStrip siteLinks={siteLinks} />
-      {children}
-    </PortalDashboardShell>
-  );
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		portal.status,
+		portal.actor,
+		portal.refresh,
+		router,
+		skipInitialProbe,
+		initialProfile,
+		allowMockTestFunnel,
+	]);
+
+	const menuItems = useMemo(
+		() =>
+			buildLeadPortalMenuAntdItems((path, label) => (
+				<Link href={path}>{label}</Link>
+			)),
+		[],
+	);
+
+	const handleLogout = useCallback(() => {
+		void portal.logout().then(() => {
+			router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
+		});
+	}, [portal, router]);
+
+	return (
+		<PortalDashboardShell
+			ready={ready && Boolean(profile)}
+			loadingTip="Đang tải phiên đăng nhập…"
+			menuItems={menuItems}
+			userDisplayName={
+				profile
+					? resolveLeadDisplayName(profile)
+					: portal.status === 'ready' && portal.actor === 'lead'
+						? portal.displayName
+						: 'Thí sinh'
+			}
+			profileHref="/lead/profile"
+			homeHref={PORTAL_MOCK_TEST_RESULTS_ROUTES.lead}
+			onLogout={handleLogout}
+			defaultSidebarCollapsed={sidebarCollapsedDefault}
+		>
+			<LeadMarketingStrip siteLinks={siteLinks} />
+			{children}
+		</PortalDashboardShell>
+	);
 }
 
 /**
@@ -110,9 +145,9 @@ function LeadAuthenticatedLayoutInner({
  * `PortalExploreProvider`: 1 fetch explore cho strip + trang courses.
  */
 export function LeadAuthenticatedLayoutClient(props: Props) {
-  return (
-    <PortalExploreProvider>
-      <LeadAuthenticatedLayoutInner {...props} />
-    </PortalExploreProvider>
-  );
+	return (
+		<PortalExploreProvider>
+			<LeadAuthenticatedLayoutInner {...props} />
+		</PortalExploreProvider>
+	);
 }

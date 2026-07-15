@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Button } from 'antd';
+import { Button, Space } from 'antd';
 import { EbestLogo } from '@/components/branding/EbestLogo';
 import {
   isMockTestOnlineExamFocusPath,
@@ -31,25 +31,23 @@ export function MockTestOnlineSiteLayout({ children }: Props) {
             link={{ href: '/mock-test-online', title: 'Thi thử online Ebest' }}
           />
           {!examFocus ? (
-            <nav className="mock-test-online-site-nav" aria-label="Thi thử online">
-              {MOCK_TEST_ONLINE_NAV_ITEMS.map((item) => (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  className={`mock-test-online-site-nav-link${activeKey === item.key ? ' mock-test-online-site-nav-link--active' : ''}`}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          ) : null}
-          {!examFocus ? (
-            <div className="mock-test-online-site-header-cta">
-              <Link href="/mock-test-online/register">
-                <Button type="primary" size="middle">
-                  Đăng ký ngay
-                </Button>
-              </Link>
+            <div className="mock-test-online-site-header-cta ml-auto">
+              <Space wrap size="small">
+                {MOCK_TEST_ONLINE_NAV_ITEMS.map((item) => {
+                  const active = activeKey === item.key;
+                  const isRegister = item.key === 'register';
+                  return (
+                    <Link key={item.key} href={item.href}>
+                      <Button
+                        type={isRegister || active ? 'primary' : 'default'}
+                        size="middle"
+                      >
+                        {item.label}
+                      </Button>
+                    </Link>
+                  );
+                })}
+              </Space>
             </div>
           ) : null}
         </div>
@@ -57,7 +55,7 @@ export function MockTestOnlineSiteLayout({ children }: Props) {
       <main className="mock-test-online-site-main">{children}</main>
       {!examFocus ? (
         <footer className="mock-test-online-site-footer">
-          <p>Ebest English — Thi thử TOEIC online</p>
+          <p>Ebest English — Thi thử online</p>
         </footer>
       ) : null}
     </div>

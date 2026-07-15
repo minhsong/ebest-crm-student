@@ -17,6 +17,7 @@ import {
 } from '@/lib/portal-auth/session-routes';
 import { fetchExamFunnelHint } from '@/lib/complete-profile/check-login-key';
 import { loadMockTestOnlineExamAuth } from '@/lib/public-mock-test-online/exam-session';
+import { readMockTestOnlineExpectedScore } from '@/lib/public-mock-test-online/exam-expected-score.util';
 import { isMockTestOnlineAttemptBlocked } from '@/lib/public-mock-test-online/mock-test-online-attempt-limit.util';
 
 const { Paragraph, Text } = Typography;
@@ -30,6 +31,7 @@ export function MockTestOnlineExamDoneClient() {
 	const sessionKind = probe?.kind ?? null;
 	const [hideLeadRegister, setHideLeadRegister] = useState(false);
 	const [registrationId, setRegistrationId] = useState<number | null>(null);
+	const [expectedScore, setExpectedScore] = useState<number | null>(null);
 	const [countdown, setCountdown] = useState<number | null>(null);
 	const redirectedRef = useRef(false);
 
@@ -40,7 +42,10 @@ export function MockTestOnlineExamDoneClient() {
 	useEffect(() => {
 		const auth = loadMockTestOnlineExamAuth({ allowExpiredToken: true });
 		const regId = auth?.registrationId;
-		if (regId) setRegistrationId(regId);
+		if (regId) {
+			setRegistrationId(regId);
+			setExpectedScore(readMockTestOnlineExpectedScore(regId));
+		}
 		if (!regId) return;
 		void fetchExamFunnelHint(regId).then((hint) => {
 			setHideLeadRegister(hint.hideLeadRegister);
@@ -98,6 +103,12 @@ export function MockTestOnlineExamDoneClient() {
 						Cảm ơn bạn đã hoàn thành bài thi thử. Kết quả sẽ được gửi qua Zalo OA
 						Ebest; nếu bạn chọn nhận qua email, hãy xác nhận email để nhận điểm sau
 						khi chấm xong.
+						{expectedScore != null ? (
+							<Text className="block !mt-2 text-sm" type="secondary">
+								Điểm kỳ vọng lần này: <strong>{expectedScore}</strong> — đối chiếu
+								với điểm thực tế trên trang kết quả khi bài đã chấm xong.
+							</Text>
+						) : null}
 						{countdown != null && countdown > 0 ? (
 							<Text className="block !mt-2 text-sm" type="secondary">
 								Tự chuyển tới{' '}

@@ -12,7 +12,10 @@ type Props = {
   className?: string;
   /** Mặc định `error` — `/lead/tests` dùng `warning`. */
   variant?: 'error' | 'warning';
-  /** Hiển thị message chung (redirect `?notice=attempt_limit`). */
+  /**
+   * Redirect `?notice=attempt_limit`.
+   * Chỉ hiện khi đã có status (tránh flash generic rồi biến mất khi resume).
+   */
   forced?: boolean;
 };
 
@@ -24,7 +27,15 @@ export function MockTestOnlineAttemptLimitAlert({
   forced = false,
 }: Props) {
   if (attemptStatus?.activeInExam?.resumeAllowed) return null;
-  if (!forced && !isMockTestOnlineAttemptBlocked(attemptStatus)) return null;
+
+  const blocked = isMockTestOnlineAttemptBlocked(attemptStatus);
+  if (forced) {
+    // Chưa load status → đợi (tránh flash copy generic).
+    if (attemptStatus == null) return null;
+    if (!blocked) return null;
+  } else if (!blocked) {
+    return null;
+  }
 
   return (
     <Alert

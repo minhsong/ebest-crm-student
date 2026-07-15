@@ -8,7 +8,7 @@ import { MailOutlined, UserOutlined } from '@ant-design/icons';
 import { useForgotPassword } from '@/hooks/use-password-recovery';
 import { useRedirectIfLoggedIn } from '@/hooks/use-redirect-if-logged-in';
 import { AuthWideFormLayout } from '@/components/auth/AuthWideFormLayout';
-import { FANPAGE_URL } from '@/lib/ui-constants';
+import { FanpageContactLink } from '@/components/portal-contact/FanpageContactLink';
 import {
   PortalLoginModePicker,
   parsePortalLoginModeFromQuery,
@@ -19,14 +19,18 @@ const CUSTOMER_SIDEBAR = [
   'Chỉ email đã có tài khoản đăng nhập trên hệ thống mới nhận được link đặt lại mật khẩu.',
   'Nếu hệ thống báo chưa có tài khoản, có thể bạn chưa hoàn tất đăng ký — vui lòng liên hệ Fanpage để được hỗ trợ.',
   'Kiểm tra cả thư mục Spam / Quảng cáo nếu không thấy email trong hộp thư đến.',
-  <>Cần hỗ trợ? <a href={FANPAGE_URL} target="_blank" rel="noopener noreferrer">Fanpage E-best English</a>.</>,
+  <>
+    Cần hỗ trợ? <FanpageContactLink label="Fanpage E-best English" />.
+  </>,
 ];
 
 const LEAD_SIDEBAR = [
   'Nhập email hoặc SĐT đã dùng khi đăng ký thi thử online.',
   'Hệ thống gửi link đặt lại mật khẩu tới email đã xác nhận trên tài khoản thí sinh.',
   'Nếu chưa xác nhận email, vui lòng kiểm tra hộp thư sau khi đăng ký hoặc liên hệ Ebest.',
-  <>Cần hỗ trợ? <a href={FANPAGE_URL} target="_blank" rel="noopener noreferrer">Fanpage E-best English</a>.</>,
+  <>
+    Cần hỗ trợ? <FanpageContactLink label="Fanpage E-best English" />.
+  </>,
 ];
 
 export default function ForgotPasswordPageClient() {

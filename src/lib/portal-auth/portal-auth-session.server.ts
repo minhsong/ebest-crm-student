@@ -14,14 +14,16 @@ import type {
   PortalAuthActor,
 } from '@/lib/portal-auth/portal-auth-session';
 
-/** SSOT set cookie portal theo actor (PI-D2, PI-D8). */
+/** SSOT set cookie portal theo actor (PI-D2 một cookie active). */
 export function setPortalSessionCookie(actor: PortalAuthActor, token: string) {
   const v = token?.trim() ?? '';
   if (!v) return;
   if (actor === 'lead') {
     setLeadAccessTokenCookie(v);
+    clearStudentAccessTokenCookie();
   } else {
     setStudentAccessTokenCookie(v);
+    clearLeadAccessTokenCookie();
   }
 }
 
@@ -42,12 +44,17 @@ export function applyLeadIdentityUpgradeCookies(
 ): LeadMeCrmPayload {
   const upgrade = payload.identityUpgrade;
   if (upgrade?.available && upgrade.accessToken) {
-    setStudentAccessTokenCookie(upgrade.accessToken);
-    clearLeadAccessTokenCookie();
+    setPortalSessionCookie('customer', upgrade.accessToken);
     return {
       ...payload,
       identityUpgrade: { ...upgrade, applied: true },
     };
   }
   return payload;
+}
+
+/** Xóa cả cookie identity portal (logout SSOT). */
+export function clearAllPortalAuthCookies(): void {
+  clearStudentAccessTokenCookie();
+  clearLeadAccessTokenCookie();
 }

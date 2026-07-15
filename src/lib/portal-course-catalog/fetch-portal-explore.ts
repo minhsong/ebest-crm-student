@@ -4,6 +4,10 @@ import {
   unwrapCrmResponseBody,
 } from '@/lib/crm-student-proxy.shared';
 import { STUDENT_API } from '@/lib/student-api';
+import {
+  MESSENGER_CHAT_URL,
+  ZALO_OA_CHAT_URL,
+} from '@/lib/ui-constants';
 import type { PortalExplorePayload } from './types';
 
 function parseExplorePayload(data: unknown): PortalExplorePayload {
@@ -15,8 +19,8 @@ function parseExplorePayload(data: unknown): PortalExplorePayload {
     siteLinks: payload?.siteLinks ?? {
       locale: 'vi-VN',
       aboutUrl: 'https://ebest.edu.vn/ve-chung-toi/',
-      zaloChatUrl: 'https://zalo.me/ebestenglish',
-      facebookMessengerUrl: 'https://www.facebook.com/ebestenglish',
+      zaloChatUrl: ZALO_OA_CHAT_URL,
+      facebookMessengerUrl: MESSENGER_CHAT_URL,
     },
     courses: Array.isArray(payload?.courses) ? payload.courses : [],
     recommendations: payload?.recommendations,

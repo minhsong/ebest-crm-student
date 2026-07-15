@@ -1,7 +1,8 @@
+import { clearAllPortalAuthCookies } from '@/lib/portal-auth/portal-auth-session.server';
 import { NextResponse } from 'next/server';
-import { clearLeadAccessTokenCookie } from '@/lib/lead-auth-cookie';
 
+/** Alias → clearAllPortalAuthCookies. UI nên gọi `/api/auth/portal/logout`. */
 export async function POST() {
-  clearLeadAccessTokenCookie();
-  return NextResponse.json({ ok: true });
+	clearAllPortalAuthCookies();
+	return NextResponse.json({ ok: true });
 }

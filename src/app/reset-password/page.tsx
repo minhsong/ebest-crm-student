@@ -8,13 +8,15 @@ import { LockOutlined } from '@ant-design/icons';
 import { useResetPassword } from '@/hooks/use-password-recovery';
 import { useRedirectIfLoggedIn } from '@/hooks/use-redirect-if-logged-in';
 import { AuthWideFormLayout } from '@/components/auth/AuthWideFormLayout';
-import { FANPAGE_URL } from '@/lib/ui-constants';
+import { FanpageContactLink } from '@/components/portal-contact/FanpageContactLink';
 import { parsePortalLoginModeFromQuery } from '@/components/portal/PortalLoginModePicker';
 
 const SIDEBAR_ITEMS = [
   'Liên kết trong email thường có hiệu lực trong 24 giờ.',
   'Sau khi đặt lại thành công, hãy đăng nhập bằng mật khẩu mới.',
-  <>Không mở được link? <a href={FANPAGE_URL} target="_blank" rel="noopener noreferrer">Liên hệ hỗ trợ</a>.</>,
+  <>
+    Không mở được link? <FanpageContactLink label="Liên hệ hỗ trợ" />.
+  </>,
 ];
 
 function ResetPasswordForm() {

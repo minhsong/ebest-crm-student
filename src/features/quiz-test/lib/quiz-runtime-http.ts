@@ -97,16 +97,55 @@ export function quizRuntimeErrorMessage(
       : context === 'submit'
         ? STUDENT_SAFE_USER_MESSAGES.quizSubmitFailed
         : context === 'start'
-          ? STUDENT_SAFE_USER_MESSAGES.quizLoadFailed
+          ? 'Không bắt đầu được bài thi. Vui lòng thử lại.'
           : STUDENT_SAFE_USER_MESSAGES.quizUnavailable;
   const statusFallback = studentMessageForHttpStatus(status);
   const fallback =
     status >= 500 || status === 503 ? statusFallback : contextFallback;
-  if (data && typeof data === 'object' && 'message' in data) {
-    const raw = (data as { message?: unknown }).message;
-    if (typeof raw === 'string') {
-      return sanitizeStudentFacingMessage(raw, fallback);
+
+  if (data && typeof data === 'object' && data !== null) {
+    const payload = data as { message?: unknown; errorCode?: unknown; code?: unknown };
+    const codeRaw =
+      typeof payload.errorCode === 'string'
+        ? payload.errorCode
+        : typeof payload.code === 'string'
+          ? payload.code
+          : undefined;
+    const code = codeRaw?.trim();
+    if (code) {
+      const mapped = mapQuizStartErrorCode(code);
+      if (mapped) return mapped;
+    }
+    if (typeof payload.message === 'string') {
+      return sanitizeStudentFacingMessage(payload.message, fallback);
     }
   }
   return fallback;
+}
+
+/** Map mã nghiệp vụ mock-test / quiz start → câu người dùng hiểu. */
+function mapQuizStartErrorCode(code: string): string | null {
+  switch (code) {
+    case 'ENTITLEMENT_CONSUME_FAILED':
+      return 'Chưa bắt đầu được bài thi. Thử lại; nếu vẫn lỗi hãy tải lại trang hoặc liên hệ Ebest.';
+    case 'ENTITLEMENT_UNAVAILABLE':
+      return 'Tạm thời chưa mở được bài thi. Vui lòng thử lại sau ít phút.';
+    case 'ACCESS_DENIED':
+    case 'MAX_ATTEMPTS_EXCEEDED':
+      return 'Bạn đã dùng hết lượt thi thử online cho loại đề này.';
+    case 'CHANNEL_ALREADY_CONSUMED':
+      return 'Lượt xác minh này đã được dùng. Liên hệ Ebest nếu cần hỗ trợ.';
+    case 'EXAM_SESSION_EXPIRED':
+      return 'Hết thời gian làm bài. Không thể tiếp tục phiên này.';
+    case 'ATTEMPT_EXPIRED':
+      return 'Hết hạn vào phòng thi. Vui lòng chọn lại bài thi nếu vẫn muốn thi.';
+    case 'EXAM_ALREADY_COMPLETED':
+      return 'Bạn đã hoàn thành bài thi này.';
+    case 'ZALO_VERIFICATION_REQUIRED':
+      return 'Bạn cần hoàn tất xác minh Zalo trước khi bắt đầu.';
+    case 'RATE_LIMITED':
+      return 'Thử quá nhiều lần. Vui lòng đợi vài phút rồi thử lại.';
+    default:
+      return null;
+  }
 }

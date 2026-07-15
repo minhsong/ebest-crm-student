@@ -146,6 +146,10 @@ export function QuizAttemptClient({
     remainingSeconds,
     rulesAcknowledged,
     setRulesAcknowledged,
+    mtoExpectedScore,
+    setMtoExpectedScore,
+    mtoSpeakerChecked,
+    setMtoSpeakerChecked,
     setPhase,
     loadForm,
     handleStart,
@@ -588,8 +592,12 @@ export function QuizAttemptClient({
           }
           setPhase('ready');
         }}
-        onStart={() => void handleStart()}
+        onStart={(opts) => void handleStart(opts)}
         mockTestOnlineUi={mockTestOnlineActive}
+        expectedScore={mtoExpectedScore}
+        onExpectedScoreChange={setMtoExpectedScore}
+        speakerChecked={mtoSpeakerChecked}
+        onSpeakerCheckedChange={setMtoSpeakerChecked}
       />
     );
   }

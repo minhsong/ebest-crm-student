@@ -1,6 +1,7 @@
 'use client';
 
-import { APP_BRAND, EBEST_BRAND_ORANGE, FANPAGE_URL } from '@/lib/ui-constants';
+import { APP_BRAND, EBEST_BRAND_ORANGE } from '@/lib/ui-constants';
+import { FanpageContactLink } from '@/components/portal-contact/FanpageContactLink';
 
 const BULLETS = [
   `Thông tin của bạn được ${APP_BRAND} bảo mật và chỉ phục vụ quản lý đào tạo, chăm sóc học viên.`,
@@ -28,14 +29,10 @@ export function CompleteProfileBrandHeader() {
       </ul>
       <p className="mb-0 mt-3 text-xs leading-relaxed text-white/90">
         Cần hỗ trợ? Liên hệ trung tâm {APP_BRAND} hoặc{' '}
-        <a
-          href={FANPAGE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
+        <FanpageContactLink
+          label="Fanpage chính thức"
           className="font-medium text-white underline decoration-white/50 underline-offset-2 hover:text-white hover:decoration-white"
-        >
-          Fanpage chính thức
-        </a>
+        />
         .
       </p>
     </div>

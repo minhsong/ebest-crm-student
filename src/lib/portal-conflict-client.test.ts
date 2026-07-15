@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
 
 describe('mapPortalConflictForClient', () => {
@@ -11,7 +12,7 @@ describe('mapPortalConflictForClient', () => {
     );
     expect(result.code).toBe('EMAIL_ALREADY_IN_SYSTEM');
     expect(result.action).toBe('login');
-    expect(result.message).not.toMatch(/lead|học viên/i);
+    expect(result.message).not.toMatch(/\blead\b|omniLead|login_key/i);
   });
 
   it('maps customer_profile to contact_support action', () => {
@@ -35,6 +36,33 @@ describe('mapPortalConflictForClient', () => {
     );
     expect(result.code).toBe('EMAIL_ALREADY_IN_SYSTEM');
     expect(result.action).toBe('login');
+  });
+
+  it('maps phone conflict from Gateway errorCode', () => {
+    const result = mapPortalConflictForClient(
+      {
+        message: 'SĐT đã dùng',
+        errorCode: 'PORTAL_PHONE_ALREADY_REGISTERED',
+        action: 'login',
+      },
+      409,
+    );
+    expect(result.code).toBe('PHONE_ALREADY_IN_SYSTEM');
+    expect(result.action).toBe('login');
+    expect(result.message).toMatch(/Số điện thoại/i);
+  });
+
+  it('maps intake temporarily unavailable', () => {
+    const result = mapPortalConflictForClient(
+      {
+        message: 'internal',
+        errorCode: 'INTAKE_TEMPORARILY_UNAVAILABLE',
+      },
+      503,
+    );
+    expect(result.code).toBe('INTAKE_TEMPORARILY_UNAVAILABLE');
+    expect(result.action).toBe('retry');
+    expect(result.message).toMatch(/sự cố tạm thời|thử lại/i);
   });
 
   it('falls back to sanitize for non-conflict errors', () => {

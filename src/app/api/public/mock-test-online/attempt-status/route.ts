@@ -23,6 +23,9 @@ export async function GET(request: NextRequest) {
 	const { status, httpStatus } = await fetchMockTestOnlineAttemptStatusNoStore(
 		session.omniLeadId,
 		testTypeCode,
+		{
+			phoneNormalized: session.profile.phoneE164,
+		},
 	);
 
 	if (!status) {

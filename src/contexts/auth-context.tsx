@@ -7,10 +7,10 @@ import {
   parseStudentMeCustomerBrief,
   type StudentMeCustomerBrief,
 } from '@/lib/parse-student-me-customer';
-import { isPublicAnonymousPortalPath } from '@/lib/public-portal-paths';
 
 import type { PortalLoginMode } from '@/components/portal/PortalLoginModePicker';
 import { portalLoginPath } from '@/lib/portal-auth/portal-login-api';
+import { usePortalSession } from '@/contexts/portal-session-context';
 
 export type AuthCustomer = StudentMeCustomerBrief;
 
@@ -42,13 +42,12 @@ interface AuthContextValue extends AuthState {
   refreshSession: () => Promise<void>;
 }
 
-const defaultState: AuthState = {
-  customer: null,
-  ready: false,
-};
-
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/**
+ * Customer profile + HV APIs (fetchWithAuth).
+ * Identity actor SSOT = PortalSessionProvider; logout đồng bộ portal session.
+ */
 export function AuthProvider({
   children,
   initialCustomer,
@@ -56,9 +55,15 @@ export function AuthProvider({
   children: React.ReactNode;
   initialCustomer?: AuthCustomer | null;
 }) {
+  const {
+    status: portalStatus,
+    actor: portalActor,
+    refresh: refreshPortalSession,
+    logout: logoutPortalSession,
+  } = usePortalSession();
   const [state, setState] = useState<AuthState>(() => ({
     customer: initialCustomer ?? null,
-    ready: !!initialCustomer,
+    ready: Boolean(initialCustomer),
   }));
 
   const refreshSession = useCallback(async () => {
@@ -82,23 +87,25 @@ export function AuthProvider({
   }, []);
 
   useEffect(() => {
-    if (initialCustomer) return;
-    if (
-      typeof window !== 'undefined' &&
-      isPublicAnonymousPortalPath(window.location.pathname)
-    ) {
+    if (portalStatus === 'loading') return;
+
+    if (portalActor !== 'customer') {
       setState({ customer: null, ready: true });
       return;
     }
+
+    if (initialCustomer) {
+      setState({ customer: initialCustomer, ready: true });
+      return;
+    }
+
     void refreshSession();
-  }, [refreshSession, initialCustomer]);
+  }, [portalStatus, portalActor, initialCustomer, refreshSession]);
 
   const logout = useCallback(async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {}
+    await logoutPortalSession();
     setState({ customer: null, ready: true });
-  }, []);
+  }, [logoutPortalSession]);
 
   const login = useCallback(
     async (
@@ -128,6 +135,7 @@ export function AuthProvider({
         }
         const actor: 'customer' | 'lead' =
           data?.actor === 'lead' ? 'lead' : 'customer';
+        await refreshPortalSession();
         if (actor === 'lead') {
           return { ok: true, actor: 'lead' as const };
         }
@@ -137,7 +145,7 @@ export function AuthProvider({
         return { ok: false, message: 'Không thể kết nối. Vui lòng thử lại.' };
       }
     },
-    [refreshSession],
+    [refreshSession, refreshPortalSession],
   );
 
   const loginWithGoogle = useCallback(
@@ -173,6 +181,7 @@ export function AuthProvider({
           };
         }
         if (parsed.kind === 'session') {
+          await refreshPortalSession();
           await refreshSession();
           return { ok: true, kind: 'session' };
         }
@@ -181,7 +190,7 @@ export function AuthProvider({
         return { ok: false, message: 'Không thể kết nối. Vui lòng thử lại.' };
       }
     },
-    [refreshSession]
+    [refreshSession, refreshPortalSession],
   );
 
   const linkGoogle = useCallback(async (idToken: string) => {
@@ -208,7 +217,6 @@ export function AuthProvider({
     }
   }, []);
 
-  /** Gọi API nội bộ / CRM — token nằm trong httpOnly cookie (server tự inject Authorization). */
   const fetchWithAuth = useCallback(
     async (url: string, options: RequestInit = {}) => {
       const res = await fetch(url, { ...options });
@@ -224,7 +232,7 @@ export function AuthProvider({
       }
       return res;
     },
-    [logout]
+    [logout],
   );
 
   const value: AuthContextValue = {

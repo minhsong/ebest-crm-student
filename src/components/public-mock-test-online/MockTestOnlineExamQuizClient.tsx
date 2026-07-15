@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Alert, Card, Skeleton } from 'antd';
+import { Alert, Button, Card, Skeleton, Space } from 'antd';
 import { QuizAttemptClient } from '@/features/quiz-test/components/QuizAttemptClient';
 import { MockTestOnlineFunnelShell } from '@/components/public-mock-test-online/MockTestOnlineFunnelShell';
 import { useMockTestOnlineExamGate } from '@/components/public-mock-test-online/useMockTestOnlineExamGate';
@@ -13,14 +13,43 @@ type Props = {
 };
 
 export function MockTestOnlineExamQuizClient({ entry }: Props) {
-	const { auth, loading } = useMockTestOnlineExamGate();
+	const { auth, loading, gateFailure } = useMockTestOnlineExamGate();
 
-	if (loading || !auth) {
+	if (loading) {
 		return (
 			<MockTestOnlineFunnelShell step="exam">
 				<Card bordered={false}>
 					<Skeleton active paragraph={{ rows: 6 }} />
 				</Card>
+			</MockTestOnlineFunnelShell>
+		);
+	}
+
+	if (gateFailure || !auth) {
+		const failure = gateFailure ?? {
+			title: 'Không mở được bài thi',
+			description: 'Phiên làm bài không hợp lệ hoặc đã hết hạn.',
+		};
+		return (
+			<MockTestOnlineFunnelShell step="exam">
+				<Alert
+					type="warning"
+					showIcon
+					message={failure.title}
+					description={
+						<Space direction="vertical" size="middle" className="w-full">
+							<span>{failure.description}</span>
+							<Space wrap>
+								<Link href="/mock-test-online/register">
+									<Button type="primary">Về trang đăng ký</Button>
+								</Link>
+								<Link href="/lead/tests">
+									<Button>Xem lịch sử thi</Button>
+								</Link>
+							</Space>
+						</Space>
+					}
+				/>
 			</MockTestOnlineFunnelShell>
 		);
 	}
@@ -33,9 +62,13 @@ export function MockTestOnlineExamQuizClient({ entry }: Props) {
 					type="error"
 					showIcon
 					message="Không mở được bài thi"
-					description="Phiên làm bài không hợp lệ hoặc đã hết hạn."
-					action={
-						<Link href="/mock-test-online/register">Đăng ký lại</Link>
+					description={
+						<Space direction="vertical" size="middle" className="w-full">
+							<span>Thiếu thông tin đề thi. Vui lòng chọn lại bài thi.</span>
+							<Link href="/mock-test-online/register">
+								<Button type="primary">Đăng ký lại</Button>
+							</Link>
+						</Space>
 					}
 				/>
 			</MockTestOnlineFunnelShell>
@@ -57,7 +90,12 @@ export function MockTestOnlineExamQuizClient({ entry }: Props) {
 			>
 				<QuizAttemptClient
 					formPublicId={formPublicId}
-					effectiveMaxAttempts={1}
+					effectiveMaxAttempts={
+						typeof auth.effectiveMaxAttempts === 'number' &&
+						auth.effectiveMaxAttempts >= 1
+							? auth.effectiveMaxAttempts
+							: 1
+					}
 					mockTestOnlineEntry={entry}
 					mockTestOnlineRuntime
 				/>
