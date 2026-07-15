@@ -29,9 +29,9 @@ const FUNNEL_TERMINAL_DENY_CODES = new Set([
 	'ACCESS_DENIED',
 ]);
 
-function shouldClearFunnelCookieOnAuthorizeDeny(data: {
-	errorCode?: unknown;
-}): boolean {
+function shouldClearFunnelCookieOnAuthorizeDeny(
+	data: Record<string, unknown>,
+): boolean {
 	const code =
 		typeof data.errorCode === 'string' ? data.errorCode.trim() : '';
 	return Boolean(code) && FUNNEL_TERMINAL_DENY_CODES.has(code);

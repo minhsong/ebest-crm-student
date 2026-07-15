@@ -55,12 +55,11 @@ export function AuthProvider({
   children: React.ReactNode;
   initialCustomer?: AuthCustomer | null;
 }) {
-  const {
-    status: portalStatus,
-    actor: portalActor,
-    refresh: refreshPortalSession,
-    logout: logoutPortalSession,
-  } = usePortalSession();
+  const portal = usePortalSession();
+  const portalStatus = portal.status;
+  const portalActor = portal.status === 'ready' ? portal.actor : null;
+  const refreshPortalSession = portal.refresh;
+  const logoutPortalSession = portal.logout;
   const [state, setState] = useState<AuthState>(() => ({
     customer: initialCustomer ?? null,
     ready: Boolean(initialCustomer),
@@ -87,7 +86,7 @@ export function AuthProvider({
   }, []);
 
   useEffect(() => {
-    if (portalStatus === 'loading') return;
+    if (portalStatus !== 'ready') return;
 
     if (portalActor !== 'customer') {
       setState({ customer: null, ready: true });

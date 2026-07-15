@@ -53,7 +53,7 @@ function LeadAuthenticatedLayoutInner({
 			return;
 		}
 
-		if (portal.status === 'loading') return;
+		if (portal.status !== 'ready') return;
 
 		if (portal.actor === 'customer') {
 			router.replace(
@@ -94,9 +94,7 @@ function LeadAuthenticatedLayoutInner({
 			cancelled = true;
 		};
 	}, [
-		portal.status,
-		portal.actor,
-		portal.refresh,
+		portal,
 		router,
 		skipInitialProbe,
 		initialProfile,

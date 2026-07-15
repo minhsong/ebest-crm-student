@@ -23,7 +23,7 @@ export default function DashboardLayoutClient({
 	const [gateReady, setGateReady] = useState(false);
 
 	useEffect(() => {
-		if (portal.status === 'loading' || !ready) return;
+		if (!ready || portal.status !== 'ready') return;
 
 		if (portal.actor === 'lead') {
 			router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.lead);
@@ -47,8 +47,7 @@ export default function DashboardLayoutClient({
 			cancelled = true;
 		};
 	}, [
-		portal.status,
-		portal.actor,
+		portal,
 		ready,
 		customer,
 		router,

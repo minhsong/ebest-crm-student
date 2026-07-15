@@ -66,9 +66,9 @@ export function applyMockTestOnlinePendingLeadCookie(
 	return applyMockTestOnlineFunnelSessionCookie(res, pendingLeadId);
 }
 
-export function clearMockTestOnlineFunnelSessionCookie(
-	res: NextResponse,
-): NextResponse {
+export function clearMockTestOnlineFunnelSessionCookie<T = unknown>(
+	res: NextResponse<T>,
+): NextResponse<T> {
 	const clear = {
 		httpOnly: true,
 		sameSite: 'lax' as const,
