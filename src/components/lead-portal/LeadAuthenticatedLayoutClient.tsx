@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { PortalDashboardShell } from '@/components/layouts/dashboard';
 import { buildLeadPortalMenuAntdItems } from '@/lib/dashboard-menu';
 import type { LeadProfile } from '@/lib/lead-portal/types';
@@ -14,6 +14,8 @@ import { PORTAL_MOCK_TEST_RESULTS_ROUTES } from '@/lib/portal-auth/session-route
 import { LeadMarketingStrip } from '@/components/lead-portal/LeadMarketingStrip';
 import { usePortalSiteLinks } from '@/hooks/use-portal-site-links';
 import { PortalExploreProvider } from '@/contexts/portal-explore-context';
+
+const COMPLETE_PROFILE_PATH = '/lead/complete-profile';
 
 function resolveLeadDisplayName(profile: LeadProfile): string {
 	const name = profile.displayName?.trim();
@@ -41,10 +43,14 @@ function LeadAuthenticatedLayoutInner({
 	sidebarCollapsedDefault = false,
 }: Props) {
 	const router = useRouter();
+	const pathname = usePathname();
 	const portal = usePortalSession();
 	const [ready, setReady] = useState(skipInitialProbe && Boolean(initialProfile));
 	const [profile, setProfile] = useState<LeadProfile | null>(initialProfile);
 	const { siteLinks } = usePortalSiteLinks();
+	const onCompleteProfilePath = Boolean(
+		pathname?.startsWith(COMPLETE_PROFILE_PATH),
+	);
 
 	useEffect(() => {
 		if (skipInitialProbe && initialProfile) {
@@ -78,6 +84,20 @@ function LeadAuthenticatedLayoutInner({
 					router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.student);
 					return;
 				}
+				if (
+					!next.profileCompleted &&
+					!pathname?.startsWith(COMPLETE_PROFILE_PATH)
+				) {
+					router.replace(COMPLETE_PROFILE_PATH);
+					return;
+				}
+				if (
+					next.profileCompleted &&
+					pathname?.startsWith(COMPLETE_PROFILE_PATH)
+				) {
+					router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.lead);
+					return;
+				}
 				setProfile(next);
 				setReady(true);
 			} catch (e) {
@@ -99,6 +119,7 @@ function LeadAuthenticatedLayoutInner({
 		skipInitialProbe,
 		initialProfile,
 		allowMockTestFunnel,
+		pathname,
 	]);
 
 	const menuItems = useMemo(
@@ -114,6 +135,11 @@ function LeadAuthenticatedLayoutInner({
 			router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
 		});
 	}, [portal, router]);
+
+	/** Chưa hoàn thiện hồ sơ: chỉ wizard, không mở sidebar layout. */
+	if (onCompleteProfilePath) {
+		return <>{children}</>;
+	}
 
 	return (
 		<PortalDashboardShell
@@ -140,7 +166,7 @@ function LeadAuthenticatedLayoutInner({
 
 /**
  * Layout đăng nhập đầy đủ cho lead — cùng chrome dashboard (header + sidebar).
- * `PortalExploreProvider`: 1 fetch explore cho strip + trang courses.
+ * Gate: chưa `profileCompleted` → `/lead/complete-profile` trước khi vào layout.
  */
 export function LeadAuthenticatedLayoutClient(props: Props) {
 	return (

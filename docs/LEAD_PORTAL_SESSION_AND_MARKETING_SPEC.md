@@ -14,6 +14,7 @@
 | **Giới hạn 3 lượt / testTypeCode / lead** | [MOCK_TEST_ONLINE_LEAD_ATTEMPT_LIMIT_SPEC.md](../../ebest-crm-api/docs/modules/mock-test/MOCK_TEST_ONLINE_LEAD_ATTEMPT_LIMIT_SPEC.md) |
 | UI học tập HV | [STUDENT_PORTAL_LEARNING_UI.md](./STUDENT_PORTAL_LEARNING_UI.md) |
 | React standards | [REACT_CODE_STANDARDS.md](../../ebest-crm-client/docs/standards/REACT_CODE_STANDARDS.md) |
+| **Đăng ký / login / Google / hoàn thiện hồ sơ** | [PORTAL_AUTH_REGISTER_AND_LOGIN_SPEC.md](../../ebest-crm-api/docs/monorepo/portal-identity/PORTAL_AUTH_REGISTER_AND_LOGIN_SPEC.md) |
 
 ---
 

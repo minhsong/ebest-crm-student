@@ -13,20 +13,28 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { parseStudentPortalGoogleFromPublic } from '@/lib/student-portal-google-settings';
 import { LoginGoogleSection } from '@/features/auth/LoginGoogleSection';
 import { usePortalSession } from '@/contexts/portal-session-context';
+import { fetchLeadProfile } from '@/lib/lead-portal/client-api';
 import {
   homePathForPortalActor,
   postLoginPathForPortalActor,
 } from '@/lib/portal-auth/portal-session-nav';
+import { resolvePostLeadLoginPath } from '@/lib/portal-auth/session-routes';
 import type { PortalLoginMode } from '@/components/portal/PortalLoginModePicker';
 import { PortalLoginModePicker, parsePortalLoginModeFromQuery } from '@/components/portal/PortalLoginModePicker';
 
 /** Cam brand (~HSL 16° / ~78% sat / ~51% L) — đồng bộ nhận diện với logo. */
 const LOGIN_BRAND_BG = '#e35321';
 
-const GUIDE_ITEMS = [
+const GUIDE_ITEMS_CUSTOMER = [
   `Đây là cổng thông tin dành cho học viên và thí sinh thi thử online của ${APP_BRAND}.`,
-  'Học viên đăng nhập bằng email/SĐT đã đăng ký tại trung tâm. Thí sinh thi thử dùng SĐT/email và mật khẩu tạm nhận qua Zalo hoặc email.',
-  `${APP_BRAND} tiếp nhận và quản lý thông tin học tập / kết quả thi thử một cách bảo mật.`,
+  'Học viên đăng nhập bằng email/SĐT đã đăng ký tại trung tâm. Có thể dùng Google nếu Gmail trùng email hồ sơ.',
+  `${APP_BRAND} tiếp nhận và quản lý thông tin học tập một cách bảo mật.`,
+];
+
+const GUIDE_ITEMS_LEAD = [
+  'Dành cho thí sinh thi thử online hoặc người chưa học tại Ebest.',
+  'Đăng nhập bằng SĐT/email và mật khẩu đã đặt khi đăng ký. Lần đầu sau xác nhận email, bạn sẽ hoàn thiện hồ sơ trước khi vào cổng.',
+  'Chưa có tài khoản? Chọn «Đăng ký» để tạo tài khoản mới.',
 ];
 
 /**
@@ -82,7 +90,21 @@ export default function LoginPage() {
       return;
     }
     if (portal.actor === 'lead') {
-      router.replace(homePathForPortalActor('lead'));
+      let cancelled = false;
+      void (async () => {
+        try {
+          const profile = await fetchLeadProfile();
+          if (cancelled) return;
+          router.replace(
+            resolvePostLeadLoginPath(profile, homePathForPortalActor('lead')),
+          );
+        } catch {
+          if (!cancelled) router.replace(homePathForPortalActor('lead'));
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
     }
   }, [portal, ready, customer, router]);
 
@@ -102,7 +124,25 @@ export default function LoginPage() {
         if (result.ok) {
           antMessage.success('Đăng nhập thành công.');
           const actor = result.actor === 'lead' ? 'lead' : 'customer';
-          router.replace(postLoginPathForPortalActor(actor, explicitRedirect()));
+          if (actor === 'lead') {
+            try {
+              const profile = await fetchLeadProfile();
+              router.replace(
+                resolvePostLeadLoginPath(
+                  profile,
+                  postLoginPathForPortalActor('lead', explicitRedirect()),
+                ),
+              );
+            } catch {
+              router.replace(
+                postLoginPathForPortalActor('lead', explicitRedirect()),
+              );
+            }
+          } else {
+            router.replace(
+              postLoginPathForPortalActor('customer', explicitRedirect()),
+            );
+          }
         } else {
           setError(result.message ?? 'Đăng nhập thất bại.');
         }
@@ -232,7 +272,9 @@ export default function LoginPage() {
                     </p>
                   </Form>
 
-                  {googleCfg?.enabled && googleCfg.clientId ? (
+                  {loginMode === 'customer' &&
+                  googleCfg?.enabled &&
+                  googleCfg.clientId ? (
                     <GoogleOAuthProvider
                       clientId={googleCfg.clientId}
                       locale="vi"
@@ -268,10 +310,15 @@ export default function LoginPage() {
               <Col xs={24} md={12} className="order-1 md:order-2">
                 <div className="border-b border-white/25 px-4 pb-4 pt-3 md:border-b-0 md:px-5 md:py-4 md:pl-6">
                   <h3 className="mb-2 text-sm font-semibold text-white">
-                    Thông tin dành cho học viên
+                    {loginMode === 'lead'
+                      ? 'Thông tin dành cho thí sinh'
+                      : 'Thông tin dành cho học viên'}
                   </h3>
                   <ul className="list-outside space-y-2.5 pl-4 text-sm leading-relaxed text-white">
-                    {GUIDE_ITEMS.map((item, i) => (
+                    {(loginMode === 'lead'
+                      ? GUIDE_ITEMS_LEAD
+                      : GUIDE_ITEMS_CUSTOMER
+                    ).map((item, i) => (
                       <li key={i} className="marker:text-white/50">
                         {item}
                       </li>

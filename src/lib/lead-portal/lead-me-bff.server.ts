@@ -80,3 +80,44 @@ export async function patchLeadMeBffResponse(body: unknown): Promise<NextRespons
     );
   }
 }
+
+/** POST lead/me/complete-profile — đánh dấu hoàn thiện hồ sơ (mở layout). */
+export async function completeLeadProfileBffResponse(
+  body: unknown,
+): Promise<NextResponse> {
+  const token = getLeadAccessTokenFromCookie();
+  if (!token) {
+    return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
+  }
+  const apiBase = getApiBaseUrl();
+  if (!apiBase) {
+    return NextResponse.json({ message: 'Cấu hình server chưa đúng.' }, { status: 500 });
+  }
+  const url = buildCrmStudentUrl(apiBase, STUDENT_API.leadCompleteProfile);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { ...JSON_HEADERS, Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body ?? {}),
+    });
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!res.ok) {
+      return NextResponse.json(
+        mapPortalConflictForClient(
+          data,
+          res.status,
+          'Không hoàn thiện được hồ sơ.',
+        ),
+        { status: res.status },
+      );
+    }
+    const raw = unwrapCrmResponseBody(data) ?? data;
+    const upgraded = applyLeadIdentityUpgradeCookies(raw as LeadMeCrmPayload);
+    return NextResponse.json(mapLeadMeForClient(upgraded));
+  } catch {
+    return NextResponse.json(
+      { message: 'Không thể kết nối. Vui lòng thử lại.' },
+      { status: 502 },
+    );
+  }
+}

@@ -4,7 +4,8 @@
 > **Roadmap milestone:** [PORTAL_MOCK_TEST_IMPLEMENTATION_ROADMAP.md](./PORTAL_MOCK_TEST_IMPLEMENTATION_ROADMAP.md)  
 > Attempt limit: [MOCK_TEST_ONLINE_LEAD_ATTEMPT_LIMIT_SPEC.md](../../ebest-crm-api/docs/modules/mock-test/MOCK_TEST_ONLINE_LEAD_ATTEMPT_LIMIT_SPEC.md) v1.1  
 > Zalo guard: [MOCK_TEST_ONLINE_ZALO_UNLOCK_CONTACT_GUARD_SPEC.md](../../ebest-crm-api/docs/modules/mock-test/MOCK_TEST_ONLINE_ZALO_UNLOCK_CONTACT_GUARD_SPEC.md)  
-> Cập nhật: 2026-07-06
+> Auth register/login + Google: [PORTAL_AUTH_REGISTER_AND_LOGIN_SPEC.md](../../ebest-crm-api/docs/monorepo/portal-identity/PORTAL_AUTH_REGISTER_AND_LOGIN_SPEC.md)  
+> Cập nhật: 2026-07-16
 
 ## Quyết định PM đã chốt
 
@@ -221,6 +222,21 @@ Public endpoints:
 | M7-9 | SP-SEC AC regression | ⬜ → [PORTAL_LOGIN_KEY_QA_CHECKLIST.md](../../ebest-crm-api/docs/monorepo/portal-identity/PORTAL_LOGIN_KEY_QA_CHECKLIST.md) §5 |
 | M7-10 | **PI-D18** session DTO SSR-only (BL-Q9) | ✅ |
 | M7-11 | Audit client `omniLeadId` → SSR/BFF | ✅ |
+
+---
+
+## M8 — Đăng ký lead + profile gate + Google (P0→P2)
+
+> SSOT: [PORTAL_AUTH_REGISTER_AND_LOGIN_SPEC.md](../../ebest-crm-api/docs/monorepo/portal-identity/PORTAL_AUTH_REGISTER_AND_LOGIN_SPEC.md) · Tracker: [PORTAL_AUTH_REGISTER_IMPLEMENTATION_TRACKER.md](../../ebest-crm-api/docs/monorepo/portal-identity/PORTAL_AUTH_REGISTER_IMPLEMENTATION_TRACKER.md)
+
+| ID | Việc | Trạng thái |
+|----|------|------------|
+| M8-P0 | `profile_completed_at` + gate layout + wizard register | 🟡 Code local — migration ✅ local |
+| M8-P1 | Ẩn Google khi login mode=lead; post-login redirect gate | ✅ |
+| M8-P2 | Lead Google register-or-login + finalize | ⬜ Planned |
+| M8-P3 | Lead Google login (`google_sub`) | ⬜ Backlog |
+
+**Gate:** Chạy migration `20260716130000` trước deploy Portal M8-P0.
 
 ---
 

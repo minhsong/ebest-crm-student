@@ -26,6 +26,7 @@ export const STUDENT_API = {
   authLeadResetPassword: 'auth/lead/reset-password',
   authLeadChangePassword: 'auth/lead/change-password',
   leadMe: 'lead/me',
+  leadCompleteProfile: 'lead/me/complete-profile',
   leadTestResults: 'lead/me/test-results',
   /** @deprecated Dùng `portalExplore` — marketing Mongo đã gỡ. */
   portalMarketing: 'portal/marketing',

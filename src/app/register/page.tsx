@@ -10,10 +10,8 @@ export const metadata = buildPageMetadata({
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-100 px-4 py-10">
-      <Suspense fallback={null}>
-        <LeadCreateAccountClient mode="self-serve" />
-      </Suspense>
-    </div>
+    <Suspense fallback={null}>
+      <LeadCreateAccountClient mode="self-serve" />
+    </Suspense>
   );
 }

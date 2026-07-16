@@ -33,6 +33,12 @@ export function mapLeadMeForClient(payload: unknown): LeadProfile {
     emailVerifiedAt:
       typeof raw.emailVerifiedAt === 'string' ? raw.emailVerifiedAt : null,
     omniLeadId: String(raw.omniLeadId ?? ''),
+    /** Thiếu field (API cũ) → coi như đã hoàn thiện, tránh khóa layout. */
+    profileCompleted: raw.profileCompleted !== false,
+    profileCompletedAt:
+      typeof raw.profileCompletedAt === 'string'
+        ? raw.profileCompletedAt
+        : null,
   };
 
   if (upgradeRaw) {

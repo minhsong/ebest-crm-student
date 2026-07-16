@@ -63,9 +63,28 @@ export async function leadRegister(input: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  const data = await parseJsonMessage(res);
+  const data = (await res.json().catch(() => ({}))) as {
+    message?: string;
+    code?: string;
+    errorCode?: string;
+    action?: 'login' | 'contact_support';
+  };
   if (!res.ok) {
-    throw new Error(data.message ?? 'Đăng ký thất bại.');
+    const err = new Error(data.message ?? 'Đăng ký thất bại.') as Error & {
+      code?: string;
+      action?: 'login' | 'contact_support';
+    };
+    err.code = data.code ?? data.errorCode;
+    if (data.action === 'login' || data.action === 'contact_support') {
+      err.action = data.action;
+    } else if (
+      res.status === 409 ||
+      String(err.code ?? '').includes('ALREADY') ||
+      /đã|trùng|tồn tại|conflict|already/i.test(err.message)
+    ) {
+      err.action = 'login';
+    }
+    throw err;
   }
   return { message: data.message ?? 'Đã gửi email xác nhận.' };
 }
@@ -83,6 +102,29 @@ export async function fetchLeadProfile(): Promise<LeadProfile> {
   if (!res.ok) {
     throw new Error(
       typeof data?.message === 'string' ? data.message : 'Không tải được hồ sơ.',
+    );
+  }
+  return data as LeadProfile;
+}
+
+/** Đánh dấu hoàn thiện hồ sơ sau đăng ký cơ bản — mở layout portal. */
+export async function completeLeadProfile(input: {
+  displayName?: string;
+}): Promise<LeadProfile> {
+  const res = await fetch('/api/lead/me/complete-profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (res.status === 401) {
+    throw new LeadPortalUnauthorizedError();
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      typeof data?.message === 'string'
+        ? data.message
+        : 'Không hoàn thiện được hồ sơ.',
     );
   }
   return data as LeadProfile;

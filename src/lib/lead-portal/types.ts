@@ -5,6 +5,9 @@ export type LeadProfile = {
   phoneE164: string;
   emailVerifiedAt: string | null;
   omniLeadId: string;
+  /** false = đăng ký cơ bản, chưa được vào layout đầy đủ */
+  profileCompleted: boolean;
+  profileCompletedAt?: string | null;
   identityUpgrade?: {
     available?: boolean;
     applied?: boolean;

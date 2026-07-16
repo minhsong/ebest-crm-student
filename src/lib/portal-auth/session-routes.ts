@@ -8,6 +8,9 @@ export const PORTAL_MOCK_TEST_RESULTS_ROUTES = {
   login: '/login',
 } as const;
 
+/** Gate sau đăng ký cơ bản — bắt buộc trước layout lead đầy đủ. */
+export const LEAD_COMPLETE_PROFILE_PATH = '/lead/complete-profile' as const;
+
 export function resolveMockTestResultsPath(probe: LeadSessionProbe): string {
   if (probe.kind === 'student') return PORTAL_MOCK_TEST_RESULTS_ROUTES.student;
   if (probe.kind === 'lead') return PORTAL_MOCK_TEST_RESULTS_ROUTES.lead;
@@ -15,11 +18,17 @@ export function resolveMockTestResultsPath(probe: LeadSessionProbe): string {
 }
 
 export function resolvePostLeadLoginPath(
-  profile: { identityUpgrade?: { applied?: boolean } },
+  profile: {
+    identityUpgrade?: { applied?: boolean };
+    profileCompleted?: boolean;
+  },
   fallback = PORTAL_MOCK_TEST_RESULTS_ROUTES.lead,
 ): string {
   if (profile.identityUpgrade?.applied) {
     return PORTAL_MOCK_TEST_RESULTS_ROUTES.student;
+  }
+  if (profile.profileCompleted === false) {
+    return LEAD_COMPLETE_PROFILE_PATH;
   }
   return fallback;
 }
