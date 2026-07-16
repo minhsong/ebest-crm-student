@@ -14,6 +14,8 @@ import {
 } from '@/features/learning/games/vocabulary-drill/game-config-labels';
 import type { StudentChecklistDetail } from '@/types/student-checklists';
 import { checklistTypeLabel } from '@/lib/checklist-labels';
+import { QaArticleHtml } from '@/features/qa/components/QaArticleHtml';
+import { looksLikeRichHtml } from '@/lib/rich-html.utils';
 
 const { Text } = Typography;
 
@@ -87,7 +89,11 @@ export function StudentChecklistDetailBody({ detail }: Props) {
       >
         {detail.checklist.note ? (
           <Descriptions.Item label="Ghi chú" span={2}>
-            <Text>{detail.checklist.note}</Text>
+            {looksLikeRichHtml(detail.checklist.note) ? (
+              <QaArticleHtml html={detail.checklist.note} />
+            ) : (
+              <Text>{detail.checklist.note}</Text>
+            )}
           </Descriptions.Item>
         ) : null}
         {detail.studentItem.note ? (

@@ -1,6 +1,7 @@
 'use client';
 
-import { Collapse, theme } from 'antd';
+import { Collapse } from 'antd';
+import { QaArticleHtml } from '@/features/qa/components/QaArticleHtml';
 
 type StudentAssignmentBriefCollapseProps = {
   html: string;
@@ -13,38 +14,20 @@ export function StudentAssignmentBriefCollapse({
   html,
   defaultExpanded = false,
 }: StudentAssignmentBriefCollapseProps) {
-  const { token } = theme.useToken();
   const trimmed = html.trim();
   if (!trimmed) return null;
 
   return (
-    <>
-      <style>{`
-        .student-assignment-brief a { color: ${token.colorLink}; }
-        .student-assignment-brief img { max-width: 100%; height: auto; }
-      `}</style>
-      <Collapse
-        size="small"
-        defaultActiveKey={defaultExpanded ? ['brief'] : []}
-        items={[
-          {
-            key: 'brief',
-            label: 'Yêu cầu bài tập',
-            children: (
-              <div
-                className="student-assignment-brief"
-                style={{
-                  fontSize: token.fontSize,
-                  lineHeight: 1.6,
-                  color: token.colorText,
-                }}
-                // eslint-disable-next-line react/no-danger
-                dangerouslySetInnerHTML={{ __html: trimmed }}
-              />
-            ),
-          },
-        ]}
-      />
-    </>
+    <Collapse
+      size="small"
+      defaultActiveKey={defaultExpanded ? ['brief'] : []}
+      items={[
+        {
+          key: 'brief',
+          label: 'Yêu cầu bài tập',
+          children: <QaArticleHtml html={trimmed} />,
+        },
+      ]}
+    />
   );
 }

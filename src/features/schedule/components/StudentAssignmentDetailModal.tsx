@@ -660,11 +660,6 @@ export function StudentAssignmentDetailModal({
       )
     : '';
 
-  const htmlContentStyles = `
-    .student-assignment-html a { color: ${token.colorLink}; }
-    .student-assignment-html img { max-width: 100%; height: auto; }
-  `;
-
   return (
     <>
     <input
@@ -1199,7 +1194,6 @@ export function StudentAssignmentDetailModal({
               >
                 Nội dung / mô tả
               </Title>
-              <style>{htmlContentStyles}</style>
               <Card
                 size="small"
                 variant="borderless"
@@ -1211,10 +1205,7 @@ export function StudentAssignmentDetailModal({
                   },
                 }}
               >
-                <div
-                  className="student-assignment-html"
-                  dangerouslySetInnerHTML={{ __html: detail.content }}
-                />
+                <QaArticleHtml html={detail.content} />
               </Card>
             </div>
           ) : null}

@@ -6,14 +6,19 @@ import { CRM_ASSIGNMENT_RESULT_STATUS } from '@/lib/crm-enums';
 import {
   getWritingEditorHint,
   isWritingDictationMode,
+  isWritingHtmlEmpty,
+  looksLikeWritingHtml,
   normalizeWritingSubmissionText,
   parseWritingExerciseMode,
   WRITING_EXERCISE_MODES,
   WRITING_SUBMISSION_MAX_CHARS,
   countWritingWords,
+  writingPlainTextForLimits,
 } from '@/lib/writing-assignment';
 import { useWritingSubmissionDraft } from '@/features/schedule/hooks/useWritingSubmissionDraft';
 import { StudentWritingDictationAudioPanel } from '@/features/schedule/components/StudentWritingDictationAudioPanel';
+import { BasicRichTextEditor } from '@/components/rich-text/BasicRichTextEditor';
+import { QaArticleHtml } from '@/features/qa/components/QaArticleHtml';
 import type { StudentAssignmentAttachment } from '@/types/student-assignment-detail';
 import type { WritingExerciseMode } from '@/lib/writing-assignment';
 
@@ -73,17 +78,9 @@ export function StudentWritingSubmissionPanel({
     fetchWithAuth,
   });
 
+  const plainLen = useMemo(() => writingPlainTextForLimits(text).length, [text]);
   const wordCount = useMemo(() => countWritingWords(text), [text]);
-
-  const handlePaste = useCallback(
-    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-      if (disablePaste && canEdit) {
-        e.preventDefault();
-        message.warning('Bài tập này không cho phép dán từ clipboard — vui lòng tự gõ.');
-      }
-    },
-    [canEdit, disablePaste],
-  );
+  const isEmpty = useMemo(() => isWritingHtmlEmpty(text), [text]);
 
   const resolvedMode = parseWritingExerciseMode(writingMode);
   const editorHint = useMemo(
@@ -93,7 +90,7 @@ export function StudentWritingSubmissionPanel({
 
   const handleSubmit = useCallback(async () => {
     const normalized = normalizeWritingSubmissionText(text);
-    if (!normalized) {
+    if (isWritingHtmlEmpty(normalized)) {
       message.warning('Vui lòng nhập nội dung bài viết trước khi nộp.');
       return;
     }
@@ -175,16 +172,13 @@ export function StudentWritingSubmissionPanel({
         ) : null}
 
         {canEdit ? (
-          <Input.TextArea
+          <BasicRichTextEditor
             value={text}
-            onChange={(e) => onTextChange(e.target.value)}
-            onPaste={handlePaste}
-            rows={10}
-            maxLength={WRITING_SUBMISSION_MAX_CHARS}
-            placeholder="Nhập bài viết của bạn…"
+            onChange={onTextChange}
+            disablePaste={disablePaste}
             disabled={submitting}
-            style={{ fontFamily: 'inherit' }}
-            autoSize={{ minRows: 10, maxRows: 20 }}
+            minHeight={260}
+            placeholder="Nhập bài viết của bạn…"
           />
         ) : (
           <div
@@ -195,19 +189,21 @@ export function StudentWritingSubmissionPanel({
               background: token.colorFillAlter,
               maxHeight: 420,
               overflow: 'auto',
-              whiteSpace: 'pre-wrap',
-              lineHeight: 1.65,
-              fontSize: token.fontSize,
             }}
           >
-            {text || '—'}
+            {looksLikeWritingHtml(text) ? (
+              <QaArticleHtml html={text} />
+            ) : (
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.65 }}>
+                {text || '—'}
+              </div>
+            )}
           </div>
         )}
 
         <Flex justify="space-between" align="center" wrap gap={8}>
           <Text type="secondary" style={{ fontSize: token.fontSize }}>
-            {wordCount} từ · {text.length.toLocaleString('vi-VN')}/
-            {WRITING_SUBMISSION_MAX_CHARS.toLocaleString('vi-VN')} ký tự
+            {wordCount} từ · {plainLen.toLocaleString('vi-VN')} ký tự (nội dung)
             {canEdit && draftStatus === 'saving' ? ' · Đang lưu nháp…' : ''}
             {canEdit && draftStatus === 'saved' && lastSavedAt
               ? ` · Đã lưu nháp ${new Date(lastSavedAt).toLocaleTimeString('vi-VN')}`
@@ -240,9 +236,9 @@ export function StudentWritingSubmissionPanel({
                 okText="Nộp bài"
                 cancelText="Huỷ"
                 onConfirm={() => void handleSubmit()}
-                disabled={submitting || !text.trim()}
+                disabled={submitting || isEmpty}
               >
-                <Button type="primary" loading={submitting} disabled={!text.trim()}>
+                <Button type="primary" loading={submitting} disabled={isEmpty}>
                   {isSubmitted ? 'Cập nhật bài viết' : 'Nộp bài'}
                 </Button>
               </Popconfirm>

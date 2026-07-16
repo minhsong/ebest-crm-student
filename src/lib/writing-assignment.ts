@@ -1,6 +1,6 @@
 import type { StudentAssignmentAttachment } from '@/types/student-assignment-detail';
 
-/** Giới hạn ký tự nội dung bài viết — khớp API. */
+/** Giới hạn ký tự nội dung bài viết (HTML hoặc plain) — khớp API. */
 export const WRITING_SUBMISSION_MAX_CHARS = 50_000;
 
 export type WritingExerciseMode = 'free' | 'dictation';
@@ -41,10 +41,43 @@ export function normalizeWritingSubmissionText(raw: unknown): string {
   return normalizeWritingLineEndings(raw).trim();
 }
 
+export function looksLikeWritingHtml(value: string): boolean {
+  return /<[a-z][\s\S]*>/i.test(value.trim());
+}
+
+export function stripWritingHtmlToPlainText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<\/h[1-6]>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+export function writingPlainTextForLimits(text: string): string {
+  const normalized = normalizeWritingSubmissionText(text);
+  if (!normalized) return '';
+  return looksLikeWritingHtml(normalized)
+    ? stripWritingHtmlToPlainText(normalized)
+    : normalized;
+}
+
 export function countWritingWords(text: string): number {
-  const trimmed = text.trim();
-  if (!trimmed) return 0;
-  return trimmed.split(/\s+/).filter(Boolean).length;
+  const plain = writingPlainTextForLimits(text);
+  if (!plain) return 0;
+  return plain.split(/\s+/).filter(Boolean).length;
+}
+
+/** TipTap trống thường là `<p></p>` — coi là chưa có nội dung. */
+export function isWritingHtmlEmpty(html: string): boolean {
+  return writingPlainTextForLimits(html).length === 0;
 }
 
 export function writingDraftStorageKey(assignmentId: number): string {
@@ -70,7 +103,7 @@ export function writeWritingDraftToStorage(
   try {
     const key = writingDraftStorageKey(assignmentId);
     const normalized = normalizeWritingLineEndings(text);
-    if (!normalized.trim()) {
+    if (isWritingHtmlEmpty(normalized)) {
       window.localStorage.removeItem(key);
       return;
     }
@@ -111,7 +144,7 @@ export function getWritingEditorHint(
 ): string {
   const pasteSuffix = disablePaste ? ' Không được dán từ clipboard.' : '';
   if (mode === WRITING_EXERCISE_MODES.dictation) {
-    return `Nghe đoạn audio bên dưới và gõ lại (có dấu cách giữa các từ). Nội dung được lưu nháp tự động.${pasteSuffix}`;
+    return `Nghe đoạn audio bên dưới và gõ lại (có thể dùng in đậm, danh sách…). Nội dung được lưu nháp tự động.${pasteSuffix}`;
   }
-  return `Nhập nội dung dạng văn bản thuần (có dấu cách và xuống dòng). Nội dung được lưu nháp tự động; bấm Nộp bài khi hoàn thành.${pasteSuffix}`;
+  return `Soạn bài bằng editor (in đậm, tiêu đề, danh sách, link). Nội dung được lưu nháp tự động; bấm Nộp bài khi hoàn thành.${pasteSuffix}`;
 }
