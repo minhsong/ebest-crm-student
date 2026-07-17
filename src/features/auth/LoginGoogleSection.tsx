@@ -4,6 +4,8 @@ import { GoogleLogin } from '@react-oauth/google';
 import { App } from 'antd';
 
 import { useAuth } from '@/contexts/auth-context';
+import { usePortalSession } from '@/contexts/portal-session-context';
+import { getMessageFromClientApiJson } from '@/lib/parse-client-api-json';
 
 const COMPLETE_PROFILE_MODAL = {
   passwordOnly: {
@@ -19,6 +21,8 @@ const COMPLETE_PROFILE_MODAL = {
 } as const;
 
 type Props = {
+  /** `customer` = HV; `lead` = thí sinh (auto xác nhận email). */
+  mode?: 'customer' | 'lead';
   /** Phải nằm trong `<GoogleOAuthProvider clientId={...}>` (xem trang login). */
   onLoggedIn: () => void;
   /** Bọc ngoài (spacing, canh lề). */
@@ -28,15 +32,22 @@ type Props = {
 };
 
 /**
- * Nút Google Identity Services (`@react-oauth/google`) → ID token → API `auth/google/login`.
+ * Nút Google Identity Services → ID token → HV hoặc Lead Google login.
  */
 export function LoginGoogleSection({
+  mode = 'customer',
   onLoggedIn,
   className = '',
   noteClassName = '',
 }: Props) {
   const { message: antMessage, modal } = App.useApp();
   const { loginWithGoogle } = useAuth();
+  const { refresh: refreshPortalSession } = usePortalSession();
+
+  const note =
+    mode === 'lead'
+      ? 'Dùng Gmail trùng email đã đăng ký tài khoản thí sinh — hệ thống xác nhận email tự động.'
+      : 'Dùng Gmail trùng email hồ sơ tại trung tâm hoặc tài khoản đã đăng ký cổng học viên.';
 
   return (
     <div
@@ -52,6 +63,42 @@ export function LoginGoogleSection({
               return;
             }
             try {
+              if (mode === 'lead') {
+                const res = await fetch('/api/auth/lead/google/login', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ idToken: t }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                  const code =
+                    typeof data?.code === 'string'
+                      ? data.code
+                      : typeof data?.errorCode === 'string'
+                        ? data.errorCode
+                        : '';
+                  const action =
+                    typeof data?.action === 'string' ? data.action : undefined;
+                  antMessage.error(
+                    getMessageFromClientApiJson(data) ??
+                      'Đăng nhập Google thất bại.',
+                  );
+                  if (
+                    action === 'register' ||
+                    code === 'LEAD_ACCOUNT_NOT_FOUND'
+                  ) {
+                    window.setTimeout(() => {
+                      window.location.assign('/register');
+                    }, 1200);
+                  }
+                  return;
+                }
+                await refreshPortalSession();
+                antMessage.success('Đăng nhập thành công.');
+                onLoggedIn();
+                return;
+              }
+
               const r = await loginWithGoogle(t);
               if (!r.ok) {
                 antMessage.error(r.message ?? 'Đăng nhập Google thất bại.');
@@ -93,7 +140,7 @@ export function LoginGoogleSection({
       <p
         className={`mt-1.5 text-center text-xs text-gray-500 ${noteClassName}`.trim()}
       >
-        Dùng Gmail trùng email hồ sơ tại trung tâm hoặc tài khoản đã đăng ký cổng học viên.
+        {note}
       </p>
     </div>
   );

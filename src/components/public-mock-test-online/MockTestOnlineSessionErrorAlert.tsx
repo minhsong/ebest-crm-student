@@ -13,6 +13,7 @@ import {
 } from '@/lib/public-mock-test-online/mock-test-online-session-errors.util';
 import { ContactSupportRichText } from '@/components/portal-contact/ContactSupportRichText';
 import { useFanpageContactUrl } from '@/contexts/portal-contact-links-context';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 
 type Props = {
 	message: string;
@@ -62,7 +63,9 @@ export function MockTestOnlineSessionErrorAlert({
 							<>
 								<Button
 									type="primary"
-									onClick={() => router.push('/lead/tests')}
+									onClick={() =>
+										router.push(PORTAL_MOCK_TEST_ROUTES.results)
+									}
 								>
 									Xem lịch sử thi
 								</Button>

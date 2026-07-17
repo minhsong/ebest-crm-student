@@ -3,6 +3,7 @@ import {
 	PORTAL_MOCK_TEST_RESULTS_ROUTES,
 	resolvePostPortalLoginPath,
 } from '@/lib/portal-auth/session-routes';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 
 /** Parse JSON body từ `/api/portal/session` — fail-safe guest. */
 export function parseClientPortalSessionPayload(
@@ -38,7 +39,7 @@ export function homePathForPortalActor(
 	actor: 'customer' | 'lead',
 ): string {
 	return actor === 'lead'
-		? PORTAL_MOCK_TEST_RESULTS_ROUTES.lead
+		? PORTAL_MOCK_TEST_ROUTES.hub
 		: '/';
 }
 

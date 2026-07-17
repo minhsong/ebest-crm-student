@@ -13,7 +13,7 @@ import {
   getSocialGatewayConfig,
   proxyGatewayJsonResponse,
 } from '@/lib/social-gateway-bff.util';
-import { STUDENT_SAFE_USER_MESSAGES } from '@/lib/student-safe-errors';
+import { STUDENT_SAFE_USER_MESSAGES, isUpstreamConnectionFailure } from '@/lib/student-safe-errors';
 import type { GamePromptType } from '@/features/learning/games/catalog/game-catalog.types';
 import type { VocabularyDrillModeId } from '@/features/learning/games/core/types/game-session-config.types';
 
@@ -52,11 +52,21 @@ async function fetchDrillGateway(
   subPath: string,
   init?: RequestInit,
 ): Promise<Response> {
-  return fetch(internalDrillUrl(cfg.baseUrl, subPath), {
-    ...init,
-    headers: { ...buildGatewayServiceHeaders(cfg), ...init?.headers },
-    cache: 'no-store',
-  });
+  try {
+    return await fetch(internalDrillUrl(cfg.baseUrl, subPath), {
+      ...init,
+      headers: { ...buildGatewayServiceHeaders(cfg), ...init?.headers },
+      cache: 'no-store',
+    });
+  } catch (err) {
+    if (isUpstreamConnectionFailure(err)) {
+      return new Response(
+        JSON.stringify({ message: STUDENT_SAFE_USER_MESSAGES.serverConfig }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    throw err;
+  }
 }
 
 export async function proxyDrillRuntimeToGateway(

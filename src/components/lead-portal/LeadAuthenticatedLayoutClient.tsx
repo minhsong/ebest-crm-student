@@ -11,8 +11,7 @@ import { isLeadPortalUnauthorizedError } from '@/lib/lead-portal/errors';
 import { isLeadIdentityUpgraded } from '@/lib/portal-auth/portal-auth-session';
 import { usePortalSession } from '@/contexts/portal-session-context';
 import { PORTAL_MOCK_TEST_RESULTS_ROUTES } from '@/lib/portal-auth/session-routes';
-import { LeadMarketingStrip } from '@/components/lead-portal/LeadMarketingStrip';
-import { usePortalSiteLinks } from '@/hooks/use-portal-site-links';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 import { PortalExploreProvider } from '@/contexts/portal-explore-context';
 
 const COMPLETE_PROFILE_PATH = '/lead/complete-profile';
@@ -47,7 +46,6 @@ function LeadAuthenticatedLayoutInner({
 	const portal = usePortalSession();
 	const [ready, setReady] = useState(skipInitialProbe && Boolean(initialProfile));
 	const [profile, setProfile] = useState<LeadProfile | null>(initialProfile);
-	const { siteLinks } = usePortalSiteLinks();
 	const onCompleteProfilePath = Boolean(
 		pathname?.startsWith(COMPLETE_PROFILE_PATH),
 	);
@@ -154,11 +152,10 @@ function LeadAuthenticatedLayoutInner({
 						: 'Thí sinh'
 			}
 			profileHref="/lead/profile"
-			homeHref={PORTAL_MOCK_TEST_RESULTS_ROUTES.lead}
+			homeHref={PORTAL_MOCK_TEST_ROUTES.hub}
 			onLogout={handleLogout}
 			defaultSidebarCollapsed={sidebarCollapsedDefault}
 		>
-			<LeadMarketingStrip siteLinks={siteLinks} />
 			{children}
 		</PortalDashboardShell>
 	);

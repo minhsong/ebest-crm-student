@@ -6,6 +6,7 @@ import { BulbOutlined } from '@ant-design/icons';
 import { PageCard, PageHeader } from '@/components/layout';
 import { LeadConsultCta } from '@/components/lead-portal/LeadConsultCta';
 import { MockTestOnlineAttemptLimitAlert } from '@/components/public-mock-test-online/MockTestOnlineAttemptLimitAlert';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 import { usePortalSiteLinks } from '@/hooks/use-portal-site-links';
 import { MockTestResultsPanel } from './MockTestResultsPanel';
 import { useLeadMockTestResultsPage } from '../hooks/useLeadMockTestResultsPage';
@@ -33,7 +34,9 @@ export function LeadMockTestResultsView({ notice }: Props) {
         description={
           <>
             Theo dõi buổi thi tại trung tâm và bài thi online.{' '}
-            <Link href="/mock-test-online/register">Đăng ký thi online mới</Link>
+            <Link href={PORTAL_MOCK_TEST_ROUTES.onlineStart}>
+              Thi online mới
+            </Link>
           </>
         }
       />
@@ -71,8 +74,8 @@ export function LeadMockTestResultsView({ notice }: Props) {
         ) : null}
       </PageCard>
       <div className="mt-4">
-        <Link href="/mock-test-online">
-          <Button>Về trang thi thử online</Button>
+        <Link href={PORTAL_MOCK_TEST_ROUTES.hub}>
+          <Button>Về trang Thi thử</Button>
         </Link>
       </div>
     </>

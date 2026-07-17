@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert, App, Button, Form, Input, Steps } from 'antd';
 import { LeadPortalShell } from '@/components/lead-portal/LeadPortalShell';
+import { PublicMockTestProfileFields } from '@/components/public-mock-test/PublicMockTestProfileFields';
 import {
   completeLeadProfile,
   fetchLeadProfile,
@@ -11,23 +12,36 @@ import {
 import { isLeadPortalUnauthorizedError } from '@/lib/lead-portal/errors';
 import { PORTAL_MOCK_TEST_RESULTS_ROUTES } from '@/lib/portal-auth/session-routes';
 import type { LeadProfile } from '@/lib/lead-portal/types';
+import type { PublicRegistrationOptions } from '@/lib/public-mock-test/types';
+import { collectPublicProfilePayload } from '@/lib/public-mock-test/profile-payload';
 
 type FormValues = {
   displayName: string;
+  tagsByCategory?: Record<string, number | number[]>;
+  universityOther?: string;
+  consultationNote?: string;
+  expectedScore?: number;
+};
+
+type Props = {
+  initialProfileOptions: PublicRegistrationOptions | null;
+  profileOptionsError?: string | null;
 };
 
 /**
- * Sau đăng ký cơ bản + login: bắt buộc hoàn thiện hồ sơ trước layout
- * (pattern Steps giống complete-profile HV).
+ * Sau đăng ký cơ bản + login: hoàn thiện hồ sơ (liên hệ + tag phân tích lead) trước layout.
  */
-export function LeadCompleteProfileClient() {
+export function LeadCompleteProfileClient({
+  initialProfileOptions,
+  profileOptionsError = null,
+}: Props) {
   const router = useRouter();
   const { message } = App.useApp();
   const [form] = Form.useForm<FormValues>();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [profile, setProfile] = useState<LeadProfile | null>(null);
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,8 +79,21 @@ export function LeadCompleteProfileClient() {
     async (values: FormValues) => {
       setSubmitting(true);
       try {
+        // Bước 3 không mount field bước 1–2 — lấy full store (preserve).
+        const allValues = {
+          ...form.getFieldsValue(true),
+          ...values,
+        } as FormValues;
+        const displayName = allValues.displayName?.trim();
+        if (!displayName) {
+          message.error('Vui lòng nhập họ tên');
+          setStep(1);
+          return;
+        }
+        const profilePayload = collectPublicProfilePayload(allValues);
         await completeLeadProfile({
-          displayName: values.displayName.trim(),
+          displayName,
+          ...profilePayload,
         });
         message.success('Đã hoàn thiện hồ sơ. Chào mừng bạn đến cổng Ebest!');
         router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.lead);
@@ -82,7 +109,7 @@ export function LeadCompleteProfileClient() {
         setSubmitting(false);
       }
     },
-    [message, router],
+    [form, message, router],
   );
 
   if (loading || !profile) {
@@ -96,7 +123,7 @@ export function LeadCompleteProfileClient() {
   return (
     <LeadPortalShell
       title="Hoàn thiện hồ sơ"
-      description="Bạn đã đăng ký thành công. Vui lòng xác nhận thông tin trước khi dùng cổng thi thử."
+      description="Xác nhận thông tin và mô tả về bạn để Ebest tư vấn phù hợp hơn."
       maxWidthClass="max-w-lg"
     >
       <Steps
@@ -104,7 +131,8 @@ export function LeadCompleteProfileClient() {
         current={step - 1}
         className="mb-6"
         items={[
-          { title: 'Xác nhận liên hệ' },
+          { title: 'Liên hệ' },
+          { title: 'Mô tả về bạn' },
           { title: 'Hoàn tất' },
         ]}
       />
@@ -112,6 +140,7 @@ export function LeadCompleteProfileClient() {
       <Form
         form={form}
         layout="vertical"
+        preserve
         onFinish={onFinish}
         requiredMark="optional"
       >
@@ -152,7 +181,25 @@ export function LeadCompleteProfileClient() {
               Tiếp tục
             </Button>
           </div>
-        ) : (
+        ) : null}
+
+        {step === 2 ? (
+          <div className="rounded-lg border border-gray-100 bg-gray-50/50 p-4 sm:p-5">
+            <PublicMockTestProfileFields
+              options={initialProfileOptions}
+              optionsError={profileOptionsError}
+              includeExpectedScore
+            />
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button onClick={() => setStep(1)}>Quay lại</Button>
+              <Button type="primary" className="flex-1" onClick={() => setStep(3)}>
+                Tiếp tục
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {step === 3 ? (
           <div className="rounded-lg border border-gray-100 bg-gray-50/50 p-4 sm:p-5">
             <Alert
               type="success"
@@ -170,7 +217,7 @@ export function LeadCompleteProfileClient() {
               Email: <strong>{profile.email || '—'}</strong>
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => setStep(1)}>Quay lại</Button>
+              <Button onClick={() => setStep(2)}>Quay lại</Button>
               <Button
                 type="primary"
                 htmlType="submit"
@@ -181,7 +228,7 @@ export function LeadCompleteProfileClient() {
               </Button>
             </div>
           </div>
-        )}
+        ) : null}
       </Form>
     </LeadPortalShell>
   );

@@ -1,18 +1,19 @@
-import { LeadMockTestResultsView } from '@/features/mock-test-portal/components/LeadMockTestResultsView';
-import { buildPageMetadata } from '@/lib/metadata';
+import { redirect } from 'next/navigation';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 
-export const metadata = buildPageMetadata({
-  title: 'Lịch sử thi thử',
-  description:
-    'Theo dõi buổi thi tại trung tâm và kết quả thi thử online trên cổng Ebest English.',
-  path: '/lead/tests',
-});
+export const dynamic = 'force-dynamic';
 
-export default async function LeadTestsPage({
+/** Alias legacy → /mock-test/results */
+export default async function LeadTestsLegacyRedirect({
   searchParams,
 }: {
   searchParams: Promise<{ notice?: string }>;
 }) {
   const sp = await searchParams;
-  return <LeadMockTestResultsView notice={sp.notice?.trim() || null} />;
+  const notice = sp.notice?.trim();
+  redirect(
+    notice
+      ? `${PORTAL_MOCK_TEST_ROUTES.results}?notice=${encodeURIComponent(notice)}`
+      : PORTAL_MOCK_TEST_ROUTES.results,
+  );
 }

@@ -9,6 +9,7 @@ import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-porta
 import { resolveSelectExamAttemptStatus } from '@/lib/public-mock-test-online/resolve-select-exam-attempt-status.server';
 import { fetchGatewayFunnelSession } from '@/lib/public-mock-test-online/ssr/fetch-mock-test-online-gateway.server';
 import { buildMockTestOnlineConfirmExamPath } from '@/lib/public-mock-test-online/select-exam-cache';
+import { assertFunnelMatchesPortalActor } from '@/features/portal-mock-test/server/assert-funnel-identity.server';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,8 +30,11 @@ export default async function MockTestOnlineSelectExamPage({
 	const pendingLeadId =
 		sp.lead?.trim() || getMockTestOnlineFunnelSessionId() || '';
 
+	const session = await resolvePortalSessionFromCookies();
+
 	if (pendingLeadId) {
 		const funnel = await fetchGatewayFunnelSession(pendingLeadId);
+		assertFunnelMatchesPortalActor(session, funnel, pendingLeadId);
 		if (
 			funnel?.resumeStep === 'verify' &&
 			funnel.pendingRegistrationId?.trim()
@@ -55,13 +59,15 @@ export default async function MockTestOnlineSelectExamPage({
 		);
 	const seo = await fetchMockTestOnlineSeo();
 
-	const session = await resolvePortalSessionFromCookies();
 	const testTypeCode =
 		selectedCampaign?.testTypeCode?.trim() ||
 		campaigns[0]?.testTypeCode?.trim() ||
 		'';
 	const attemptStatus =
-		testTypeCode && (pendingLeadId || session.actor === 'lead')
+		testTypeCode &&
+		(pendingLeadId ||
+			session.actor === 'lead' ||
+			session.actor === 'customer')
 			? await resolveSelectExamAttemptStatus({
 					session,
 					pendingLeadId,

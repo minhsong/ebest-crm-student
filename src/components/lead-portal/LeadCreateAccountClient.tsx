@@ -19,7 +19,7 @@ import {
 import { PhoneInputField } from '@/components/phone-input';
 import { LeadPortalShell } from '@/components/lead-portal/LeadPortalShell';
 import { checkLoginKeyAvailability } from '@/lib/complete-profile/check-login-key';
-import { leadRegister } from '@/lib/lead-portal/client-api';
+import { leadRegister, leadResendEmailVerification } from '@/lib/lead-portal/client-api';
 import {
   clearLeadRegisterDraft,
   LEAD_REGISTER_STEP_1_FIELDS,
@@ -68,6 +68,12 @@ export function LeadCreateAccountClient({ mode = 'proof' }: Props) {
   const [submitErrorAction, setSubmitErrorAction] = useState<
     'login' | 'contact_support' | null
   >(null);
+  const [doneState, setDoneState] = useState<{
+    email: string;
+    emailVerificationSent: boolean;
+    message: string;
+  } | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
 
   const registrationIdRaw = Number(searchParams.get('registrationId'));
   const registrationId =
@@ -183,8 +189,17 @@ export function LeadCreateAccountClient({ mode = 'proof' }: Props) {
             : {}),
         });
         clearLeadRegisterDraft();
+        setDoneState({
+          email: values.email.trim(),
+          emailVerificationSent: result.emailVerificationSent,
+          message: result.message,
+        });
         setStep('done');
-        message.success(result.message);
+        if (result.emailVerificationSent) {
+          message.success(result.message);
+        } else {
+          message.warning(result.message);
+        }
       } catch (e) {
         const err = e as Error & {
           action?: 'login' | 'contact_support';
@@ -251,23 +266,77 @@ export function LeadCreateAccountClient({ mode = 'proof' }: Props) {
   }
 
   if (step === 'done') {
+    const sent = doneState?.emailVerificationSent === true;
     return (
       <LeadPortalShell
-        title="Đã tạo tài khoản"
-        description="Bạn đã đăng ký thành công nhưng chưa hoàn thiện hồ sơ. Đăng nhập để hoàn tất và vào cổng Ebest."
+        title={sent ? 'Kiểm tra email xác nhận' : 'Đã tạo tài khoản'}
+        description={
+          sent
+            ? 'Tài khoản đã tạo. Xác nhận email trước khi đăng nhập và hoàn thiện hồ sơ.'
+            : 'Tài khoản đã tạo nhưng hệ thống chưa gửi được email xác nhận.'
+        }
       >
         <Alert
-          type="success"
+          type={sent ? 'success' : 'warning'}
           showIcon
           className="mb-4"
-          message="Đăng ký thành công — chưa hoàn thiện hồ sơ"
-          description="Sau khi đăng nhập, hệ thống sẽ yêu cầu xác nhận thông tin trước khi mở đầy đủ menu."
+          message={
+            sent
+              ? 'Đăng ký thành công — cần xác nhận email'
+              : 'Đăng ký thành công — chưa gửi được email'
+          }
+          description={
+            doneState?.message ??
+            (sent
+              ? 'Mở hộp thư (và mục spam), bấm liên kết xác nhận, rồi đăng nhập.'
+              : 'Bạn có thể thử gửi lại email bên dưới. Nếu vẫn lỗi, liên hệ Ebest (thường do cấu hình SMTP).')
+          }
         />
-        <Link href="/login?mode=lead">
-          <Button type="primary" block>
-            Đăng nhập để hoàn thiện hồ sơ
-          </Button>
-        </Link>
+        <Space direction="vertical" className="w-full" size="middle">
+          {doneState?.email ? (
+            <Button
+              block
+              loading={resendLoading}
+              onClick={async () => {
+                setResendLoading(true);
+                try {
+                  const r = await leadResendEmailVerification(doneState.email);
+                  if (r.sent) {
+                    setDoneState((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            emailVerificationSent: true,
+                            message: r.message,
+                          }
+                        : prev,
+                    );
+                    message.success(r.message);
+                  } else {
+                    message.warning(r.message);
+                  }
+                } catch (e) {
+                  message.error(
+                    e instanceof Error
+                      ? e.message
+                      : 'Không gửi lại được email.',
+                  );
+                } finally {
+                  setResendLoading(false);
+                }
+              }}
+            >
+              Gửi lại email xác nhận
+            </Button>
+          ) : null}
+          <Link href="/login?mode=lead">
+            <Button type="primary" block disabled={!sent}>
+              {sent
+                ? 'Đã xác nhận — đăng nhập'
+                : 'Đăng nhập (sau khi có email xác nhận)'}
+            </Button>
+          </Link>
+        </Space>
       </LeadPortalShell>
     );
   }

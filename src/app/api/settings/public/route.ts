@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
 import { MSG_CRM_CONFIG, MSG_CRM_NETWORK } from '@/lib/crm-student-proxy';
 
+/** BFF cache TTL — CRM also caches public settings in Redis. */
+const REVALIDATE_SEC = 300;
+
 /**
  * Proxy GET public system settings (no auth) — dùng cho Client ID Google trên cổng học viên.
  */
@@ -15,7 +18,7 @@ export async function GET() {
   try {
     const res = await fetch(url, {
       headers: { Accept: 'application/json' },
-      cache: 'no-store',
+      next: { revalidate: REVALIDATE_SEC },
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {
@@ -26,7 +29,11 @@ export async function GET() {
       return NextResponse.json({ message: msg }, { status: res.status });
     }
     const payload = data.result ?? data.data ?? data;
-    return NextResponse.json(payload ?? {});
+    return NextResponse.json(payload ?? {}, {
+      headers: {
+        'Cache-Control': `public, s-maxage=${REVALIDATE_SEC}, stale-while-revalidate=60`,
+      },
+    });
   } catch {
     return NextResponse.json({ message: MSG_CRM_NETWORK }, { status: 502 });
   }

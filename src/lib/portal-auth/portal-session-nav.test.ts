@@ -17,10 +17,10 @@ describe('portal-session-nav', () => {
 
 	it('maps home / post-login paths', () => {
 		expect(homePathForPortalActor('customer')).toBe('/');
-		expect(homePathForPortalActor('lead')).toBe('/lead/tests');
+		expect(homePathForPortalActor('lead')).toBe('/mock-test');
 		expect(homePathForClientSession({ actor: 'guest' })).toBeNull();
 		expect(postLoginPathForPortalActor('customer', '/profile')).toBe('/profile');
 		expect(postLoginPathForPortalActor('customer', '//evil')).toBe('/');
-		expect(postLoginPathForPortalActor('lead', null)).toBe('/lead/tests');
+		expect(postLoginPathForPortalActor('lead', null)).toBe('/mock-test/results');
 	});
 });

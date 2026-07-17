@@ -1,6 +1,6 @@
 import type { MockTestOnlineAttemptStatus } from '@/lib/public-mock-test-online/types';
 
-/** Copy Alert hết lượt — dùng chung select-exam + /lead/tests (góc nhìn người dùng). */
+/** Copy Alert hết lượt — dùng chung select-exam + /mock-test/results. */
 export function getMockTestOnlineAttemptLimitDescription(
   status: MockTestOnlineAttemptStatus | null | undefined,
 ): string {

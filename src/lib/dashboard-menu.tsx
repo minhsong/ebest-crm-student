@@ -73,16 +73,9 @@ export type DashboardMenuEntry = DashboardMenuLinkEntry | DashboardMenuDividerEn
 export const LEAD_PORTAL_MENU_ENTRIES: DashboardMenuEntry[] = [
   {
     type: 'link',
-    key: 'lead-tests',
-    path: '/lead/tests',
-    label: 'Kết quả thi thử',
-    icon: <FormOutlined />,
-  },
-  {
-    type: 'link',
-    key: 'mock-test-register',
-    path: '/mock-test-online/register',
-    label: 'Đăng ký thi mới',
+    key: 'portal-mock-test',
+    path: '/mock-test',
+    label: 'Thi thử',
     icon: <PlayCircleOutlined />,
   },
   { type: 'divider', key: 'lead-divider-explore' },
@@ -163,9 +156,9 @@ export const DASHBOARD_MENU_ENTRIES: DashboardMenuEntry[] = [
   },
   {
     type: 'link',
-    key: 'mock-test-results',
-    path: '/mock-test-results',
-    label: 'Thi thử online',
+    key: 'portal-mock-test',
+    path: '/mock-test',
+    label: 'Thi thử',
     icon: <FormOutlined />,
   },
   { type: 'divider', key: 'divider-after-main' },
@@ -219,11 +212,17 @@ function isLearningSectionPath(pathname: string): boolean {
 function resolveMenuSelectedKey(pathname: string): string {
   const normalized = pathname?.replace(/\/$/, '') || '/';
 
+  if (
+    normalized === '/mock-test' ||
+    normalized.startsWith('/mock-test/')
+  ) {
+    return '/mock-test';
+  }
   if (normalized === '/lead/tests' || normalized.startsWith('/lead/tests/')) {
-    return '/lead/tests';
+    return '/mock-test';
   }
   if (normalized.startsWith('/mock-test-online')) {
-    return '/mock-test-online/register';
+    return '/mock-test';
   }
 
   if (normalized.startsWith('/quiz-test')) {
@@ -397,6 +396,10 @@ export function buildLeadPortalMenuAntdItems(
 const PATH_LABELS: Record<string, string> = {
   '/': 'Tổng quan',
   '/lead': 'Cổng học viên',
+  '/mock-test': 'Thi thử',
+  '/mock-test/results': 'Kết quả thi thử',
+  '/mock-test/offline': 'Thi tại trung tâm',
+  '/mock-test/online/start': 'Thi online',
   '/lead/tests': 'Kết quả thi thử',
   '/lead/about': 'Về Ebest',
   '/lead/courses': 'Các khóa học',
@@ -416,7 +419,7 @@ const PATH_LABELS: Record<string, string> = {
   '/learning/games/leaderboard': 'Bảng xếp hạng',
   '/invoices': 'Hóa Đơn',
   '/qa': 'Hỏi đáp',
-  '/mock-test-results': 'Thi thử online',
+  '/mock-test-results': 'Thi thử',
   '/assignments': 'Bài tập',
   '/learning/practice': 'Game luyện từ',
   '/learning/leaderboard': 'Bảng xếp hạng',

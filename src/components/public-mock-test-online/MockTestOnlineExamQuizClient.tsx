@@ -5,6 +5,7 @@ import { Alert, Button, Card, Skeleton, Space } from 'antd';
 import { QuizAttemptClient } from '@/features/quiz-test/components/QuizAttemptClient';
 import { MockTestOnlineFunnelShell } from '@/components/public-mock-test-online/MockTestOnlineFunnelShell';
 import { useMockTestOnlineExamGate } from '@/components/public-mock-test-online/useMockTestOnlineExamGate';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 
 type MockTestOnlineQuizEntry = 'lobby' | 'session';
 
@@ -43,7 +44,7 @@ export function MockTestOnlineExamQuizClient({ entry }: Props) {
 								<Link href="/mock-test-online/register">
 									<Button type="primary">Về trang đăng ký</Button>
 								</Link>
-								<Link href="/lead/tests">
+								<Link href={PORTAL_MOCK_TEST_ROUTES.results}>
 									<Button>Xem lịch sử thi</Button>
 								</Link>
 							</Space>

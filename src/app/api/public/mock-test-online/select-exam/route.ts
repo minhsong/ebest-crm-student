@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
+	buildGatewayServiceHeaders,
 	getSocialGatewayConfig,
 	gatewayConfigErrorResponse,
 } from '@/lib/social-gateway-bff.util';
 import { mapMockTestBffErrorForClient } from '@/lib/public-mock-test-online/mock-test-bff-response.server';
 import { STUDENT_SAFE_USER_MESSAGES } from '@/lib/student-safe-errors';
+import { getMockTestOnlineFunnelSessionId } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
+import { funnelOwnsSelectRequest } from '@/features/portal-mock-test/server/assert-confirm-session-ownership.server';
 
-const JSON_HEADERS: HeadersInit = {
-	Accept: 'application/json',
-	'Content-Type': 'application/json',
-};
-
-function forwardOriginHeaders(req: NextRequest): HeadersInit {
+function forwardOriginHeaders(req: NextRequest): Record<string, string> {
 	const headers: Record<string, string> = {};
 	const origin = req.headers.get('origin');
 	const referer = req.headers.get('referer');
@@ -25,7 +23,20 @@ function forwardOriginHeaders(req: NextRequest): HeadersInit {
  * Phase 1: select promote Redis `resumeStep=verify`, không xóa continuity (ADR FunnelSession).
  */
 export async function POST(req: NextRequest) {
-	const body = await req.json().catch(() => ({}));
+	const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+	const pendingLeadId =
+		typeof body.pendingLeadId === 'string' ? body.pendingLeadId.trim() : '';
+	const funnelSessionId = getMockTestOnlineFunnelSessionId()?.trim() || '';
+	if (!funnelOwnsSelectRequest(funnelSessionId, pendingLeadId)) {
+		return NextResponse.json(
+			{
+				message: 'Phiên đăng ký không khớp. Vui lòng bắt đầu lại.',
+				errorCode: 'SESSION_MISMATCH',
+			},
+			{ status: 403 },
+		);
+	}
+
 	const cfg = getSocialGatewayConfig();
 	if (!cfg) {
 		return gatewayConfigErrorResponse('mock-test-online.select-exam');
@@ -34,7 +45,7 @@ export async function POST(req: NextRequest) {
 	try {
 		const res = await fetch(url, {
 			method: 'POST',
-			headers: { ...JSON_HEADERS, ...forwardOriginHeaders(req) },
+			headers: buildGatewayServiceHeaders(cfg, forwardOriginHeaders(req)),
 			body: JSON.stringify(body),
 			cache: 'no-store',
 		});

@@ -6,6 +6,7 @@ import { UserOutlined, CameraOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/auth-context';
 import { PageHeader, PageCard, LoadingState } from '@/components/layout';
 import { parseStudentPortalGoogleFromPublic } from '@/lib/student-portal-google-settings';
+import { fetchPublicPortalSettings } from '@/lib/public-settings-client';
 import { ProfileGoogleLink } from '@/features/auth/ProfileGoogleLink';
 
 type LoginKeyType = 'email' | 'phone';
@@ -45,15 +46,9 @@ export default function ProfilePage() {
 
   useEffect(() => {
     let cancelled = false;
-    void fetch('/api/settings/public')
-      .then((r) => r.json())
-      .then((data: unknown) => {
+    void fetchPublicPortalSettings()
+      .then((raw) => {
         if (cancelled) return;
-        const p =
-          data && typeof data === 'object'
-            ? (data as Record<string, unknown>)
-            : {};
-        const raw = (p.result ?? p.data ?? p) as Record<string, unknown>;
         setGooglePublic(parseStudentPortalGoogleFromPublic(raw));
       })
       .catch(() => {

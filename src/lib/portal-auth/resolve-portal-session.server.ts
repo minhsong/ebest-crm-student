@@ -10,7 +10,11 @@ import {
 import { applyLeadIdentityUpgradeCookies } from '@/lib/portal-auth/portal-auth-session.server';
 import type { LeadProfile } from '@/lib/lead-portal/types';
 import { mapLeadMeForClient } from '@/lib/lead-portal/lead-profile-client';
-import { parseStudentMeCustomerBrief } from '@/lib/parse-student-me-customer';
+import {
+  parseStudentMeCustomerBrief,
+  type StudentMeCustomerBrief,
+} from '@/lib/parse-student-me-customer';
+import { isUpstreamConnectionFailure } from '@/lib/student-safe-errors';
 
 export type PortalSessionActor = 'guest' | 'lead' | 'customer';
 
@@ -19,6 +23,8 @@ export type PortalSessionPayload =
   | {
       actor: 'customer';
       displayName: string;
+      /** Brief từ cùng GET /student/me — tránh gọi lại ở root layout. */
+      customer: StudentMeCustomerBrief;
     }
   | {
       actor: 'lead';
@@ -52,10 +58,16 @@ async function fetchCustomerSession(): Promise<PortalSessionPayload | null> {
   if (!apiBase) return null;
 
   const url = `${apiBase.replace(/\/$/, '')}/api/v1/student/me`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-    cache: 'no-store',
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      cache: 'no-store',
+    });
+  } catch (error) {
+    if (isUpstreamConnectionFailure(error)) throw error;
+    return null;
+  }
   if (!res.ok) return null;
 
   const data = await res.json().catch(() => ({}));
@@ -68,6 +80,7 @@ async function fetchCustomerSession(): Promise<PortalSessionPayload | null> {
   return {
     actor: 'customer',
     displayName: customer.fullName?.trim() || 'Học viên',
+    customer,
   };
 }
 
@@ -79,10 +92,16 @@ async function fetchLeadSession(): Promise<PortalSessionPayload | null> {
   if (!apiBase) return null;
 
   const url = buildCrmStudentUrl(apiBase, STUDENT_API.leadMe);
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-    cache: 'no-store',
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      cache: 'no-store',
+    });
+  } catch (error) {
+    if (isUpstreamConnectionFailure(error)) throw error;
+    return null;
+  }
   if (!res.ok) return null;
 
   const data = await res.json().catch(() => ({}));

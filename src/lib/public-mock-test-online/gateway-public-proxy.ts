@@ -3,6 +3,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import {
+	buildGatewayServiceHeaders,
 	gatewayConfigErrorResponse,
 	getSocialGatewayConfig,
 	proxyGatewayJsonResponse,
@@ -15,11 +16,6 @@ import {
 import { clearMockTestOnlineFunnelSessionCookie } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
 import { mtoServerDebug } from '@/lib/public-mock-test-online/mock-test-online-debug';
 import { mapMockTestBffErrorForClient } from '@/lib/public-mock-test-online/mock-test-bff-response.server';
-
-const JSON_HEADERS: HeadersInit = {
-	Accept: 'application/json',
-	'Content-Type': 'application/json',
-};
 
 /** Deny terminal — không giữ funnel cookie để resume. */
 const FUNNEL_TERMINAL_DENY_CODES = new Set([
@@ -37,7 +33,7 @@ function shouldClearFunnelCookieOnAuthorizeDeny(
 	return Boolean(code) && FUNNEL_TERMINAL_DENY_CODES.has(code);
 }
 
-function forwardOriginHeaders(req: NextRequest): HeadersInit {
+function forwardOriginHeaders(req: NextRequest): Record<string, string> {
 	const headers: Record<string, string> = {};
 	const origin = req.headers.get('origin');
 	const referer = req.headers.get('referer');
@@ -60,7 +56,7 @@ export async function proxyMockTestOnlineGatewayPost(
 	try {
 		const res = await fetch(url, {
 			method: 'POST',
-			headers: { ...JSON_HEADERS, ...forwardOriginHeaders(req) },
+			headers: buildGatewayServiceHeaders(cfg, forwardOriginHeaders(req)),
 			body: JSON.stringify(body),
 			cache: 'no-store',
 		});
@@ -87,7 +83,7 @@ export async function proxyMockTestOnlineAuthorizePost(
 	try {
 		const res = await fetch(url, {
 			method: 'POST',
-			headers: { ...JSON_HEADERS, ...forwardOriginHeaders(req) },
+			headers: buildGatewayServiceHeaders(cfg, forwardOriginHeaders(req)),
 			body: JSON.stringify(body),
 			cache: 'no-store',
 		});
@@ -173,7 +169,7 @@ export async function proxyMockTestOnlineGatewayGet(
 	try {
 		const res = await fetch(url, {
 			method: 'GET',
-			headers: JSON_HEADERS,
+			headers: buildGatewayServiceHeaders(cfg),
 			cache: 'no-store',
 		});
 		return proxyGatewayJsonResponse(res, STUDENT_SAFE_USER_MESSAGES.generic);

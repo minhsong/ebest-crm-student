@@ -1,7 +1,7 @@
-'use client';
+import { redirect } from 'next/navigation';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 
-import { StudentMockTestResultsView } from '@/features/mock-test-portal/components/StudentMockTestResultsView';
-
+/** Legacy alias — redirect tới hub results SSOT. */
 export default function StudentMockTestResultsPage() {
-  return <StudentMockTestResultsView />;
+  redirect(PORTAL_MOCK_TEST_ROUTES.results);
 }

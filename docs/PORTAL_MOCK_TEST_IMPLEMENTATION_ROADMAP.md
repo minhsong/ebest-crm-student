@@ -1,6 +1,6 @@
 # Portal Lead + Mock Test Online — Kế hoạch triển khai & milestone
 
-> **Cập nhật:** 2026-07-05  
+> **Cập nhật:** 2026-07-17  
 > **SSOT nghiệp vụ:** [LEAD_PORTAL_SESSION_AND_MARKETING_SPEC.md](./LEAD_PORTAL_SESSION_AND_MARKETING_SPEC.md) v1.3  
 > **Attempt limit:** [MOCK_TEST_ONLINE_LEAD_ATTEMPT_LIMIT_SPEC.md](../../ebest-crm-api/docs/modules/mock-test/MOCK_TEST_ONLINE_LEAD_ATTEMPT_LIMIT_SPEC.md)  
 > **Zalo contact guard:** [MOCK_TEST_ONLINE_ZALO_UNLOCK_CONTACT_GUARD_SPEC.md](../../ebest-crm-api/docs/modules/mock-test/MOCK_TEST_ONLINE_ZALO_UNLOCK_CONTACT_GUARD_SPEC.md)
@@ -17,6 +17,7 @@
 | **M3** | Attempt limit + fast path | 3 lượt/testType, in_exam resume, retake Zalo | 🟡 Code ✅ — E2E QA ⬜ |
 | **M4** | Portal identity prod | Migration `lead_portal_accounts`, provision, notify | 🟡 Code có — migration staging |
 | **M5** | Course catalog P1 | Postgres `portal_course_catalog` + CRM Client admin | ✅ code |
+| **M9** | Mock Test Hub `/mock-test/*` | Lead + customer actor-agnostic | ✅ P0–P5i code · QA manual ⬜ |
 
 ---
 
@@ -109,6 +110,24 @@
 
 ---
 
+## M9 — Mock Test Hub actor-agnostic (Portal + CRM + Gateway)
+
+**SSOT:** [PORTAL_MOCK_TEST_HUB_SPEC.md](./PORTAL_MOCK_TEST_HUB_SPEC.md)
+
+| ID | Việc | Trạng thái |
+|----|------|------------|
+| M9-P0–P3 | Hub `/mock-test/*`, offline/results lead + customer | ✅ |
+| M9-P4 | Gateway bootstrap customer, không qua intake | ✅ |
+| M9-P5 | Auto-provision `omniLeadId` cho customer portal | ✅ |
+| M9-P5b | Select-exam assert funnel khớp actor | ✅ |
+| M9-P5c | Customer attempt-status precheck trước bootstrap | ✅ |
+| M9-P5d | Customer results parity: attempt-limit + resume; identity fail-closed | ✅ |
+| M9-QA | E2E lead/customer + Zalo thật | ⬜ manual |
+
+**Gate còn lại:** chạy ma trận M9-QA trên local/staging với tài khoản lead/customer thật; Zalo T1–T6 bắt buộc staging.
+
+---
+
 ## Thứ tự triển khai đề xuất
 
 ```text
@@ -119,8 +138,8 @@ M0 (guard) ──► M4 migration staging
      ├──► M2 login self-declaration ✅ (forgot ⬜)
      │
      └──► M3 attempt limit ✅ (E2E ⬜)
-              │
-              └──► M5 marketing P1
+              ├──► M5 marketing P1
+              └──► M9 hub lead + customer ✅ (QA ⬜)
 ```
 
 **Song song được:** M0 QA · M4 migration · M3 E2E  
@@ -135,12 +154,15 @@ M0 (guard) ──► M4 migration staging
 - [x] M1 chrome funnel có sidebar khi cookie
 - [x] M2 logout unified + login self-declaration + lead forgot/change password
 - [x] M3 attempt cap + in_exam + retake (code)
+- [x] M9 hub + customer bootstrap/precheck/results parity (code)
 - [ ] M3 E2E regression
+- [ ] M9 E2E lead/customer
 - [ ] Regression: submit → Zalo/email kết quả → portal login
 
 ---
 
 ## Cross-ref tracker chi tiết
 
-- [LEAD_PORTAL_WORK_TRACKER.md](./LEAD_PORTAL_WORK_TRACKER.md) — task ID LP-*
+- [LEAD_PORTAL_WORK_TRACKER.md](./LEAD_PORTAL_WORK_TRACKER.md) — task ID LP-* · **M9 hub**
+- [PORTAL_MOCK_TEST_HUB_SPEC.md](./PORTAL_MOCK_TEST_HUB_SPEC.md) — SSOT route `/mock-test/*`
 - [MOCK_TEST_WORK_TRACKER.md](../../ebest-crm-api/docs/modules/mock-test/MOCK_TEST_WORK_TRACKER.md) — PO online

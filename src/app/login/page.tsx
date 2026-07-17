@@ -11,9 +11,13 @@ import { APP_BRAND, EBEST_BRAND_ORANGE } from '@/lib/ui-constants';
 import { FanpageContactLink } from '@/components/portal-contact/FanpageContactLink';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { parseStudentPortalGoogleFromPublic } from '@/lib/student-portal-google-settings';
+import { fetchPublicPortalSettings } from '@/lib/public-settings-client';
 import { LoginGoogleSection } from '@/features/auth/LoginGoogleSection';
 import { usePortalSession } from '@/contexts/portal-session-context';
-import { fetchLeadProfile } from '@/lib/lead-portal/client-api';
+import {
+  fetchLeadProfile,
+  leadResendEmailVerification,
+} from '@/lib/lead-portal/client-api';
 import {
   homePathForPortalActor,
   postLoginPathForPortalActor,
@@ -48,6 +52,9 @@ export default function LoginPage() {
   const { message: antMessage } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsEmailVerify, setNeedsEmailVerify] = useState(false);
+  const [lastLoginId, setLastLoginId] = useState('');
+  const [resendLoading, setResendLoading] = useState(false);
   const [loginMode, setLoginMode] = useState<PortalLoginMode>('customer');
   const [sessionExpired, setSessionExpired] = useState(false);
   const [googleCfg, setGoogleCfg] = useState<{
@@ -64,15 +71,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void fetch('/api/settings/public')
-      .then((r) => r.json())
-      .then((data: unknown) => {
+    void fetchPublicPortalSettings()
+      .then((raw) => {
         if (cancelled) return;
-        const p =
-          data && typeof data === 'object'
-            ? (data as Record<string, unknown>)
-            : {};
-        const raw = (p.result ?? p.data ?? p) as Record<string, unknown>;
         setGoogleCfg(parseStudentPortalGoogleFromPublic(raw));
       })
       .catch(() => {
@@ -116,9 +117,12 @@ export default function LoginPage() {
   const onFinish = useCallback(
     async (values: { loginId: string; password: string }) => {
       setError(null);
+      setNeedsEmailVerify(false);
       setLoading(true);
+      const loginId = values.loginId.trim();
+      setLastLoginId(loginId);
       try {
-        const result = await login(values.loginId.trim(), values.password, {
+        const result = await login(loginId, values.password, {
           mode: loginMode,
         });
         if (result.ok) {
@@ -144,7 +148,14 @@ export default function LoginPage() {
             );
           }
         } else {
-          setError(result.message ?? 'Đăng nhập thất bại.');
+          const msg = result.message ?? 'Đăng nhập thất bại.';
+          setError(msg);
+          if (
+            loginMode === 'lead' &&
+            /xác nhận email/i.test(msg)
+          ) {
+            setNeedsEmailVerify(true);
+          }
         }
       } finally {
         setLoading(false);
@@ -185,6 +196,7 @@ export default function LoginPage() {
                     onChange={(mode) => {
                       setLoginMode(mode);
                       setError(null);
+                      setNeedsEmailVerify(false);
                     }}
                   />
                   <Form
@@ -247,6 +259,40 @@ export default function LoginPage() {
                         message={error}
                         className="mb-3 border-red-400/40 bg-red-950/25 text-red-50"
                         showIcon
+                        action={
+                          needsEmailVerify && lastLoginId ? (
+                            <Button
+                              size="small"
+                              type="primary"
+                              loading={resendLoading}
+                              className="!border-0 !bg-white !text-[#e35321]"
+                              onClick={async () => {
+                                setResendLoading(true);
+                                try {
+                                  const r =
+                                    await leadResendEmailVerification(
+                                      lastLoginId,
+                                    );
+                                  if (r.sent) {
+                                    antMessage.success(r.message);
+                                  } else {
+                                    antMessage.warning(r.message);
+                                  }
+                                } catch (e) {
+                                  antMessage.error(
+                                    e instanceof Error
+                                      ? e.message
+                                      : 'Không gửi lại được email.',
+                                  );
+                                } finally {
+                                  setResendLoading(false);
+                                }
+                              }}
+                            >
+                              Gửi lại email
+                            </Button>
+                          ) : undefined
+                        }
                       />
                     )}
                     <Form.Item className="mb-0">
@@ -272,9 +318,7 @@ export default function LoginPage() {
                     </p>
                   </Form>
 
-                  {loginMode === 'customer' &&
-                  googleCfg?.enabled &&
-                  googleCfg.clientId ? (
+                  {googleCfg?.enabled && googleCfg.clientId ? (
                     <GoogleOAuthProvider
                       clientId={googleCfg.clientId}
                       locale="vi"
@@ -293,13 +337,41 @@ export default function LoginPage() {
                         />
                       </div>
                       <LoginGoogleSection
+                        mode={loginMode}
                         className="mt-1.5"
                         noteClassName="!text-white/75"
-                        onLoggedIn={() =>
+                        onLoggedIn={() => {
+                          if (loginMode === 'lead') {
+                            void (async () => {
+                              try {
+                                const profile = await fetchLeadProfile();
+                                router.replace(
+                                  resolvePostLeadLoginPath(
+                                    profile,
+                                    postLoginPathForPortalActor(
+                                      'lead',
+                                      explicitRedirect(),
+                                    ),
+                                  ),
+                                );
+                              } catch {
+                                router.replace(
+                                  postLoginPathForPortalActor(
+                                    'lead',
+                                    explicitRedirect(),
+                                  ),
+                                );
+                              }
+                            })();
+                            return;
+                          }
                           router.replace(
-                            postLoginPathForPortalActor('customer', explicitRedirect()),
-                          )
-                        }
+                            postLoginPathForPortalActor(
+                              'customer',
+                              explicitRedirect(),
+                            ),
+                          );
+                        }}
                       />
                     </GoogleOAuthProvider>
                   ) : null}

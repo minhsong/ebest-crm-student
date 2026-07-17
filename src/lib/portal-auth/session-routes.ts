@@ -1,9 +1,10 @@
 import type { PortalAuthActor } from '@/lib/portal-auth/portal-auth-session';
 import type { LeadSessionProbe } from '@/lib/lead-portal/types';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 
 export const PORTAL_MOCK_TEST_RESULTS_ROUTES = {
-  lead: '/lead/tests',
-  student: '/mock-test-results',
+  lead: PORTAL_MOCK_TEST_ROUTES.results,
+  student: PORTAL_MOCK_TEST_ROUTES.results,
   /** Unified login (customer → lead fallback). */
   login: '/login',
 } as const;
@@ -22,7 +23,7 @@ export function resolvePostLeadLoginPath(
     identityUpgrade?: { applied?: boolean };
     profileCompleted?: boolean;
   },
-  fallback = PORTAL_MOCK_TEST_RESULTS_ROUTES.lead,
+  fallback: string = PORTAL_MOCK_TEST_RESULTS_ROUTES.lead,
 ): string {
   if (profile.identityUpgrade?.applied) {
     return PORTAL_MOCK_TEST_RESULTS_ROUTES.student;

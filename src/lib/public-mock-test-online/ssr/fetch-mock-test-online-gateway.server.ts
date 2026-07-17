@@ -6,6 +6,10 @@ import type {
 	MockTestOnlineCampaign,
 	MockTestOnlineCampaignsResponse,
 } from '@/lib/public-mock-test-online/types';
+import {
+	buildGatewayServiceHeaders,
+	getSocialGatewayConfig,
+} from '@/lib/social-gateway-bff.util';
 
 function resolveGatewayBaseUrl(): string | null {
 	const baseUrl = process.env.SOCIAL_GATEWAY_BASE_URL?.replace(/\/$/, '') ?? '';
@@ -34,6 +38,38 @@ async function fetchGatewayPublic<T>(
 			return {
 				data: null,
 				error: typeof msg === 'string' && msg.trim() ? msg.trim() : fallbackError,
+			};
+		}
+		return { data: raw as T, error: null };
+	} catch {
+		return { data: null, error: 'Không thể kết nối máy chủ. Vui lòng thử lại.' };
+	}
+}
+
+async function fetchGatewayPrivate<T>(
+	path: string,
+	fallbackError: string,
+): Promise<{ data: T | null; error: string | null }> {
+	const cfg = getSocialGatewayConfig();
+	if (!cfg) {
+		return { data: null, error: 'Cấu hình Gateway chưa sẵn sàng.' };
+	}
+	const url = `${cfg.baseUrl}/api/v1/public/mock-test-online/${path}`;
+	try {
+		const res = await fetch(url, {
+			headers: buildGatewayServiceHeaders(cfg),
+			cache: 'no-store',
+		});
+		const raw = (await res.json().catch(() => ({}))) as Record<string, unknown> & {
+			message?: string;
+		};
+		if (!res.ok) {
+			return {
+				data: null,
+				error:
+					typeof raw.message === 'string' && raw.message.trim()
+						? raw.message.trim()
+						: fallbackError,
 			};
 		}
 		return { data: raw as T, error: null };
@@ -89,6 +125,7 @@ export type GatewayFunnelSessionPublic = {
 	selectedSessionId: number | null;
 	pendingRegistrationId: string | null;
 	primaryPhoneE164: string;
+	portalCustomerId?: number | null;
 };
 
 export async function fetchGatewayLeadPendingAttemptContext(
@@ -96,7 +133,7 @@ export async function fetchGatewayLeadPendingAttemptContext(
 ): Promise<GatewayLeadPendingAttemptContext | null> {
 	const id = pendingLeadId.trim();
 	if (!id) return null;
-	const res = await fetchGatewayPublic<GatewayLeadPendingAttemptContext>(
+	const res = await fetchGatewayPrivate<GatewayLeadPendingAttemptContext>(
 		`lead-pending/${encodeURIComponent(id)}/attempt-context`,
 		'Không tải được thông tin đăng ký.',
 	);
@@ -108,7 +145,7 @@ export async function fetchGatewayFunnelSession(
 ): Promise<GatewayFunnelSessionPublic | null> {
 	const id = funnelSessionId.trim();
 	if (!id) return null;
-	const res = await fetchGatewayPublic<GatewayFunnelSessionPublic>(
+	const res = await fetchGatewayPrivate<GatewayFunnelSessionPublic>(
 		`funnel-session/${encodeURIComponent(id)}`,
 		'Không tải được phiên đăng ký.',
 	);

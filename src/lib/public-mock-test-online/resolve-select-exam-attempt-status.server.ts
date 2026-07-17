@@ -32,6 +32,17 @@ export async function resolveSelectExamAttemptStatus(
     );
   }
 
+  if (input.session.actor === 'customer') {
+    const pendingLeadId = input.pendingLeadId.trim();
+    if (!pendingLeadId) return null;
+    const ctx = await fetchGatewayLeadPendingAttemptContext(pendingLeadId);
+    if (!ctx?.omniLeadId) return null;
+    return fetchMockTestOnlineAttemptStatus(ctx.omniLeadId, typeCode, {
+      sessionId,
+      phoneNormalized: ctx.primaryPhoneE164,
+    });
+  }
+
   const pendingLeadId = input.pendingLeadId.trim();
   if (!pendingLeadId) return null;
 

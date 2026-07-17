@@ -3,7 +3,6 @@ import { MockTestOnlineRegisterForm } from '@/components/public-mock-test-online
 import { MockTestOnlineSeoJsonLd } from '@/components/public-mock-test-online/MockTestOnlineSeoJsonLd';
 import { loadMockTestOnlineLeadRegisterPageData } from '@/lib/public-mock-test-online/fetch-online.server';
 import { getMockTestOnlineFunnelSessionId } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
-import { redirectLeadRegisterIfAttemptBlocked } from '@/lib/public-mock-test-online/register-attempt-precheck.server';
 import { resolveRegisterAttemptStatus } from '@/lib/public-mock-test-online/resolve-register-attempt-status.server';
 import {
 	fetchMockTestOnlineSeo,
@@ -48,14 +47,13 @@ export default async function MockTestOnlineRegisterPage({
 
 	const resumeInExam = Boolean(attemptStatus?.activeInExam?.resumeAllowed);
 
-	// Fast path retake (BL-Q4): lead portal cookie → bootstrap pending — trừ khi đang làm dở.
-	if (sp.new !== '1' && session.actor === 'lead' && !resumeInExam) {
-		await redirectLeadRegisterIfAttemptBlocked(
-			session.omniLeadId,
-			undefined,
-			session.profile.phoneE164,
-		);
-		redirect('/api/public/mock-test-online/bootstrap-retake');
+	// Fast path (BL-Q4): lead / HV portal cookie → hub bootstrap — trừ khi đang làm dở.
+	if (
+		sp.new !== '1' &&
+		(session.actor === 'lead' || session.actor === 'customer') &&
+		!resumeInExam
+	) {
+		redirect('/mock-test/online/start');
 	}
 
 	const { profileOptions, profileOptionsError, initialContact } =

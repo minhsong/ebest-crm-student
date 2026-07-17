@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { MOCK_TEST_ONLINE_DEFAULT_TEST_TYPE } from '@/lib/public-mock-test-online/constants';
 import type { MockTestOnlineAttemptStatus } from '@/lib/public-mock-test-online/types';
 
-/** Trạng thái bài thi `in_exam` — lead portal cookie. */
-export function useLeadMockTestInExamStatus(enabled: boolean) {
+/** Trạng thái bài thi `in_exam` — hỗ trợ cả lead và customer portal cookie. */
+export function usePortalMockTestInExamStatus(enabled: boolean) {
 	const [status, setStatus] = useState<MockTestOnlineAttemptStatus | null>(null);
 	const [loading, setLoading] = useState(enabled);
 
@@ -43,3 +43,6 @@ export function useLeadMockTestInExamStatus(enabled: boolean) {
 
 	return { status, loading };
 }
+
+/** @deprecated Dùng `usePortalMockTestInExamStatus`. */
+export const useLeadMockTestInExamStatus = usePortalMockTestInExamStatus;

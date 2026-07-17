@@ -203,6 +203,37 @@ export async function proxyLeadAuthenticatedGetJson(
   }
 }
 
+export type ProxyPortalAuthenticatedPostOptions = {
+  body: unknown;
+  path: string;
+  errorFallback: string;
+};
+
+/** POST có Bearer — ưu tiên student JWT, sau đó lead JWT. */
+export async function proxyPortalAuthenticatedPostJson(
+  options: ProxyPortalAuthenticatedPostOptions,
+): Promise<NextResponse> {
+  const studentToken = getStudentAccessTokenFromCookie()?.trim();
+  if (studentToken) {
+    return proxyStudentPostJson({
+      body: options.body,
+      path: options.path,
+      headers: { Authorization: `Bearer ${studentToken}` },
+      errorFallback: options.errorFallback,
+    });
+  }
+  const leadToken = getLeadAccessTokenFromCookie()?.trim();
+  if (leadToken) {
+    return proxyStudentPostJson({
+      body: options.body,
+      path: options.path,
+      headers: { Authorization: `Bearer ${leadToken}` },
+      errorFallback: options.errorFallback,
+    });
+  }
+  return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
+}
+
 export type ProxyPortalAuthenticatedGetOptions = {
   path: string;
   query?: Record<string, string>;

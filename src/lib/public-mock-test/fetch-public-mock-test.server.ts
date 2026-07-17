@@ -107,6 +107,21 @@ async function loadLoggedInStudentContact(): Promise<{
 	}
 }
 
+/** SSR: tag options cho form hoàn thiện hồ sơ lead / đăng ký thi công khai. */
+export async function fetchPublicRegistrationProfileOptions(): Promise<{
+  profileOptions: PublicRegistrationOptions | null;
+  profileOptionsError: string | null;
+}> {
+  const optionsRes = await fetchCrmPublicMockTest<PublicRegistrationOptions>(
+    'registration-options',
+    'Không tải được danh mục mô tả.',
+  );
+  return {
+    profileOptions: optionsRes.data ?? null,
+    profileOptionsError: optionsRes.error,
+  };
+}
+
 /** SSR: buổi thi + tag options cho trang đăng ký công khai. */
 export async function loadPublicMockTestRegisterPageData(): Promise<PublicMockTestRegisterPageData> {
 	const [sessionsRes, optionsRes, initialContact] = await Promise.all([

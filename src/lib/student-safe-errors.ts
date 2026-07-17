@@ -34,11 +34,13 @@ const TECHNICAL_MESSAGE_PATTERNS: RegExp[] = [
 
 const USER_MESSAGES = {
   generic: 'Không thể xử lý yêu cầu. Vui lòng thử lại sau.',
-  network: 'Không thể kết nối dịch vụ làm bài. Vui lòng thử lại sau.',
+  network:
+    'Không thể kết nối với máy chủ. Hệ thống có thể đang bảo trì — vui lòng thử lại sau.',
   unauthorized: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
   forbidden: 'Bạn không có quyền thực hiện thao tác này.',
   notFound: 'Không tìm thấy dữ liệu yêu cầu.',
-  serverConfig: 'Hệ thống tạm thời chưa sẵn sàng. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.',
+  serverConfig:
+    'Hệ thống tạm thời chưa sẵn sàng. Vui lòng thử lại sau hoặc liên hệ Fanpage / hỗ trợ Ebest.',
   quizUnavailable:
     'Không thể mở bài làm trực tuyến lúc này. Vui lòng thử lại sau.',
   quizLoadFailed: 'Không tải được đề hoặc phiên làm bài. Vui lòng thử lại.',
@@ -46,6 +48,58 @@ const USER_MESSAGES = {
   wsUnavailable:
     'Không kết nối được phiên làm bài thời gian thực. Vui lòng tải lại trang.',
 } as const;
+
+/** Copy đầy đủ cho màn lỗi kết nối (error boundary / RootLayout). */
+export const PORTAL_SERVER_UNAVAILABLE_COPY = {
+  title: 'Không kết nối được với máy chủ',
+  description:
+    'Hệ thống có thể đang được bảo trì hoặc tạm thời gián đoạn. Vui lòng thử lại sau ít phút.',
+  supportHint:
+    'Nếu cần hỗ trợ, vui lòng liên hệ trực tiếp Fanpage hoặc kênh hỗ trợ của Ebest.',
+} as const;
+
+const CONNECTION_CAUSE_CODES = new Set([
+  'ECONNREFUSED',
+  'ENOTFOUND',
+  'ETIMEDOUT',
+  'ECONNRESET',
+  'EAI_AGAIN',
+  'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_HEADERS_TIMEOUT',
+  'UND_ERR_BODY_TIMEOUT',
+  'UND_ERR_SOCKET',
+]);
+
+function readErrorCauseCode(error: unknown): string {
+  if (!(error instanceof Error) || !error.cause || typeof error.cause !== 'object') {
+    return '';
+  }
+  const code = (error.cause as { code?: unknown }).code;
+  return typeof code === 'string' ? code : '';
+}
+
+/** Nhận diện lỗi mạng / upstream chết (Node `fetch failed`, ECONNREFUSED, …). */
+export function isUpstreamConnectionFailure(error: unknown): boolean {
+  if (!error) return false;
+  if (typeof error === 'string') {
+    return /fetch failed|Failed to fetch|NetworkError|ECONNREFUSED|ETIMEDOUT/i.test(
+      error,
+    );
+  }
+  if (!(error instanceof Error)) return false;
+  const message = error.message || '';
+  if (
+    /fetch failed|Failed to fetch|NetworkError|network error|ECONNREFUSED|ETIMEDOUT/i.test(
+      message,
+    )
+  ) {
+    return true;
+  }
+  const causeCode = readErrorCauseCode(error);
+  if (causeCode && CONNECTION_CAUSE_CODES.has(causeCode)) return true;
+  if (error.name === 'TypeError' && /fetch/i.test(message)) return true;
+  return false;
+}
 
 export type StudentSafeErrorKey = keyof typeof USER_MESSAGES;
 

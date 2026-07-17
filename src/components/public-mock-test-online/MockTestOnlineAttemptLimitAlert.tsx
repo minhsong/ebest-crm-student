@@ -10,7 +10,7 @@ import {
 type Props = {
   attemptStatus?: MockTestOnlineAttemptStatus | null;
   className?: string;
-  /** Mặc định `error` — `/lead/tests` dùng `warning`. */
+  /** Mặc định `error` — `/mock-test/results` dùng `warning`. */
   variant?: 'error' | 'warning';
   /**
    * Redirect `?notice=attempt_limit`.
@@ -19,7 +19,7 @@ type Props = {
   forced?: boolean;
 };
 
-/** Alert hết lượt thi — SSOT copy (select-exam, /lead/tests). */
+/** Alert hết lượt thi — SSOT copy (select-exam, /mock-test/results). */
 export function MockTestOnlineAttemptLimitAlert({
   attemptStatus = null,
   className = '!mb-4',

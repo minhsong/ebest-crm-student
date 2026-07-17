@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import fallbackCatalog from '@/data/pronunciation-catalog.json';
 import type { PronunciationReviewCatalog } from '@/components/media-review/types';
+import { fetchPublicPortalSettings } from '@/lib/public-settings-client';
 
 const FALLBACK = fallbackCatalog as PronunciationReviewCatalog;
 
@@ -12,8 +13,7 @@ export function usePronunciationCatalog(enabled = true) {
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
-    void fetch('/api/settings/public')
-      .then((r) => r.json())
+    void fetchPublicPortalSettings()
       .then((data) => {
         if (cancelled) return;
         const c = data?.pronunciation_review_catalog as

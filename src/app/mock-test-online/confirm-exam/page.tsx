@@ -1,6 +1,10 @@
 import { Suspense } from 'react';
 import { MockTestOnlineConfirmExamClient } from '@/components/public-mock-test-online/MockTestOnlineConfirmExamClient';
 import { loadMockTestOnlineSelectExamPageData } from '@/lib/public-mock-test-online/fetch-online.server';
+import { getMockTestOnlineFunnelSessionId } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
+import { fetchGatewayFunnelSession } from '@/lib/public-mock-test-online/ssr/fetch-mock-test-online-gateway.server';
+import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
+import { assertFunnelMatchesPortalActor } from '@/features/portal-mock-test/server/assert-funnel-identity.server';
 import { buildPageMetadata } from '@/lib/metadata';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +23,14 @@ export default async function MockTestOnlineConfirmExamPage({
 	searchParams,
 }: PageProps) {
 	const sp = await searchParams;
-	const pendingLeadId = sp.lead?.trim() ?? '';
+	const pendingLeadId =
+		sp.lead?.trim() || getMockTestOnlineFunnelSessionId() || '';
+
+	const session = await resolvePortalSessionFromCookies();
+	if (pendingLeadId) {
+		const funnel = await fetchGatewayFunnelSession(pendingLeadId);
+		assertFunnelMatchesPortalActor(session, funnel, pendingLeadId);
+	}
 
 	const { campaigns, campaignsError } = await loadMockTestOnlineSelectExamPageData(
 		pendingLeadId || undefined,

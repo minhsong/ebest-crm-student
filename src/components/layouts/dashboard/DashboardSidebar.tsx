@@ -21,7 +21,7 @@ export interface DashboardSidebarProps {
   selectedKeys: string[];
   openKeys: string[];
   onOpenChange: (keys: string[]) => void;
-  /** Logo home — lead dùng `/lead/tests`, HV dùng `/`. */
+  /** Logo home — lead dùng `/mock-test`, HV dùng `/`. */
   logoHref?: string;
 }
 

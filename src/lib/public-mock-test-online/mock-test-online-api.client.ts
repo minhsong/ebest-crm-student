@@ -49,7 +49,7 @@ export async function fetchMockTestOnlineConfirmSession(
 	);
 	const data = await parseJson<MockTestOnlineSelectExamResponse>(res);
 	if (!res.ok) {
-		throw new Error(data.message ?? 'Không tải được phiên xác minh.');
+		throwApiError(res, data);
 	}
 	return data;
 }

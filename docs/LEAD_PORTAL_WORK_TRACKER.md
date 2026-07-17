@@ -5,7 +5,7 @@
 > Attempt limit: [MOCK_TEST_ONLINE_LEAD_ATTEMPT_LIMIT_SPEC.md](../../ebest-crm-api/docs/modules/mock-test/MOCK_TEST_ONLINE_LEAD_ATTEMPT_LIMIT_SPEC.md) v1.1  
 > Zalo guard: [MOCK_TEST_ONLINE_ZALO_UNLOCK_CONTACT_GUARD_SPEC.md](../../ebest-crm-api/docs/modules/mock-test/MOCK_TEST_ONLINE_ZALO_UNLOCK_CONTACT_GUARD_SPEC.md)  
 > Auth register/login + Google: [PORTAL_AUTH_REGISTER_AND_LOGIN_SPEC.md](../../ebest-crm-api/docs/monorepo/portal-identity/PORTAL_AUTH_REGISTER_AND_LOGIN_SPEC.md)  
-> Cập nhật: 2026-07-16
+> Cập nhật: 2026-07-17
 
 ## Quyết định PM đã chốt
 
@@ -177,6 +177,60 @@ Public endpoints:
 | LP-PROMO-01 | Ưu đãi + countdown | 🔒 Nợ |
 | LP-OPS-01 | Admin reset attempt counter | 🔒 P2 |
 | ZU-P2-01 | Activity log unlock blocked | 🔒 P2 |
+
+---
+
+## M9 — Mock Test Hub (`/mock-test/*`) 🟢 P0–P5i
+
+> SSOT: [PORTAL_MOCK_TEST_HUB_SPEC.md](./PORTAL_MOCK_TEST_HUB_SPEC.md)
+
+| ID | Việc | Trạng thái |
+|----|------|------------|
+| M9-P0 | Hub, layout chrome, menu lead, alias `/lead/tests` | ✅ |
+| M9-P1 | Lead online/start + BFF bootstrap | ✅ |
+| M9-P2 | Lead offline API + `PortalOfflineRegisterForm` | ✅ |
+| M9-P3 | Customer hub/offline/results + `CUSTOMER_PORTAL_OFFLINE` | ✅ |
+| M9-P3a | SSOT `access-guards` + `route-hrefs` adapters | ✅ |
+| M9-P3b | CRM `PortalOfflineRegistrationService` (lead + customer) | ✅ |
+| M9-P4 | GW bootstrap customer online (skip intake) | ✅ |
+| M9-P5 | Auto-provision omniLead HV + assert funnel select-exam | ✅ |
+| M9-P5c | Precheck attempt-status HV trước bootstrap online | ✅ |
+| M9-P5d | Results HV: attempt-limit + resume; customer identity fail-closed | ✅ |
+| M9-P5e | Bootstrap → Server Action (POST-only) + spinner; GET shim redirect (bỏ mutation-on-GET) | ✅ |
+| M9-P5f | Legacy href + CRM notify `/mock-test/results`; assert confirm-exam; route-hrefs + HV consult CTA | ✅ |
+| M9-P5g | Hub badge lượt thi/resume read-only + offline dedup + service-token constant-time | ✅ |
+| M9-P5h | confirm-session + pending status ownership qua funnel cookie/session (P5h) | ✅ |
+| M9-P5i | Trust-boundary/data hardening: cookie v2 root, select bind cookie, Gateway M2M guard, history identity-only, retry `23505` | ✅ |
+
+### M9-QA — Hub E2E (staging / local)
+
+| # | Kịch bản | Kỳ vọng | Trạng thái |
+|---|----------|---------|------------|
+| H1 | Guest `/mock-test` | Login redirect | ⬜ |
+| H2 | Lead hub + online start | Bootstrap, không intake | ⬜ |
+| H3 | HV hub + online start | P5c precheck + GW bootstrap | ⬜ |
+| H4 | HV attempt limit | `?notice=attempt_limit` | ⬜ |
+| H5 | Offline lead/HV | CRM source đúng enum | ⬜ |
+| H6 | Alias legacy routes | Redirect results | ⬜ |
+| H7 | Unit `parseCustomerOnlineBootstrapContext` | vitest pass | ✅ |
+| H8 | Unit customer funnel identity thiếu/lệch | Fail-closed | ✅ |
+| H9 | Unit attempt redirect blocked / resume | vitest pass | ✅ |
+
+**Menu HV:** `Thi thử` → `/mock-test` (alias `/mock-test-results` redirect).
+
+**Verify 2026-07-17:** `npx tsc --noEmit` Portal ✅ · 21 test M9/attempt/hub ✅ · CRM offline dedup 2 test + API build ✅ · Gateway guard 3 test + typecheck ✅. Full Portal suite: 2 failure Vocabulary Drill lobby có sẵn, ngoài phạm vi M9.
+
+**P5e (bootstrap POST-only):** mutation chuyển sang Server Action `startPortalOnlineBootstrapAction`; GET `/api/mock-test/bootstrap-online` thành shim redirect không side-effect. GW `assertMockTestFunnelGate` vẫn là chốt attempt-limit thẩm quyền; precheck portal giữ vai trò fast-path UX (cho qua khi `in_exam` resume). *Ghi chú nợ:* gộp sâu precheck + GW resolve (giảm round-trip) hoãn tới khi review semantics funnel-gate với `in_exam` phía CRM.
+
+**P5f:** UI funnel + đổi mật khẩu không còn hardcode `/lead/tests`; CRM `PortalLeadAccessNotifyService.resultsUrl` → `/mock-test/results`; `confirm-exam` gọi `assertFunnelMatchesPortalActor`; lead chưa hồ sơ → `LEAD_COMPLETE_PROFILE_PATH`; HV results có `LeadConsultCta` khi `attempt_limit`.
+
+**P5g:** Hub hiển thị `remaining` / resume / hết lượt; endpoint HV attempt-status là read-only và trả `null` khi chưa có Omni (không provision do page view). Offline submit lặp lại trả registration hiện có (`duplicate=true`). Gateway so sánh service token bằng `timingSafeEqual`.
+
+**Nợ P5g:** lookup dedup xử lý retry tuần tự; partial unique index cho race multi-instance chỉ triển khai sau audit duplicate production (tránh migration fail hoặc tự ý huỷ đăng ký).
+
+**P5h:** BFF `confirm-session` / `pending/.../status` bắt buộc HttpOnly funnel cookie khớp `pendingRegistrationId`; Gateway yêu cầu `funnelSessionId` query và reject khi Redis FunnelSession không trỏ đúng pending. Khắc phục lỗ bearer-capability khi UUID lọt URL/log.
+
+**P5i:** Cookie `mto_funnel_session_v2` path `/` để BFF nhận được, dual-write cookie cũ path `/mock-test-online`; select-exam bind body với HttpOnly cookie. Các read/authorize endpoint nhạy cảm của GW yêu cầu service token; HMAC/service-token dùng constant-time compare + strict Bearer parser. Lịch sử customer chỉ union `customerId + omniLeadId`, không dùng SĐT làm quyền sở hữu. Offline bắt `23505` / phone-already-registered và trả race winner / cross-funnel `duplicate:true`. GW `syncLeadPendingAfterFunnelGate` reuse FunnelSession còn `resumeStep=select` (cùng omni+SĐT) thay vì luôn supersede+mint.
 
 ---
 

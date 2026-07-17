@@ -25,10 +25,7 @@ export type MockTestOnlineCampaign = {
 };
 
 /** Wire CRM `GET .../attempt-status` — alias package type. */
-export type MockTestOnlineAttemptStatus = MockTestOnlineAttemptStatusWire & {
-	globalRemaining?: number;
-	sessionCap?: MockTestOnlineAttemptStatusWire['sessionCap'];
-};
+export type MockTestOnlineAttemptStatus = MockTestOnlineAttemptStatusWire;
 
 export type MockTestOnlineCampaignsResponse = {
 	campaigns: MockTestOnlineCampaign[];

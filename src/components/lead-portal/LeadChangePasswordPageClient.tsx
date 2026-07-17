@@ -8,6 +8,7 @@ import { PageCard, PageHeader, LoadingState } from '@/components/layout';
 import { useRequireLeadSession } from '@/hooks/use-lead-session';
 import { useChangePassword } from '@/hooks/use-change-password';
 import { leadPortalFormRules } from '@/lib/lead-portal/validation';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 
 function LeadChangePasswordForm() {
   const router = useRouter();
@@ -26,7 +27,7 @@ function LeadChangePasswordForm() {
       const result = await submit(values.currentPassword, values.newPassword);
       if (result.ok) {
         message.success(result.message ?? 'Đã đổi mật khẩu thành công.');
-        router.push('/lead/tests');
+        router.push(PORTAL_MOCK_TEST_ROUTES.results);
       }
     },
     [submit, message, router],
@@ -97,7 +98,9 @@ function LeadChangePasswordForm() {
           </Form>
         ) : (
           <div className="text-center">
-            <Link href="/lead/tests">Về kết quả thi thử</Link>
+            <Link href={PORTAL_MOCK_TEST_ROUTES.results}>
+              Về kết quả thi thử
+            </Link>
           </div>
         )}
       </PageCard>

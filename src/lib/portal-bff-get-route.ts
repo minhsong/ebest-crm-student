@@ -3,6 +3,10 @@ import {
   checkPortalBffRateLimit,
   resolveBffClientIp,
 } from '@/lib/portal-bff-rate-limit';
+import {
+  sanitizeStudentFacingMessage,
+  STUDENT_SAFE_USER_MESSAGES,
+} from '@/lib/student-safe-errors';
 
 const PORTAL_BFF_CACHE_HEADERS = {
   'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=120',
@@ -35,10 +39,14 @@ export async function handlePortalBffGet<T>(
     const payload = await options.fetch(locale);
     return NextResponse.json(payload, { headers: PORTAL_BFF_CACHE_HEADERS });
   } catch (e) {
+    const fallback =
+      options.errorMessage || STUDENT_SAFE_USER_MESSAGES.network;
     return NextResponse.json(
       {
-        message:
-          e instanceof Error ? e.message : options.errorMessage,
+        message: sanitizeStudentFacingMessage(
+          e instanceof Error ? e.message : undefined,
+          fallback,
+        ),
       },
       { status: 502 },
     );

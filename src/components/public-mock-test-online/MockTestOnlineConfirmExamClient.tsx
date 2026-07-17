@@ -18,6 +18,7 @@ import {
 	ClockCircleOutlined,
 	MessageOutlined,
 } from '@ant-design/icons';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 import type { MockTestOnlineCampaign } from '@/lib/public-mock-test-online/types';
 import { ZaloConfirmMessageBlock } from '@/components/public-mock-test-online/ZaloConfirmMessageBlock';
 import { MockTestOnlineFunnelShell } from '@/components/public-mock-test-online/MockTestOnlineFunnelShell';
@@ -243,7 +244,9 @@ export function MockTestOnlineConfirmExamClient({
 										<Button
 											type="primary"
 											onClick={() => {
-												window.location.assign('/lead/tests');
+												window.location.assign(
+													PORTAL_MOCK_TEST_ROUTES.results,
+												);
 											}}
 										>
 											Xem lịch sử thi

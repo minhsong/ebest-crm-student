@@ -41,7 +41,7 @@ export async function leadRegister(input: {
   /** Có = tạo tài khoản gắn đăng ký thi; không = đăng ký tự phục vụ */
   registrationId?: number;
   displayName?: string;
-}): Promise<{ message: string }> {
+}): Promise<{ message: string; emailVerificationSent: boolean }> {
   const body: Record<string, unknown> = {
     phone: input.phone,
     email: input.email,
@@ -65,6 +65,7 @@ export async function leadRegister(input: {
   });
   const data = (await res.json().catch(() => ({}))) as {
     message?: string;
+    emailVerificationSent?: boolean;
     code?: string;
     errorCode?: string;
     action?: 'login' | 'contact_support';
@@ -86,7 +87,33 @@ export async function leadRegister(input: {
     }
     throw err;
   }
-  return { message: data.message ?? 'Đã gửi email xác nhận.' };
+  return {
+    message:
+      data.message ??
+      'Đã tạo tài khoản. Vui lòng kiểm tra email để xác nhận trước khi đăng nhập.',
+    emailVerificationSent: data.emailVerificationSent === true,
+  };
+}
+
+export async function leadResendEmailVerification(
+  loginId: string,
+): Promise<{ message: string; sent: boolean }> {
+  const res = await fetch('/api/auth/lead/resend-verification', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ loginId: loginId.trim() }),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    message?: string;
+    sent?: boolean;
+  };
+  if (!res.ok) {
+    throw new Error(data.message ?? 'Không gửi lại được email xác nhận.');
+  }
+  return {
+    message: data.message ?? 'Đã xử lý yêu cầu gửi lại email.',
+    sent: data.sent !== false,
+  };
 }
 
 export async function leadLogout(): Promise<void> {
@@ -110,6 +137,11 @@ export async function fetchLeadProfile(): Promise<LeadProfile> {
 /** Đánh dấu hoàn thiện hồ sơ sau đăng ký cơ bản — mở layout portal. */
 export async function completeLeadProfile(input: {
   displayName?: string;
+  tagIds?: number[];
+  universityTagId?: number;
+  universityOther?: string;
+  consultationNote?: string;
+  expectedScore?: number;
 }): Promise<LeadProfile> {
   const res = await fetch('/api/lead/me/complete-profile', {
     method: 'POST',

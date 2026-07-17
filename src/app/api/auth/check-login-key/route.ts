@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
 import { STUDENT_API } from '@/lib/student-api';
-import { buildCrmStudentUrl } from '@/lib/crm-student-proxy';
+import {
+  buildCrmStudentUrl,
+  unwrapCrmResponseBody,
+} from '@/lib/crm-student-proxy';
 import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
 import { STUDENT_SAFE_USER_MESSAGES } from '@/lib/student-safe-errors';
 
@@ -39,7 +42,8 @@ export async function GET(request: NextRequest) {
         { status: res.status },
       );
     }
-    return NextResponse.json(data);
+    const payload = unwrapCrmResponseBody(data) ?? data;
+    return NextResponse.json(payload);
   } catch {
     return NextResponse.json(
       { message: STUDENT_SAFE_USER_MESSAGES.generic },

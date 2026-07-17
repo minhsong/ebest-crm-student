@@ -22,7 +22,7 @@ function baseStatus(
 describe('resolveAttemptRegisterRedirectPath', () => {
   it('redirects when remaining is 0 and no active in_exam', () => {
     expect(resolveAttemptRegisterRedirectPath(baseStatus())).toBe(
-      '/lead/tests?notice=attempt_limit',
+      '/mock-test/results?notice=attempt_limit',
     );
   });
 
@@ -55,6 +55,6 @@ describe('resolveAttemptRegisterRedirectPath', () => {
           },
         }),
       ),
-    ).toBe('/lead/tests?notice=attempt_limit');
+    ).toBe('/mock-test/results?notice=attempt_limit');
   });
 });

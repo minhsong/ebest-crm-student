@@ -1,5 +1,6 @@
 import { LeadCompleteProfileClient } from '@/components/lead-portal/LeadCompleteProfileClient';
 import { buildPageMetadata } from '@/lib/metadata';
+import { fetchPublicRegistrationProfileOptions } from '@/lib/public-mock-test/fetch-public-mock-test.server';
 
 export const metadata = buildPageMetadata({
   title: 'Hoàn thiện hồ sơ',
@@ -7,6 +8,14 @@ export const metadata = buildPageMetadata({
   path: '/lead/complete-profile',
 });
 
-export default function LeadCompleteProfilePage() {
-  return <LeadCompleteProfileClient />;
+export default async function LeadCompleteProfilePage() {
+  const { profileOptions, profileOptionsError } =
+    await fetchPublicRegistrationProfileOptions();
+
+  return (
+    <LeadCompleteProfileClient
+      initialProfileOptions={profileOptions}
+      profileOptionsError={profileOptionsError}
+    />
+  );
 }
