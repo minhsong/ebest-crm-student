@@ -88,6 +88,7 @@ import {
 import {
   isWritingExerciseType,
   isWritingDictationMode,
+  listAttachmentsExcludingDictationAudio,
   pickDictationAudioAttachments,
   parseWritingExerciseMode,
 } from '@/lib/writing-assignment';
@@ -326,6 +327,15 @@ export function StudentAssignmentDetailModal({
       isWritingDictationMode(detail?.writingMode)
         ? pickDictationAudioAttachments(detail?.attachments)
         : [],
+    [detail?.attachments, detail?.writingMode],
+  );
+  /** Đính kèm chung: không lặp audio đã có player inline trong form chép chính tả. */
+  const generalAttachments = useMemo(
+    () =>
+      listAttachmentsExcludingDictationAudio(
+        detail?.attachments,
+        detail?.writingMode,
+      ),
     [detail?.attachments, detail?.writingMode],
   );
 
@@ -1210,7 +1220,7 @@ export function StudentAssignmentDetailModal({
             </div>
           ) : null}
 
-          {detail.attachments?.length ? (
+          {generalAttachments.length ? (
             <div>
               <Title
                 level={5}
@@ -1219,10 +1229,10 @@ export function StudentAssignmentDetailModal({
                   marginBottom: token.marginXS,
                 }}
               >
-                Tài liệu đính kèm ({detail.attachments.length})
+                Tài liệu đính kèm ({generalAttachments.length})
               </Title>
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                {detail.attachments.map((item, index) => {
+                {generalAttachments.map((item, index) => {
                   const canPlay = assignmentAttachmentSupportsPlay(item);
                   const canPreviewImage =
                     assignmentAttachmentSupportsImagePreview(item);
@@ -1300,7 +1310,8 @@ export function StudentAssignmentDetailModal({
           ) : null}
 
           {!detail.content &&
-            (!detail.attachments || detail.attachments.length === 0) && (
+            !generalAttachments.length &&
+            !writingDictationAudios.length && (
               <Text
                 type="secondary"
                 style={{

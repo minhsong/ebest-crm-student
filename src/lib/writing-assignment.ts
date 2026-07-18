@@ -138,6 +138,19 @@ export function pickDictationAudioAttachments(
   return (attachments ?? []).filter((item) => isAudioAssignmentAttachment(item));
 }
 
+/**
+ * Tài liệu đính kèm hiển thị dưới form — bỏ audio đã đưa vào panel
+ * «Nghe và chép» để tránh nút Phát mở popup chồng form.
+ */
+export function listAttachmentsExcludingDictationAudio(
+  attachments: StudentAssignmentAttachment[] | undefined,
+  writingMode: unknown,
+): StudentAssignmentAttachment[] {
+  const list = attachments ?? [];
+  if (!isWritingDictationMode(writingMode)) return list;
+  return list.filter((item) => !isAudioAssignmentAttachment(item));
+}
+
 export function getWritingEditorHint(
   mode: WritingExerciseMode,
   disablePaste: boolean,

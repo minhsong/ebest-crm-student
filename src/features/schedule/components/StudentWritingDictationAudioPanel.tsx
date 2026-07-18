@@ -42,8 +42,10 @@ export function StudentWritingDictationAudioPanel({
               {url ? (
                 <audio
                   controls
+                  playsInline
                   preload="metadata"
                   src={url}
+                  aria-label={item.name || `Đoạn nghe ${index + 1}`}
                   style={{ width: '100%' }}
                 >
                   Trình duyệt không hỗ trợ phát audio.
