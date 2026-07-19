@@ -47,9 +47,9 @@ export function MockTestHub({ principal, attemptStatus = null }: Props) {
       {access.needsProfileCompletion ? (
         <PageCard className="mb-4">
           <Text type="warning">
-            Vui lòng{' '}
-            <Link href="/lead/complete-profile">hoàn thiện hồ sơ</Link> trước
-            khi đăng ký thi.
+            Bạn có thể thi online ngay. Vui lòng{' '}
+            <Link href="/lead/complete-profile">hoàn thiện hồ sơ</Link> để xem
+            kết quả và đăng ký thi tại trung tâm.
           </Text>
         </PageCard>
       ) : null}

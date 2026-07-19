@@ -10,8 +10,14 @@ import { fetchLeadProfile } from '@/lib/lead-portal/client-api';
 import { isLeadPortalUnauthorizedError } from '@/lib/lead-portal/errors';
 import { isLeadIdentityUpgraded } from '@/lib/portal-auth/portal-auth-session';
 import { usePortalSession } from '@/contexts/portal-session-context';
-import { PORTAL_MOCK_TEST_RESULTS_ROUTES } from '@/lib/portal-auth/session-routes';
-import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
+import {
+	buildLeadCompleteProfilePath,
+	PORTAL_MOCK_TEST_RESULTS_ROUTES,
+} from '@/lib/portal-auth/session-routes';
+import {
+	PORTAL_MOCK_TEST_ROUTES,
+	isLeadIncompleteProfileAllowedPath,
+} from '@/features/portal-mock-test/routes.config';
 import { PortalExploreProvider } from '@/contexts/portal-explore-context';
 
 const COMPLETE_PROFILE_PATH = '/lead/complete-profile';
@@ -84,9 +90,16 @@ function LeadAuthenticatedLayoutInner({
 				}
 				if (
 					!next.profileCompleted &&
-					!pathname?.startsWith(COMPLETE_PROFILE_PATH)
+					!pathname?.startsWith(COMPLETE_PROFILE_PATH) &&
+					!isLeadIncompleteProfileAllowedPath(pathname ?? '')
 				) {
-					router.replace(COMPLETE_PROFILE_PATH);
+					router.replace(
+						buildLeadCompleteProfilePath(
+							pathname && pathname !== '/'
+								? pathname
+								: PORTAL_MOCK_TEST_ROUTES.hub,
+						),
+					);
 					return;
 				}
 				if (
@@ -163,7 +176,7 @@ function LeadAuthenticatedLayoutInner({
 
 /**
  * Layout đăng nhập đầy đủ cho lead — cùng chrome dashboard (header + sidebar).
- * Gate: chưa `profileCompleted` → `/lead/complete-profile` trước khi vào layout.
+ * Gate: chưa `profileCompleted` → complete-profile, trừ exam.start/resume.
  */
 export function LeadAuthenticatedLayoutClient(props: Props) {
 	return (

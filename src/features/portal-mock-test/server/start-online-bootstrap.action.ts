@@ -16,30 +16,24 @@ import {
   writeMockTestOnlineFunnelSessionCookieStore,
   clearMockTestOnlineFunnelSessionCookieStore,
 } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
-import { LEAD_COMPLETE_PROFILE_PATH } from '@/lib/portal-auth/session-routes';
+import { assertPortalMockTestAccess } from '@/features/portal-mock-test/server/access-guards.server';
 
 export type StartOnlineBootstrapState = { error: string } | null;
 
 /**
  * Server Action bootstrap thi online (POST-only — không side-effect trên GET).
- * Guest → login, lead chưa hồ sơ → complete-profile, hết lượt → results.
+ * Guest → login; profile incomplete vẫn được thi; hết lượt → results.
  * Thành công: ghi funnel cookie + redirect select-exam.
  */
 export async function startPortalOnlineBootstrapAction(): Promise<StartOnlineBootstrapState> {
   const principal = await resolvePortalMockTestPrincipal();
 
-  if (principal.actor === 'guest') {
-    redirect(
-      `/login?mode=lead&returnUrl=${encodeURIComponent(
-        PORTAL_MOCK_TEST_ROUTES.onlineStart,
-      )}`,
-    );
-  }
+  assertPortalMockTestAccess(principal, {
+    returnUrl: PORTAL_MOCK_TEST_ROUTES.onlineStart,
+    capability: 'exam.start',
+  });
 
   if (isLeadMockTestPrincipal(principal)) {
-    if (!principal.profileCompleted) {
-      redirect(LEAD_COMPLETE_PROFILE_PATH);
-    }
     await redirectLeadRegisterIfAttemptBlocked(
       principal.omniLeadId,
       undefined,

@@ -27,7 +27,7 @@ export async function resolveSelectExamAttemptStatus(
       typeCode,
       {
         sessionId,
-        phoneNormalized: input.session.profile.phoneE164,
+        phoneNormalized: input.session.profile.phoneE164 ?? undefined,
       },
     );
   }
@@ -39,7 +39,7 @@ export async function resolveSelectExamAttemptStatus(
     if (!ctx?.omniLeadId) return null;
     return fetchMockTestOnlineAttemptStatus(ctx.omniLeadId, typeCode, {
       sessionId,
-      phoneNormalized: ctx.primaryPhoneE164,
+      phoneNormalized: ctx.primaryPhoneE164 ?? undefined,
     });
   }
 
@@ -51,6 +51,6 @@ export async function resolveSelectExamAttemptStatus(
 
   return fetchMockTestOnlineAttemptStatus(ctx.omniLeadId, typeCode, {
     sessionId,
-    phoneNormalized: ctx.primaryPhoneE164,
+    phoneNormalized: ctx.primaryPhoneE164 ?? undefined,
   });
 }

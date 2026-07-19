@@ -14,6 +14,7 @@ function mapLeadSession(
     leadAccountId: profile.id,
     profileCompleted: profile.profileCompleted !== false,
     phoneE164: profile.phoneE164,
+    googleLinked: profile.googleLinked === true,
     email: profile.email,
     displayName: session.displayName,
     profile,

@@ -5,7 +5,8 @@ export type PortalMockTestLeadPrincipal = {
   omniLeadId: string;
   leadAccountId: number;
   profileCompleted: boolean;
-  phoneE164: string;
+  phoneE164: string | null;
+  googleLinked: boolean;
   email: string;
   displayName: string;
   profile: LeadProfile;

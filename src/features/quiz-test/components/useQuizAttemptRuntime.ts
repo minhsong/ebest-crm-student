@@ -31,7 +31,6 @@ import {
   type QuizRuntimeVariant,
 } from '@/features/quiz-test/quiz-gateway-browser';
 import {
-  clearMockTestOnlineExamAuth,
   patchMockTestOnlineExamAuth,
 } from '@/lib/public-mock-test-online/exam-session';
 import {
@@ -225,7 +224,13 @@ export function useQuizAttemptRuntime({
 
     try {
       const mockTestOnline = isMockTestOnlineQuizRuntimeActive(runtimeVariant);
-      const activeState = await fetchActiveQuizAttemptState(formPublicId);
+      const activeAttemptOpts = mockTestOnline
+        ? { mockTestOnlineRuntime: true as const }
+        : undefined;
+      const activeState = await fetchActiveQuizAttemptState(
+        formPublicId,
+        activeAttemptOpts,
+      );
       const resumeInProgress = activeState?.state === 'in_progress';
 
       if (mockTestOnline) {
@@ -258,8 +263,11 @@ export function useQuizAttemptRuntime({
 
       if (resumeInProgress) {
         data = await fetchFormPayload({ resume: true });
-        invalidateActiveQuizAttemptCache(formPublicId);
-        const refreshedState = await fetchActiveQuizAttemptState(formPublicId);
+        invalidateActiveQuizAttemptCache(formPublicId, activeAttemptOpts);
+        const refreshedState = await fetchActiveQuizAttemptState(
+          formPublicId,
+          activeAttemptOpts,
+        );
         if (
           refreshedState?.state === 'in_progress' &&
           refreshedState.attempt &&
@@ -415,8 +423,10 @@ export function useQuizAttemptRuntime({
       disconnectQuizSocket();
 
       if (isMockTestOnlineQuizRuntimeActive(runtimeVariant)) {
-        invalidateActiveQuizAttemptCache(formPublicId);
-        clearMockTestOnlineExamAuth();
+        invalidateActiveQuizAttemptCache(formPublicId, {
+          mockTestOnlineRuntime: true,
+        });
+        // Giữ metadata đến /exam/done (registrationId / funnel hint); done page sẽ clear.
         router.replace('/mock-test-online/exam/done');
         return;
       }
@@ -831,7 +841,7 @@ export function useQuizAttemptRuntime({
     const attemptId = attempt.attemptPublicId;
 
     const connectSocket = async () => {
-      const token = await fetchQuizWsAccessToken();
+      const token = await fetchQuizWsAccessToken(runtimeVariant);
       if (cancelled || !token) return;
 
       try {
@@ -952,6 +962,7 @@ export function useQuizAttemptRuntime({
     handleServerAttemptClosed,
     phase,
     attempt?.attemptPublicId,
+    runtimeVariant,
   ]);
 
   useEffect(() => {

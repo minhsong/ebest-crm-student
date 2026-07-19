@@ -1,14 +1,12 @@
 import type { Rule } from 'antd/es/form';
 import { publicMockTestFormRules } from '@/lib/public-mock-test/validation';
+import { portalNewPasswordRules } from '@/lib/portal-auth/password-policy';
 
 export const leadPortalFormRules = {
   loginId: [
     { required: true, message: 'Vui lòng nhập email hoặc số điện thoại' },
   ] as Rule[],
-  password: [
-    { required: true, message: 'Vui lòng nhập mật khẩu' },
-    { min: 8, message: 'Mật khẩu tối thiểu 8 ký tự' },
-  ] as Rule[],
+  password: portalNewPasswordRules,
   registrationId: [
     { required: true, message: 'Vui lòng nhập mã đăng ký' },
     {

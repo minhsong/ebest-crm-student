@@ -10,6 +10,7 @@ import { useRedirectIfLoggedIn } from '@/hooks/use-redirect-if-logged-in';
 import { AuthWideFormLayout } from '@/components/auth/AuthWideFormLayout';
 import { FanpageContactLink } from '@/components/portal-contact/FanpageContactLink';
 import { parsePortalLoginModeFromQuery } from '@/components/portal/PortalLoginModePicker';
+import { portalNewPasswordRules } from '@/lib/portal-auth/password-policy';
 
 const SIDEBAR_ITEMS = [
   'Liên kết trong email thường có hiệu lực trong 24 giờ.',
@@ -90,10 +91,7 @@ function ResetPasswordForm() {
               <Form.Item
                 name="password"
                 label="Mật khẩu mới"
-                rules={[
-                  { required: true, message: 'Vui lòng nhập mật khẩu' },
-                  { min: 6, message: 'Ít nhất 6 ký tự' },
-                ]}
+                rules={portalNewPasswordRules}
                 hasFeedback
               >
                 <Input.Password

@@ -113,7 +113,7 @@ export function isGatewaySsrConfigured(): boolean {
 
 export type GatewayLeadPendingAttemptContext = {
 	omniLeadId: string;
-	primaryPhoneE164: string;
+	primaryPhoneE164: string | null;
 };
 
 export type GatewayFunnelSessionPublic = {
@@ -124,7 +124,9 @@ export type GatewayFunnelSessionPublic = {
 	status: 'lead_registered' | 'awaiting_verify';
 	selectedSessionId: number | null;
 	pendingRegistrationId: string | null;
-	primaryPhoneE164: string;
+	primaryPhoneE164: string | null;
+	entryMode: 'manual_zalo' | 'retake_zalo' | 'portal_customer' | 'google_fast';
+	verificationChannel: 'zalo' | 'email';
 	portalCustomerId?: number | null;
 };
 

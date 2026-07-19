@@ -124,16 +124,25 @@ export async function postMockTestOnlineDevSimulateZalo(pendingRegistrationId: s
 	};
 }
 
-/** PI-D13 — phiên lead ngay sau Zalo verify (idempotent). */
+/** PI-D13 — phiên lead ngay sau Zalo verify (idempotent). Bắt buộc pending UUID. */
 export async function provisionLeadPortalSession(input: {
+	pendingRegistrationId: string;
 	registrationId?: number;
-	pendingRegistrationId?: string;
 }): Promise<{ provisioned: boolean }> {
+	const pendingRegistrationId = input.pendingRegistrationId.trim();
+	if (!pendingRegistrationId) {
+		throw new MockTestOnlineApiError('Thiếu phiên xác minh.');
+	}
 	const res = await fetch('/api/public/mock-test-online/provision-lead-session', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		credentials: 'include',
-		body: JSON.stringify(input),
+		body: JSON.stringify({
+			pendingRegistrationId,
+			...(input.registrationId != null && input.registrationId >= 1
+				? { registrationId: input.registrationId }
+				: {}),
+		}),
 	});
 	const data = await parseJson<{ provisioned?: boolean; message?: string }>(res);
 	if (!res.ok) {

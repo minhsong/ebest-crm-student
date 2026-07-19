@@ -68,7 +68,7 @@ export default async function MockTestOnlineRegisterPage({
 				profileOptionsError={profileOptionsError}
 				initialContact={initialContact}
 				widgetTitle="Đăng ký"
-				widgetIntro="Điền thông tin liên hệ để bắt đầu. Sau bước này bạn sẽ chọn bài thi và xác minh qua Zalo."
+				widgetIntro="Tiếp tục nhanh bằng Google hoặc đăng ký bằng số điện thoại và xác minh Zalo."
 				attemptStatus={attemptStatus}
 				intakeBlocked={resumeInExam}
 			/>

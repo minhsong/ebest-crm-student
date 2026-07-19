@@ -6,6 +6,7 @@ import type {
   PortalMockTestCustomerPrincipal,
   PortalMockTestLeadPrincipal,
 } from '../identity/types';
+import { resolveLeadOnlineBootstrapEntryMode } from '../domain/lead-bootstrap-entry-mode';
 
 export type OnlineBootstrapResult =
   | { ok: true; pendingLeadId: string }
@@ -38,6 +39,7 @@ function mapBootstrapFailure(
 
 async function postGatewayBootstrap(
   path: string,
+  body?: Record<string, unknown>,
 ): Promise<OnlineBootstrapResult> {
   const cfg = getSocialGatewayConfig();
   if (!cfg) {
@@ -52,6 +54,7 @@ async function postGatewayBootstrap(
   const res = await fetch(url, {
     method: 'POST',
     headers: buildGatewayServiceHeaders(cfg),
+    ...(body ? { body: JSON.stringify(body) } : {}),
     cache: 'no-store',
   });
   const data = (await res.json().catch(() => ({}))) as {
@@ -73,6 +76,9 @@ export async function bootstrapLeadOnlineSession(
 ): Promise<OnlineBootstrapResult> {
   return postGatewayBootstrap(
     `leads/${encodeURIComponent(principal.omniLeadId)}/bootstrap-lead-pending`,
+    {
+      entryMode: resolveLeadOnlineBootstrapEntryMode(principal),
+    },
   );
 }
 

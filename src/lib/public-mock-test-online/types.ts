@@ -72,19 +72,21 @@ export type MockTestOnlineSelectExamResponse = {
 
 	zaloOaChatUrl?: string;
 
-	zaloDeepLink: string;
+	zaloDeepLink: string | null;
 
 	zaloConfirmMessage?: string;
 
 	pollStatusUrl: string;
 
-	zaloConfirmExpiresAt: string;
+	zaloConfirmExpiresAt: string | null;
 
 	examSessionToken?: string;
 
 	examSessionExpiresAt?: string;
 
-	nextStep: 'zalo_verify';
+	verificationChannel?: 'zalo' | 'email';
+
+	nextStep: 'zalo_verify' | 'proceed_to_ready';
 
 	message: string;
 

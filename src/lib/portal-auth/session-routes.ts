@@ -1,6 +1,10 @@
 import type { PortalAuthActor } from '@/lib/portal-auth/portal-auth-session';
 import type { LeadSessionProbe } from '@/lib/lead-portal/types';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
+import {
+  PORTAL_RETURN_URL_QUERY,
+  sanitizePortalReturnUrl,
+} from '@/lib/portal-auth/post-auth-return-url';
 
 export const PORTAL_MOCK_TEST_RESULTS_ROUTES = {
   lead: PORTAL_MOCK_TEST_ROUTES.results,
@@ -11,6 +15,15 @@ export const PORTAL_MOCK_TEST_RESULTS_ROUTES = {
 
 /** Gate sau đăng ký cơ bản — bắt buộc trước layout lead đầy đủ. */
 export const LEAD_COMPLETE_PROFILE_PATH = '/lead/complete-profile' as const;
+
+export function buildLeadCompleteProfilePath(returnUrl?: string | null): string {
+  const safeReturnUrl = sanitizePortalReturnUrl(returnUrl);
+  if (!safeReturnUrl) return LEAD_COMPLETE_PROFILE_PATH;
+  const query = new URLSearchParams({
+    [PORTAL_RETURN_URL_QUERY]: safeReturnUrl,
+  });
+  return `${LEAD_COMPLETE_PROFILE_PATH}?${query.toString()}`;
+}
 
 export function resolveMockTestResultsPath(probe: LeadSessionProbe): string {
   if (probe.kind === 'student') return PORTAL_MOCK_TEST_RESULTS_ROUTES.student;
@@ -29,7 +42,7 @@ export function resolvePostLeadLoginPath(
     return PORTAL_MOCK_TEST_RESULTS_ROUTES.student;
   }
   if (profile.profileCompleted === false) {
-    return LEAD_COMPLETE_PROFILE_PATH;
+    return buildLeadCompleteProfilePath(fallback);
   }
   return fallback;
 }

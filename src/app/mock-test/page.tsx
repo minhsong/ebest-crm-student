@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation';
 import { MockTestHub } from '@/features/portal-mock-test/components/MockTestHub';
 import { resolvePortalMockTestPrincipal } from '@/features/portal-mock-test/identity/resolve-principal.server';
 import { assertPortalMockTestAccess } from '@/features/portal-mock-test/server/access-guards.server';
@@ -12,15 +11,9 @@ export const dynamic = 'force-dynamic';
 export default async function PortalMockTestHubPage() {
   const principal = await resolvePortalMockTestPrincipal();
 
-  if (principal.actor === 'guest') {
-    redirect(
-      `/login?mode=lead&returnUrl=${encodeURIComponent(PORTAL_MOCK_TEST_ROUTES.hub)}`,
-    );
-  }
-
   assertPortalMockTestAccess(principal, {
     returnUrl: PORTAL_MOCK_TEST_ROUTES.hub,
-    requireLeadProfile: true,
+    capability: 'portal.hub',
   });
 
   const attemptStatus =
@@ -28,7 +21,9 @@ export default async function PortalMockTestHubPage() {
       ? await fetchMockTestOnlineAttemptStatus(
           principal.omniLeadId,
           MOCK_TEST_ONLINE_DEFAULT_TEST_TYPE,
-          { phoneNormalized: principal.phoneE164 },
+          principal.phoneE164
+            ? { phoneNormalized: principal.phoneE164 }
+            : undefined,
         )
       : principal.actor === 'customer'
         ? await fetchCustomerOnlineAttemptStatusSsr()

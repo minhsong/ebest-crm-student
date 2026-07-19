@@ -24,6 +24,7 @@ export default async function PortalMockTestResultsPage({
 
   assertPortalMockTestAccess(principal, {
     returnUrl: PORTAL_MOCK_TEST_ROUTES.results,
+    capability: 'exam.view_result',
   });
 
   if (principal.actor === 'customer') {

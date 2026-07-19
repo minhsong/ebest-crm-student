@@ -143,6 +143,13 @@ Bổ sung pattern vào `student-safe-errors.ts` (kế hoạch):
 | `POST /api/auth/login` | 🟡 message only | 🟡 trả `actor`, `customer` | `actor` expose kiến trúc — **chấp nhận** cho login; ẩn trong conflict |
 | `POST /api/auth/lead/login` | 🟡 | 🟡 `actor: lead`, `account` | Tách endpoint `/lead/*` lộ dual auth — **known**; không nhân rộng |
 | `POST /api/auth/lead/register` | ✅ `proxyStudentPostJson` | ✅ payload gọn | CRM message «Tài khoản lead» → **cần** sanitize pattern |
+| `POST /api/auth/lead/google/register-or-login` | ✅ `mapPortalConflictForClient` | ✅ `allowlistGoogleRegisterClientPayload` + cookie theo `actor` | **P0** — strip `accessToken` / IDs / `google_sub` |
+| `POST /api/auth/lead/google/finalize` | ✅ | ✅ cùng allowlist | **P0** |
+| `POST /api/auth/lead/google/login` | ✅ | ✅ deprecated → register-or-login | Không auto-login theo email |
+| `POST /api/auth/google/login` | ✅ | ✅ deprecated → unified register-or-login | Cookie theo actor CRM, không ép Customer |
+| `POST /api/auth/google/link` | ✅ | ✅ `{ message }`, request chỉ forward `idToken` | Không passthrough credential/customer payload |
+| `POST /api/auth/register-by-token` | ✅ | ✅ `{ registered, googleLinked, message }` | Không passthrough response CRM |
+| `GET /api/auth/check-login-key` | ✅ | ✅ `{ available, action? }` | Không passthrough registry/ID nội bộ |
 | `POST /api/profile` (complete-profile) | ✅ `mapPortalConflictForClient` + sanitize | ✅ whitelist success | **P0** — done M7-3 |
 | `GET/PATCH /api/me` | ✅ sanitize + profile DTO | ✅ whitelist | **P0** — done M7-4 |
 | `GET/PATCH /api/lead/me` | ✅ sanitize lỗi | ✅ public DTO (bỏ `omniLeadId`) | **P1** — done M7-7 |
@@ -181,6 +188,7 @@ Bổ sung pattern vào `student-safe-errors.ts` (kế hoạch):
 | Ngữ cảnh | Field client | Lý do |
 |----------|--------------|-------|
 | Login thành công (sau user chọn mode) | `actor: customer \| lead` | LP-D1 — user đã khai báo |
+| Google register-or-login / finalize | `flow`, `actor?`, `ticket?`, `prefill?`, `message?`, `completeProfileUrl?`, `account` public | CRM quyết định actor; cookie HttpOnly; **cấm** token/IDs |
 | Session chrome | `actor`, `displayName` only (client) | Layout; **`omniLeadId` SSR-only** — PI-D18 / BL-Q9 |
 | Complete-profile success | whitelist profile fields | Không `loginKeyType` raw từ CRM nếu không cần |
 | Mock test funnel | `registrationId`, `pendingLeadId` | Opaque ids — OK |

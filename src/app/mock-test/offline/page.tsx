@@ -25,6 +25,7 @@ export default async function PortalMockTestOfflinePage() {
   const principal = await resolvePortalMockTestPrincipal();
   assertPortalMockTestAccess(principal, {
     returnUrl: PORTAL_MOCK_TEST_ROUTES.offline,
+    capability: 'exam.offline.register',
   });
 
   const {
@@ -51,7 +52,7 @@ export default async function PortalMockTestOfflinePage() {
   } else if (isLeadMockTestPrincipal(principal)) {
     contact = {
       displayName: principal.displayName?.trim() || 'Thí sinh',
-      primaryPhone: principal.phoneE164,
+      primaryPhone: principal.phoneE164 ?? '',
       primaryEmail: principal.email,
     };
   } else {

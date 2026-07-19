@@ -24,6 +24,9 @@ export type CachedSelectExamResult = {
 
 	pendingRegistrationId: string;
 
+	/** PG id sau email grant / sau Zalo unlock — dùng auto-authorize. */
+	registrationId?: number | null;
+
 	zaloDeepLink: string;
 
 	zaloOaChatUrl: string;
@@ -39,6 +42,10 @@ export type CachedSelectExamResult = {
 	examSessionExpiresAt?: string;
 
 	campaignTitle?: string;
+
+	verificationChannel?: 'zalo' | 'email';
+
+	nextStep?: 'zalo_verify' | 'proceed_to_ready';
 
 };
 

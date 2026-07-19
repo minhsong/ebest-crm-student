@@ -19,6 +19,7 @@ import { ArrowLeftOutlined, ArrowRightOutlined, SafetyCertificateOutlined } from
 import dayjs from 'dayjs';
 import type { ProfileByTokenResult, ProfileAddressData } from '@/types/profile';
 import { PhoneInputField } from '@/components/phone-input';
+import { portalNewPasswordRules } from '@/lib/portal-auth/password-policy';
 import { EBEST_BRAND_ORANGE } from '@/lib/ui-constants';
 import { useFanpageContactUrl } from '@/contexts/portal-contact-links-context';
 import { ebestPublicAntdTheme } from '@/lib/ebest-public-antd-theme';
@@ -492,10 +493,7 @@ export function ProfileForm({
             <Form.Item
               name="password"
               label="Mật khẩu"
-              rules={[
-                { required: true, message: 'Vui lòng nhập mật khẩu' },
-                { min: 6, message: 'Ít nhất 6 ký tự' },
-              ]}
+              rules={portalNewPasswordRules}
             >
               <Input.Password placeholder="Mật khẩu" />
             </Form.Item>

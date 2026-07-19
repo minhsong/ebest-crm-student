@@ -1,11 +1,23 @@
 import type { MockTestOnlinePollStatus } from '@/lib/public-mock-test-online/types';
 import type { MockTestOnlineUnlockReadyEvent } from '@/lib/public-mock-test-online/mock-test-online-ws-client';
 
-export function isMockTestOnlineZaloVerified(
+/** Channel đã verify (product: Zalo; legacy `channel_verified` vẫn accept để đọc poll cũ). */
+export function isMockTestOnlineChannelVerified(
 	status: MockTestOnlinePollStatus | null | undefined,
 ): boolean {
 	if (!status) return false;
-	return Boolean(status.examUnlockActive) || status.status === 'zalo_verified';
+	return (
+		Boolean(status.examUnlockActive) ||
+		status.status === 'zalo_verified' ||
+		status.status === 'channel_verified'
+	);
+}
+
+/** @deprecated Dùng `isMockTestOnlineChannelVerified`. */
+export function isMockTestOnlineZaloVerified(
+	status: MockTestOnlinePollStatus | null | undefined,
+): boolean {
+	return isMockTestOnlineChannelVerified(status);
 }
 
 export function pollStatusFromUnlockReadyEvent(

@@ -136,6 +136,7 @@ export async function fetchLeadProfile(): Promise<LeadProfile> {
 
 /** Đánh dấu hoàn thiện hồ sơ sau đăng ký cơ bản — mở layout portal. */
 export async function completeLeadProfile(input: {
+  phone?: string;
   displayName?: string;
   tagIds?: number[];
   universityTagId?: number;

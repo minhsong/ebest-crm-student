@@ -9,6 +9,7 @@ import {
 
 import { readAnyActiveExamSessionToken } from '@/lib/public-mock-test-online/select-exam-cache';
 import {
+	isMockTestOnlineExamSessionReady,
 	loadMockTestOnlineExamAuth,
 	type MockTestOnlineExamAuth,
 } from '@/lib/public-mock-test-online/exam-session';
@@ -106,9 +107,19 @@ export async function refreshMockTestOnlineExamAuth(
 export async function ensureMockTestOnlineExamAuth(
 	preferredRegistrationId?: number,
 ): Promise<MockTestOnlineExamAuth | null> {
+	const valid = loadMockTestOnlineExamAuth();
+	if (
+		valid &&
+		isMockTestOnlineExamSessionReady(valid) &&
+		(preferredRegistrationId == null ||
+			preferredRegistrationId === valid.registrationId)
+	) {
+		// Token T3 còn hạn — không bắt buộc refresh (guest sau T2 vẫn vào lại phòng thi).
+		return valid;
+	}
+
 	const hint =
-		loadMockTestOnlineExamAuth() ??
-		loadMockTestOnlineExamAuth({ allowExpiredToken: true });
+		valid ?? loadMockTestOnlineExamAuth({ allowExpiredToken: true });
 	const registrationId = preferredRegistrationId ?? hint?.registrationId;
 	if (!registrationId) return null;
 	return refreshMockTestOnlineExamAuth(registrationId);

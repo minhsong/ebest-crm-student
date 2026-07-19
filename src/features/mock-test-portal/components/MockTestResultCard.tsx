@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Card, Tag, Typography } from 'antd';
+import { Button, Card, Collapse, Progress, Tag, Typography } from 'antd';
 import type { LeadTestResultSummary } from '@/lib/lead-portal/types';
 import type { MockTestOnlineAttemptStatus } from '@/lib/public-mock-test-online/types';
 import { navigateMockTestOnlineResume } from '@/lib/public-mock-test-online/mock-test-online-resume-navigation.client';
@@ -77,10 +77,63 @@ export function MockTestResultCard({ item, inExamAttemptStatus = null }: Props) 
       {scoredLabel ? (
         <p className="mb-0 mt-1 text-xs text-gray-500">Chấm điểm: {scoredLabel}</p>
       ) : null}
-      {item.scores ? (
+      {item.resultView || item.scores ? (
         <p className="mb-0 mt-2 text-sm text-gray-600">
-          {formatMockTestScoreLine(item.scores)}
+          {item.resultView?.total.display ??
+            (item.scores ? formatMockTestScoreLine(item.scores) : '—')}
         </p>
+      ) : null}
+      {item.resultView?.skills.length ? (
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {item.resultView.skills.map((skill) => (
+            <div key={skill.code} className="rounded border border-gray-200 p-2">
+              <div className="flex justify-between text-sm">
+                <Text>{skill.label}</Text>
+                <Text strong>{skill.display}</Text>
+              </div>
+              <Progress
+                percent={
+                  skill.max > 0
+                    ? Math.round((skill.value / skill.max) * 100)
+                    : 0
+                }
+                showInfo={false}
+                size="small"
+              />
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {item.resultView?.details.length ? (
+        <Collapse
+          ghost
+          size="small"
+          className="mt-2"
+          items={[
+            {
+              key: 'details',
+              label: 'Xem chi tiết từng phần',
+              children: (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {item.resultView.details.map((detail) => (
+                    <div
+                      key={detail.code}
+                      className="flex justify-between rounded bg-gray-50 px-3 py-2 text-sm"
+                    >
+                      <Text>{detail.label}</Text>
+                      <Text strong>
+                        {detail.rawCorrect ?? '—'}/{detail.totalQuestions ?? '—'}
+                        {detail.accuracy != null
+                          ? ` · ${Math.round(detail.accuracy * 100)}%`
+                          : ''}
+                      </Text>
+                    </div>
+                  ))}
+                </div>
+              ),
+            },
+          ]}
+        />
       ) : null}
       {canResume && inExamAttemptStatus ? (
         <Button

@@ -12,7 +12,10 @@ import { STUDENT_SAFE_USER_MESSAGES } from '@/lib/student-safe-errors';
 export async function GET(request: NextRequest) {
   const apiBase = getApiBaseUrl();
   if (!apiBase) {
-    return NextResponse.json({ message: 'Cấu hình server chưa đúng.' }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Cấu hình server chưa đúng.' },
+      { status: 500 },
+    );
   }
 
   const sp = request.nextUrl.searchParams;
@@ -21,7 +24,10 @@ export async function GET(request: NextRequest) {
   const excludeCustomerId = sp.get('excludeCustomerId')?.trim();
 
   if (!email && !phone) {
-    return NextResponse.json({ message: 'Cần email hoặc SĐT.' }, { status: 400 });
+    return NextResponse.json(
+      { message: 'Cần email hoặc SĐT.' },
+      { status: 400 },
+    );
   }
 
   const qs = new URLSearchParams();
@@ -38,12 +44,26 @@ export async function GET(request: NextRequest) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       return NextResponse.json(
-        mapPortalConflictForClient(data, res.status, STUDENT_SAFE_USER_MESSAGES.generic),
+        mapPortalConflictForClient(
+          data,
+          res.status,
+          STUDENT_SAFE_USER_MESSAGES.generic,
+        ),
         { status: res.status },
       );
     }
-    const payload = unwrapCrmResponseBody(data) ?? data;
-    return NextResponse.json(payload);
+    const payload = (unwrapCrmResponseBody(data) ?? data) as Record<
+      string,
+      unknown
+    >;
+    const action =
+      payload.action === 'login' || payload.action === 'contact_support'
+        ? payload.action
+        : undefined;
+    return NextResponse.json({
+      available: payload.available === true,
+      ...(action ? { action } : {}),
+    });
   } catch {
     return NextResponse.json(
       { message: STUDENT_SAFE_USER_MESSAGES.generic },

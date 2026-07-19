@@ -53,7 +53,14 @@ export function ZaloConfirmMessageBlock({
 	}, [openUrl, toast]);
 
 	if (!message.trim()) {
-		return null;
+		return (
+			<div className="mock-test-zalo-message-block">
+				<p className="mock-test-zalo-message-hint !text-red-600">
+					Chưa có nội dung tin nhắn Zalo. Vui lòng quay lại chọn bài thi để hệ
+					thống tạo mã xác minh mới.
+				</p>
+			</div>
+		);
 	}
 
 	return (

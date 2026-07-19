@@ -16,7 +16,10 @@ import {
 	PORTAL_MOCK_TEST_RESULTS_ROUTES,
 } from '@/lib/portal-auth/session-routes';
 import { fetchExamFunnelHint } from '@/lib/complete-profile/check-login-key';
-import { loadMockTestOnlineExamAuth } from '@/lib/public-mock-test-online/exam-session';
+import {
+	clearMockTestOnlineExamAuth,
+	loadMockTestOnlineExamAuth,
+} from '@/lib/public-mock-test-online/exam-session';
 import { readMockTestOnlineExpectedScore } from '@/lib/public-mock-test-online/exam-expected-score.util';
 import { isMockTestOnlineAttemptBlocked } from '@/lib/public-mock-test-online/mock-test-online-attempt-limit.util';
 
@@ -46,6 +49,14 @@ export function MockTestOnlineExamDoneClient() {
 			setRegistrationId(regId);
 			setExpectedScore(readMockTestOnlineExpectedScore(regId));
 		}
+		// Metadata trước; cookie T3 clear qua BFF (httpOnly).
+		clearMockTestOnlineExamAuth();
+		void fetch('/api/public/mock-test-online/clear-exam-auth', {
+			method: 'POST',
+			credentials: 'same-origin',
+		}).catch(() => {
+			/* best-effort — TTL cookie vẫn hết hạn */
+		});
 		if (!regId) return;
 		void fetchExamFunnelHint(regId).then((hint) => {
 			setHideLeadRegister(hint.hideLeadRegister);

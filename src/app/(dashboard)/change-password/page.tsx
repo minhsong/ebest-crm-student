@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { Form, Input, Button, Alert, App } from 'antd';
 import { PageHeader, PageCard } from '@/components/layout';
 import { useChangePassword } from '@/hooks/use-change-password';
+import { portalNewPasswordRules } from '@/lib/portal-auth/password-policy';
 
 export default function ChangePasswordPage() {
   const { message: antMessage } = App.useApp();
@@ -47,10 +48,7 @@ export default function ChangePasswordPage() {
           <Form.Item
             name="newPassword"
             label="Mật khẩu mới"
-            rules={[
-              { required: true, message: 'Vui lòng nhập mật khẩu mới' },
-              { min: 6, message: 'Ít nhất 6 ký tự' },
-            ]}
+            rules={portalNewPasswordRules}
           >
             <Input.Password autoComplete="new-password" />
           </Form.Item>

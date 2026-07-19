@@ -30,3 +30,19 @@ export function isPortalMockTestHubPath(pathname: string): boolean {
 export function isPortalMockTestFunnelPath(pathname: string): boolean {
   return pathname.startsWith('/mock-test-online');
 }
+
+/**
+ * Path Lead chưa hoàn thiện hồ sơ vẫn được vào (exam.start / exam.resume).
+ * Route đích vẫn tự guard capability server-side.
+ */
+export function isLeadIncompleteProfileAllowedPath(pathname: string): boolean {
+  const n = pathname.replace(/\/$/, '') || '/';
+  if (n === PORTAL_MOCK_TEST_ROUTES.hub) return true;
+  if (n === PORTAL_MOCK_TEST_ROUTES.onlineStart) return true;
+  if (n.startsWith(`${PORTAL_MOCK_TEST_ROUTES.onlineStart}/`)) return true;
+  if (isPortalMockTestFunnelPath(n)) return true;
+  if (n === '/lead/complete-profile' || n.startsWith('/lead/complete-profile/')) {
+    return true;
+  }
+  return false;
+}

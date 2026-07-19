@@ -4,6 +4,7 @@ import {
   getQuizGatewaySocketIoPath,
   getQuizGatewayWsOrigin,
   isMockTestOnlineQuizRuntimeActive,
+  type QuizRuntimeVariant,
 } from '@/features/quiz-test/quiz-gateway-browser';
 
 /** Khớp `ebest-social-gateway` `quiz-runtime-ws.constants`. */
@@ -25,8 +26,10 @@ export const QUIZ_WS = {
 
 const NAMESPACE_PATH = '/quiz-runtime';
 
-export async function fetchQuizWsAccessToken(): Promise<string | null> {
-  if (isMockTestOnlineQuizRuntimeActive()) {
+export async function fetchQuizWsAccessToken(
+  variant?: QuizRuntimeVariant | null,
+): Promise<string | null> {
+  if (isMockTestOnlineQuizRuntimeActive(variant)) {
     const res = await fetch('/api/public/mock-test-online/exam-auth-token', {
       credentials: 'include',
       cache: 'no-store',

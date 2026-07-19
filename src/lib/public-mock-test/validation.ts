@@ -49,11 +49,26 @@ export const validatePhoneRequired: FormValidator = (_, value) => {
 	return Promise.resolve();
 };
 
+export const validatePhoneOptional: FormValidator = (_, value) => {
+	const v = typeof value === 'string' ? value.trim() : '';
+	if (!v) return Promise.resolve();
+	if (v.length > LIMITS.primaryPhone) {
+		return Promise.reject(
+			new Error(`Số điện thoại tối đa ${LIMITS.primaryPhone} ký tự`),
+		);
+	}
+	if (!isValidPhoneNumber(v)) {
+		return Promise.reject(new Error('Số điện thoại không hợp lệ'));
+	}
+	return Promise.resolve();
+};
+
 export const publicMockTestFormRules = {
 	locationKey: [{ required: true, message: 'Vui lòng chọn cơ sở' }] as Rule[],
 	sessionId: [{ required: true, message: 'Vui lòng chọn lịch thi' }] as Rule[],
 	displayName: [{ validator: validateDisplayName }] as Rule[],
 	primaryPhone: [{ validator: validatePhoneRequired }] as Rule[],
+	optionalPhone: [{ validator: validatePhoneOptional }] as Rule[],
 	primaryEmail: [
 		{ required: true, message: 'Vui lòng nhập email' },
 		{ type: 'email' as const, message: 'Email không hợp lệ' },

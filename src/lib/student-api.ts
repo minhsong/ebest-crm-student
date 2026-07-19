@@ -20,8 +20,13 @@ export const STUDENT_API = {
   authResetPassword: 'auth/reset-password',
   authCheckLoginKey: 'auth/check-login-key',
   authLeadRegister: 'auth/lead/register',
+  authRegisterByToken: 'auth/register-by-token',
   authLeadLogin: 'auth/lead/login',
   authLeadGoogleLogin: 'auth/lead/google/login',
+  authLeadGoogleRegisterOrLogin: 'auth/lead/google/register-or-login',
+  authLeadGoogleFinalize: 'auth/lead/google/finalize',
+  authLeadGoogleMockTestFastFinalize:
+    'auth/lead/google/finalize-mock-test',
   authLeadVerifyEmail: 'auth/lead/verify-email',
   authLeadResendVerification: 'auth/lead/resend-verification',
   authLeadForgotPassword: 'auth/lead/forgot-password',

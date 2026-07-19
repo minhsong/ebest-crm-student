@@ -14,7 +14,10 @@ import {
   unwrapCrmResponseBody,
 } from '@/lib/crm-student-proxy.shared';
 
-export { buildCrmStudentUrl, unwrapCrmResponseBody } from '@/lib/crm-student-proxy.shared';
+export {
+  buildCrmStudentUrl,
+  unwrapCrmResponseBody,
+} from '@/lib/crm-student-proxy.shared';
 
 const JSON_HEADERS: HeadersInit = {
   'Content-Type': 'application/json',
@@ -55,6 +58,8 @@ export type ProxyStudentPostOptions = {
   /** Khi CRM không trả `message` rõ ràng */
   errorFallback: string;
   method?: 'POST' | 'PATCH' | 'PUT';
+  /** Mapper allowlist cho response thành công trước khi trả browser. */
+  transform?: (payload: unknown) => unknown;
 };
 
 export async function proxyStudentPostJson(
@@ -82,7 +87,10 @@ export async function proxyStudentPostJson(
       );
     }
     const payload = unwrapCrmResponseBody(data);
-    return NextResponse.json(payload ?? data);
+    const responsePayload = payload ?? data;
+    return NextResponse.json(
+      options.transform ? options.transform(responsePayload) : responsePayload,
+    );
   } catch {
     return NextResponse.json({ message: MSG_CRM_NETWORK }, { status: 502 });
   }
@@ -141,7 +149,10 @@ export async function proxyLeadAuthenticatedPatchJson(
       },
       body: JSON.stringify(options.body),
     });
-    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    const data = (await res.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
     if (!res.ok) {
       return NextResponse.json(
         mapPortalConflictForClient(data, res.status, options.errorFallback),
@@ -181,7 +192,10 @@ export async function proxyLeadAuthenticatedGetJson(
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       cache: 'no-store',
     });
-    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    const data = (await res.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
     if (!res.ok) {
       return NextResponse.json(
         mapPortalConflictForClient(
@@ -273,7 +287,10 @@ async function proxyAuthenticatedGetWithToken(
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       cache: 'no-store',
     });
-    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    const data = (await res.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
     if (!res.ok) {
       return NextResponse.json(
         mapPortalConflictForClient(

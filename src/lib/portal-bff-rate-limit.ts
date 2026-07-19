@@ -1,4 +1,8 @@
-const RATE_WINDOWS = new Map<string, Map<string, { count: number; resetAt: number }>>();
+const RATE_WINDOWS = new Map<
+  string,
+  Map<string, { count: number; resetAt: number }>
+>();
+const MAX_KEYS_PER_BUCKET = 10_000;
 
 /**
  * In-memory rate limit đơn giản cho BFF portal (dev/single-instance).
@@ -20,6 +24,12 @@ export function checkPortalBffRateLimit(
   }
 
   const entry = hits.get(key);
+  if (!entry && hits.size >= MAX_KEYS_PER_BUCKET) {
+    for (const [candidateKey, candidate] of hits) {
+      if (now >= candidate.resetAt) hits.delete(candidateKey);
+    }
+    if (hits.size >= MAX_KEYS_PER_BUCKET) return false;
+  }
   if (!entry || now >= entry.resetAt) {
     hits.set(key, { count: 1, resetAt: now + windowMs });
     return true;

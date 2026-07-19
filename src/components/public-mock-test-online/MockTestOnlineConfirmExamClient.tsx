@@ -121,10 +121,11 @@ export function MockTestOnlineConfirmExamClient({
 
 	useEffect(() => {
 		if (!canProceedAfterZalo || !examSession || autoProceeding) return;
+		if (registrationIdReady == null) return;
 		const attemptKey = `${examSession.pendingRegistrationId}:${registrationIdReady}`;
 		if (autoProceedAttemptedRef.current === attemptKey) return;
 		autoProceedAttemptedRef.current = attemptKey;
-		void proceedWithSessionToken(examSession, registrationIdReady!);
+		void proceedWithSessionToken(examSession, registrationIdReady);
 	}, [
 		autoProceeding,
 		canProceedAfterZalo,
@@ -225,8 +226,9 @@ export function MockTestOnlineConfirmExamClient({
 				Xác minh qua Zalo
 			</Title>
 			<Paragraph className="mock-test-intro-text !mb-4">
-				Gửi tin nhắn xác nhận cho Zalo OA Ebest. Sau khi xác minh thành công, trang
-				sẽ tự chuyển bạn vào phòng thi. Mã 6 ký tự chỉ dùng khi trang không tự chuyển.
+				Sao chép mã xác nhận và nhắn cho Zalo OA Ebest. Sau khi xác minh thành công,
+				trang sẽ tự chuyển bạn vào phòng thi. Mục tiêu bước này là liên kết Zalo
+				của bạn với hồ sơ đăng ký.
 			</Paragraph>
 
 			{authorizeError ? (

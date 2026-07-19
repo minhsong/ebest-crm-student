@@ -4,6 +4,7 @@ import {
 	resolvePostPortalLoginPath,
 } from '@/lib/portal-auth/session-routes';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
+import { sanitizePortalReturnUrl } from '@/lib/portal-auth/post-auth-return-url';
 
 /** Parse JSON body từ `/api/portal/session` — fail-safe guest. */
 export function parseClientPortalSessionPayload(
@@ -48,8 +49,8 @@ export function postLoginPathForPortalActor(
 	actor: 'customer' | 'lead',
 	explicitRedirect?: string | null,
 ): string {
-	const raw = explicitRedirect?.trim();
-	if (raw && raw.startsWith('/') && !raw.startsWith('//')) return raw;
+	const safeReturnUrl = sanitizePortalReturnUrl(explicitRedirect);
+	if (safeReturnUrl) return safeReturnUrl;
 	if (actor === 'lead') return resolvePostPortalLoginPath('lead');
 	return '/';
 }

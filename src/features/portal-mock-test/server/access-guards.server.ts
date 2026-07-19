@@ -2,17 +2,22 @@ import { redirect } from 'next/navigation';
 import type { PortalMockTestPrincipal } from '../identity/types';
 import { isLeadMockTestPrincipal } from '../identity/types';
 import { PORTAL_MOCK_TEST_ROUTES } from '../routes.config';
-import { LEAD_COMPLETE_PROFILE_PATH } from '@/lib/portal-auth/session-routes';
+import { buildLeadCompleteProfilePath } from '@/lib/portal-auth/session-routes';
+import { buildPortalLoginHref } from '@/lib/portal-auth/post-auth-return-url';
+import {
+  requiresCompletedLeadProfile,
+  type PortalMockTestCapability,
+} from '../domain/portal-profile-capability';
 
 type GuardOptions = {
   returnUrl: string;
+  capability: PortalMockTestCapability;
   /** Mặc định chỉ lead + customer. */
   allowActors?: Array<'lead' | 'customer'>;
-  requireLeadProfile?: boolean;
 };
 
 function loginRedirect(returnUrl: string, mode: 'lead' | 'student'): string {
-  return `/login?mode=${mode}&returnUrl=${encodeURIComponent(returnUrl)}`;
+  return buildPortalLoginHref({ mode, returnUrl });
 }
 
 /** SSR gate — redirect nếu không đủ quyền truy cập mock-test. */
@@ -35,10 +40,10 @@ export function assertPortalMockTestAccess(
   }
 
   if (
-    options.requireLeadProfile !== false &&
+    requiresCompletedLeadProfile(options.capability) &&
     isLeadMockTestPrincipal(principal) &&
     !principal.profileCompleted
   ) {
-    redirect(LEAD_COMPLETE_PROFILE_PATH);
+    redirect(buildLeadCompleteProfilePath(returnUrl));
   }
 }

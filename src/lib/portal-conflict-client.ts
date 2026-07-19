@@ -5,10 +5,10 @@
 import { sanitizeApiErrorPayload } from '@/lib/student-safe-errors';
 
 export const PORTAL_EMAIL_CONFLICT_MESSAGE =
-  'Email này đã được dùng trên cổng học viên. Bạn có thể đăng nhập bằng tài khoản sẵn có để tiếp tục thi thử, hoặc dùng email khác, hoặc liên hệ Fanpage Ebest để được hỗ trợ.';
+  'Email này đã có trong hệ thống. Vui lòng đăng nhập bằng tài khoản hiện có, dùng email khác hoặc liên hệ Ebest để được hỗ trợ.';
 
 export const PORTAL_PHONE_CONFLICT_MESSAGE =
-  'Số điện thoại này đã gắn với tài khoản khác trên cổng học viên. Hãy đăng nhập tài khoản đó để tiếp tục, dùng số khác, hoặc liên hệ Fanpage Ebest nếu bạn cần hỗ trợ.';
+  'Số điện thoại này đã có trong hệ thống. Vui lòng đăng nhập bằng tài khoản hiện có, dùng số khác hoặc liên hệ Ebest để được hỗ trợ.';
 
 export const PORTAL_INTAKE_UNAVAILABLE_MESSAGE =
   'Hiện chưa đăng ký được do sự cố tạm thời. Vui lòng thử lại sau vài phút. Nếu vẫn lỗi, liên hệ Fanpage Ebest để được hỗ trợ.';

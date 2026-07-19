@@ -1,6 +1,6 @@
 import type { PortalMockTestPrincipal } from '../identity/types';
 import { PORTAL_MOCK_TEST_ROUTES } from '../routes.config';
-import { LEAD_COMPLETE_PROFILE_PATH } from '@/lib/portal-auth/session-routes';
+import { buildLeadCompleteProfilePath } from '@/lib/portal-auth/session-routes';
 
 export type MockTestHubAccess = {
   canUse: boolean;
@@ -30,11 +30,12 @@ export function resolveMockTestHubAccess(
 
   if (principal.actor === 'lead') {
     if (!principal.profileCompleted) {
+      // exam.start được phép khi thiếu hồ sơ; results/offline vẫn gate.
       return {
-        canUse: false,
-        onlineHref: LEAD_COMPLETE_PROFILE_PATH,
-        offlineHref: LEAD_COMPLETE_PROFILE_PATH,
-        resultsHref: LEAD_COMPLETE_PROFILE_PATH,
+        canUse: true,
+        onlineHref: PORTAL_MOCK_TEST_ROUTES.onlineStart,
+        offlineHref: buildLeadCompleteProfilePath(PORTAL_MOCK_TEST_ROUTES.offline),
+        resultsHref: buildLeadCompleteProfilePath(PORTAL_MOCK_TEST_ROUTES.results),
         needsProfileCompletion: true,
       };
     }

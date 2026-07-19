@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, App, Button, Form, Input, Steps } from 'antd';
 import { LeadPortalShell } from '@/components/lead-portal/LeadPortalShell';
 import { PublicMockTestProfileFields } from '@/components/public-mock-test/PublicMockTestProfileFields';
@@ -14,9 +14,15 @@ import { PORTAL_MOCK_TEST_RESULTS_ROUTES } from '@/lib/portal-auth/session-route
 import type { LeadProfile } from '@/lib/lead-portal/types';
 import type { PublicRegistrationOptions } from '@/lib/public-mock-test/types';
 import { collectPublicProfilePayload } from '@/lib/public-mock-test/profile-payload';
+import {
+  buildPortalLoginHref,
+  resolvePostAuthReturnUrl,
+} from '@/lib/portal-auth/post-auth-return-url';
+import { PhoneInputField } from '@/components/phone-input';
 
 type FormValues = {
   displayName: string;
+  phone: string;
   tagsByCategory?: Record<string, number | number[]>;
   universityOther?: string;
   consultationNote?: string;
@@ -36,6 +42,10 @@ export function LeadCompleteProfileClient({
   profileOptionsError = null,
 }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl =
+    resolvePostAuthReturnUrl(searchParams) ??
+    PORTAL_MOCK_TEST_RESULTS_ROUTES.lead;
   const { message } = App.useApp();
   const [form] = Form.useForm<FormValues>();
   const [loading, setLoading] = useState(true);
@@ -50,30 +60,33 @@ export function LeadCompleteProfileClient({
         const next = await fetchLeadProfile();
         if (cancelled) return;
         if (next.profileCompleted) {
-          router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.lead);
+          router.replace(returnUrl);
           return;
         }
         setProfile(next);
         form.setFieldsValue({
           displayName: next.displayName ?? '',
+          phone: next.phoneE164 ?? '',
         });
         setLoading(false);
       } catch (e) {
         if (cancelled) return;
         if (isLeadPortalUnauthorizedError(e)) {
-          router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
+          router.replace(
+            buildPortalLoginHref({ mode: 'lead', returnUrl }),
+          );
           return;
         }
         message.error(
           e instanceof Error ? e.message : 'Không tải được hồ sơ.',
         );
-        router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
+        router.replace(buildPortalLoginHref({ mode: 'lead', returnUrl }));
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [form, message, router]);
+  }, [form, message, returnUrl, router]);
 
   const onFinish = useCallback(
     async (values: FormValues) => {
@@ -93,13 +106,16 @@ export function LeadCompleteProfileClient({
         const profilePayload = collectPublicProfilePayload(allValues);
         await completeLeadProfile({
           displayName,
+          phone: allValues.phone?.trim(),
           ...profilePayload,
         });
         message.success('Đã hoàn thiện hồ sơ. Chào mừng bạn đến cổng Ebest!');
-        router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.lead);
+        router.replace(returnUrl);
       } catch (e) {
         if (isLeadPortalUnauthorizedError(e)) {
-          router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
+          router.replace(
+            buildPortalLoginHref({ mode: 'lead', returnUrl }),
+          );
           return;
         }
         message.error(
@@ -109,7 +125,7 @@ export function LeadCompleteProfileClient({
         setSubmitting(false);
       }
     },
-    [form, message, router],
+    [form, message, returnUrl, router],
   );
 
   if (loading || !profile) {
@@ -153,8 +169,17 @@ export function LeadCompleteProfileClient({
               message="Tài khoản đã tạo — chưa hoàn thiện hồ sơ"
               description="Điền đúng họ tên để trung tâm liên hệ và hiển thị trên kết quả thi."
             />
-            <Form.Item label="Số điện thoại">
-              <Input value={profile.phoneE164} disabled />
+            <Form.Item
+              name="phone"
+              label="Số điện thoại"
+              rules={[
+                {
+                  required: true,
+                  message: 'Vui lòng nhập số điện thoại',
+                },
+              ]}
+            >
+              <PhoneInputField placeholder="0901234567" />
             </Form.Item>
             <Form.Item label="Email">
               <Input value={profile.email || '—'} disabled />
@@ -171,7 +196,7 @@ export function LeadCompleteProfileClient({
               block
               onClick={async () => {
                 try {
-                  await form.validateFields(['displayName']);
+                  await form.validateFields(['displayName', 'phone']);
                   setStep(2);
                 } catch {
                   // validation UI
@@ -212,7 +237,8 @@ export function LeadCompleteProfileClient({
               Họ tên:{' '}
               <strong>{form.getFieldValue('displayName') || '—'}</strong>
               <br />
-              SĐT: <strong>{profile.phoneE164}</strong>
+              SĐT:{' '}
+              <strong>{form.getFieldValue('phone') || 'Chưa cập nhật'}</strong>
               <br />
               Email: <strong>{profile.email || '—'}</strong>
             </p>

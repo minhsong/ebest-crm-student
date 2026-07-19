@@ -1,8 +1,13 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 import { getMessageFromClientApiJson } from '@/lib/parse-client-api-json';
-import { parseGoogleLoginPayload } from '@/lib/parse-google-login-result';
 import {
   parseStudentMeCustomerBrief,
   type StudentMeCustomerBrief,
@@ -11,6 +16,7 @@ import {
 import type { PortalLoginMode } from '@/components/portal/PortalLoginModePicker';
 import { portalLoginPath } from '@/lib/portal-auth/portal-login-api';
 import { usePortalSession } from '@/contexts/portal-session-context';
+import { buildPortalLoginHref } from '@/lib/portal-auth/post-auth-return-url';
 
 export type AuthCustomer = StudentMeCustomerBrief;
 
@@ -19,23 +25,12 @@ export interface AuthState {
   ready: boolean;
 }
 
-export type LoginWithGoogleResult =
-  | { ok: true; kind: 'session' }
-  | {
-      ok: true;
-      kind: 'complete_profile';
-      completeProfileUrl: string;
-      reason: 'incomplete_profile' | 'needs_password';
-    }
-  | { ok: false; message?: string };
-
 interface AuthContextValue extends AuthState {
   login: (
     loginId: string,
     password: string,
     options?: { mode?: PortalLoginMode },
   ) => Promise<{ ok: boolean; actor?: 'customer' | 'lead'; message?: string }>;
-  loginWithGoogle: (idToken: string) => Promise<LoginWithGoogleResult>;
   linkGoogle: (idToken: string) => Promise<{ ok: boolean; message?: string }>;
   logout: () => Promise<void>;
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
@@ -147,51 +142,6 @@ export function AuthProvider({
     [refreshSession, refreshPortalSession],
   );
 
-  const loginWithGoogle = useCallback(
-    async (idToken: string): Promise<LoginWithGoogleResult> => {
-      try {
-        const res = await fetch('/api/auth/google/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken }),
-        });
-        const data = await res.json().catch(() => ({}));
-        const payload = data?.result ?? data?.data ?? data;
-        if (!res.ok) {
-          return {
-            ok: false,
-            message:
-              getMessageFromClientApiJson(data) ??
-              (typeof payload === 'object' &&
-              payload &&
-              'message' in payload &&
-              typeof (payload as { message?: string }).message === 'string'
-                ? (payload as { message: string }).message
-                : 'Đăng nhập Google thất bại.'),
-          };
-        }
-        const parsed = parseGoogleLoginPayload(payload);
-        if (parsed.kind === 'complete_profile') {
-          return {
-            ok: true,
-            kind: 'complete_profile',
-            completeProfileUrl: parsed.completeProfileUrl,
-            reason: parsed.reason,
-          };
-        }
-        if (parsed.kind === 'session') {
-          await refreshPortalSession();
-          await refreshSession();
-          return { ok: true, kind: 'session' };
-        }
-        return { ok: false, message: 'Dữ liệu đăng nhập không hợp lệ.' };
-      } catch {
-        return { ok: false, message: 'Không thể kết nối. Vui lòng thử lại.' };
-      }
-    },
-    [refreshSession, refreshPortalSession],
-  );
-
   const linkGoogle = useCallback(async (idToken: string) => {
     try {
       const res = await fetch('/api/auth/google/link', {
@@ -207,10 +157,15 @@ export function AuthProvider({
           ok: false,
           message:
             getMessageFromClientApiJson(data) ??
-            (typeof data?.message === 'string' ? data.message : 'Liên kết Google thất bại.'),
+            (typeof data?.message === 'string'
+              ? data.message
+              : 'Liên kết Google thất bại.'),
         };
       }
-      return { ok: true, message: typeof data?.message === 'string' ? data.message : undefined };
+      return {
+        ok: true,
+        message: typeof data?.message === 'string' ? data.message : undefined,
+      };
     } catch {
       return { ok: false, message: 'Không thể kết nối. Vui lòng thử lại.' };
     }
@@ -224,8 +179,12 @@ export function AuthProvider({
         if (typeof window !== 'undefined') {
           const { pathname, search } = window.location;
           if (!pathname.startsWith('/login')) {
-            const next = encodeURIComponent(`${pathname}${search}`);
-            window.location.assign(`/login?session=expired&redirect=${next}`);
+            window.location.assign(
+              buildPortalLoginHref({
+                sessionExpired: true,
+                returnUrl: `${pathname}${search}`,
+              }),
+            );
           }
         }
       }
@@ -237,7 +196,6 @@ export function AuthProvider({
   const value: AuthContextValue = {
     ...state,
     login,
-    loginWithGoogle,
     linkGoogle,
     logout,
     fetchWithAuth,

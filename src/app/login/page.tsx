@@ -10,21 +10,20 @@ import { EbestLogo } from '@/components/branding/EbestLogo';
 import { APP_BRAND, EBEST_BRAND_ORANGE } from '@/lib/ui-constants';
 import { FanpageContactLink } from '@/components/portal-contact/FanpageContactLink';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { parseStudentPortalGoogleFromPublic } from '@/lib/student-portal-google-settings';
-import { fetchPublicPortalSettings } from '@/lib/public-settings-client';
 import { LoginGoogleSection } from '@/features/auth/LoginGoogleSection';
+import { usePortalGoogleConfig } from '@/features/auth/usePortalGoogleConfig';
 import { usePortalSession } from '@/contexts/portal-session-context';
 import {
   fetchLeadProfile,
   leadResendEmailVerification,
 } from '@/lib/lead-portal/client-api';
 import {
-  homePathForPortalActor,
   postLoginPathForPortalActor,
 } from '@/lib/portal-auth/portal-session-nav';
 import { resolvePostLeadLoginPath } from '@/lib/portal-auth/session-routes';
 import type { PortalLoginMode } from '@/components/portal/PortalLoginModePicker';
 import { PortalLoginModePicker, parsePortalLoginModeFromQuery } from '@/components/portal/PortalLoginModePicker';
+import { resolvePostAuthReturnUrl } from '@/lib/portal-auth/post-auth-return-url';
 
 /** Cam brand (~HSL 16° / ~78% sat / ~51% L) — đồng bộ nhận diện với logo. */
 const LOGIN_BRAND_BG = '#e35321';
@@ -57,10 +56,14 @@ export default function LoginPage() {
   const [resendLoading, setResendLoading] = useState(false);
   const [loginMode, setLoginMode] = useState<PortalLoginMode>('customer');
   const [sessionExpired, setSessionExpired] = useState(false);
-  const [googleCfg, setGoogleCfg] = useState<{
-    enabled: boolean;
-    clientId: string;
-  } | null>(null);
+  const googleCfg = usePortalGoogleConfig();
+
+  const explicitRedirect = useCallback(() => {
+    if (typeof window === 'undefined') return null;
+    return resolvePostAuthReturnUrl(
+      new URLSearchParams(window.location.search),
+    );
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -70,24 +73,11 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    void fetchPublicPortalSettings()
-      .then((raw) => {
-        if (cancelled) return;
-        setGoogleCfg(parseStudentPortalGoogleFromPublic(raw));
-      })
-      .catch(() => {
-        if (!cancelled) setGoogleCfg({ enabled: false, clientId: '' });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
     if (portal.status === 'loading' || !ready) return;
     if (customer || portal.actor === 'customer') {
-      router.replace(homePathForPortalActor('customer'));
+      router.replace(
+        postLoginPathForPortalActor('customer', explicitRedirect()),
+      );
       return;
     }
     if (portal.actor === 'lead') {
@@ -96,23 +86,29 @@ export default function LoginPage() {
         try {
           const profile = await fetchLeadProfile();
           if (cancelled) return;
-          router.replace(
-            resolvePostLeadLoginPath(profile, homePathForPortalActor('lead')),
+          const fallback = postLoginPathForPortalActor(
+            'lead',
+            explicitRedirect(),
           );
+          // Có returnUrl → đi thẳng; route đích tự guard (exam.start vs results).
+          if (explicitRedirect()) {
+            router.replace(fallback);
+            return;
+          }
+          router.replace(resolvePostLeadLoginPath(profile, fallback));
         } catch {
-          if (!cancelled) router.replace(homePathForPortalActor('lead'));
+          if (!cancelled) {
+            router.replace(
+              postLoginPathForPortalActor('lead', explicitRedirect()),
+            );
+          }
         }
       })();
       return () => {
         cancelled = true;
       };
     }
-  }, [portal, ready, customer, router]);
-
-  const explicitRedirect = useCallback(() => {
-    if (typeof window === 'undefined') return null;
-    return new URLSearchParams(window.location.search).get('redirect');
-  }, []);
+  }, [portal, ready, customer, router, explicitRedirect]);
 
   const onFinish = useCallback(
     async (values: { loginId: string; password: string }) => {
@@ -338,36 +334,38 @@ export default function LoginPage() {
                       </div>
                       <LoginGoogleSection
                         mode={loginMode}
+                        returnUrl={explicitRedirect()}
                         className="mt-1.5"
                         noteClassName="!text-white/75"
-                        onLoggedIn={() => {
-                          if (loginMode === 'lead') {
-                            void (async () => {
-                              try {
-                                const profile = await fetchLeadProfile();
-                                router.replace(
-                                  resolvePostLeadLoginPath(
-                                    profile,
-                                    postLoginPathForPortalActor(
-                                      'lead',
-                                      explicitRedirect(),
-                                    ),
-                                  ),
-                                );
-                              } catch {
-                                router.replace(
-                                  postLoginPathForPortalActor(
-                                    'lead',
-                                    explicitRedirect(),
-                                  ),
-                                );
-                              }
-                            })();
-                            return;
+                        onLoggedIn={(sessionActor) => {
+                          const actor = sessionActor;
+          if (actor === 'lead') {
+            void (async () => {
+              try {
+                const profile = await fetchLeadProfile();
+                const fallback = postLoginPathForPortalActor(
+                  'lead',
+                  explicitRedirect(),
+                );
+                if (explicitRedirect()) {
+                  router.replace(fallback);
+                  return;
+                }
+                router.replace(resolvePostLeadLoginPath(profile, fallback));
+              } catch {
+                router.replace(
+                  postLoginPathForPortalActor(
+                    'lead',
+                    explicitRedirect(),
+                  ),
+                );
+              }
+            })();
+            return;
                           }
                           router.replace(
                             postLoginPathForPortalActor(
-                              'customer',
+                              actor,
                               explicitRedirect(),
                             ),
                           );

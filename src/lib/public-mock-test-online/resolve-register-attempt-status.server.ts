@@ -12,9 +12,12 @@ export async function resolveRegisterAttemptStatus(input: {
 	const typeCode = MOCK_TEST_ONLINE_DEFAULT_TEST_TYPE;
 
 	if (input.session.actor === 'lead') {
-		return fetchMockTestOnlineAttemptStatus(input.session.omniLeadId, typeCode, {
-			phoneNormalized: input.session.profile.phoneE164,
-		});
+		const phoneNormalized = input.session.profile.phoneE164 ?? undefined;
+		return fetchMockTestOnlineAttemptStatus(
+			input.session.omniLeadId,
+			typeCode,
+			phoneNormalized ? { phoneNormalized } : undefined,
+		);
 	}
 
 	const pendingLeadId = input.pendingLeadId?.trim();
@@ -24,6 +27,6 @@ export async function resolveRegisterAttemptStatus(input: {
 	if (!ctx?.omniLeadId) return null;
 
 	return fetchMockTestOnlineAttemptStatus(ctx.omniLeadId, typeCode, {
-		phoneNormalized: ctx.primaryPhoneE164,
+		phoneNormalized: ctx.primaryPhoneE164 ?? undefined,
 	});
 }

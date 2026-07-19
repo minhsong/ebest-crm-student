@@ -12,6 +12,7 @@ const incompleteLead = {
   phoneE164: '+8490',
   email: '',
   profileCompleted: false,
+  googleLinked: false,
   profile: {} as PortalMockTestLeadPrincipal['profile'],
 } satisfies PortalMockTestLeadPrincipal;
 
@@ -32,14 +33,16 @@ describe('resolveMockTestHubAccess', () => {
     });
   });
 
-  it('lead incomplete profile → complete-profile (not login)', () => {
-    expect(resolveMockTestHubAccess(incompleteLead)).toEqual({
-      canUse: false,
-      onlineHref: LEAD_COMPLETE_PROFILE_PATH,
-      offlineHref: LEAD_COMPLETE_PROFILE_PATH,
-      resultsHref: LEAD_COMPLETE_PROFILE_PATH,
-      needsProfileCompletion: true,
-    });
+  it('lead incomplete profile → online start; results/offline → complete-profile', () => {
+    const access = resolveMockTestHubAccess(incompleteLead);
+    expect(access.canUse).toBe(true);
+    expect(access.onlineHref).toBe(PORTAL_MOCK_TEST_ROUTES.onlineStart);
+    expect(access.needsProfileCompletion).toBe(true);
+    expect(access.resultsHref).toContain(LEAD_COMPLETE_PROFILE_PATH);
+    expect(access.offlineHref).toContain(LEAD_COMPLETE_PROFILE_PATH);
+    expect(access.resultsHref).toContain(
+      encodeURIComponent(PORTAL_MOCK_TEST_ROUTES.results),
+    );
   });
 
   it('guest → login with returnUrl hub', () => {

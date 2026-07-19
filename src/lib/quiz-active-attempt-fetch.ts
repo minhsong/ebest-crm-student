@@ -21,27 +21,50 @@ const ACTIVE_ATTEMPT_TTL_MS = 15_000;
 const inflight = new Map<string, Promise<QuizAttemptStateResponse | null>>();
 const ttlCache = new Map<string, TtlCacheEntry<QuizAttemptStateResponse | null>>();
 
-function getCachedActiveAttempt(
+function activeAttemptCacheKey(
   formPublicId: string,
+  options?: { mockTestOnlineRuntime?: boolean },
+): string {
+  const fid = formPublicId.trim();
+  const channel = options?.mockTestOnlineRuntime ? 'mto' : 'default';
+  return `${channel}:${fid}`;
+}
+
+function getCachedActiveAttempt(
+  cacheKey: string,
 ): QuizAttemptStateResponse | null | undefined {
-  const hit = ttlCache.get(formPublicId);
+  const hit = ttlCache.get(cacheKey);
   if (!hit) return undefined;
   if (hit.expiresAt <= Date.now()) {
-    ttlCache.delete(formPublicId);
+    ttlCache.delete(cacheKey);
     return undefined;
   }
   return hit.value;
 }
 
-export function invalidateActiveQuizAttemptCache(formPublicId?: string): void {
+export function invalidateActiveQuizAttemptCache(
+  formPublicId?: string,
+  options?: { mockTestOnlineRuntime?: boolean },
+): void {
   if (!formPublicId) {
     inflight.clear();
     ttlCache.clear();
     return;
   }
-  const key = formPublicId.trim();
-  inflight.delete(key);
-  ttlCache.delete(key);
+  const fid = formPublicId.trim();
+  if (!fid) return;
+  if (options?.mockTestOnlineRuntime != null) {
+    const key = activeAttemptCacheKey(fid, options);
+    inflight.delete(key);
+    ttlCache.delete(key);
+    return;
+  }
+  // Không rõ channel — xóa cả HV và MTO để tránh stale chéo.
+  for (const suffix of ['default', 'mto'] as const) {
+    const key = `${suffix}:${fid}`;
+    inflight.delete(key);
+    ttlCache.delete(key);
+  }
 }
 
 /** Dedupe + TTL — Entry peek và loadForm dùng chung một request. */
@@ -55,11 +78,12 @@ export async function fetchActiveQuizAttemptState(
   const runtimeVariant: QuizRuntimeVariant | null = options?.mockTestOnlineRuntime
     ? 'mock-test-online'
     : null;
+  const cacheKey = activeAttemptCacheKey(fid, options);
 
-  const cached = getCachedActiveAttempt(fid);
+  const cached = getCachedActiveAttempt(cacheKey);
   if (cached !== undefined) return cached;
 
-  return dedupeInflight(inflight, fid, async () => {
+  return dedupeInflight(inflight, cacheKey, async () => {
     const res = await fetchQuizRuntimeJson<QuizAttemptStateResponse>(
       quizRuntimePublicUrl(`forms/${fid}/active-attempt`, runtimeVariant),
     );
@@ -67,7 +91,7 @@ export async function fetchActiveQuizAttemptState(
       res.ok && res.data && typeof res.data === 'object'
         ? (res.data as QuizAttemptStateResponse)
         : null;
-    setTtlCache(ttlCache, fid, data, ACTIVE_ATTEMPT_TTL_MS);
+    setTtlCache(ttlCache, cacheKey, data, ACTIVE_ATTEMPT_TTL_MS);
     return data;
   });
 }

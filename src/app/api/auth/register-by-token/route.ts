@@ -1,38 +1,26 @@
-import { NextResponse } from 'next/server';
-import { getApiBaseUrl } from '@/lib/env';
-import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
-
-const STUDENT_BASE = '/api/v1/student';
+import { proxyStudentPostJson } from '@/lib/crm-student-proxy';
+import { STUDENT_API } from '@/lib/student-api';
+import { sanitizeStudentFacingMessage } from '@/lib/student-safe-errors';
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const apiBaseUrl = getApiBaseUrl();
-    if (!apiBaseUrl) {
-      return NextResponse.json(
-        { message: 'Cấu hình server chưa đúng.' },
-        { status: 500 },
-      );
-    }
-    const url = `${apiBaseUrl.replace(/\/$/, '')}${STUDENT_BASE}/auth/register-by-token`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return NextResponse.json(
-        mapPortalConflictForClient(data, res.status, 'Tạo tài khoản thất bại.'),
-        { status: res.status },
-      );
-    }
-    const payload = data?.result ?? data?.data ?? data;
-    return NextResponse.json(payload ?? data);
-  } catch {
-    return NextResponse.json(
-      { message: 'Không thể kết nối. Vui lòng thử lại.' },
-      { status: 502 },
-    );
-  }
+  const body = await request.json().catch(() => ({}));
+  return proxyStudentPostJson({
+    path: STUDENT_API.authRegisterByToken,
+    body: {
+      token: typeof body?.token === 'string' ? body.token : '',
+      password: typeof body?.password === 'string' ? body.password : '',
+    },
+    errorFallback: 'Tạo tài khoản thất bại.',
+    transform: (raw) => {
+      const payload = (raw ?? {}) as Record<string, unknown>;
+      return {
+        registered: payload.registered === true,
+        googleLinked: payload.googleLinked === true,
+        message: sanitizeStudentFacingMessage(
+          typeof payload.message === 'string' ? payload.message : '',
+          'Tạo tài khoản thành công.',
+        ),
+      };
+    },
+  });
 }

@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
 	if (session.actor === 'lead') {
 		omniLeadId = session.omniLeadId;
-		phoneNormalized = session.profile.phoneE164;
+		phoneNormalized = session.profile.phoneE164 ?? undefined;
 	} else {
 		const ctx = await fetchCustomerOnlineBootstrapContextSsr();
 		if (!ctx || ctx.customerId !== session.customer.id) {

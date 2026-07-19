@@ -66,33 +66,25 @@ export function useMockTestOnlineZaloVerifySession({
 
 	const maybeProvisionLeadSession = useCallback(
 		(status: MockTestOnlinePollStatus) => {
-			const registrationId = status.registrationId;
 			const pendingId = pendingRegistrationId?.trim();
-			if (registrationId && registrationId >= 1) {
-				if (leadSessionProvisionedRef.current) return;
-				leadSessionProvisionedRef.current = true;
-				void provisionLeadPortalSession({ registrationId }).catch((e) => {
-					leadSessionProvisionedRef.current = false;
-					mtoClientDebug('provision.lead_session.failed', {
-						registrationId,
-						message: e instanceof Error ? e.message : String(e),
-					});
+			if (!pendingId || !isMockTestOnlineZaloVerified(status)) return;
+			if (leadSessionProvisionedRef.current) return;
+			leadSessionProvisionedRef.current = true;
+			const registrationId =
+				status.registrationId && status.registrationId >= 1
+					? status.registrationId
+					: undefined;
+			void provisionLeadPortalSession({
+				pendingRegistrationId: pendingId,
+				...(registrationId != null ? { registrationId } : {}),
+			}).catch((e) => {
+				leadSessionProvisionedRef.current = false;
+				mtoClientDebug('provision.lead_session.failed', {
+					pendingRegistrationId: pendingId,
+					registrationId: registrationId ?? null,
+					message: e instanceof Error ? e.message : String(e),
 				});
-				return;
-			}
-			if (isMockTestOnlineZaloVerified(status) && pendingId) {
-				if (leadSessionProvisionedRef.current) return;
-				leadSessionProvisionedRef.current = true;
-				void provisionLeadPortalSession({ pendingRegistrationId: pendingId }).catch(
-					(e) => {
-						leadSessionProvisionedRef.current = false;
-						mtoClientDebug('provision.lead_session.pending_failed', {
-							pendingRegistrationId: pendingId,
-							message: e instanceof Error ? e.message : String(e),
-						});
-					},
-				);
-			}
+			});
 		},
 		[pendingRegistrationId],
 	);

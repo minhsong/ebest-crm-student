@@ -110,17 +110,31 @@ export function MockTestOnlineSelectExamForm({
 					sessionId: resolvedSessionId,
 					testVariantChoice: values.testVariantChoice,
 					pendingRegistrationId: data.pendingRegistrationId,
-					zaloDeepLink: data.zaloDeepLink,
+					registrationId: data.registrationId ?? null,
+					zaloDeepLink: data.zaloDeepLink ?? '',
 					zaloOaChatUrl:
 						data.zaloOaChatUrl ||
 						(data.zaloOaId ? `https://zalo.me/${data.zaloOaId}` : ''),
 					zaloOaId: data.zaloOaId,
 					zaloConfirmMessage: data.zaloConfirmMessage,
-					zaloConfirmExpiresAt: data.zaloConfirmExpiresAt,
+					zaloConfirmExpiresAt:
+						data.zaloConfirmExpiresAt ?? data.examSessionExpiresAt ?? '',
 					examSessionToken: data.examSessionToken,
 					examSessionExpiresAt: data.examSessionExpiresAt,
 					campaignTitle,
+					verificationChannel: data.verificationChannel,
+					nextStep: data.nextStep,
 				});
+
+				if (
+					!data.zaloConfirmMessage?.trim() &&
+					!(data.zaloDeepLink && String(data.zaloDeepLink).includes('msg='))
+				) {
+					message.error(
+						'Hệ thống chưa tạo được mã Zalo. Vui lòng thử chọn lại bài thi.',
+					);
+					return;
+				}
 
 				const params = new URLSearchParams();
 				params.set('lead', lead);
@@ -169,8 +183,8 @@ export function MockTestOnlineSelectExamForm({
 				Chọn bài thi
 			</Title>
 			<Paragraph className="mock-test-intro-text !mb-4">
-				Chọn đúng loại đề và chiến dịch bạn muốn thi. Bước tiếp theo: xác minh qua Zalo
-				— trang sẽ tự chuyển vào phòng thi sau khi xác nhận thành công.
+				Chọn đúng loại đề và chiến dịch bạn muốn thi. Bước tiếp theo là xác minh
+				qua Zalo: sao chép mã và nhắn cho Zalo OA Ebest để liên kết liên hệ Zalo.
 			</Paragraph>
 
 			<MockTestOnlineInExamResumeAlert attemptStatus={attemptStatus} />

@@ -29,7 +29,12 @@ export function mapLeadMeForClient(payload: unknown): LeadProfile {
     displayName:
       typeof raw.displayName === 'string' ? raw.displayName : null,
     email,
-    phoneE164: String(raw.phoneE164 ?? raw.phone ?? ''),
+    phoneE164:
+      typeof raw.phoneE164 === 'string'
+        ? raw.phoneE164
+        : typeof raw.phone === 'string'
+          ? raw.phone
+          : null,
     emailVerifiedAt:
       typeof raw.emailVerifiedAt === 'string' ? raw.emailVerifiedAt : null,
     omniLeadId: String(raw.omniLeadId ?? ''),
@@ -39,6 +44,7 @@ export function mapLeadMeForClient(payload: unknown): LeadProfile {
       typeof raw.profileCompletedAt === 'string'
         ? raw.profileCompletedAt
         : null,
+    googleLinked: raw.googleLinked === true,
   };
 
   if (upgradeRaw) {

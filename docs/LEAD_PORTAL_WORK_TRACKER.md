@@ -285,12 +285,18 @@ Public endpoints:
 
 | ID | Việc | Trạng thái |
 |----|------|------------|
-| M8-P0 | `profile_completed_at` + gate layout + wizard register | 🟡 Code local — migration ✅ local |
-| M8-P1 | Ẩn Google khi login mode=lead; post-login redirect gate | ✅ |
-| M8-P2 | Lead Google register-or-login + finalize | ⬜ Planned |
-| M8-P3 | Lead Google login (`google_sub`) | ⬜ Backlog |
+| M8-P0 | `profile_completed_at` + gate layout + wizard register | 🟡 |
+| M8-P1 | Login UX phân nhánh + post-login redirect gate | ✅ |
+| M8-P2 | Google register-or-login + finalize + BFF cookie theo actor | ✅ 2026-07-19 |
+| M8-P3 | `google_sub` Lead + session khi đã link (gộp P2) | ✅ |
+| M8-P4 | Google mock-test fast path: email verified → thi trước, complete-profile trước results | ✅ 2026-07-20 |
+| M8-P5 | React decomposition: container/controller/views, local mutation state, shared Google password-link step | ✅ 2026-07-20 |
+| M8-P6 | Email select recovery: write-ahead pending + retry cùng idempotency key | ✅ 2026-07-20 |
+| M8-P7 | Portal honor `proceed_to_ready` + hub/layout gate + returnUrl Google | ✅ 2026-07-20 |
+| M8-P8 | Migration + E2E + telemetry staging | ⬜ |
 
-**Gate:** Chạy migration `20260716130000` trước deploy Portal M8-P0.
+**Gate:** Migration `20260716130000` (profile) + `20260719011500` (`google_sub`) + `20260720002000` (Google-only nullable credential) + `20260720012000` (verification channel) trước khi bật Google fast path prod.
+**SSOT:** [PORTAL_AUTH_REGISTER_AND_LOGIN_SPEC.md](../../ebest-crm-api/docs/monorepo/portal-identity/PORTAL_AUTH_REGISTER_AND_LOGIN_SPEC.md)
 
 ---
 
@@ -322,3 +328,6 @@ Public endpoints:
 | Q13 | Lead register email trùng HV | 409, không tạo account | ⬜ M6 |
 | Q14 | Complete-profile 409 — response không chứa lead/customer/omni | SP-AC-1 | ⬜ M7 |
 | Q15 | Cùng email trùng HV vs lead — message client giống nhau | SP-AC-2 | ⬜ M7 |
+| Q16 | Google fast → select → skip Zalo → exam → complete-profile → results | Email channel; không kẹt confirm Zalo | ⬜ M8-P8 |
+| Q17 | Lead incomplete → hub «Thi online» → `/mock-test/online/start` | Không ép complete-profile trước thi | ⬜ M8-P7 |
+| Q18 | Login Google + `returnUrl=/mock-test/online/start` → register_ticket | Giữ returnUrl qua `/register` và sau session | ⬜ M8-P7 |
