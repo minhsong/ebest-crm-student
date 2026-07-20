@@ -45,6 +45,9 @@ export async function startPortalOnlineBootstrapAction(): Promise<StartOnlineBoo
     redirect(PORTAL_MOCK_TEST_ROUTES.hub);
   }
 
+  // P0-3: bỏ funnel guest/cũ trước khi mint session gắn identity hiện tại.
+  clearMockTestOnlineFunnelSessionCookieStore();
+
   const result = await bootstrapPortalOnlineSession(principal);
 
   if (!result.ok) {

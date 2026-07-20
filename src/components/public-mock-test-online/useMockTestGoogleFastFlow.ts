@@ -3,6 +3,8 @@
 import { useCallback, useState } from "react";
 import { App } from "antd";
 
+import { startPortalOnlineBootstrapAction } from "@/features/portal-mock-test/server/start-online-bootstrap.action";
+import { PORTAL_MOCK_TEST_ROUTES } from "@/features/portal-mock-test/routes.config";
 import type { GoogleRegisterFlowResult } from "@/lib/lead-portal/google-register-client";
 
 export type MockTestGoogleFastStep =
@@ -30,13 +32,20 @@ export function useMockTestGoogleFastFlow() {
 
   const reset = useCallback(() => setStep({ kind: "google" }), []);
 
+  const continueToSelectExam = useCallback(async () => {
+    // P0: bootstrap + ghi funnel cookie + redirect select — không dừng hub chrome.
+    const res = await startPortalOnlineBootstrapAction();
+    if (res?.error) {
+      message.error(res.error);
+      window.location.assign(PORTAL_MOCK_TEST_ROUTES.hub);
+    }
+  }, [message]);
+
   const handleDecision = useCallback(
     async (result: GoogleRegisterFlowResult) => {
       if (result.flow === "session") {
         message.success("Đăng ký nhanh thành công.");
-        // BFF đã set httpOnly cookie; chuyển trang trực tiếp, không refresh global
-        // PortalSession gây render lại toàn cây trước khi navigation.
-        window.location.assign("/mock-test/online/start");
+        await continueToSelectExam();
         return;
       }
 
@@ -68,7 +77,7 @@ export function useMockTestGoogleFastFlow() {
 
       message.error(result.message);
     },
-    [message],
+    [continueToSelectExam, message],
   );
 
   return { step, reset, handleDecision };
