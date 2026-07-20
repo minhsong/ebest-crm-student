@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { LeadCompleteProfileClient } from '@/components/lead-portal/LeadCompleteProfileClient';
 import { buildPageMetadata } from '@/lib/metadata';
 import { fetchPublicRegistrationProfileOptions } from '@/lib/public-mock-test/fetch-public-mock-test.server';
@@ -13,9 +14,11 @@ export default async function LeadCompleteProfilePage() {
     await fetchPublicRegistrationProfileOptions();
 
   return (
-    <LeadCompleteProfileClient
-      initialProfileOptions={profileOptions}
-      profileOptionsError={profileOptionsError}
-    />
+    <Suspense fallback={null}>
+      <LeadCompleteProfileClient
+        initialProfileOptions={profileOptions}
+        profileOptionsError={profileOptionsError}
+      />
+    </Suspense>
   );
 }
