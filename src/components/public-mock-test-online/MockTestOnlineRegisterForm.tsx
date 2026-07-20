@@ -30,7 +30,7 @@ export function MockTestOnlineRegisterForm({
   profileOptionsError = null,
   initialContact = null,
   widgetTitle = "Đăng ký",
-  widgetIntro = "Tiếp tục nhanh bằng Google hoặc điền thông tin liên hệ để đăng ký bằng số điện thoại.",
+  widgetIntro = "Đăng ký nhanh bằng Google hoặc điền thông tin liên hệ.",
   attemptStatus = null,
   intakeBlocked = false,
 }: MockTestOnlineRegisterFormProps) {
@@ -45,11 +45,9 @@ export function MockTestOnlineRegisterForm({
       <Title level={3} className="mock-test-page-title !mb-1 !mt-0">
         {widgetTitle}
       </Title>
-      <Paragraph className="mock-test-intro-text !mb-4">
-        {googleFlowActive
-          ? "Email Google đã xác minh danh tính. Bổ sung số điện thoại nếu muốn, rồi chọn đề và xác nhận qua Zalo OA Ebest."
-          : widgetIntro}
-      </Paragraph>
+      {!googleFlowActive ? (
+        <Paragraph className="mock-test-intro-text !mb-4">{widgetIntro}</Paragraph>
+      ) : null}
 
       <MockTestOnlineInExamResumeAlert attemptStatus={attemptStatus} />
 

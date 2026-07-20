@@ -1,11 +1,13 @@
 /**
- * Client-side fetch + dedupe/cache for GET /api/settings/public.
+ * Client-side fetch + short dedupe for GET /api/settings/public.
  * Avoids parallel requests from login/profile/catalog mounting at once.
+ * TTL ngắn: ops bật Google trên CRM cần thấy nút sau reload, không chờ 5 phút.
  */
 
 export type PublicPortalSettings = Record<string, unknown>;
 
-const TTL_MS = 5 * 60 * 1000;
+/** In-tab dedupe only — not a substitute for BFF freshness. */
+const TTL_MS = 30 * 1000;
 
 let cached: { data: PublicPortalSettings; at: number } | null = null;
 let inflight: Promise<PublicPortalSettings> | null = null;
@@ -23,7 +25,7 @@ export async function fetchPublicPortalSettings(): Promise<PublicPortalSettings>
   }
   if (inflight) return inflight;
 
-  inflight = fetch('/api/settings/public')
+  inflight = fetch('/api/settings/public', { cache: 'no-store' })
     .then(async (res) => {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import { Alert, Divider } from "antd";
+import { Divider } from "antd";
 
 import { usePortalGoogleConfig } from "@/features/auth/usePortalGoogleConfig";
 import { MockTestGoogleFastRegistrationForm } from "./MockTestGoogleFastRegistrationForm";
@@ -41,13 +41,6 @@ function MockTestGoogleFastRegisterContent({
 
   return (
     <section aria-label="Đăng ký nhanh bằng Google">
-      <Alert
-        type="info"
-        showIcon
-        message="Đăng ký nhanh bằng Google"
-        description="Google giúp đăng ký/đăng nhập nhanh. Sau khi chọn đề, bạn vẫn cần nhắn mã xác nhận qua Zalo OA Ebest để liên kết Zalo với hồ sơ."
-      />
-
       {step.kind === "register" ? (
         <MockTestGoogleFastRegistrationForm
           step={step}
