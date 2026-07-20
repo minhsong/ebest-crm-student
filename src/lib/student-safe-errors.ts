@@ -169,6 +169,7 @@ export function logInternalApiError(
     path?: string;
     method?: string;
     errorType?: string;
+    details?: Record<string, unknown>;
   },
 ): void {
   if (process.env.NODE_ENV === 'production') {

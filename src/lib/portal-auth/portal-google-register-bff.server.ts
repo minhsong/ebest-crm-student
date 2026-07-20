@@ -16,6 +16,7 @@ import {
   checkPortalBffRateLimit,
   resolveBffClientIp,
 } from '@/lib/portal-bff-rate-limit';
+import { logInternalApiError } from '@/lib/student-safe-errors';
 
 export { allowlistGoogleRegisterClientPayload };
 
@@ -44,6 +45,11 @@ async function proxyPortalGooglePost(options: {
 }): Promise<NextResponse> {
   const apiBase = getApiBaseUrl();
   if (!apiBase) {
+    logInternalApiError('portal-google-bff', MSG_CRM_CONFIG, {
+      path: options.path,
+      method: 'POST',
+      errorType: 'crm_config_missing',
+    });
     return NextResponse.json({ message: MSG_CRM_CONFIG }, { status: 500 });
   }
 
@@ -63,6 +69,24 @@ async function proxyPortalGooglePost(options: {
       unknown
     >;
     if (!res.ok) {
+      logInternalApiError(
+        'portal-google-bff',
+        typeof data.message === 'string' ? data.message : options.errorFallback,
+        {
+          path: options.path,
+          method: 'POST',
+          errorType: `crm_http_${res.status}`,
+          details: {
+            status: res.status,
+            code:
+              typeof data.code === 'string'
+                ? data.code
+                : typeof data.errorCode === 'string'
+                  ? data.errorCode
+                  : undefined,
+          },
+        },
+      );
       return NextResponse.json(
         mapPortalConflictForClient(data, res.status, options.errorFallback),
         { status: res.status },
@@ -76,13 +100,33 @@ async function proxyPortalGooglePost(options: {
       !GOOGLE_FLOWS.has(String(payload.flow)) ||
       !applySessionCookieFromPayload(payload)
     ) {
+      logInternalApiError(
+        'portal-google-bff',
+        'Phản hồi xác thực từ hệ thống không hợp lệ.',
+        {
+          path: options.path,
+          method: 'POST',
+          errorType: 'invalid_google_flow_payload',
+          details: {
+            flow:
+              payload && typeof payload === 'object'
+                ? String((payload as { flow?: unknown }).flow ?? '')
+                : '',
+          },
+        },
+      );
       return NextResponse.json(
         { message: 'Phản hồi xác thực từ hệ thống không hợp lệ.' },
         { status: 502 },
       );
     }
     return NextResponse.json(allowlistGoogleRegisterClientPayload(payload));
-  } catch {
+  } catch (error) {
+    logInternalApiError('portal-google-bff', error, {
+      path: options.path,
+      method: 'POST',
+      errorType: 'crm_network',
+    });
     return NextResponse.json({ message: MSG_CRM_NETWORK }, { status: 502 });
   }
 }
