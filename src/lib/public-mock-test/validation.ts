@@ -16,7 +16,6 @@ const LIMITS = {
 	expectedScoreMin: 0,
 } as const;
 
-
 export const validateDisplayName: FormValidator = (_, value) => {
 	const v = typeof value === 'string' ? value.trim() : '';
 	if (!v) {
@@ -72,17 +71,27 @@ export const publicMockTestFormRules = {
 	primaryEmail: [
 		{ required: true, message: 'Vui lòng nhập email' },
 		{ type: 'email' as const, message: 'Email không hợp lệ' },
-		{ max: LIMITS.primaryEmail, message: `Email tối đa ${LIMITS.primaryEmail} ký tự` },
+		{
+			max: LIMITS.primaryEmail,
+			message: `Email tối đa ${LIMITS.primaryEmail} ký tự`,
+		},
 		{
 			validator: (_, value) => {
 				if (typeof value === 'string' && value !== value.trim()) {
-					return Promise.reject(new Error('Email không được có khoảng trắng đầu/cuối'));
+					return Promise.reject(
+						new Error('Email không được có khoảng trắng đầu/cuối'),
+					);
 				}
 				return Promise.resolve();
 			},
 		},
 	] as Rule[],
-	universityOther: [{ max: LIMITS.universityOther, message: `Tối đa ${LIMITS.universityOther} ký tự` }] as Rule[],
+	universityOther: [
+		{
+			max: LIMITS.universityOther,
+			message: `Tối đa ${LIMITS.universityOther} ký tự`,
+		},
+	] as Rule[],
 	expectedScore: [
 		{
 			validator: (_, value) => {
@@ -92,7 +101,10 @@ export const publicMockTestFormRules = {
 					return Promise.reject(new Error('Điểm kỳ vọng không hợp lệ'));
 				}
 				const rounded = Math.round(n);
-				if (rounded < LIMITS.expectedScoreMin || rounded > LIMITS.expectedScoreMax) {
+				if (
+					rounded < LIMITS.expectedScoreMin ||
+					rounded > LIMITS.expectedScoreMax
+				) {
 					return Promise.reject(
 						new Error(
 							`Điểm kỳ vọng từ ${LIMITS.expectedScoreMin} đến ${LIMITS.expectedScoreMax}`,

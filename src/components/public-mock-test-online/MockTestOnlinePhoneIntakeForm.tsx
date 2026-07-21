@@ -82,33 +82,19 @@ export function MockTestOnlinePhoneIntakeForm({
       >
         <PhoneInputField placeholder="0901234567" />
       </Form.Item>
+
       <Form.Item
         name="primaryEmail"
-        label="Email (tuỳ chọn)"
-        dependencies={["resultDeliveryEmail"]}
-        rules={[
-          { type: "email", message: "Email không hợp lệ" },
-          { max: 255, message: "Email tối đa 255 ký tự" },
-          ({ getFieldValue }) => ({
-            validator(_, value) {
-              if (!getFieldValue("resultDeliveryEmail")) {
-                return Promise.resolve();
-              }
-              if (typeof value === "string" && value.trim()) {
-                return Promise.resolve();
-              }
-              return Promise.reject(
-                new Error("Vui lòng nhập email để nhận kết quả qua email."),
-              );
-            },
-          }),
-        ]}
+        label="Email"
+        extra="Email này sẽ được dùng để đăng nhập và xem điểm sau khi thi. Vui lòng kiểm tra kỹ và nhập đúng email bạn đang sử dụng."
+        rules={publicMockTestFormRules.primaryEmail}
       >
         <Input
           type="email"
-          placeholder="email@example.com"
+          placeholder="ban@gmail.com"
           maxLength={255}
           autoComplete="email"
+          inputMode="email"
         />
       </Form.Item>
 

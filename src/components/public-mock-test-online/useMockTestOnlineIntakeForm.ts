@@ -98,7 +98,8 @@ export function useMockTestOnlineIntakeForm(
           body: JSON.stringify({
             displayName: values.displayName.trim(),
             primaryPhone: values.primaryPhone?.trim(),
-            primaryEmail: values.primaryEmail?.trim() || undefined,
+            // Email bắt buộc — login key portal (không sinh email nội bộ).
+            primaryEmail: values.primaryEmail.trim(),
             resultDeliveryEmail: Boolean(values.resultDeliveryEmail),
             consentMarketing: values.consentMarketing,
             recaptchaToken,

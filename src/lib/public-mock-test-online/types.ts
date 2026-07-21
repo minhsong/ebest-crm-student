@@ -131,7 +131,8 @@ export type MockTestOnlineRegisterFormValues = {
 
 	primaryPhone: string;
 
-	primaryEmail?: string;
+	/** Bắt buộc — login key portal (policy 2026-07: không đăng ký thiếu email). */
+	primaryEmail: string;
 
 	resultDeliveryEmail?: boolean;
 
