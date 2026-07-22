@@ -7,12 +7,17 @@ export type LeadProfile = {
   omniLeadId: string;
   /** false = đăng ký cơ bản, chưa được vào layout đầy đủ */
   profileCompleted: boolean;
+  /** Manual MTO account chưa có password; complete-profile phải thu thập. */
+  passwordSetupRequired?: boolean;
   profileCompletedAt?: string | null;
   /** Có Google identity đã liên kết; không chứa Google subject. */
   googleLinked?: boolean;
   identityUpgrade?: {
     available?: boolean;
     applied?: boolean;
+    reLoginRequired?: boolean;
+    customerId?: number;
+    reason?: string;
   };
 };
 
@@ -67,7 +72,8 @@ export type LeadTestResultSummary = {
   } | null;
 };
 
+/** Probe phiên portal — `customer` thay cho legacy `student`. */
 export type LeadSessionProbe =
   | { kind: 'none' }
   | { kind: 'lead' }
-  | { kind: 'student' };
+  | { kind: 'customer' };

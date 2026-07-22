@@ -15,29 +15,20 @@ export const PORTAL_MOCK_TEST_ROUTES = {
 } as const;
 
 export const PORTAL_MOCK_TEST_API = {
-  bootstrapOnline: '/api/mock-test/bootstrap-online',
   offlineRegister: '/api/mock-test/offline-register',
 } as const;
-
-/** Legacy alias — redirect tới results. */
-export const LEGACY_LEAD_TESTS_PATH = '/lead/tests';
-
-export function isPortalMockTestHubPath(pathname: string): boolean {
-  const n = pathname.replace(/\/$/, '') || '/';
-  return n === PORTAL_MOCK_TEST_ROUTES.hub || n.startsWith(`${PORTAL_MOCK_TEST_ROUTES.hub}/`);
-}
 
 export function isPortalMockTestFunnelPath(pathname: string): boolean {
   return pathname.startsWith('/mock-test-online');
 }
 
 /**
- * Path Lead chưa hoàn thiện hồ sơ vẫn được vào (exam.start / exam.resume).
- * Route đích vẫn tự guard capability server-side.
+ * Path Lead chưa hoàn thiện hồ sơ vẫn được vào (exam.start / exam.resume / funnel).
+ * Hub/dashboard KHÔNG nằm trong danh sách — PO-D19: hoàn thiện hồ sơ trước khi
+ * vào dashboard/results. Route đích vẫn tự guard capability server-side.
  */
 export function isLeadIncompleteProfileAllowedPath(pathname: string): boolean {
   const n = pathname.replace(/\/$/, '') || '/';
-  if (n === PORTAL_MOCK_TEST_ROUTES.hub) return true;
   if (n === PORTAL_MOCK_TEST_ROUTES.onlineStart) return true;
   if (n.startsWith(`${PORTAL_MOCK_TEST_ROUTES.onlineStart}/`)) return true;
   if (isPortalMockTestFunnelPath(n)) return true;

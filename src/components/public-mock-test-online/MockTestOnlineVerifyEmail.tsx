@@ -11,7 +11,8 @@ import { PORTAL_MOCK_TEST_RESULTS_ROUTES } from '@/lib/portal-auth/session-route
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token')?.trim() ?? '';
-  const { status, message, sessionReady } = useConfirmEmailVerification(token);
+  const { status, message, sessionReady, nextPath } =
+    useConfirmEmailVerification(token);
 
   if (status === 'loading' || status === 'idle') {
     return (
@@ -28,9 +29,13 @@ function VerifyEmailContent() {
         title="Xác nhận email thành công"
         subTitle={message}
         extra={[
-          <Link key="tests" href={PORTAL_MOCK_TEST_RESULTS_ROUTES.lead}>
+          <Link key="tests" href={nextPath}>
             <Button type="primary" size="large">
-              {sessionReady ? 'Xem kết quả thi thử' : 'Tiếp tục'}
+              {sessionReady && nextPath.startsWith('/lead/complete-profile')
+                ? 'Hoàn thiện tài khoản'
+                : sessionReady
+                  ? 'Tiếp tục đến cổng Ebest'
+                  : 'Tiếp tục'}
             </Button>
           </Link>,
           !sessionReady ? (

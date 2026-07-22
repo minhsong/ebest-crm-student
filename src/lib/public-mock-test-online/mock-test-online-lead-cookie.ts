@@ -47,11 +47,6 @@ export function getMockTestOnlineFunnelSessionId(): string | null {
 	);
 }
 
-/** @deprecated dùng getMockTestOnlineFunnelSessionId */
-export function getMockTestOnlinePendingLeadId(): string | null {
-	return getMockTestOnlineFunnelSessionId();
-}
-
 function setFunnelCookies(res: NextResponse, funnelSessionId: string): void {
 	const id = funnelSessionId.trim();
 	if (!id) return;
@@ -76,14 +71,6 @@ export function applyMockTestOnlineFunnelSessionCookie(
 	return res;
 }
 
-/** @deprecated alias dual-write */
-export function applyMockTestOnlinePendingLeadCookie(
-	res: NextResponse,
-	pendingLeadId: string,
-): NextResponse {
-	return applyMockTestOnlineFunnelSessionCookie(res, pendingLeadId);
-}
-
 export function clearMockTestOnlineFunnelSessionCookie<T = unknown>(
 	res: NextResponse<T>,
 ): NextResponse<T> {
@@ -96,13 +83,6 @@ export function clearMockTestOnlineFunnelSessionCookie<T = unknown>(
 	res.cookies.set(MOCK_TEST_ONLINE_FUNNEL_SESSION_COOKIE, '', clearLegacy);
 	res.cookies.set(MOCK_TEST_ONLINE_PENDING_LEAD_COOKIE, '', clearLegacy);
 	return res;
-}
-
-/** @deprecated */
-export function clearMockTestOnlinePendingLeadCookie(
-	res: NextResponse,
-): NextResponse {
-	return clearMockTestOnlineFunnelSessionCookie(res);
 }
 
 /**

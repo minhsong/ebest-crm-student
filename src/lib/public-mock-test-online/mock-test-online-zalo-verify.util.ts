@@ -13,13 +13,6 @@ export function isMockTestOnlineChannelVerified(
 	);
 }
 
-/** @deprecated Dùng `isMockTestOnlineChannelVerified`. */
-export function isMockTestOnlineZaloVerified(
-	status: MockTestOnlinePollStatus | null | undefined,
-): boolean {
-	return isMockTestOnlineChannelVerified(status);
-}
-
 export function pollStatusFromUnlockReadyEvent(
 	event: MockTestOnlineUnlockReadyEvent,
 ): MockTestOnlinePollStatus {

@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 
 import type { GameSessionConfig } from '@/features/learning/games/core/types/game-session-config.types';
 
-import { getStudentAccessTokenFromRequest } from '@/lib/crm-student-me';
+import { getPortalAccessTokenFromRequest } from '@/lib/crm-student-me';
 import { getApiBaseUrl } from '@/lib/env';
 import { sanitizeStudentFacingMessage } from '@/lib/student-safe-errors';
 
@@ -60,7 +60,7 @@ export async function authorizeDrillViaCrm(
   payload: DrillAuthorizePayload,
 ): Promise<DrillAuthorizeResponse | null> {
   const apiBase = getApiBaseUrl();
-  const token = getStudentAccessTokenFromRequest(request);
+  const token = getPortalAccessTokenFromRequest(request);
   if (!apiBase || !token) return null;
 
   const url = `${apiBase.replace(/\/$/, '')}${STUDENT_BASE}/learning/drill/authorize`;

@@ -4,7 +4,7 @@ import { Alert, Button, Form, Input, Steps } from "antd";
 import type { FormInstance } from "antd";
 
 import { PhoneInputField } from "@/components/phone-input";
-import { portalNewPasswordRules } from "@/lib/portal-auth/password-policy";
+import { LeadPortalPasswordFields } from "@/components/lead-portal/LeadPortalPasswordFields";
 import {
   LEAD_REGISTER_STEP_TITLES,
   type LeadRegisterWizardStep,
@@ -190,30 +190,9 @@ export function LeadCreateAccountWizardView({
               : "hidden"
           }
         >
-          <Form.Item
-            name="password"
-            label={isGoogleComplete ? "Tạo mật khẩu" : "Mật khẩu"}
-            rules={portalNewPasswordRules}
-          >
-            <Input.Password autoComplete="new-password" />
-          </Form.Item>
-          <Form.Item
-            name="confirmPassword"
-            label="Nhập lại mật khẩu"
-            dependencies={["password"]}
-            rules={[
-              { required: true, message: "Vui lòng nhập lại mật khẩu" },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  return !value || getFieldValue("password") === value
-                    ? Promise.resolve()
-                    : Promise.reject(new Error("Mật khẩu không khớp"));
-                },
-              }),
-            ]}
-          >
-            <Input.Password autoComplete="new-password" />
-          </Form.Item>
+          <LeadPortalPasswordFields
+            passwordLabel={isGoogleComplete ? "Tạo mật khẩu" : "Mật khẩu"}
+          />
         </div>
 
         <div className="mt-6 flex flex-wrap gap-2">

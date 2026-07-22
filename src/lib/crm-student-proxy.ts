@@ -5,14 +5,53 @@
 
 import { NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
-import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
-import { getLeadAccessTokenFromCookie } from '@/lib/lead-auth-cookie';
+import {
+  forcePortalLogoutCookies,
+  readPortalAccessTokenOrSweepLegacy,
+} from '@/lib/portal-auth-cookie';
 import { sanitizeStudentFacingMessage } from '@/lib/student-safe-errors';
 import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
 import {
   buildCrmStudentUrl,
   unwrapCrmResponseBody,
 } from '@/lib/crm-student-proxy.shared';
+
+/** Bearer từ một cookie `portal_at` (UPA-D11); quét legacy. */
+function readPortalBearerToken(): string | null {
+  return readPortalAccessTokenOrSweepLegacy()?.trim() || null;
+}
+
+/** CRM 401 + request đã gửi Bearer → force logout rồi trả 401. */
+function jsonCrmFailure(
+  data: Record<string, unknown>,
+  status: number,
+  errorFallback: string,
+  clearSessionOnUnauthorized: boolean,
+): NextResponse {
+  if (status === 401 && clearSessionOnUnauthorized) {
+    forcePortalLogoutCookies();
+  }
+  return NextResponse.json(
+    mapPortalConflictForClient(data, status, errorFallback),
+    { status },
+  );
+}
+
+function headersHaveAuthorization(headers?: HeadersInit): boolean {
+  if (!headers) return false;
+  if (headers instanceof Headers) {
+    return Boolean(headers.get('authorization')?.trim());
+  }
+  if (Array.isArray(headers)) {
+    return headers.some(
+      ([key, value]) =>
+        key.toLowerCase() === 'authorization' && Boolean(String(value).trim()),
+    );
+  }
+  const record = headers as Record<string, string>;
+  const auth = record.Authorization ?? record.authorization;
+  return typeof auth === 'string' && Boolean(auth.trim());
+}
 
 export {
   buildCrmStudentUrl,
@@ -81,9 +120,11 @@ export async function proxyStudentPostJson(
       unknown
     >;
     if (!res.ok) {
-      return NextResponse.json(
-        mapPortalConflictForClient(data, res.status, options.errorFallback),
-        { status: res.status },
+      return jsonCrmFailure(
+        data,
+        res.status,
+        options.errorFallback,
+        headersHaveAuthorization(options.headers),
       );
     }
     const payload = unwrapCrmResponseBody(data);
@@ -107,8 +148,9 @@ export type ProxyLeadAuthenticatedPostOptions = {
 export async function proxyLeadAuthenticatedPostJson(
   options: ProxyLeadAuthenticatedPostOptions,
 ): Promise<NextResponse> {
-  const token = options.token?.trim();
+  const token = options.token?.trim() || readPortalBearerToken();
   if (!token) {
+    forcePortalLogoutCookies();
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }
   return proxyStudentPostJson({
@@ -131,8 +173,9 @@ export type ProxyLeadAuthenticatedPatchOptions = {
 export async function proxyLeadAuthenticatedPatchJson(
   options: ProxyLeadAuthenticatedPatchOptions,
 ): Promise<NextResponse> {
-  const token = options.token?.trim();
+  const token = options.token?.trim() || readPortalBearerToken();
   if (!token) {
+    forcePortalLogoutCookies();
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }
   const apiBase = getApiBaseUrl();
@@ -154,10 +197,7 @@ export async function proxyLeadAuthenticatedPatchJson(
       unknown
     >;
     if (!res.ok) {
-      return NextResponse.json(
-        mapPortalConflictForClient(data, res.status, options.errorFallback),
-        { status: res.status },
-      );
+      return jsonCrmFailure(data, res.status, options.errorFallback, true);
     }
     const payload = unwrapCrmResponseBody(data) ?? data;
     const body = options.transform ? options.transform(payload) : payload;
@@ -178,8 +218,9 @@ export type ProxyLeadAuthenticatedGetOptions = {
 export async function proxyLeadAuthenticatedGetJson(
   options: ProxyLeadAuthenticatedGetOptions,
 ): Promise<NextResponse> {
-  const token = options.token?.trim();
+  const token = options.token?.trim() || readPortalBearerToken();
   if (!token) {
+    forcePortalLogoutCookies();
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }
   const apiBase = getApiBaseUrl();
@@ -197,13 +238,11 @@ export async function proxyLeadAuthenticatedGetJson(
       unknown
     >;
     if (!res.ok) {
-      return NextResponse.json(
-        mapPortalConflictForClient(
-          data,
-          res.status,
-          options.errorFallback ?? MSG_CRM_NETWORK,
-        ),
-        { status: res.status },
+      return jsonCrmFailure(
+        data,
+        res.status,
+        options.errorFallback ?? MSG_CRM_NETWORK,
+        true,
       );
     }
     const payload = unwrapCrmResponseBody(data) ?? data;
@@ -223,28 +262,20 @@ export type ProxyPortalAuthenticatedPostOptions = {
   errorFallback: string;
 };
 
-/** POST có Bearer — ưu tiên student JWT, sau đó lead JWT. */
+/** POST có Bearer — một cookie `portal_at` (UPA-D11). */
 export async function proxyPortalAuthenticatedPostJson(
   options: ProxyPortalAuthenticatedPostOptions,
 ): Promise<NextResponse> {
-  const studentToken = getStudentAccessTokenFromCookie()?.trim();
-  if (studentToken) {
+  const token = readPortalBearerToken();
+  if (token) {
     return proxyStudentPostJson({
       body: options.body,
       path: options.path,
-      headers: { Authorization: `Bearer ${studentToken}` },
+      headers: { Authorization: `Bearer ${token}` },
       errorFallback: options.errorFallback,
     });
   }
-  const leadToken = getLeadAccessTokenFromCookie()?.trim();
-  if (leadToken) {
-    return proxyStudentPostJson({
-      body: options.body,
-      path: options.path,
-      headers: { Authorization: `Bearer ${leadToken}` },
-      errorFallback: options.errorFallback,
-    });
-  }
+  forcePortalLogoutCookies();
   return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
 }
 
@@ -254,18 +285,15 @@ export type ProxyPortalAuthenticatedGetOptions = {
   errorFallback?: string;
 };
 
-/** GET có Bearer — ưu tiên student JWT, sau đó lead JWT (LP session). */
+/** GET có Bearer — một cookie `portal_at` (UPA-D11). */
 export async function proxyPortalAuthenticatedGetJson(
   options: ProxyPortalAuthenticatedGetOptions,
 ): Promise<NextResponse> {
-  const studentToken = getStudentAccessTokenFromCookie()?.trim();
-  if (studentToken) {
-    return proxyAuthenticatedGetWithToken(studentToken, options);
+  const token = readPortalBearerToken();
+  if (token) {
+    return proxyAuthenticatedGetWithToken(token, options);
   }
-  const leadToken = getLeadAccessTokenFromCookie()?.trim();
-  if (leadToken) {
-    return proxyAuthenticatedGetWithToken(leadToken, options);
-  }
+  forcePortalLogoutCookies();
   return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
 }
 
@@ -292,13 +320,11 @@ async function proxyAuthenticatedGetWithToken(
       unknown
     >;
     if (!res.ok) {
-      return NextResponse.json(
-        mapPortalConflictForClient(
-          data,
-          res.status,
-          options.errorFallback ?? MSG_CRM_NETWORK,
-        ),
-        { status: res.status },
+      return jsonCrmFailure(
+        data,
+        res.status,
+        options.errorFallback ?? MSG_CRM_NETWORK,
+        true,
       );
     }
     const payload = unwrapCrmResponseBody(data) ?? data;

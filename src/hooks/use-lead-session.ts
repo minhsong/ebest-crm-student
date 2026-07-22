@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { probeLeadSession } from '@/lib/lead-portal/client-api';
 import { PORTAL_MOCK_TEST_RESULTS_ROUTES } from '@/lib/portal-auth/session-routes';
 
-/** Redirect nếu đã có cookie lead hợp lệ (hoặc đã silent upgrade sang HV). */
+/** Redirect nếu đã có cookie portal hợp lệ (lead hoặc customer). */
 export function useRedirectIfLeadLoggedIn(
   redirectTo = PORTAL_MOCK_TEST_RESULTS_ROUTES.lead,
 ) {
@@ -16,15 +16,16 @@ export function useRedirectIfLeadLoggedIn(
     let cancelled = false;
     void (async () => {
       const probe = await probeLeadSession();
-      if (!cancelled) {
-        if (probe.kind === 'student') {
-          router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.student);
-        } else if (probe.kind === 'lead') {
-          router.replace(redirectTo);
-        } else {
-          setChecking(false);
-        }
+      if (cancelled) return;
+      if (probe.kind === 'customer') {
+        router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.student);
+        return;
       }
+      if (probe.kind === 'lead') {
+        router.replace(redirectTo);
+        return;
+      }
+      setChecking(false);
     })();
     return () => {
       cancelled = true;
@@ -34,7 +35,7 @@ export function useRedirectIfLeadLoggedIn(
   return { checking };
 }
 
-/** Yêu cầu phiên lead — guest → `/login?mode=lead`. */
+/** Yêu cầu phiên lead — customer → kết quả HV; guest → login lead. */
 export function useRequireLeadSession(loginRedirect = '/login?mode=lead') {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
@@ -45,7 +46,7 @@ export function useRequireLeadSession(loginRedirect = '/login?mode=lead') {
     void (async () => {
       const probe = await probeLeadSession();
       if (cancelled) return;
-      if (probe.kind === 'student') {
+      if (probe.kind === 'customer') {
         router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.student);
         return;
       }

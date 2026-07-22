@@ -386,7 +386,15 @@ export function ProfileForm({
           return;
         }
         setStep('done');
-        antMessage.success(MESSAGES.createAccountSuccess);
+        antMessage.success(
+          typeof json?.message === 'string' && json.message.trim()
+            ? json.message
+            : MESSAGES.createAccountSuccess,
+        );
+        // UPA-Q5 — cookie đã set ở BFF; vào portal sau vài giây nếu user không click.
+        window.setTimeout(() => {
+          window.location.assign('/');
+        }, 1500);
       } catch {
         setSubmitError(MESSAGES.networkError);
         antMessage.error(MESSAGES.networkError);
@@ -414,11 +422,11 @@ export function ProfileForm({
                   {MESSAGES.createAccountDescription}
                   <br />
                   <a
-                    href="/login"
+                    href="/"
                     className="mt-2 inline-block font-semibold hover:underline"
                     style={{ color: EBEST_BRAND_ORANGE }}
                   >
-                    Đi đến trang đăng nhập →
+                    {MESSAGES.enterPortalCta}
                   </a>
                 </>
               }

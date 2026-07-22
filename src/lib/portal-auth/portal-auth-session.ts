@@ -5,6 +5,9 @@ export type PortalAuthActor = 'customer' | 'lead';
 export type PortalLoginActorPayload = {
   actor?: PortalAuthActor | 'lead';
   accessToken?: string;
+  /** CRM Lead login — field chính. */
+  account?: unknown;
+  /** Legacy alias (một số client cũ). */
   leadAccount?: unknown;
   customer?: unknown;
 };
@@ -13,14 +16,19 @@ export type PortalLoginActorPayload = {
 export function resolvePortalLoginActor(
   payload: PortalLoginActorPayload,
 ): PortalAuthActor {
-  if (payload.actor === 'lead' || payload.leadAccount) return 'lead';
+  if (payload.actor === 'lead' || payload.account || payload.leadAccount) {
+    return 'lead';
+  }
   return 'customer';
 }
 
 export type LeadIdentityUpgradePayload = {
   available?: boolean;
+  /** @deprecated UPA-D15 — không silent mint; luôn re-login. */
   accessToken?: string;
   customerId?: number;
+  reLoginRequired?: boolean;
+  reason?: string;
   applied?: boolean;
 };
 
@@ -29,8 +37,16 @@ export type LeadMeCrmPayload = {
   [key: string]: unknown;
 };
 
+/**
+ * Convert Lead→Customer đã áp dụng (UPA-D15).
+ * Sau soft convert CRM thường trả `reLoginRequired` (không silent mint) —
+ * `applied` có thể false sau khi BFF normalize.
+ */
 export function isLeadIdentityUpgraded(profile: {
   identityUpgrade?: LeadIdentityUpgradePayload;
 }): boolean {
-  return Boolean(profile.identityUpgrade?.applied);
+  const u = profile.identityUpgrade;
+  return Boolean(
+    u?.available && (u.reLoginRequired === true || u.applied === true),
+  );
 }

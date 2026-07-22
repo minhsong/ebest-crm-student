@@ -10,7 +10,7 @@ import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.conf
 import { usePortalSiteLinks } from '@/hooks/use-portal-site-links';
 import { MockTestResultsPanel } from './MockTestResultsPanel';
 import { useLeadMockTestResultsPage } from '../hooks/useLeadMockTestResultsPage';
-import { useLeadMockTestInExamStatus } from '../hooks/useLeadMockTestInExamStatus';
+import { usePortalMockTestInExamStatus } from '../hooks/useLeadMockTestInExamStatus';
 
 type Props = {
   notice?: string | null;
@@ -19,7 +19,7 @@ type Props = {
 export function LeadMockTestResultsView({ notice }: Props) {
   const { items, loading, error, authReady } = useLeadMockTestResultsPage();
   const { status: inExamStatus, loading: inExamLoading } =
-    useLeadMockTestInExamStatus(authReady);
+    usePortalMockTestInExamStatus(authReady);
   const { siteLinks } = usePortalSiteLinks();
 
   const showInProgress =

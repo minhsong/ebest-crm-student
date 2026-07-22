@@ -16,4 +16,13 @@ describe('mapLeadMeForClient', () => {
     expect(profile.googleLinked).toBe(true);
     expect(profile).not.toHaveProperty('googleSub');
   });
+
+  it('fail-closed: thiếu profileCompleted → chưa hoàn thiện hồ sơ', () => {
+    const profile = mapLeadMeForClient({
+      id: 2,
+      omniLeadId: 'omni-2',
+      email: 'lead@example.com',
+    });
+    expect(profile.profileCompleted).toBe(false);
+  });
 });

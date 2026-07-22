@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { fetchMockTestPostExamDestination } from '@/lib/public-mock-test-online/mock-test-online-api.client';
 
 export type EmailVerificationStatus = 'idle' | 'loading' | 'ok' | 'error';
 
@@ -9,6 +10,7 @@ export type EmailVerificationResult = {
   message: string;
   sessionReady: boolean;
   email: string | null;
+  nextPath: string;
 };
 
 /**
@@ -19,6 +21,9 @@ export function useConfirmEmailVerification(token: string): EmailVerificationRes
   const [message, setMessage] = useState('');
   const [sessionReady, setSessionReady] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
+  const [nextPath, setNextPath] = useState(
+    '/login?returnUrl=%2Fmock-test%2Fresults',
+  );
 
   useEffect(() => {
     const trimmed = token.trim();
@@ -50,6 +55,11 @@ export function useConfirmEmailVerification(token: string): EmailVerificationRes
         const verifiedEmail = data.email?.trim() || null;
         setEmail(verifiedEmail);
         setSessionReady(Boolean(data.sessionReady));
+        const destination = await fetchMockTestPostExamDestination().catch(
+          () => null,
+        );
+        if (cancelled) return;
+        if (destination) setNextPath(destination.nextPath);
         setStatus('ok');
         setMessage(
           verifiedEmail
@@ -73,5 +83,5 @@ export function useConfirmEmailVerification(token: string): EmailVerificationRes
     };
   }, [token]);
 
-  return { status, message, sessionReady, email };
+  return { status, message, sessionReady, email, nextPath };
 }

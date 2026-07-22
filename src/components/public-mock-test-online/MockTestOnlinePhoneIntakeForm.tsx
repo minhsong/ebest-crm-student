@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Alert,
   Button,
   Checkbox,
   Divider,
@@ -11,11 +12,9 @@ import {
 } from "antd";
 
 import { PhoneInputField } from "@/components/phone-input";
-import { PublicMockTestProfileFields } from "@/components/public-mock-test/PublicMockTestProfileFields";
 import { publicMockTestFormRules } from "@/lib/public-mock-test/validation";
 import { buildPortalLoginHref } from "@/lib/portal-auth/post-auth-return-url";
 import type { MockTestOnlineRegisterFormValues } from "@/lib/public-mock-test-online/types";
-import type { PublicRegistrationOptions } from "@/lib/public-mock-test/types";
 import { MockTestOnlineIntakeErrorAlert } from "./MockTestOnlineIntakeErrorAlert";
 import {
   type MockTestOnlineInitialContact,
@@ -26,15 +25,15 @@ const { Text } = Typography;
 const LOGIN_HREF = buildPortalLoginHref({ returnUrl: "/mock-test-online" });
 
 type Props = {
-  profileOptions: PublicRegistrationOptions | null;
-  profileOptionsError: string | null;
   initialContact: MockTestOnlineInitialContact | null;
   fanpageUrl: string;
 };
 
+/**
+ * Đăng ký nhanh — chỉ contact + consent.
+ * Tags / mô tả bản thân thu ở `/lead/complete-profile` sau thi (PO-D19).
+ */
 export function MockTestOnlinePhoneIntakeForm({
-  profileOptions,
-  profileOptionsError,
   initialContact,
   fanpageUrl,
 }: Props) {
@@ -98,10 +97,12 @@ export function MockTestOnlinePhoneIntakeForm({
         />
       </Form.Item>
 
-      <PublicMockTestProfileFields
-        options={profileOptions}
-        optionsError={profileOptionsError}
-        includeExpectedScore={false}
+      <Alert
+        type="info"
+        showIcon
+        className="!mb-4"
+        message="Đăng ký nhanh để vào thi"
+        description="Thông tin mô tả về bạn (trường học, mục tiêu…) sẽ được hỏi khi hoàn thiện hồ sơ sau bài thi — giúp vào phòng thi nhanh hơn."
       />
 
       <Divider className="!my-4" />

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { unwrapCrmPayload } from '@/lib/crm-payload';
 import { sanitizeApiErrorPayload } from '@/lib/student-safe-errors';
 import { getApiBaseUrl } from '@/lib/env';
-import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
+import { getPortalAccessTokenFromCookie } from '@/lib/portal-auth-cookie';
 
 const STUDENT_BASE = '/api/v1/student';
 
@@ -17,7 +17,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { formPublicId: string } },
 ) {
-  const token = getStudentAccessTokenFromCookie();
+  const token = getPortalAccessTokenFromCookie();
   if (!token) {
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }

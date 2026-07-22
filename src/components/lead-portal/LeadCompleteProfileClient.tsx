@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Alert, App, Button, Form, Input, Steps } from 'antd';
+import { Alert, App, Button, Card, Descriptions, Form, Input, Space, Steps } from 'antd';
 import { LeadPortalShell } from '@/components/lead-portal/LeadPortalShell';
+import { LeadPortalPasswordFields } from '@/components/lead-portal/LeadPortalPasswordFields';
 import { PublicMockTestProfileFields } from '@/components/public-mock-test/PublicMockTestProfileFields';
 import {
   completeLeadProfile,
@@ -23,6 +24,8 @@ import { PhoneInputField } from '@/components/phone-input';
 type FormValues = {
   displayName: string;
   phone: string;
+  password?: string;
+  confirmPassword?: string;
   tagsByCategory?: Record<string, number | number[]>;
   universityOther?: string;
   consultationNote?: string;
@@ -105,6 +108,7 @@ export function LeadCompleteProfileClient({
         }
         const profilePayload = collectPublicProfilePayload(allValues);
         await completeLeadProfile({
+          password: allValues.password,
           displayName,
           phone: allValues.phone?.trim(),
           ...profilePayload,
@@ -161,7 +165,7 @@ export function LeadCompleteProfileClient({
         requiredMark="optional"
       >
         {step === 1 ? (
-          <div className="rounded-lg border border-gray-100 bg-gray-50/50 p-4 sm:p-5">
+          <Card size="small" className="bg-gray-50/50">
             <Alert
               type="info"
               showIcon
@@ -191,12 +195,23 @@ export function LeadCompleteProfileClient({
             >
               <Input placeholder="Nguyễn Văn A" maxLength={255} />
             </Form.Item>
+            {profile.passwordSetupRequired ? (
+              <LeadPortalPasswordFields
+                extra={`Email ${profile.email} là tài khoản đăng nhập cổng Ebest.`}
+              />
+            ) : null}
             <Button
               type="primary"
               block
               onClick={async () => {
                 try {
-                  await form.validateFields(['displayName', 'phone']);
+                  await form.validateFields([
+                    'displayName',
+                    'phone',
+                    ...(profile.passwordSetupRequired
+                      ? (['password', 'confirmPassword'] as const)
+                      : []),
+                  ]);
                   setStep(2);
                 } catch {
                   // validation UI
@@ -205,27 +220,39 @@ export function LeadCompleteProfileClient({
             >
               Tiếp tục
             </Button>
-          </div>
+          </Card>
         ) : null}
 
         {step === 2 ? (
-          <div className="rounded-lg border border-gray-100 bg-gray-50/50 p-4 sm:p-5">
+          <Card size="small" className="bg-gray-50/50">
             <PublicMockTestProfileFields
               options={initialProfileOptions}
               optionsError={profileOptionsError}
               includeExpectedScore
             />
-            <div className="mt-4 flex flex-wrap gap-2">
+            <Space wrap className="mt-4 w-full" style={{ display: 'flex' }}>
               <Button onClick={() => setStep(1)}>Quay lại</Button>
-              <Button type="primary" className="flex-1" onClick={() => setStep(3)}>
+              <Button
+                type="primary"
+                className="flex-1"
+                onClick={async () => {
+                  try {
+                    // Validate field đang mount (tags bắt buộc + expectedScore).
+                    await form.validateFields();
+                    setStep(3);
+                  } catch {
+                    // validation UI
+                  }
+                }}
+              >
                 Tiếp tục
               </Button>
-            </div>
-          </div>
+            </Space>
+          </Card>
         ) : null}
 
         {step === 3 ? (
-          <div className="rounded-lg border border-gray-100 bg-gray-50/50 p-4 sm:p-5">
+          <Card size="small" className="bg-gray-50/50">
             <Alert
               type="success"
               showIcon
@@ -233,16 +260,29 @@ export function LeadCompleteProfileClient({
               message="Sẵn sàng vào cổng Ebest"
               description="Xác nhận để mở đầy đủ menu thi thử, kết quả và khám phá khóa học."
             />
-            <p className="mb-4 text-sm text-gray-600">
-              Họ tên:{' '}
-              <strong>{form.getFieldValue('displayName') || '—'}</strong>
-              <br />
-              SĐT:{' '}
-              <strong>{form.getFieldValue('phone') || 'Chưa cập nhật'}</strong>
-              <br />
-              Email: <strong>{profile.email || '—'}</strong>
-            </p>
-            <div className="flex flex-wrap gap-2">
+            <Descriptions
+              size="small"
+              column={1}
+              className="mb-4"
+              items={[
+                {
+                  key: 'name',
+                  label: 'Họ tên',
+                  children: form.getFieldValue('displayName') || '—',
+                },
+                {
+                  key: 'phone',
+                  label: 'SĐT',
+                  children: form.getFieldValue('phone') || 'Chưa cập nhật',
+                },
+                {
+                  key: 'email',
+                  label: 'Email',
+                  children: profile.email || '—',
+                },
+              ]}
+            />
+            <Space wrap className="w-full" style={{ display: 'flex' }}>
               <Button onClick={() => setStep(2)}>Quay lại</Button>
               <Button
                 type="primary"
@@ -252,8 +292,8 @@ export function LeadCompleteProfileClient({
               >
                 Hoàn tất và vào cổng
               </Button>
-            </div>
-          </div>
+            </Space>
+          </Card>
         ) : null}
       </Form>
     </LeadPortalShell>

@@ -8,7 +8,6 @@ import { fetchCustomerOnlineBootstrapContextSsr } from '@/features/portal-mock-t
 
 export {
   MOCK_TEST_ONLINE_DEFAULT_TEST_TYPE,
-  PORTAL_MOCK_TEST_DEFAULT_TEST_TYPE,
 } from '@/lib/public-mock-test-online/constants';
 
 /**

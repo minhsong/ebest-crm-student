@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { requiresCompletedLeadProfile } from './portal-profile-capability';
 
 describe('portal mock-test profile capability', () => {
-  it.each(['exam.start', 'exam.resume', 'portal.hub'] as const)(
+  it.each(['exam.start', 'exam.resume'] as const)(
     'cho phép %s khi hồ sơ chưa hoàn tất',
     (capability) => {
       expect(requiresCompletedLeadProfile(capability)).toBe(false);
@@ -11,6 +11,7 @@ describe('portal mock-test profile capability', () => {
 
   it.each(
     [
+      'portal.hub',
       'portal.dashboard',
       'exam.view_result',
       'exam.offline.register',

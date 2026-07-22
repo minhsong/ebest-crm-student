@@ -1,7 +1,6 @@
 /**
  * SSR fetch mock-test-online read-model từ Social Gateway (giảm tải CRM).
  */
-import type { PublicRegistrationOptions } from '@/lib/public-mock-test/types';
 import type {
 	MockTestOnlineCampaign,
 	MockTestOnlineCampaignsResponse,
@@ -94,16 +93,6 @@ export async function fetchGatewayMockTestOnlineCampaign(
 	return fetchGatewayPublic<MockTestOnlineCampaign>(
 		`campaigns/${sessionId}`,
 		'Không tìm thấy chiến dịch.',
-	);
-}
-
-export async function fetchGatewayMockTestOnlineRegistrationOptions(): Promise<{
-	data: PublicRegistrationOptions | null;
-	error: string | null;
-}> {
-	return fetchGatewayPublic<PublicRegistrationOptions>(
-		'registration-options',
-		'Không tải được danh mục mô tả.',
 	);
 }
 

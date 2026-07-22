@@ -1,5 +1,5 @@
 import { getApiBaseUrl } from '@/lib/env';
-import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
+import { getPortalAccessTokenFromCookie } from '@/lib/portal-auth-cookie';
 
 export type StudentMeSsrPayload = {
   customer?: {
@@ -16,7 +16,7 @@ export type StudentMeSsrPayload = {
 };
 
 export async function fetchStudentMeForSsr(): Promise<StudentMeSsrPayload | null> {
-  const token = getStudentAccessTokenFromCookie();
+  const token = getPortalAccessTokenFromCookie();
   const apiBaseUrl = getApiBaseUrl();
   if (!token || !apiBaseUrl) return null;
 

@@ -7,7 +7,7 @@ import {
 import type { PortalLoginMode } from '@/components/portal/PortalLoginModePicker';
 import type { PortalLoginActorPayload } from '@/lib/portal-auth/portal-auth-session';
 import { PORTAL_LOGIN_CRM_PATH } from '@/lib/portal-auth/portal-login-api';
-import { setPortalSessionCookie } from '@/lib/portal-auth/portal-auth-session.server';
+import { respondPortalPasswordLoginSuccess } from '@/lib/portal-auth/apply-portal-auth-success.server';
 
 /** Proxy login CRM + set cookie — dùng chung `/api/auth/login` và `/api/auth/lead/login`. */
 export async function proxyPortalAuthLoginPost(
@@ -35,20 +35,5 @@ export async function proxyPortalAuthLoginPost(
   }
 
   const payload = unwrapCrmResponseBody(data) as PortalLoginActorPayload;
-  const token = payload?.accessToken?.trim?.() ?? '';
-  if (token) {
-    setPortalSessionCookie(mode, token);
-  }
-
-  if (mode === 'lead') {
-    return NextResponse.json({
-      actor: 'lead' as const,
-      account: payload?.leadAccount ?? null,
-    });
-  }
-
-  return NextResponse.json({
-    actor: 'customer' as const,
-    customer: payload?.customer ?? null,
-  });
+  return respondPortalPasswordLoginSuccess(mode, payload);
 }

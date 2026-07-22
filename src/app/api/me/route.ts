@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
-import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
+import { getPortalAccessTokenFromCookie } from '@/lib/portal-auth-cookie';
 import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
 import { sanitizeApiErrorPayload } from '@/lib/student-safe-errors';
 
 const STUDENT_BASE = '/api/v1/student';
 
 export async function GET(request: NextRequest) {
-  const token = getStudentAccessTokenFromCookie();
+  const token = getPortalAccessTokenFromCookie();
   if (!token) {
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const token = getStudentAccessTokenFromCookie();
+  const token = getPortalAccessTokenFromCookie();
   if (!token) {
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }

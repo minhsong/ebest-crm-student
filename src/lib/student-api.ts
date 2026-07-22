@@ -37,6 +37,9 @@ export const STUDENT_API = {
   leadTestResults: 'lead/me/test-results',
   leadOfflineRegistration: 'lead/mock-test/offline-registrations',
   customerOfflineRegistration: 'me/mock-test/offline-registrations',
+  /** UPA unified — CRM quyết định actor từ JWT đã validate. */
+  portalSession: 'portal/session',
+  portalOfflineRegistration: 'portal/mock-test/offline-registrations',
   customerOnlineBootstrapContext: 'me/mock-test-online/bootstrap-context',
   customerOnlineAttemptStatus: 'me/mock-test-online/attempt-status',
   /** @deprecated Dùng `portalExplore` — marketing Mongo đã gỡ. */

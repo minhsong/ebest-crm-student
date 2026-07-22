@@ -38,8 +38,9 @@ export function mapLeadMeForClient(payload: unknown): LeadProfile {
     emailVerifiedAt:
       typeof raw.emailVerifiedAt === 'string' ? raw.emailVerifiedAt : null,
     omniLeadId: String(raw.omniLeadId ?? ''),
-    /** Thiếu field (API cũ) → coi như đã hoàn thiện, tránh khóa layout. */
-    profileCompleted: raw.profileCompleted !== false,
+    /** Fail-closed: chỉ true khi CRM khẳng định đã hoàn thiện (PO-D19). */
+    profileCompleted: raw.profileCompleted === true,
+    passwordSetupRequired: raw.passwordSetupRequired === true,
     profileCompletedAt:
       typeof raw.profileCompletedAt === 'string'
         ? raw.profileCompletedAt
@@ -51,6 +52,13 @@ export function mapLeadMeForClient(payload: unknown): LeadProfile {
     profile.identityUpgrade = {
       available: upgradeRaw.available === true,
       applied: upgradeRaw.applied === true,
+      reLoginRequired: upgradeRaw.reLoginRequired === true,
+      customerId:
+        typeof upgradeRaw.customerId === 'number'
+          ? upgradeRaw.customerId
+          : undefined,
+      reason:
+        typeof upgradeRaw.reason === 'string' ? upgradeRaw.reason : undefined,
     };
   }
 

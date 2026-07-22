@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { App, Form } from "antd";
 
-import { collectPublicProfilePayload } from "@/lib/public-mock-test/profile-payload";
 import {
   clearIntakeDraft,
   readIntakeDraft,
@@ -89,9 +88,6 @@ export function useMockTestOnlineIntakeForm(
       setIntakeError(null);
       try {
         const recaptchaToken = await executeRecaptchaMockTestOnlineIntake();
-        const profile = collectPublicProfilePayload(values);
-        const { expectedScore: _omitExpected, ...profileWithoutExpected } =
-          profile;
         const response = await fetch("/api/public/mock-test-online/intake", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -103,7 +99,6 @@ export function useMockTestOnlineIntakeForm(
             resultDeliveryEmail: Boolean(values.resultDeliveryEmail),
             consentMarketing: values.consentMarketing,
             recaptchaToken,
-            ...profileWithoutExpected,
           }),
         });
         const data =

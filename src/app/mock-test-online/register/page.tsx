@@ -56,7 +56,7 @@ export default async function MockTestOnlineRegisterPage({
 		redirect('/mock-test/online/start');
 	}
 
-	const { profileOptions, profileOptionsError, initialContact } =
+	const { initialContact } =
 		await loadMockTestOnlineLeadRegisterPageData();
 	const seo = await fetchMockTestOnlineSeo();
 
@@ -64,8 +64,6 @@ export default async function MockTestOnlineRegisterPage({
 		<>
 			<MockTestOnlineSeoJsonLd seo={seo} />
 			<MockTestOnlineRegisterForm
-				profileOptions={profileOptions}
-				profileOptionsError={profileOptionsError}
 				initialContact={initialContact}
 				widgetTitle="Đăng ký"
 				widgetIntro="Tiếp tục nhanh bằng Google hoặc đăng ký bằng số điện thoại và xác minh Zalo."

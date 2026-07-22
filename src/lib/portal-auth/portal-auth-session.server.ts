@@ -2,59 +2,81 @@
  * Server-only: cookie helpers (next/headers). Không import từ Client Component.
  */
 import {
-  clearLeadAccessTokenCookie,
-  setLeadAccessTokenCookie,
-} from '@/lib/lead-auth-cookie';
-import {
-  clearStudentAccessTokenCookie,
-  setStudentAccessTokenCookie,
-} from '@/lib/auth-cookie';
+  clearPortalAccessTokenCookie,
+  setPortalAccessTokenCookie,
+} from '@/lib/portal-auth-cookie';
 import type {
   LeadMeCrmPayload,
   PortalAuthActor,
 } from '@/lib/portal-auth/portal-auth-session';
+import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
 
-/** SSOT set cookie portal theo actor (PI-D2 một cookie active). */
-export function setPortalSessionCookie(actor: PortalAuthActor, token: string) {
-  const v = token?.trim() ?? '';
-  if (!v) return;
-  if (actor === 'lead') {
-    setLeadAccessTokenCookie(v);
-    clearStudentAccessTokenCookie();
-  } else {
-    setStudentAccessTokenCookie(v);
-    clearLeadAccessTokenCookie();
-  }
+/** SSOT set cookie portal — một cookie `portal_at` (UPA-D11). Actor chỉ để typing caller. */
+export function setPortalSessionCookie(_actor: PortalAuthActor, token: string) {
+  setPortalAccessTokenCookie(token);
 }
 
-export function clearPortalSessionCookie(actor: PortalAuthActor) {
-  if (actor === 'lead') {
-    clearLeadAccessTokenCookie();
-  } else {
-    clearStudentAccessTokenCookie();
-  }
+/** Alias rõ nghĩa — mọi auth success (password/Google/register) ghi cùng cookie. */
+export function applyPortalSessionAccessToken(token: string): void {
+  setPortalAccessTokenCookie(token);
+}
+
+export function clearPortalSessionCookie(_actor: PortalAuthActor) {
+  clearPortalAccessTokenCookie();
 }
 
 /**
- * Silent upgrade: đổi cookie lead → customer khi CRM trả JWT HV (PI-D3, PI-D11).
- * Trả payload đã gắn `identityUpgrade.applied`.
+ * Mint Lead JWT vào `portal_at` chỉ khi chưa có phiên Customer.
+ * Tránh demote HV → Lead sau Zalo / confirm email (MTO × UPA).
+ */
+export async function setLeadPortalSessionCookieIfSafe(
+  accessToken: string,
+): Promise<'set' | 'skipped_customer' | 'skipped_empty'> {
+  const token = accessToken?.trim() ?? '';
+  if (!token) return 'skipped_empty';
+
+  const session = await resolvePortalSessionFromCookies();
+  if (session.actor === 'customer') {
+    return 'skipped_customer';
+  }
+  setPortalSessionCookie('lead', token);
+  return 'set';
+}
+
+/**
+ * Sau convert (UPA-D15/M3): CRM báo `reLoginRequired` — **không** silent mint cookie.
+ * Xóa cookie portal hiện tại (Lead JWT không còn hợp lệ cho layout Lead).
  */
 export function applyLeadIdentityUpgradeCookies(
   payload: LeadMeCrmPayload,
 ): LeadMeCrmPayload {
   const upgrade = payload.identityUpgrade;
-  if (upgrade?.available && upgrade.accessToken) {
-    setPortalSessionCookie('customer', upgrade.accessToken);
+  if (!upgrade?.available) {
+    return payload;
+  }
+  clearPortalAccessTokenCookie();
+  if (upgrade.accessToken) {
     return {
       ...payload,
-      identityUpgrade: { ...upgrade, applied: true },
+      identityUpgrade: {
+        ...upgrade,
+        accessToken: undefined,
+        reLoginRequired: true,
+        applied: false,
+      },
     };
   }
-  return payload;
+  return {
+    ...payload,
+    identityUpgrade: {
+      ...upgrade,
+      reLoginRequired: upgrade.reLoginRequired !== false,
+      applied: false,
+    },
+  };
 }
 
-/** Xóa cả cookie identity portal (logout SSOT). */
+/** Xóa cookie identity portal (logout SSOT). */
 export function clearAllPortalAuthCookies(): void {
-  clearStudentAccessTokenCookie();
-  clearLeadAccessTokenCookie();
+  clearPortalAccessTokenCookie();
 }

@@ -1,6 +1,6 @@
 import type { PortalAuthActor } from '@/lib/portal-auth/portal-auth-session';
 import type { LeadProfile, LeadSessionProbe, LeadTestResultSummary } from './types';
-import { isLeadIdentityUpgraded } from '@/lib/portal-auth/portal-auth-session';
+import { fetchClientPortalSession } from '@/lib/portal-auth/portal-session.client';
 import { portalLogoutClient } from '@/lib/portal-auth/portal-session.client';
 import { LeadPortalUnauthorizedError } from './errors';
 
@@ -136,6 +136,7 @@ export async function fetchLeadProfile(): Promise<LeadProfile> {
 
 /** Đánh dấu hoàn thiện hồ sơ sau đăng ký cơ bản — mở layout portal. */
 export async function completeLeadProfile(input: {
+  password?: string;
   phone?: string;
   displayName?: string;
   tagIds?: number[];
@@ -177,17 +178,15 @@ export async function fetchLeadTestResults(): Promise<LeadTestResultSummary[]> {
   return Array.isArray(data) ? data : (data.items ?? []);
 }
 
+/**
+ * Probe phiên portal (lead | customer | none).
+ * SSOT: `/api/portal/session` — không dual-probe lead me trước.
+ */
 export async function probeLeadSession(): Promise<LeadSessionProbe> {
-  try {
-    const profile = await fetchLeadProfile();
-    if (isLeadIdentityUpgraded(profile)) {
-      return { kind: 'student' };
-    }
-    return { kind: 'lead' };
-  } catch (e) {
-    if (e instanceof LeadPortalUnauthorizedError) return { kind: 'none' };
-    return { kind: 'none' };
-  }
+  const session = await fetchClientPortalSession();
+  if (session.actor === 'customer') return { kind: 'customer' };
+  if (session.actor === 'lead') return { kind: 'lead' };
+  return { kind: 'none' };
 }
 
 export type { LeadProfile, LeadSessionProbe, LeadTestResultSummary } from './types';

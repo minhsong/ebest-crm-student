@@ -12,7 +12,7 @@ function mapLeadSession(
     actor: 'lead',
     omniLeadId: profile.omniLeadId,
     leadAccountId: profile.id,
-    profileCompleted: profile.profileCompleted !== false,
+    profileCompleted: profile.profileCompleted === true,
     phoneE164: profile.phoneE164,
     googleLinked: profile.googleLinked === true,
     email: profile.email,

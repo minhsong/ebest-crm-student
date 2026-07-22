@@ -1,5 +1,5 @@
 import { getApiBaseUrl } from '@/lib/env';
-import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
+import { getPortalAccessTokenFromCookie } from '@/lib/portal-auth-cookie';
 import { buildCrmStudentUrl, unwrapCrmResponseBody } from '@/lib/crm-student-proxy';
 import { STUDENT_API } from '@/lib/student-api';
 
@@ -38,7 +38,7 @@ export function parseCustomerOnlineBootstrapContext(
 
 /** P5c — resolve omniLeadId + SĐT trước attempt precheck / bootstrap HV. */
 export async function fetchCustomerOnlineBootstrapContextSsr(): Promise<CustomerOnlineBootstrapContext | null> {
-  const token = getStudentAccessTokenFromCookie()?.trim();
+  const token = getPortalAccessTokenFromCookie()?.trim();
   const apiBase = getApiBaseUrl();
   if (!token || !apiBase) return null;
 

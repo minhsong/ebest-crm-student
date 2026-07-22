@@ -11,7 +11,7 @@ import {
 import { mapMockTestBffErrorForClient } from '@/lib/public-mock-test-online/mock-test-bff-response.server';
 import { STUDENT_SAFE_USER_MESSAGES } from '@/lib/student-safe-errors';
 
-import { applyMockTestOnlinePendingLeadCookie } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
+import { applyMockTestOnlineFunnelSessionCookie } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
 
 export async function POST(req: NextRequest) {
 
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
 
 		if (pendingLeadId) {
 
-			applyMockTestOnlinePendingLeadCookie(nextRes, pendingLeadId);
+			applyMockTestOnlineFunnelSessionCookie(nextRes, pendingLeadId);
 
 		}
 

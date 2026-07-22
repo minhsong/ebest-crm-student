@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 
-import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
+import { getPortalAccessTokenFromCookie } from '@/lib/portal-auth-cookie';
 
 export async function GET() {
-  const token = getStudentAccessTokenFromCookie();
+  const token = getPortalAccessTokenFromCookie();
   if (!token) {
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }

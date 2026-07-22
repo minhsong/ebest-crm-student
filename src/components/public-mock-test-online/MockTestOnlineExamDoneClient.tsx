@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Result, Typography } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
@@ -9,12 +9,7 @@ import { MockTestOnlineFunnelShell } from '@/components/public-mock-test-online/
 import { MockTestOnlinePortalAccessGuide } from '@/components/public-mock-test-online/MockTestOnlinePortalAccessGuide';
 import { MockTestOnlineEmailVerificationPrompt } from '@/components/public-mock-test-online/MockTestOnlineEmailVerificationPrompt';
 import { MockTestOnlineAttemptLimitAlert } from '@/components/public-mock-test-online/MockTestOnlineAttemptLimitAlert';
-import { useProbeLeadSession } from '@/features/mock-test-portal/hooks/useProbeLeadSession';
-import { useLeadMockTestInExamStatus } from '@/features/mock-test-portal/hooks/useLeadMockTestInExamStatus';
-import {
-	resolveMockTestResultsPath,
-	PORTAL_MOCK_TEST_RESULTS_ROUTES,
-} from '@/lib/portal-auth/session-routes';
+import { usePortalMockTestInExamStatus } from '@/features/mock-test-portal/hooks/useLeadMockTestInExamStatus';
 import { fetchExamFunnelHint } from '@/lib/complete-profile/check-login-key';
 import {
 	clearMockTestOnlineExamAuth,
@@ -22,6 +17,11 @@ import {
 } from '@/lib/public-mock-test-online/exam-session';
 import { readMockTestOnlineExpectedScore } from '@/lib/public-mock-test-online/exam-expected-score.util';
 import { isMockTestOnlineAttemptBlocked } from '@/lib/public-mock-test-online/mock-test-online-attempt-limit.util';
+import {
+	fetchMockTestPostExamDestination,
+	type MockTestPostExamDestination,
+} from '@/lib/public-mock-test-online/mock-test-online-api.client';
+import { isLeadCompleteProfileHref } from '@/lib/portal-auth/session-routes';
 
 const { Paragraph, Text } = Typography;
 
@@ -30,17 +30,30 @@ const AUTO_REDIRECT_SECONDS_GUEST = 6;
 
 export function MockTestOnlineExamDoneClient() {
 	const router = useRouter();
-	const probe = useProbeLeadSession();
-	const sessionKind = probe?.kind ?? null;
+	const [destination, setDestination] =
+		useState<MockTestPostExamDestination | null>(null);
+	const sessionKind =
+		destination?.actor === 'guest' ? 'none' : destination?.actor ?? null;
+	const loggedIn =
+		destination?.actor === 'lead' || destination?.actor === 'customer';
 	const [hideLeadRegister, setHideLeadRegister] = useState(false);
 	const [registrationId, setRegistrationId] = useState<number | null>(null);
 	const [expectedScore, setExpectedScore] = useState<number | null>(null);
 	const [countdown, setCountdown] = useState<number | null>(null);
 	const redirectedRef = useRef(false);
 
-	const { status: attemptStatus } = useLeadMockTestInExamStatus(
-		sessionKind === 'lead' || sessionKind === 'student',
-	);
+	const { status: attemptStatus } = usePortalMockTestInExamStatus(loggedIn);
+
+	useEffect(() => {
+		void fetchMockTestPostExamDestination()
+			.then(setDestination)
+			.catch(() => {
+				setDestination({
+					actor: 'guest',
+					nextPath: '/login?returnUrl=%2Fmock-test%2Fresults',
+				});
+			});
+	}, []);
 
 	useEffect(() => {
 		const auth = loadMockTestOnlineExamAuth({ allowExpiredToken: true });
@@ -63,37 +76,34 @@ export function MockTestOnlineExamDoneClient() {
 		});
 	}, []);
 
-	const resultsHref = resolveMockTestResultsPath(probe ?? { kind: 'none' });
 	const coursesRecommendationsHref = '/lead/courses#recommendations';
-	const loginHref = useMemo(() => {
-		const returnUrl = encodeURIComponent(resultsHref);
-		return `${PORTAL_MOCK_TEST_RESULTS_ROUTES.login}?returnUrl=${returnUrl}`;
-	}, [resultsHref]);
+	const redirectTarget = destination?.nextPath ?? null;
+	const redirectSeconds = loggedIn
+		? AUTO_REDIRECT_SECONDS_LOGGED_IN
+		: AUTO_REDIRECT_SECONDS_GUEST;
 
-	const redirectTarget =
-		sessionKind === 'lead' || sessionKind === 'student' ? resultsHref : loginHref;
-	const redirectSeconds =
-		sessionKind === 'lead' || sessionKind === 'student'
-			? AUTO_REDIRECT_SECONDS_LOGGED_IN
-			: AUTO_REDIRECT_SECONDS_GUEST;
-
-	const resultsLabel =
-		sessionKind === 'student' || sessionKind === 'lead'
-			? 'Xem kết quả trên cổng HV'
+	const needsCompleteProfile = isLeadCompleteProfileHref(
+		destination?.nextPath,
+	);
+	const resultsLabel = needsCompleteProfile
+		? 'Hoàn thiện tài khoản'
+		: loggedIn
+			? 'Tiếp tục đến cổng Ebest'
 			: 'Đăng nhập xem kết quả';
 
 	const showLeadRegisterCta = sessionKind === 'none' && !hideLeadRegister;
-	const showCoursesCta = sessionKind === 'lead' || sessionKind === 'student';
+	/** Courses / dashboard chỉ sau khi Lead đã hoàn thiện hồ sơ (PO-D19). */
+	const showCoursesCta = loggedIn && !needsCompleteProfile;
 	const attemptLimitReached = isMockTestOnlineAttemptBlocked(attemptStatus);
 
 	useEffect(() => {
-		if (probe === null) return;
+		if (destination === null) return;
 		setCountdown(redirectSeconds);
-	}, [probe, redirectSeconds]);
+	}, [destination, redirectSeconds]);
 
 	useEffect(() => {
 		if (countdown === null || countdown <= 0 || redirectedRef.current) return;
-		if (countdown === 1) {
+		if (countdown === 1 && redirectTarget) {
 			redirectedRef.current = true;
 			router.replace(redirectTarget);
 			return;
@@ -123,17 +133,19 @@ export function MockTestOnlineExamDoneClient() {
 						{countdown != null && countdown > 0 ? (
 							<Text className="block !mt-2 text-sm" type="secondary">
 								Tự chuyển tới{' '}
-								{sessionKind === 'lead' || sessionKind === 'student'
-									? 'trang kết quả'
-									: 'trang đăng nhập'}{' '}
+								{needsCompleteProfile
+									? 'bước hoàn thiện tài khoản'
+									: loggedIn
+										? 'cổng Ebest'
+										: 'trang đăng nhập'}{' '}
 								sau {countdown} giây…
 							</Text>
 						) : null}
 					</>
 				}
 				extra={[
-					<Link key="results" href={sessionKind === 'none' ? loginHref : resultsHref}>
-						<Button type="primary" size="large" loading={probe === null}>
+					<Link key="results" href={redirectTarget ?? '/login'}>
+						<Button type="primary" size="large" loading={destination === null}>
 							{resultsLabel}
 						</Button>
 					</Link>,
@@ -163,7 +175,10 @@ export function MockTestOnlineExamDoneClient() {
 				</>
 			) : null}
 			<MockTestOnlineEmailVerificationPrompt registrationId={registrationId} />
-			<MockTestOnlinePortalAccessGuide probe={probe} />
+			<MockTestOnlinePortalAccessGuide
+				probe={sessionKind == null ? null : { kind: sessionKind }}
+				nextPath={destination?.nextPath}
+			/>
 			{showLeadRegisterCta ? (
 				<Paragraph type="secondary" className="text-center text-sm !mb-0 !mt-4">
 					Chưa có tài khoản?{' '}
@@ -174,7 +189,7 @@ export function MockTestOnlineExamDoneClient() {
 			{sessionKind === 'none' && hideLeadRegister ? (
 				<Paragraph type="secondary" className="text-center text-sm !mb-0 !mt-4">
 					Email/SĐT đăng ký đã có trên cổng học viên.{' '}
-					<Link href={loginHref}>Đăng nhập</Link> để theo dõi kết quả và đánh giá bài
+					<Link href={redirectTarget ?? '/login'}>Đăng nhập</Link> để theo dõi kết quả và đánh giá bài
 					thi.
 				</Paragraph>
 			) : null}

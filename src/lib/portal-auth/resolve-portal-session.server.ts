@@ -1,6 +1,8 @@
 import { getApiBaseUrl } from '@/lib/env';
-import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
-import { getLeadAccessTokenFromCookie } from '@/lib/lead-auth-cookie';
+import {
+  forcePortalLogoutCookies,
+  getPortalAccessTokenFromCookie,
+} from '@/lib/portal-auth-cookie';
 import { STUDENT_API } from '@/lib/student-api';
 import { buildCrmStudentUrl, unwrapCrmResponseBody } from '@/lib/crm-student-proxy';
 import {
@@ -23,7 +25,7 @@ export type PortalSessionPayload =
   | {
       actor: 'customer';
       displayName: string;
-      /** Brief từ cùng GET /student/me — tránh gọi lại ở root layout. */
+      /** Brief từ cùng GET portal/session — tránh gọi lại ở root layout. */
       customer: StudentMeCustomerBrief;
     }
   | {
@@ -50,97 +52,87 @@ function mapLeadProfile(raw: Record<string, unknown>): LeadProfile | null {
   return { ...mapped, omniLeadId };
 }
 
-async function fetchCustomerSession(): Promise<PortalSessionPayload | null> {
-  const token = getStudentAccessTokenFromCookie();
-  if (!token) return null;
+/**
+ * Cookie-first resolve — SSOT GET CRM `/student/portal/session`.
+ * Actor do CRM quyết định sau verify JWT; BFF không decode accountType.
+ *
+ * An toàn khi gọi từ RSC (layout/page): đọc cookie + CRM; clear cookie invalid
+ * chỉ thực sự ghi được trong Route Handler (force logout best-effort no-op ở RSC).
+ */
+export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPayload> {
+  const token = getPortalAccessTokenFromCookie()?.trim() ?? '';
+  if (!token) return { actor: 'guest' };
 
   const apiBase = getApiBaseUrl();
-  if (!apiBase) return null;
+  if (!apiBase) return { actor: 'guest' };
 
-  const url = `${apiBase.replace(/\/$/, '')}/api/v1/student/me`;
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await fetch(buildCrmStudentUrl(apiBase, STUDENT_API.portalSession), {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       cache: 'no-store',
     });
   } catch (error) {
     if (isUpstreamConnectionFailure(error)) throw error;
-    return null;
-  }
-  if (!res.ok) return null;
-
-  const data = await res.json().catch(() => ({}));
-  const payload = unwrapCrmResponseBody(data) ?? data;
-  const customer = parseStudentMeCustomerBrief(
-    (payload as { customer?: unknown })?.customer ?? payload,
-  );
-  if (!customer) return null;
-
-  return {
-    actor: 'customer',
-    displayName: customer.fullName?.trim() || 'Học viên',
-    customer,
-  };
-}
-
-async function fetchLeadSession(): Promise<PortalSessionPayload | null> {
-  const token = getLeadAccessTokenFromCookie();
-  if (!token) return null;
-
-  const apiBase = getApiBaseUrl();
-  if (!apiBase) return null;
-
-  const url = buildCrmStudentUrl(apiBase, STUDENT_API.leadMe);
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-      cache: 'no-store',
-    });
-  } catch (error) {
-    if (isUpstreamConnectionFailure(error)) throw error;
-    return null;
-  }
-  if (!res.ok) return null;
-
-  const data = await res.json().catch(() => ({}));
-  const raw = (unwrapCrmResponseBody(data) ?? data) as LeadMeCrmPayload &
-    Record<string, unknown>;
-  const upgraded = applyLeadIdentityUpgradeCookies(raw);
-
-  if (isLeadIdentityUpgraded(upgraded)) {
-    const customerToken = getStudentAccessTokenFromCookie();
-    if (customerToken) {
-      return fetchCustomerSession();
-    }
     return { actor: 'guest' };
   }
 
-  const profile = mapLeadProfile(upgraded as Record<string, unknown>);
-  if (!profile) return null;
+  if (!res.ok) {
+    if (res.status === 401) forcePortalLogoutCookies();
+    return { actor: 'guest' };
+  }
 
-  const displayName =
-    profile.displayName?.trim() ||
-    profile.phoneE164?.trim() ||
-    profile.email?.trim() ||
-    'Thí sinh';
+  const data = await res.json().catch(() => ({}));
+  const payload = (unwrapCrmResponseBody(data) ?? data) as Record<
+    string,
+    unknown
+  >;
+  const actor = payload.actor;
 
-  return {
-    actor: 'lead',
-    displayName,
-    omniLeadId: profile.omniLeadId,
-    profile,
-  };
-}
+  if (actor === 'customer') {
+    const customer = parseStudentMeCustomerBrief(
+      (payload as { customer?: unknown }).customer ?? payload,
+    );
+    if (!customer) {
+      forcePortalLogoutCookies();
+      return { actor: 'guest' };
+    }
+    return {
+      actor: 'customer',
+      displayName: customer.fullName?.trim() || 'Học viên',
+      customer,
+    };
+  }
 
-/** Cookie-first resolve — SSOT cho GET /api/portal/session (LP-D8). */
-export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPayload> {
-  const customer = await fetchCustomerSession();
-  if (customer) return customer;
+  if (actor === 'lead') {
+    const upgraded = applyLeadIdentityUpgradeCookies(
+      payload as LeadMeCrmPayload & Record<string, unknown>,
+    );
 
-  const lead = await fetchLeadSession();
-  if (lead) return lead;
+    if (isLeadIdentityUpgraded(upgraded)) {
+      return { actor: 'guest' };
+    }
 
+    const profile = mapLeadProfile(upgraded as Record<string, unknown>);
+    if (!profile) {
+      forcePortalLogoutCookies();
+      return { actor: 'guest' };
+    }
+
+    const displayName =
+      profile.displayName?.trim() ||
+      profile.phoneE164?.trim() ||
+      profile.email?.trim() ||
+      'Thí sinh';
+
+    return {
+      actor: 'lead',
+      displayName,
+      omniLeadId: profile.omniLeadId,
+      profile,
+    };
+  }
+
+  forcePortalLogoutCookies();
   return { actor: 'guest' };
 }

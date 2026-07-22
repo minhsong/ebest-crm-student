@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
-import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
+import { getPortalAccessTokenFromCookie } from '@/lib/portal-auth-cookie';
 
 const STUDENT_BASE = '/api/v1/student';
 
 export async function POST(request: NextRequest) {
-  const token = getStudentAccessTokenFromCookie();
+  const token = getPortalAccessTokenFromCookie();
   if (!token) {
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }

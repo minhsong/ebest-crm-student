@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getLeadAccessTokenFromCookie } from '@/lib/lead-auth-cookie';
+import { getPortalAccessTokenFromCookie } from '@/lib/portal-auth-cookie';
 import { getApiBaseUrl } from '@/lib/env';
 import { mapLeadMeForClient } from '@/lib/lead-portal/lead-profile-client';
 import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
@@ -15,7 +15,7 @@ const JSON_HEADERS: HeadersInit = {
 
 /** SSR/BFF — fetch lead/me + cookie upgrade + client DTO. */
 export async function fetchLeadMeBffResponse(): Promise<NextResponse> {
-  const token = getLeadAccessTokenFromCookie();
+  const token = getPortalAccessTokenFromCookie();
   if (!token) {
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }
@@ -48,7 +48,7 @@ export async function fetchLeadMeBffResponse(): Promise<NextResponse> {
 }
 
 export async function patchLeadMeBffResponse(body: unknown): Promise<NextResponse> {
-  const token = getLeadAccessTokenFromCookie();
+  const token = getPortalAccessTokenFromCookie();
   if (!token) {
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }
@@ -85,7 +85,7 @@ export async function patchLeadMeBffResponse(body: unknown): Promise<NextRespons
 export async function completeLeadProfileBffResponse(
   body: unknown,
 ): Promise<NextResponse> {
-  const token = getLeadAccessTokenFromCookie();
+  const token = getPortalAccessTokenFromCookie();
   if (!token) {
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }

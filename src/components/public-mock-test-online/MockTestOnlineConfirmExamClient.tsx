@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
 	Alert,
@@ -18,10 +18,10 @@ import {
 	ClockCircleOutlined,
 	MessageOutlined,
 } from '@ant-design/icons';
-import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 import type { MockTestOnlineCampaign } from '@/lib/public-mock-test-online/types';
 import { ZaloConfirmMessageBlock } from '@/components/public-mock-test-online/ZaloConfirmMessageBlock';
 import { MockTestOnlineFunnelShell } from '@/components/public-mock-test-online/MockTestOnlineFunnelShell';
+import { MockTestOnlineConfirmAuthorizeError } from '@/components/public-mock-test-online/MockTestOnlineConfirmAuthorizeError';
 import { useMockTestOnlineExamAuthorize } from '@/components/public-mock-test-online/useMockTestOnlineExamAuthorize';
 import { useMockTestOnlineSelectExamSession } from '@/components/public-mock-test-online/useMockTestOnlineSelectExamSession';
 import { useMockTestOnlineZaloVerifySession } from '@/components/public-mock-test-online/useMockTestOnlineZaloVerifySession';
@@ -101,8 +101,14 @@ export function MockTestOnlineConfirmExamClient({
 		[examSession, proceedWithSessionToken],
 	);
 
-	const { zaloVerified, error: verifyError, status: verifyStatus, verifyIssue } =
-		useMockTestOnlineZaloVerifySession({
+	const {
+		zaloVerified,
+		portalSessionReady,
+		error: verifyError,
+		status: verifyStatus,
+		verifyIssue,
+		recheck: recheckVerifyStatus,
+	} = useMockTestOnlineZaloVerifySession({
 			pendingRegistrationId: examSession?.pendingRegistrationId,
 			examSessionToken: examSession?.examSessionToken,
 			enabled: Boolean(examSession?.pendingRegistrationId),
@@ -114,25 +120,9 @@ export function MockTestOnlineConfirmExamClient({
 			? verifyStatus.registrationId
 			: null;
 
-	const canProceedAfterZalo = zaloVerified && registrationIdReady != null;
+	const canProceedAfterZalo =
+		zaloVerified && portalSessionReady && registrationIdReady != null;
 	const needsUnlockCode = zaloVerified && !registrationIdReady;
-
-	const autoProceedAttemptedRef = useRef<string | null>(null);
-
-	useEffect(() => {
-		if (!canProceedAfterZalo || !examSession || autoProceeding) return;
-		if (registrationIdReady == null) return;
-		const attemptKey = `${examSession.pendingRegistrationId}:${registrationIdReady}`;
-		if (autoProceedAttemptedRef.current === attemptKey) return;
-		autoProceedAttemptedRef.current = attemptKey;
-		void proceedWithSessionToken(examSession, registrationIdReady);
-	}, [
-		autoProceeding,
-		canProceedAfterZalo,
-		examSession,
-		proceedWithSessionToken,
-		registrationIdReady,
-	]);
 
 	const onContinueAfterZalo = useCallback(() => {
 		if (!examSession || !registrationIdReady) return;
@@ -152,25 +142,36 @@ export function MockTestOnlineConfirmExamClient({
 				examSession.pendingRegistrationId,
 			);
 			form.setFieldsValue({ examUnlockCode: data.examUnlockCode });
-			if (data.registrationId) {
-				handleUnlockReady(data.registrationId);
-			}
 			message.success(`Dev: mã mở khóa — ${data.examUnlockCode}`);
+			// Kích hoạt lại pipeline verified → provision → auto-proceed ngay.
+			void recheckVerifyStatus();
 		} catch (e) {
 			message.error(e instanceof Error ? e.message : 'Dev simulate thất bại.');
 		}
-	}, [examSession?.pendingRegistrationId, form, handleUnlockReady, message]);
+	}, [examSession?.pendingRegistrationId, form, message, recheckVerifyStatus]);
 
 	const onUnlockFinish = useCallback(
 		async (values: { examUnlockCode: string }) => {
 			if (!examSession) return;
+			if (!portalSessionReady) {
+				message.warning(
+					'Đang chuẩn bị tài khoản cổng Ebest. Vui lòng chờ trong giây lát.',
+				);
+				return;
+			}
 			await proceedWithUnlockCode(
 				examSession,
 				values.examUnlockCode,
 				verifyStatus?.registrationId,
 			);
 		},
-		[examSession, proceedWithUnlockCode, verifyStatus?.registrationId],
+		[
+			examSession,
+			message,
+			portalSessionReady,
+			proceedWithUnlockCode,
+			verifyStatus?.registrationId,
+		],
 	);
 
 	if (!leadId && !pendingRegistrationId) {
@@ -232,60 +233,11 @@ export function MockTestOnlineConfirmExamClient({
 			</Paragraph>
 
 			{authorizeError ? (
-				<Alert
-					type="error"
-					showIcon
-					className="!mb-4"
-					message={authorizeError.title}
-					description={
-						<div className="space-y-3">
-							<p className="mb-0">{authorizeError.description}</p>
-							<div className="flex flex-wrap gap-2">
-								{authorizeError.recovery === 'lead_tests' ? (
-									<>
-										<Button
-											type="primary"
-											onClick={() => {
-												window.location.assign(
-													PORTAL_MOCK_TEST_ROUTES.results,
-												);
-											}}
-										>
-											Xem lịch sử thi
-										</Button>
-										<Button
-											onClick={() => {
-												window.location.assign('/mock-test-online/register');
-											}}
-										>
-											Đăng ký lại
-										</Button>
-									</>
-								) : null}
-								{authorizeError.recovery === 'restart' ? (
-									<Button
-										type="primary"
-										onClick={() => {
-											window.location.assign('/mock-test-online/register');
-										}}
-									>
-										Bắt đầu lại
-									</Button>
-								) : null}
-								{authorizeError.recovery === 'retry' || !authorizeError.recovery ? (
-									<Button
-										type="primary"
-										onClick={() => {
-											clearAuthorizeError();
-											if (canProceedAfterZalo) onContinueAfterZalo();
-										}}
-									>
-										Thử lại
-									</Button>
-								) : null}
-							</div>
-						</div>
-					}
+				<MockTestOnlineConfirmAuthorizeError
+					error={authorizeError}
+					canProceedAfterZalo={canProceedAfterZalo}
+					onClear={clearAuthorizeError}
+					onRetryContinue={onContinueAfterZalo}
 				/>
 			) : null}
 
@@ -410,6 +362,11 @@ export function MockTestOnlineConfirmExamClient({
 												: 'Đang đồng bộ đăng ký… Giữ tab này mở.'
 								}
 							/>
+							{!canProceedAfterZalo && !autoProceeding && verifyError ? (
+								<Text type="danger" className="text-sm block mt-2">
+									{verifyError}
+								</Text>
+							) : null}
 							{needsUnlockCode && !autoProceeding ? (
 								<div className="flex items-center gap-2 mt-3">
 									<Spin size="small" />
@@ -496,7 +453,9 @@ export function MockTestOnlineConfirmExamClient({
 							maxLength={12}
 							className="uppercase tracking-widest"
 							size="large"
-							disabled={submittingUnlock || autoProceeding}
+							disabled={
+								submittingUnlock || autoProceeding || !portalSessionReady
+							}
 							inputMode="text"
 							autoComplete="one-time-code"
 						/>
@@ -508,6 +467,7 @@ export function MockTestOnlineConfirmExamClient({
 							size="large"
 							block
 							loading={submittingUnlock || autoProceeding}
+							disabled={!portalSessionReady}
 						>
 							Vào phòng làm bài
 						</Button>

@@ -1,10 +1,10 @@
 import { getApiBaseUrl } from '@/lib/env';
-import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
+import { getPortalAccessTokenFromCookie } from '@/lib/portal-auth-cookie';
 
 export const STUDENT_CRM_BASE = '/api/v1/student';
 
 export function getStudentCrmAuthHeaders(): HeadersInit | null {
-  const token = getStudentAccessTokenFromCookie();
+  const token = getPortalAccessTokenFromCookie();
   if (!token) return null;
   return { Authorization: `Bearer ${token}` };
 }

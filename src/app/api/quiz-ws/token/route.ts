@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 
-import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
+import { getPortalAccessTokenFromCookie } from '@/lib/portal-auth-cookie';
 
 /**
  * Chỉ dùng cho handshake Socket.IO tới gateway: trả Bearer từ cookie httpOnly.
  * Không cache; tránh nhét JWT vào JS thường xuyên — dài hạn nên đổi sang ticket WS ngắn hạn.
  */
 export async function GET() {
-  const token = getStudentAccessTokenFromCookie();
+  const token = getPortalAccessTokenFromCookie();
   if (!token) {
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }

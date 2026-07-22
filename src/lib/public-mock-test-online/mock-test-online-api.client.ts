@@ -128,7 +128,7 @@ export async function postMockTestOnlineDevSimulateZalo(pendingRegistrationId: s
 export async function provisionLeadPortalSession(input: {
 	pendingRegistrationId: string;
 	registrationId?: number;
-}): Promise<{ provisioned: boolean }> {
+}): Promise<{ provisioned: boolean; sessionReady: boolean }> {
 	const pendingRegistrationId = input.pendingRegistrationId.trim();
 	if (!pendingRegistrationId) {
 		throw new MockTestOnlineApiError('Thiếu phiên xác minh.');
@@ -144,11 +144,51 @@ export async function provisionLeadPortalSession(input: {
 				: {}),
 		}),
 	});
-	const data = await parseJson<{ provisioned?: boolean; message?: string }>(res);
+	const data = await parseJson<{
+		provisioned?: boolean;
+		sessionReady?: boolean;
+		message?: string;
+	}>(res);
 	if (!res.ok) {
 		throw new MockTestOnlineApiError(
 			data.message ?? 'Không tạo được phiên đăng nhập.',
 		);
 	}
-	return { provisioned: Boolean(data.provisioned) };
+	return {
+		provisioned: Boolean(data.provisioned),
+		sessionReady: data.sessionReady === true,
+	};
+}
+
+export type MockTestPostExamDestination = {
+	actor: 'guest' | 'lead' | 'customer';
+	nextPath: string;
+};
+
+/** Đích sau thi do BFF quyết định từ portal session đã verify. */
+export async function fetchMockTestPostExamDestination(): Promise<MockTestPostExamDestination> {
+	const res = await fetch(
+		'/api/public/mock-test-online/post-exam-destination',
+		{ cache: 'no-store', credentials: 'same-origin' },
+	);
+	const data = await parseJson<Partial<MockTestPostExamDestination>>(res);
+	if (!res.ok) {
+		throwApiError(res, data);
+	}
+	if (
+		(data.actor !== 'guest' &&
+			data.actor !== 'lead' &&
+			data.actor !== 'customer') ||
+		typeof data.nextPath !== 'string' ||
+		!data.nextPath.startsWith('/') ||
+		data.nextPath.startsWith('//')
+	) {
+		throw new MockTestOnlineApiError(
+			'Không xác định được bước tiếp theo. Vui lòng tải lại trang.',
+		);
+	}
+	return {
+		actor: data.actor,
+		nextPath: data.nextPath,
+	};
 }

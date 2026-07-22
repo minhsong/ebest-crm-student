@@ -1,11 +1,11 @@
 import { STUDENT_API } from '@/lib/student-api';
 import { proxyStudentPostJson } from '@/lib/crm-student-proxy';
 import { NextResponse } from 'next/server';
-import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
+import { getPortalAccessTokenFromCookie } from '@/lib/portal-auth-cookie';
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const token = getStudentAccessTokenFromCookie();
+  const token = getPortalAccessTokenFromCookie();
   if (!token) {
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }

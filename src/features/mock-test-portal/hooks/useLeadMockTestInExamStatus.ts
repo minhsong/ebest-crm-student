@@ -43,6 +43,3 @@ export function usePortalMockTestInExamStatus(enabled: boolean) {
 
 	return { status, loading };
 }
-
-/** @deprecated Dùng `usePortalMockTestInExamStatus`. */
-export const useLeadMockTestInExamStatus = usePortalMockTestInExamStatus;

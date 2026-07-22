@@ -10,4 +10,3 @@ export { useMockTestResultsList } from './hooks/useMockTestResultsList';
 export { useLeadMockTestResultsPage } from './hooks/useLeadMockTestResultsPage';
 export { useStudentMockTestResultsPage } from './hooks/useStudentMockTestResultsPage';
 export { useConfirmEmailVerification } from './hooks/useConfirmEmailVerification';
-export { useProbeLeadSession } from './hooks/useProbeLeadSession';

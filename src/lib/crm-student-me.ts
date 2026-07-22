@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 
-import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
+import { getPortalAccessTokenFromCookie } from '@/lib/portal-auth-cookie';
 import {
   dedupeInflight,
   getTtlCacheHit,
@@ -22,9 +22,11 @@ function getBearerToken(request: NextRequest): string | null {
   return null;
 }
 
-/** Bearer header hoặc cookie httpOnly — giống các proxy CRM khác. */
-export function getStudentAccessTokenFromRequest(request: NextRequest): string | null {
-  return getBearerToken(request) ?? getStudentAccessTokenFromCookie();
+/** Bearer header hoặc cookie `portal_at` — giống các proxy CRM khác. */
+export function getPortalAccessTokenFromRequest(
+  request: NextRequest,
+): string | null {
+  return getBearerToken(request) ?? getPortalAccessTokenFromCookie();
 }
 
 function unwrapCrmPayload(json: unknown): unknown {
@@ -50,7 +52,7 @@ async function fetchStudentMeInner(
 ): Promise<Record<string, unknown> | null> {
   const apiBase = getApiBaseUrl();
   if (!apiBase) return null;
-  const token = getStudentAccessTokenFromRequest(request);
+  const token = getPortalAccessTokenFromRequest(request);
   if (!token) return null;
 
   const cacheKey = token;

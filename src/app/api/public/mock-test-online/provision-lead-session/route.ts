@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getApiBaseUrl } from '@/lib/env';
-import { setPortalSessionCookie } from '@/lib/portal-auth/portal-auth-session.server';
+import { setLeadPortalSessionCookieIfSafe } from '@/lib/portal-auth/portal-auth-session.server';
 import { unwrapCrmResponseBody } from '@/lib/crm-student-proxy';
 import { resolveConfirmSessionOwnership } from '@/features/portal-mock-test/server/assert-confirm-session-ownership.server';
 import {
@@ -8,10 +8,12 @@ import {
   mapProvisionLeadSessionForClient,
 } from '@/lib/public-mock-test-online/mock-test-bff-response.server';
 import { STUDENT_SAFE_USER_MESSAGES } from '@/lib/student-safe-errors';
+import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
 
 /**
  * PI-D13 — mint Lead JWT sau Zalo.
- * P0: bắt buộc funnel cookie sở hữu `pendingRegistrationId` (không mint theo registrationId tuần tự).
+ * P0: funnel ownership bắt buộc.
+ * UPA: không ghi đè `portal_at` nếu đang là Customer (exam dùng mto_portal_auth).
  */
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
@@ -37,6 +39,16 @@ export async function POST(request: Request) {
       { message: ownership.message },
       { status: ownership.status },
     );
+  }
+
+  // HV đã login: không provision Lead (tránh overwrite + CRM reject account_type=customer).
+  const portalSession = await resolvePortalSessionFromCookies();
+  if (portalSession.actor === 'customer') {
+    return NextResponse.json({
+      skipped: true,
+      reason: 'customer_session',
+      sessionReady: true,
+    });
   }
 
   const apiBase = getApiBaseUrl();
@@ -73,10 +85,17 @@ export async function POST(request: Request) {
     }
 
     const payload = unwrapCrmResponseBody(data) as { accessToken?: string };
+    let sessionReady = false;
     if (payload?.accessToken) {
-      setPortalSessionCookie('lead', payload.accessToken);
+      const applied = await setLeadPortalSessionCookieIfSafe(
+        payload.accessToken,
+      );
+      sessionReady = applied === 'set' || applied === 'skipped_customer';
     }
-    return NextResponse.json(mapProvisionLeadSessionForClient(payload));
+    return NextResponse.json({
+      ...mapProvisionLeadSessionForClient(payload),
+      sessionReady,
+    });
   } catch {
     return NextResponse.json(
       { message: STUDENT_SAFE_USER_MESSAGES.generic },

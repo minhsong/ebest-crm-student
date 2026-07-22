@@ -1,4 +1,3 @@
-import type { PublicRegistrationOptions } from '@/lib/public-mock-test/types';
 import type { MockTestOnlineAttemptStatusWire } from '@ebest/crm-api-types/student/mock-test-online';
 
 export type MockTestOnlineCampaign = {
@@ -126,28 +125,12 @@ export type MockTestOnlinePollStatus = {
 
 
 export type MockTestOnlineRegisterFormValues = {
-
 	displayName: string;
-
 	primaryPhone: string;
-
 	/** Bắt buộc — login key portal (policy 2026-07: không đăng ký thiếu email). */
 	primaryEmail: string;
-
 	resultDeliveryEmail?: boolean;
-
 	consentMarketing: boolean;
-
-	tagIds?: number[];
-
-	universityTagId?: number;
-
-	universityOther?: string;
-
-	consultationNote?: string;
-
-	expectedScore?: number;
-
 };
 
 
@@ -165,21 +148,11 @@ export type MockTestOnlineSelectExamFormValues = {
 
 
 export type MockTestOnlineLeadRegisterPageData = {
-
-	profileOptions: PublicRegistrationOptions | null;
-
-	profileOptionsError: string | null;
-
 	initialContact: {
-
 		displayName?: string;
-
 		primaryPhone?: string;
-
 		primaryEmail?: string;
-
 	} | null;
-
 };
 
 
@@ -261,38 +234,6 @@ export type MockTestOnlineAuthorizeResponse = {
 		registrationId: number;
 
 	};
-
-};
-
-
-
-/** @deprecated dùng MockTestOnlineRegisterFormValues */
-
-export type MockTestOnlineFormValues = MockTestOnlineRegisterFormValues & {
-
-	sessionId?: number;
-
-	testVariantChoice?: 'full' | 'mini';
-
-};
-
-
-
-/** @deprecated dùng MockTestOnlineLeadIntakeResponse */
-
-export type MockTestOnlineIntakeResponse = MockTestOnlineSelectExamResponse;
-
-
-
-/** @deprecated */
-
-export type MockTestOnlineRegisterPageData = MockTestOnlineLeadRegisterPageData & {
-
-	campaigns: MockTestOnlineCampaign[];
-
-	selectedCampaign: MockTestOnlineCampaign | null;
-
-	campaignsError: string | null;
 
 };
 

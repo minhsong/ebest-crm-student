@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getApiBaseUrl } from '@/lib/env';
-import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
-import { logInternalApiError, sanitizeApiErrorPayload } from '@/lib/student-safe-errors';
+import {
+  forcePortalLogoutCookies,
+  readPortalAccessTokenOrSweepLegacy,
+} from '@/lib/portal-auth-cookie';
+import {
+  logInternalApiError,
+  sanitizeApiErrorPayload,
+} from '@/lib/student-safe-errors';
 
 export const STUDENT_CRM_API_PREFIX = '/api/v1/student';
 
@@ -12,14 +18,24 @@ function getAuthHeader(request: NextRequest): string | null {
   return null;
 }
 
+function unauthorizedNoSession(): NextResponse {
+  forcePortalLogoutCookies();
+  return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
+}
+
+function maybeLogoutOnCrmUnauthorized(status: number): void {
+  if (status === 401) forcePortalLogoutCookies();
+}
+
 export async function proxyStudentCrmGet(
   request: NextRequest,
   relativePath: string,
 ): Promise<NextResponse> {
   const authFromHeader = getAuthHeader(request);
-  const tokenFromCookie = getStudentAccessTokenFromCookie();
-  const auth = authFromHeader || (tokenFromCookie ? `Bearer ${tokenFromCookie}` : null);
-  if (!auth) return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
+  const tokenFromCookie = readPortalAccessTokenOrSweepLegacy();
+  const auth =
+    authFromHeader || (tokenFromCookie ? `Bearer ${tokenFromCookie}` : null);
+  if (!auth) return unauthorizedNoSession();
 
   const apiBaseUrl = getApiBaseUrl();
   if (!apiBaseUrl) {
@@ -53,6 +69,7 @@ export async function proxyStudentCrmGet(
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    maybeLogoutOnCrmUnauthorized(res.status);
     return NextResponse.json(sanitizeApiErrorPayload(data, res.status), {
       status: res.status,
     });
@@ -75,11 +92,11 @@ export async function proxyStudentCrmRequest(
       },
 ): Promise<NextResponse> {
   const authFromHeader = getAuthHeader(request);
-  const tokenFromCookie = getStudentAccessTokenFromCookie();
+  const tokenFromCookie = readPortalAccessTokenOrSweepLegacy();
   const auth =
     authFromHeader || (tokenFromCookie ? `Bearer ${tokenFromCookie}` : null);
   if (!auth) {
-    return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
+    return unauthorizedNoSession();
   }
 
   const apiBaseUrl = getApiBaseUrl();
@@ -123,6 +140,7 @@ export async function proxyStudentCrmRequest(
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    maybeLogoutOnCrmUnauthorized(res.status);
     return NextResponse.json(sanitizeApiErrorPayload(data, res.status), {
       status: res.status,
     });

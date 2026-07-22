@@ -1,4 +1,4 @@
-import { getStudentAccessTokenFromCookie } from '@/lib/auth-cookie';
+import { getPortalAccessTokenFromCookie } from '@/lib/portal-auth-cookie';
 import {
   buildCrmStudentUrl,
   unwrapCrmResponseBody,
@@ -12,7 +12,7 @@ import { STUDENT_API } from '@/lib/student-api';
  * CRM trả null nếu customer chưa có omniLeadId; không provision khi chỉ xem Hub.
  */
 export async function fetchCustomerOnlineAttemptStatusSsr(): Promise<MockTestOnlineAttemptStatus | null> {
-  const token = getStudentAccessTokenFromCookie()?.trim();
+  const token = getPortalAccessTokenFromCookie()?.trim();
   const apiBase = getApiBaseUrl();
   if (!token || !apiBase) return null;
 

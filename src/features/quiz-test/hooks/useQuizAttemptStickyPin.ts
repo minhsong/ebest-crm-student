@@ -12,7 +12,21 @@ export type QuizAttemptStickyPinState = {
   /** Cạnh trái vùng content (viewport) — căn pin theo cột bài làm. */
   pinLeft: number;
   pinWidth: number;
+  /** Mép trên viewport khi pin — dưới header sticky đang hiển thị. */
+  stickyTop: number;
 };
+
+/** Header sticky ngoài dashboard (mock test online funnel). */
+const STICKY_HEADER_SELECTOR = '.mock-test-online-site-header';
+
+function resolveStickyTop(): number {
+  const header = document.querySelector(STICKY_HEADER_SELECTOR);
+  if (header) {
+    const bottom = header.getBoundingClientRect().bottom;
+    if (bottom > 0) return Math.ceil(bottom) + 8;
+  }
+  return QUIZ_ATTEMPT_STICKY_VIEWPORT_TOP;
+}
 
 /** Pin cụm timer/lượt nghe góc phải trên khi scroll dashboard content. */
 export function useQuizAttemptStickyPin(enabled: boolean) {
@@ -24,38 +38,40 @@ export function useQuizAttemptStickyPin(enabled: boolean) {
     barHeight: 0,
     pinLeft: 0,
     pinWidth: 320,
+    stickyTop: QUIZ_ATTEMPT_STICKY_VIEWPORT_TOP,
   });
 
   const measure = useCallback(() => {
     if (!enabled) {
       setState((prev) =>
         prev.isPinned
-          ? { isPinned: false, barHeight: 0, pinLeft: 0, pinWidth: 320 }
+          ? {
+              isPinned: false,
+              barHeight: 0,
+              pinLeft: 0,
+              pinWidth: 320,
+              stickyTop: QUIZ_ATTEMPT_STICKY_VIEWPORT_TOP,
+            }
           : prev,
       );
       return;
     }
 
-    const scrollEl = getQuizDashboardScrollElement();
+    // Dashboard: scroll container riêng; mock test funnel: scroll theo window.
     const sentinel = sentinelRef.current;
     const bar = barRef.current;
     const container = containerRef.current;
-    if (!scrollEl || !sentinel || !bar || !container) return;
+    if (!sentinel || !bar || !container) return;
 
     const barHeight = bar.offsetHeight;
     const containerRect = container.getBoundingClientRect();
     const pinLeft = Math.max(0, containerRect.left);
     const pinWidth = Math.max(200, containerRect.width);
+    const stickyTop = resolveStickyTop();
 
-    const shouldPin =
-      sentinel.getBoundingClientRect().top < QUIZ_ATTEMPT_STICKY_VIEWPORT_TOP;
+    const shouldPin = sentinel.getBoundingClientRect().top < stickyTop;
 
-    if (!shouldPin) {
-      setState({ isPinned: false, barHeight, pinLeft, pinWidth });
-      return;
-    }
-
-    setState({ isPinned: true, barHeight, pinLeft, pinWidth });
+    setState({ isPinned: shouldPin, barHeight, pinLeft, pinWidth, stickyTop });
   }, [enabled]);
 
   useLayoutEffect(() => {
@@ -72,13 +88,21 @@ export function useQuizAttemptStickyPin(enabled: boolean) {
     let ro: ResizeObserver | null = null;
 
     const bind = () => {
-      scrollEl = getQuizDashboardScrollElement();
       const sentinel = sentinelRef.current;
-      if (!scrollEl || !sentinel) return false;
+      if (!sentinel) return false;
+
+      // Không có dashboard container (vd. mock test online funnel) →
+      // scroll theo window: đã có listener window bên dưới; IO root=null (viewport).
+      scrollEl = getQuizDashboardScrollElement();
 
       detachScroll();
-      scrollEl.addEventListener('scroll', measure, { passive: true });
-      detachScroll = () => scrollEl?.removeEventListener('scroll', measure);
+      if (scrollEl) {
+        const el = scrollEl;
+        el.addEventListener('scroll', measure, { passive: true });
+        detachScroll = () => el.removeEventListener('scroll', measure);
+      } else {
+        detachScroll = () => undefined;
+      }
 
       io?.disconnect();
       if (typeof IntersectionObserver !== 'undefined') {
@@ -133,6 +157,5 @@ export function useQuizAttemptStickyPin(enabled: boolean) {
     sentinelRef,
     barRef,
     ...state,
-    stickyTop: QUIZ_ATTEMPT_STICKY_VIEWPORT_TOP,
   };
 }

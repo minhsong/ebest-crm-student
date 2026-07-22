@@ -5,7 +5,10 @@ import {
   buildCrmStudentUrl,
   unwrapCrmResponseBody,
 } from '@/lib/crm-student-proxy';
-import { setPortalSessionCookie } from '@/lib/portal-auth/portal-auth-session.server';
+import {
+  applyPortalAccessTokenCookie,
+  readAccessTokenFromCrmPayload,
+} from '@/lib/portal-auth/apply-portal-auth-success.server';
 import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
 import {
   allowlistGoogleRegisterClientPayload,
@@ -34,8 +37,10 @@ function applySessionCookieFromPayload(
   if (payload.flow !== 'session') return true;
   const credential = extractGoogleSessionCredential(payload);
   if (!credential) return false;
-  setPortalSessionCookie(credential.actor, credential.accessToken);
-  return true;
+  return applyPortalAccessTokenCookie(
+    credential.actor,
+    readAccessTokenFromCrmPayload({ accessToken: credential.accessToken }),
+  );
 }
 
 async function proxyPortalGooglePost(options: {

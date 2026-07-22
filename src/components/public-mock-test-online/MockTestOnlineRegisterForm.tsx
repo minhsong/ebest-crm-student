@@ -5,7 +5,6 @@ import { Typography } from "antd";
 
 import { useFanpageContactUrl } from "@/contexts/portal-contact-links-context";
 import type { MockTestOnlineAttemptStatus } from "@/lib/public-mock-test-online/types";
-import type { PublicRegistrationOptions } from "@/lib/public-mock-test/types";
 import { MockTestGoogleFastRegister } from "./MockTestGoogleFastRegister";
 import { MockTestOnlineFunnelShell } from "./MockTestOnlineFunnelShell";
 import { MockTestOnlineInExamResumeAlert } from "./MockTestOnlineInExamResumeAlert";
@@ -15,8 +14,6 @@ import type { MockTestOnlineInitialContact } from "./useMockTestOnlineIntakeForm
 const { Title, Paragraph } = Typography;
 
 export type MockTestOnlineRegisterFormProps = {
-  profileOptions: PublicRegistrationOptions | null;
-  profileOptionsError?: string | null;
   initialContact?: MockTestOnlineInitialContact | null;
   widgetTitle?: string;
   widgetIntro?: string;
@@ -26,8 +23,6 @@ export type MockTestOnlineRegisterFormProps = {
 };
 
 export function MockTestOnlineRegisterForm({
-  profileOptions,
-  profileOptionsError = null,
   initialContact = null,
   widgetTitle = "Đăng ký",
   widgetIntro = "Đăng ký nhanh bằng Google hoặc điền thông tin liên hệ.",
@@ -62,8 +57,6 @@ export function MockTestOnlineRegisterForm({
           />
           {!googleFlowActive ? (
             <MockTestOnlinePhoneIntakeForm
-              profileOptions={profileOptions}
-              profileOptionsError={profileOptionsError}
               initialContact={initialContact}
               fanpageUrl={fanpageUrl}
             />

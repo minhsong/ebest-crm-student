@@ -43,12 +43,11 @@ export const MESSAGES = {
   /** BL-Q7 — email trùng / invalid (complete-profile). */
   emailAlreadyInSystem:
     'Thông tin email không hợp lệ hoặc đã tồn tại trong hệ thống. Vui lòng kiểm tra lại, đăng nhập nếu bạn đã có tài khoản, hoặc liên hệ Fanpage Ebest để được hỗ trợ.',
-  /** @deprecated dùng emailAlreadyInSystem */
-  duplicateEmail:
-    'Thông tin email không hợp lệ hoặc đã tồn tại trong hệ thống. Vui lòng kiểm tra lại, đăng nhập nếu bạn đã có tài khoản, hoặc liên hệ Fanpage Ebest để được hỗ trợ.',
   networkError: 'Không thể kết nối. Vui lòng thử lại.',
   successTitle: 'Cập nhật thành công',
   successDescription: 'Bạn đã hoàn thành cập nhật thông tin. Cảm ơn bạn và chúc bạn có một khoảng thời gian tuyệt vời tại Ebest. 💖',
   createAccountSuccess: 'Tạo tài khoản thành công.',
-  createAccountDescription: 'Bạn có thể đăng nhập bằng email/SĐT và mật khẩu vừa đặt.',
+  createAccountDescription:
+    'Bạn đã được đăng nhập. Có thể vào cổng học viên ngay.',
+  enterPortalCta: 'Vào cổng học viên →',
 } as const;
