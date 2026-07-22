@@ -9,7 +9,7 @@ import {
 } from '@/lib/public-mock-test-online/exam-session';
 
 export type MockTestOnlineExamGateFailure = {
-	kind: 'session_expired' | 'form_mismatch';
+	kind: 'session_expired' | 'form_mismatch' | 'gate_error';
 	title: string;
 	description: string;
 };
@@ -43,39 +43,54 @@ export function useMockTestOnlineExamGate(): GateResult {
 	useEffect(() => {
 		let cancelled = false;
 		(async () => {
-			const session = await ensureMockTestOnlineExamAuth(registrationIdFromUrl);
-			if (cancelled) return;
+			try {
+				const session = await ensureMockTestOnlineExamAuth(registrationIdFromUrl);
+				if (cancelled) return;
 
-			if (!session || !isMockTestOnlineExamSessionReady(session)) {
+				if (!session || !isMockTestOnlineExamSessionReady(session)) {
+					setAuth(null);
+					setGateFailure({
+						kind: 'session_expired',
+						title: 'Phiên làm bài đã hết hạn',
+						description:
+							'Bạn cần xác nhận lại để vào phòng thi. Nếu còn bài đang làm dở, hãy tiếp tục từ trang đăng ký hoặc lịch sử thi.',
+					});
+					setLoading(false);
+					return;
+				}
+
+				if (
+					formPublicIdFromUrl &&
+					session.formPublicId?.trim() !== formPublicIdFromUrl
+				) {
+					setAuth(null);
+					setGateFailure({
+						kind: 'form_mismatch',
+						title: 'Bài thi không khớp',
+						description:
+							'Liên kết mở không đúng bài thi bạn đã chọn. Hãy quay lại chọn bài thi hoặc tiếp tục từ đúng liên kết.',
+					});
+					setLoading(false);
+					return;
+				}
+
+				setGateFailure(null);
+				setAuth(session);
+				setLoading(false);
+			} catch (e) {
+				if (cancelled) return;
+				if (process.env.NODE_ENV !== 'production') {
+					console.error('[mock-test] exam gate failed', e);
+				}
 				setAuth(null);
 				setGateFailure({
-					kind: 'session_expired',
-					title: 'Phiên làm bài đã hết hạn',
+					kind: 'gate_error',
+					title: 'Không kiểm tra được phiên thi',
 					description:
-						'Bạn cần xác nhận lại để vào phòng thi. Nếu còn bài đang làm dở, hãy tiếp tục từ trang đăng ký hoặc lịch sử thi.',
+						'Không tải được thông tin vào phòng thi. Vui lòng thử lại hoặc quay lại bước xác nhận.',
 				});
 				setLoading(false);
-				return;
 			}
-
-			if (
-				formPublicIdFromUrl &&
-				session.formPublicId?.trim() !== formPublicIdFromUrl
-			) {
-				setAuth(null);
-				setGateFailure({
-					kind: 'form_mismatch',
-					title: 'Bài thi không khớp',
-					description:
-						'Liên kết mở không đúng bài thi bạn đã chọn. Hãy quay lại chọn bài thi hoặc tiếp tục từ đúng liên kết.',
-				});
-				setLoading(false);
-				return;
-			}
-
-			setGateFailure(null);
-			setAuth(session);
-			setLoading(false);
 		})();
 
 		return () => {

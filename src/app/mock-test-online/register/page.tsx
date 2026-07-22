@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { MockTestOnlineRegisterForm } from '@/components/public-mock-test-online/MockTestOnlineRegisterForm';
 import { MockTestOnlineSeoJsonLd } from '@/components/public-mock-test-online/MockTestOnlineSeoJsonLd';
+import { MockTestClientErrorBoundary } from '@/components/public-mock-test-online/MockTestClientErrorBoundary';
 import { loadMockTestOnlineLeadRegisterPageData } from '@/lib/public-mock-test-online/fetch-online.server';
 import { getMockTestOnlineFunnelSessionId } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
 import { resolveRegisterAttemptStatus } from '@/lib/public-mock-test-online/resolve-register-attempt-status.server';
@@ -63,13 +64,15 @@ export default async function MockTestOnlineRegisterPage({
 	return (
 		<>
 			<MockTestOnlineSeoJsonLd seo={seo} />
-			<MockTestOnlineRegisterForm
-				initialContact={initialContact}
-				widgetTitle="Đăng ký"
-				widgetIntro="Tiếp tục nhanh bằng Google hoặc đăng ký bằng số điện thoại và xác minh Zalo."
-				attemptStatus={attemptStatus}
-				intakeBlocked={resumeInExam}
-			/>
+			<MockTestClientErrorBoundary variant="funnel">
+				<MockTestOnlineRegisterForm
+					initialContact={initialContact}
+					widgetTitle="Đăng ký"
+					widgetIntro="Tiếp tục nhanh bằng Google hoặc đăng ký bằng số điện thoại và xác minh Zalo."
+					attemptStatus={attemptStatus}
+					intakeBlocked={resumeInExam}
+				/>
+			</MockTestClientErrorBoundary>
 		</>
 	);
 }

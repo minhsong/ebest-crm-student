@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { Alert, Button, Card, Skeleton, Space } from 'antd';
+import { Button, Card, Skeleton } from 'antd';
 import { QuizAttemptClient } from '@/features/quiz-test/components/QuizAttemptClient';
+import { MockTestClientErrorBoundary } from '@/components/public-mock-test-online/MockTestClientErrorBoundary';
 import { MockTestOnlineFunnelShell } from '@/components/public-mock-test-online/MockTestOnlineFunnelShell';
+import { MockTestOnlineSessionErrorAlert } from '@/components/public-mock-test-online/MockTestOnlineSessionErrorAlert';
 import { useMockTestOnlineExamGate } from '@/components/public-mock-test-online/useMockTestOnlineExamGate';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 
@@ -28,29 +30,34 @@ export function MockTestOnlineExamQuizClient({ entry }: Props) {
 
 	if (gateFailure || !auth) {
 		const failure = gateFailure ?? {
+			kind: 'session_expired' as const,
 			title: 'Không mở được bài thi',
 			description: 'Phiên làm bài không hợp lệ hoặc đã hết hạn.',
 		};
+		const errorCode =
+			failure.kind === 'session_expired'
+				? 'EXAM_SESSION_EXPIRED'
+				: failure.kind === 'gate_error'
+					? 'EXAM_GATE_ERROR'
+					: 'FORM_MISMATCH';
 		return (
 			<MockTestOnlineFunnelShell step="exam">
-				<Alert
-					type="warning"
-					showIcon
-					message={failure.title}
-					description={
-						<Space direction="vertical" size="middle" className="w-full">
-							<span>{failure.description}</span>
-							<Space wrap>
-								<Link href="/mock-test-online/register">
-									<Button type="primary">Về trang đăng ký</Button>
-								</Link>
-								<Link href={PORTAL_MOCK_TEST_ROUTES.results}>
-									<Button>Xem lịch sử thi</Button>
-								</Link>
-							</Space>
-						</Space>
+				<MockTestOnlineSessionErrorAlert
+					message={failure.description}
+					step="exam"
+					errorCode={errorCode}
+					recovery={
+						failure.kind === 'session_expired' ? 'lead_tests' : 'restart'
 					}
 				/>
+				<div className="mt-3 flex flex-wrap gap-2">
+					<Link href="/mock-test-online/register">
+						<Button type="primary">Về trang đăng ký</Button>
+					</Link>
+					<Link href={PORTAL_MOCK_TEST_ROUTES.results}>
+						<Button>Xem lịch sử thi</Button>
+					</Link>
+				</div>
 			</MockTestOnlineFunnelShell>
 		);
 	}
@@ -59,18 +66,11 @@ export function MockTestOnlineExamQuizClient({ entry }: Props) {
 	if (!formPublicId) {
 		return (
 			<MockTestOnlineFunnelShell step="exam">
-				<Alert
-					type="error"
-					showIcon
-					message="Không mở được bài thi"
-					description={
-						<Space direction="vertical" size="middle" className="w-full">
-							<span>Thiếu thông tin đề thi. Vui lòng chọn lại bài thi.</span>
-							<Link href="/mock-test-online/register">
-								<Button type="primary">Đăng ký lại</Button>
-							</Link>
-						</Space>
-					}
+				<MockTestOnlineSessionErrorAlert
+					message="Thiếu thông tin đề thi. Vui lòng chọn lại bài thi."
+					step="exam"
+					errorCode="MISSING_FORM"
+					recovery="restart"
 				/>
 			</MockTestOnlineFunnelShell>
 		);
@@ -89,17 +89,19 @@ export function MockTestOnlineExamQuizClient({ entry }: Props) {
 						: 'mock-test-online-exam-run'
 				}
 			>
-				<QuizAttemptClient
-					formPublicId={formPublicId}
-					effectiveMaxAttempts={
-						typeof auth.effectiveMaxAttempts === 'number' &&
-						auth.effectiveMaxAttempts >= 1
-							? auth.effectiveMaxAttempts
-							: 1
-					}
-					mockTestOnlineEntry={entry}
-					mockTestOnlineRuntime
-				/>
+				<MockTestClientErrorBoundary variant="exam">
+					<QuizAttemptClient
+						formPublicId={formPublicId}
+						effectiveMaxAttempts={
+							typeof auth.effectiveMaxAttempts === 'number' &&
+							auth.effectiveMaxAttempts >= 1
+								? auth.effectiveMaxAttempts
+								: 1
+						}
+						mockTestOnlineEntry={entry}
+						mockTestOnlineRuntime
+					/>
+				</MockTestClientErrorBoundary>
 			</div>
 		</MockTestOnlineFunnelShell>
 	);

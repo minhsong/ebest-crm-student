@@ -9,6 +9,7 @@ import { MockTestOnlineFunnelShell } from '@/components/public-mock-test-online/
 import { MockTestOnlinePortalAccessGuide } from '@/components/public-mock-test-online/MockTestOnlinePortalAccessGuide';
 import { MockTestOnlineEmailVerificationPrompt } from '@/components/public-mock-test-online/MockTestOnlineEmailVerificationPrompt';
 import { MockTestOnlineAttemptLimitAlert } from '@/components/public-mock-test-online/MockTestOnlineAttemptLimitAlert';
+import { MockTestOnlineSessionErrorAlert } from '@/components/public-mock-test-online/MockTestOnlineSessionErrorAlert';
 import { usePortalMockTestInExamStatus } from '@/features/mock-test-portal/hooks/useLeadMockTestInExamStatus';
 import { fetchExamFunnelHint } from '@/lib/complete-profile/check-login-key';
 import {
@@ -32,6 +33,7 @@ export function MockTestOnlineExamDoneClient() {
 	const router = useRouter();
 	const [destination, setDestination] =
 		useState<MockTestPostExamDestination | null>(null);
+	const [destinationError, setDestinationError] = useState(false);
 	const sessionKind =
 		destination?.actor === 'guest' ? 'none' : destination?.actor ?? null;
 	const loggedIn =
@@ -46,8 +48,12 @@ export function MockTestOnlineExamDoneClient() {
 
 	useEffect(() => {
 		void fetchMockTestPostExamDestination()
-			.then(setDestination)
+			.then((dest) => {
+				setDestinationError(false);
+				setDestination(dest);
+			})
 			.catch(() => {
+				setDestinationError(true);
 				setDestination({
 					actor: 'guest',
 					nextPath: '/login?returnUrl=%2Fmock-test%2Fresults',
@@ -71,9 +77,13 @@ export function MockTestOnlineExamDoneClient() {
 			/* best-effort — TTL cookie vẫn hết hạn */
 		});
 		if (!regId) return;
-		void fetchExamFunnelHint(regId).then((hint) => {
-			setHideLeadRegister(hint.hideLeadRegister);
-		});
+		void fetchExamFunnelHint(regId)
+			.then((hint) => {
+				setHideLeadRegister(hint.hideLeadRegister);
+			})
+			.catch(() => {
+				/* không chặn màn done */
+			});
 	}, []);
 
 	const coursesRecommendationsHref = '/lead/courses#recommendations';
@@ -116,6 +126,16 @@ export function MockTestOnlineExamDoneClient() {
 
 	return (
 		<MockTestOnlineFunnelShell step="exam">
+			{destinationError ? (
+				<div className="mb-4">
+					<MockTestOnlineSessionErrorAlert
+						message="Không xác định được bước tiếp theo sau khi nộp bài."
+						step="exam"
+						errorCode="POST_EXAM_DESTINATION_FAILED"
+						recovery="login"
+					/>
+				</div>
+			) : null}
 			<Result
 				icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
 				title="Đã nộp bài thành công"

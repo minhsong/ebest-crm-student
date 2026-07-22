@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Button } from 'antd';
+import { Alert, Button } from 'antd';
 import { PageCard, PageHeader } from '@/components/layout';
 import { LeadConsultCta } from '@/components/lead-portal/LeadConsultCta';
 import { MockTestOnlineAttemptLimitAlert } from '@/components/public-mock-test-online/MockTestOnlineAttemptLimitAlert';
@@ -17,8 +17,11 @@ type Props = {
 
 export function StudentMockTestResultsView({ notice }: Props) {
   const { items, loading, error } = useStudentMockTestResultsPage();
-  const { status: inExamStatus, loading: inExamLoading } =
-    usePortalMockTestInExamStatus(true);
+  const {
+    status: inExamStatus,
+    loading: inExamLoading,
+    error: inExamError,
+  } = usePortalMockTestInExamStatus(true);
   const { siteLinks } = usePortalSiteLinks();
   const showInProgress =
     !inExamLoading && Boolean(inExamStatus?.activeInExam?.resumeAllowed);
@@ -37,6 +40,15 @@ export function StudentMockTestResultsView({ notice }: Props) {
         }
       />
       <PageCard>
+        {inExamError ? (
+          <Alert
+            className="!mb-4"
+            type="warning"
+            showIcon
+            message="Không kiểm tra được bài đang làm"
+            description={inExamError}
+          />
+        ) : null}
         <MockTestOnlineAttemptLimitAlert
           attemptStatus={inExamStatus}
           forced={notice === 'attempt_limit'}

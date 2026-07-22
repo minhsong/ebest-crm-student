@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Button } from 'antd';
+import { Button, Alert } from 'antd';
 import { BulbOutlined } from '@ant-design/icons';
 import { PageCard, PageHeader } from '@/components/layout';
 import { LeadConsultCta } from '@/components/lead-portal/LeadConsultCta';
@@ -18,7 +18,7 @@ type Props = {
 
 export function LeadMockTestResultsView({ notice }: Props) {
   const { items, loading, error, authReady } = useLeadMockTestResultsPage();
-  const { status: inExamStatus, loading: inExamLoading } =
+	const { status: inExamStatus, loading: inExamLoading, error: inExamError } =
     usePortalMockTestInExamStatus(authReady);
   const { siteLinks } = usePortalSiteLinks();
 
@@ -41,6 +41,15 @@ export function LeadMockTestResultsView({ notice }: Props) {
         }
       />
       <PageCard>
+        {inExamError ? (
+          <Alert
+            className="!mb-4"
+            type="warning"
+            showIcon
+            message="Không kiểm tra được bài đang làm"
+            description={inExamError}
+          />
+        ) : null}
         <MockTestOnlineAttemptLimitAlert
           attemptStatus={inExamStatus}
           forced={notice === 'attempt_limit'}

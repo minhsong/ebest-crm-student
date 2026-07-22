@@ -332,8 +332,16 @@ export function useMockTestOnlineZaloVerifySession({
 		try {
 			const data = await fetchMockTestOnlinePendingStatus(pendingId);
 			applyStatusRef.current(data);
-		} catch {
-			// UI đang có poll/WS chạy nền — bỏ qua lỗi tức thời
+			setError(null);
+		} catch (e) {
+			const msg =
+				e instanceof MockTestOnlineApiError
+					? e.message
+					: 'Không kiểm tra lại được trạng thái Zalo. Poll nền vẫn chạy — thử lại sau vài giây.';
+			setError(msg);
+			if (process.env.NODE_ENV !== 'production') {
+				console.error('[mock-test] zalo recheck failed', e);
+			}
 		}
 	}, [pendingRegistrationId]);
 

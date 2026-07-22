@@ -30,7 +30,7 @@ export type IntakeUiError = {
   title: string;
   description: string;
   errorCode?: string;
-  action?: "login" | "contact_support" | "retry";
+  action?: "login" | "contact_support" | "retry" | "resume_email";
 };
 
 export function useMockTestOnlineIntakeForm(
@@ -122,12 +122,15 @@ export function useMockTestOnlineIntakeForm(
             step: "b1_register_intake",
           });
           const action =
-            extracted.action ??
-            (copy.recovery === "login" ||
-            copy.recovery === "contact_support" ||
-            copy.recovery === "retry"
-              ? copy.recovery
-              : "retry");
+            inferredCode === "EMAIL_ALREADY_IN_SYSTEM" ||
+            inferredCode === "PORTAL_EMAIL_ALREADY_REGISTERED"
+              ? "resume_email"
+              : (extracted.action ??
+                (copy.recovery === "login" ||
+                copy.recovery === "contact_support" ||
+                copy.recovery === "retry"
+                  ? copy.recovery
+                  : "retry"));
           const description =
             inferredCode === "RATE_LIMITED" && extracted.message.trim()
               ? extracted.message

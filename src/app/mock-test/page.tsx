@@ -1,4 +1,5 @@
 import { MockTestHub } from '@/features/portal-mock-test/components/MockTestHub';
+import { MockTestClientErrorBoundary } from '@/components/public-mock-test-online/MockTestClientErrorBoundary';
 import { resolvePortalMockTestPrincipal } from '@/features/portal-mock-test/identity/resolve-principal.server';
 import { assertPortalMockTestAccess } from '@/features/portal-mock-test/server/access-guards.server';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
@@ -29,5 +30,9 @@ export default async function PortalMockTestHubPage() {
         ? await fetchCustomerOnlineAttemptStatusSsr()
         : null;
 
-  return <MockTestHub principal={principal} attemptStatus={attemptStatus} />;
+  return (
+    <MockTestClientErrorBoundary variant="portal">
+      <MockTestHub principal={principal} attemptStatus={attemptStatus} />
+    </MockTestClientErrorBoundary>
+  );
 }

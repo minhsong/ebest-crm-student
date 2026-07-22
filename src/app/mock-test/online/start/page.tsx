@@ -2,6 +2,7 @@ import { resolvePortalMockTestPrincipal } from '@/features/portal-mock-test/iden
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 import { assertPortalMockTestAccess } from '@/features/portal-mock-test/server/access-guards.server';
 import { logInternalApiError } from '@/lib/student-safe-errors';
+import { MockTestClientErrorBoundary } from '@/components/public-mock-test-online/MockTestClientErrorBoundary';
 import { PortalMockTestOnlineStartClient } from './start-client';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +20,11 @@ export default async function PortalMockTestOnlineStartPage() {
       capability: 'exam.start',
     });
 
-    return <PortalMockTestOnlineStartClient />;
+    return (
+      <MockTestClientErrorBoundary variant="portal">
+        <PortalMockTestOnlineStartClient />
+      </MockTestClientErrorBoundary>
+    );
   } catch (error) {
     // redirect() của Next ném NEXT_REDIRECT — không report.
     const digest =

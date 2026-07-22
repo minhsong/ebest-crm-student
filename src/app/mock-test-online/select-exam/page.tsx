@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { MockTestOnlineSelectExamForm } from '@/components/public-mock-test-online/MockTestOnlineSelectExamForm';
 import { MockTestOnlineSeoJsonLd } from '@/components/public-mock-test-online/MockTestOnlineSeoJsonLd';
+import { MockTestClientErrorBoundary } from '@/components/public-mock-test-online/MockTestClientErrorBoundary';
 import { loadMockTestOnlineSelectExamPageData } from '@/lib/public-mock-test-online/fetch-online.server';
 import { getMockTestOnlineFunnelSessionId } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
 import { fetchMockTestOnlineSeo } from '@/lib/public-mock-test-online/seo/fetch-seo.server';
@@ -79,13 +80,15 @@ export default async function MockTestOnlineSelectExamPage({
 	return (
 		<>
 			<MockTestOnlineSeoJsonLd seo={seo} />
-			<MockTestOnlineSelectExamForm
-				pendingLeadId={pendingLeadId}
-				campaigns={campaigns}
-				selectedCampaign={selectedCampaign}
-				campaignsError={campaignsError}
-				attemptStatus={attemptStatus}
-			/>
+			<MockTestClientErrorBoundary variant="funnel">
+				<MockTestOnlineSelectExamForm
+					pendingLeadId={pendingLeadId}
+					campaigns={campaigns}
+					selectedCampaign={selectedCampaign}
+					campaignsError={campaignsError}
+					attemptStatus={attemptStatus}
+				/>
+			</MockTestClientErrorBoundary>
 		</>
 	);
 }

@@ -19,6 +19,36 @@ export type MockTestOnlineErrorCopy = {
 
 /** Map errorCode Gateway → copy UX tiếng Việt (SSOT client). Không lộ jargon hệ thống. */
 const ERROR_CODE_COPY: Record<string, MockTestOnlineErrorCopy> = {
+	EXAM_SESSION_EXPIRED: {
+		title: 'Phiên làm bài đã hết hạn',
+		description:
+			'Bạn cần xác nhận lại để vào phòng thi. Nếu còn bài đang làm dở, hãy tiếp tục từ lịch sử thi hoặc đăng ký lại.',
+		expired: true,
+		recovery: 'lead_tests',
+	},
+	EXAM_GATE_ERROR: {
+		title: 'Không kiểm tra được phiên thi',
+		description:
+			'Không tải được thông tin vào phòng thi. Vui lòng thử lại hoặc quay lại bước xác nhận.',
+		recovery: 'retry',
+	},
+	FORM_MISMATCH: {
+		title: 'Bài thi không khớp',
+		description:
+			'Liên kết mở không đúng bài thi bạn đã chọn. Hãy quay lại chọn bài thi hoặc dùng đúng liên kết.',
+		recovery: 'restart',
+	},
+	MISSING_FORM: {
+		title: 'Thiếu thông tin đề thi',
+		description: 'Không xác định được đề thi. Vui lòng chọn lại bài thi từ đầu.',
+		recovery: 'restart',
+	},
+	POST_EXAM_DESTINATION_FAILED: {
+		title: 'Không xác định được bước tiếp theo',
+		description:
+			'Bài đã nộp thành công nhưng hệ thống chưa xác định được trang tiếp theo. Bạn có thể đăng nhập hoặc mở lịch sử thi thủ công.',
+		recovery: 'login',
+	},
 	INVALID_CODE: {
 		title: 'Mã làm bài không đúng',
 		description: 'Kiểm tra lại mã 6 ký tự trong tin nhắn Zalo OA Ebest.',
@@ -103,15 +133,15 @@ const ERROR_CODE_COPY: Record<string, MockTestOnlineErrorCopy> = {
 		recovery: 'retry',
 	},
 	PORTAL_EMAIL_ALREADY_REGISTERED: {
-		title: 'Email đã được dùng trên cổng học viên',
+		title: 'Email đã có trên hệ thống',
 		description:
-			'Đăng nhập tài khoản sẵn có để tiếp tục thi thử, hoặc dùng email khác. Liên hệ Fanpage Ebest nếu bạn cần hỗ trợ.',
+			'Nếu đây là email của bạn: bấm «Gửi link tiếp tục qua email» để nối lại đăng ký (không cần mật khẩu), hoặc đăng nhập Google / cổng học viên nếu đã có tài khoản. Có thể dùng email khác nếu bạn muốn tạo hồ sơ mới.',
 		recovery: 'login',
 	},
 	EMAIL_ALREADY_IN_SYSTEM: {
-		title: 'Email đã được dùng trên cổng học viên',
+		title: 'Email đã có trên hệ thống',
 		description:
-			'Đăng nhập tài khoản sẵn có để tiếp tục thi thử, hoặc dùng email khác. Liên hệ Fanpage Ebest nếu bạn cần hỗ trợ.',
+			'Nếu đây là email của bạn: bấm «Gửi link tiếp tục qua email» để nối lại đăng ký (không cần mật khẩu), hoặc đăng nhập Google / cổng học viên nếu đã có tài khoản. Có thể dùng email khác nếu bạn muốn tạo hồ sơ mới.',
 		recovery: 'login',
 	},
 	PORTAL_PHONE_ALREADY_REGISTERED: {

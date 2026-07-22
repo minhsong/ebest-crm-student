@@ -40,6 +40,11 @@ export function MockTestOnlinePhoneIntakeForm({
   const { form, submitting, intakeError, onFinish, onValuesChange, retry } =
     useMockTestOnlineIntakeForm(initialContact);
 
+  const resumeEmail =
+    Form.useWatch("primaryEmail", form) ??
+    initialContact?.primaryEmail ??
+    "";
+
   return (
     <Form<MockTestOnlineRegisterFormValues>
       form={form}
@@ -59,6 +64,9 @@ export function MockTestOnlinePhoneIntakeForm({
           error={intakeError}
           loginHref={LOGIN_HREF}
           fanpageUrl={fanpageUrl}
+          resumeEmail={
+            typeof resumeEmail === "string" ? resumeEmail : undefined
+          }
           onRetry={retry}
         />
       ) : null}

@@ -1,5 +1,6 @@
 import { LeadMockTestResultsView } from '@/features/mock-test-portal/components/LeadMockTestResultsView';
 import { StudentMockTestResultsView } from '@/features/mock-test-portal/components/StudentMockTestResultsView';
+import { MockTestClientErrorBoundary } from '@/components/public-mock-test-online/MockTestClientErrorBoundary';
 import { resolvePortalMockTestPrincipal } from '@/features/portal-mock-test/identity/resolve-principal.server';
 import { assertPortalMockTestAccess } from '@/features/portal-mock-test/server/access-guards.server';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
@@ -27,9 +28,14 @@ export default async function PortalMockTestResultsPage({
     capability: 'exam.view_result',
   });
 
-  if (principal.actor === 'customer') {
-    return <StudentMockTestResultsView notice={sp.notice?.trim() || null} />;
-  }
+  const view =
+    principal.actor === 'customer' ? (
+      <StudentMockTestResultsView notice={sp.notice?.trim() || null} />
+    ) : (
+      <LeadMockTestResultsView notice={sp.notice?.trim() || null} />
+    );
 
-  return <LeadMockTestResultsView notice={sp.notice?.trim() || null} />;
+  return (
+    <MockTestClientErrorBoundary variant="portal">{view}</MockTestClientErrorBoundary>
+  );
 }

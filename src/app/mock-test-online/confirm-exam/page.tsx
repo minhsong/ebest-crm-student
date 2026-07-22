@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { MockTestOnlineConfirmExamClient } from '@/components/public-mock-test-online/MockTestOnlineConfirmExamClient';
+import { MockTestClientErrorBoundary } from '@/components/public-mock-test-online/MockTestClientErrorBoundary';
 import { loadMockTestOnlineSelectExamPageData } from '@/lib/public-mock-test-online/fetch-online.server';
 import { getMockTestOnlineFunnelSessionId } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
 import { fetchGatewayFunnelSession } from '@/lib/public-mock-test-online/ssr/fetch-mock-test-online-gateway.server';
@@ -44,10 +45,12 @@ export default async function MockTestOnlineConfirmExamPage({
 				</div>
 			}
 		>
-			<MockTestOnlineConfirmExamClient
-				campaigns={campaigns}
-				campaignsError={campaignsError}
-			/>
+			<MockTestClientErrorBoundary variant="funnel">
+				<MockTestOnlineConfirmExamClient
+					campaigns={campaigns}
+					campaignsError={campaignsError}
+				/>
+			</MockTestClientErrorBoundary>
 		</Suspense>
 	);
 }

@@ -30,6 +30,8 @@ export const STUDENT_API = {
   authLeadVerifyEmail: 'auth/lead/verify-email',
   authLeadResendVerification: 'auth/lead/resend-verification',
   authLeadForgotPassword: 'auth/lead/forgot-password',
+  authLeadMtoResumeRequest: 'auth/lead/mto-resume/request',
+  authLeadMtoResumeConsume: 'auth/lead/mto-resume/consume',
   authLeadResetPassword: 'auth/lead/reset-password',
   authLeadChangePassword: 'auth/lead/change-password',
   leadMe: 'lead/me',

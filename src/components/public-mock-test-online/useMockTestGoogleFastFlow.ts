@@ -44,7 +44,11 @@ export function useMockTestGoogleFastFlow() {
   const handleDecision = useCallback(
     async (result: GoogleRegisterFlowResult) => {
       if (result.flow === "session") {
-        message.success("Đăng ký nhanh thành công.");
+        message.success(
+          result.account?.profileCompleted
+            ? "Đăng nhập Google thành công."
+            : "Đăng nhập Google thành công. Tiếp tục chọn bài thi.",
+        );
         await continueToSelectExam();
         return;
       }
