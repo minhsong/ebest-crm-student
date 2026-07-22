@@ -44,7 +44,7 @@ export function MockTestOnlineExamQuizClient({ entry }: Props) {
 			<MockTestOnlineFunnelShell step="exam">
 				<MockTestOnlineSessionErrorAlert
 					message={failure.description}
-					step="exam"
+					step="b3_exam"
 					errorCode={errorCode}
 					recovery={
 						failure.kind === 'session_expired' ? 'lead_tests' : 'restart'
@@ -68,7 +68,7 @@ export function MockTestOnlineExamQuizClient({ entry }: Props) {
 			<MockTestOnlineFunnelShell step="exam">
 				<MockTestOnlineSessionErrorAlert
 					message="Thiếu thông tin đề thi. Vui lòng chọn lại bài thi."
-					step="exam"
+					step="b3_exam"
 					errorCode="MISSING_FORM"
 					recovery="restart"
 				/>

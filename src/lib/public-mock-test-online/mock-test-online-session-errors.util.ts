@@ -107,13 +107,6 @@ const ERROR_CODE_COPY: Record<string, MockTestOnlineErrorCopy> = {
 		description: 'Mỗi đăng ký chỉ được làm bài một lần.',
 		recovery: 'lead_tests',
 	},
-	EXAM_SESSION_EXPIRED: {
-		title: 'Hết thời gian làm bài',
-		description:
-			'Phiên làm bài của bạn đã kết thúc. Liên hệ Ebest nếu bạn cần hỗ trợ.',
-		expired: true,
-		recovery: 'lead_tests',
-	},
 	ATTEMPT_EXPIRED: {
 		title: 'Hết hạn vào làm bài',
 		description:

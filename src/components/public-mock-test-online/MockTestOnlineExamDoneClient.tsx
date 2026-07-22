@@ -130,7 +130,7 @@ export function MockTestOnlineExamDoneClient() {
 				<div className="mb-4">
 					<MockTestOnlineSessionErrorAlert
 						message="Không xác định được bước tiếp theo sau khi nộp bài."
-						step="exam"
+						step="b3_exam"
 						errorCode="POST_EXAM_DESTINATION_FAILED"
 						recovery="login"
 					/>
