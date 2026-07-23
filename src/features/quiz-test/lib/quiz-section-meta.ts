@@ -23,9 +23,13 @@ export function resolveQuizSectionNavMeta(
   activeSectionId: number | null | undefined,
 ): QuizSectionNavMeta {
   const sorted = sortQuizFormSections(sections);
+  const activeId =
+    typeof activeSectionId === 'number' && Number.isFinite(activeSectionId)
+      ? activeSectionId
+      : NaN;
   const idx =
-    sorted.length && typeof activeSectionId === 'number'
-      ? sorted.findIndex((s) => s.sectionId === activeSectionId)
+    sorted.length && Number.isFinite(activeId)
+      ? sorted.findIndex((s) => Number(s.sectionId) === activeId)
       : -1;
 
   return {
@@ -45,7 +49,7 @@ export function findQuizFormSection(
   if (sectionId == null || !Number.isFinite(sectionId) || !sections?.length) {
     return null;
   }
-  return sections.find((s) => s.sectionId === sectionId) ?? null;
+  return sections.find((s) => Number(s.sectionId) === sectionId) ?? null;
 }
 
 /** Heading Alert hướng dẫn — «Phần i/n: title» hoặc chỉ title. */

@@ -52,7 +52,7 @@ export function applyServerTimerSlice(
     ...attempt,
     startedAt: timer.startedAt || attempt.startedAt,
     durationSeconds: timer.durationSeconds ?? attempt.durationSeconds,
-    deadlineAt: timer.deadlineAt,
+    deadlineAt: timer.deadlineAt || attempt.deadlineAt,
     expiresAt: timer.expiresAt ?? attempt.expiresAt,
     timer,
   };
@@ -77,12 +77,15 @@ export function getAttemptTimerValidity(
 }
 
 export function syncRemainingFromAttempt(attempt: StartAttemptResponse): number {
+  // Ưu tiên deadline wall-clock. `timer.remainingSeconds` là snapshot lúc server
+  // build — mỗi lần setAttempt/WS sync nếu lấy lại snapshot sẽ làm đồng hồ đứng/nhảy.
+  const v = getAttemptTimerValidity(attempt);
+  if (v.ok) {
+    return Math.max(0, Math.ceil((v.deadlineMs - Date.now()) / 1000));
+  }
   const fromSlice = remainingSecondsFromTimer(attempt.timer);
   if (fromSlice != null) return fromSlice;
-
-  const v = getAttemptTimerValidity(attempt);
-  if (!v.ok) return REMAINING_UNSET;
-  return Math.max(0, Math.ceil((v.deadlineMs - Date.now()) / 1000));
+  return REMAINING_UNSET;
 }
 
 export function normalizeAttemptAnswers(payload: unknown): Record<string, string | string[]> {

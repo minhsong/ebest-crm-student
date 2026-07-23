@@ -804,7 +804,14 @@ export function useQuizAttemptRuntime({
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [attempt, phase]);
+    // Chỉ re-bind khi mốc thời gian đổi — tránh reset đồng hồ mỗi lần object attempt mới từ WS.
+  }, [
+    attempt?.attemptPublicId,
+    attempt?.deadlineAt,
+    attempt?.durationSeconds,
+    attempt?.startedAt,
+    phase,
+  ]);
 
   // Hết giờ: khóa UI ngay, chờ server (WS / poll) rồi chuyển trang chi tiết.
   useEffect(() => {
@@ -1026,8 +1033,9 @@ export function useQuizAttemptRuntime({
       if (typeof before !== 'number' || before <= 0) return true;
 
       const url = quizRuntimePublicUrl(`attempts/${id}/listening-cycle`, runtimeVariant);
-      const { ok, data } = await fetchQuizRuntimeJson<{
+      const { ok, status, data } = await fetchQuizRuntimeJson<{
         remainingPlaysByListeningUnit?: unknown;
+        message?: string;
       }>(url, {
         method: 'POST',
         body: JSON.stringify({ formItemId: key }),
@@ -1038,11 +1046,25 @@ export function useQuizAttemptRuntime({
         return true;
       }
 
+      if (isQuizAttemptMutationBlockedResponse(status, data)) {
+        lockAttemptSession(
+          'Phiên làm bài đã kết thúc. Không thể tiếp tục phần nghe.',
+        );
+        markServerClosedRef.current();
+        void runDeadlineCloseFlowRef.current(id);
+        return false;
+      }
+
+      if (status === 404) {
+        antdMessage.warning('Phiên làm bài không còn hiệu lực — tải lại trang.');
+        return false;
+      }
+
       setListeningRemaining((prev) => ({ ...prev, [key]: before }));
       antdMessage.warning('Không cập nhật được lượt nghe — thử tải lại trang nếu lỗi lặp lại.');
       return false;
     },
-    [attempt?.attemptPublicId],
+    [attempt?.attemptPublicId, lockAttemptSession],
   );
 
   const forfeitListeningSection = useCallback(
@@ -1057,8 +1079,9 @@ export function useQuizAttemptRuntime({
       setListeningRemaining((prev) => ({ ...prev, [key]: 0 }));
 
       const url = quizRuntimePublicUrl(`attempts/${id}/listening-forfeit`, runtimeVariant);
-      const { ok, data } = await fetchQuizRuntimeJson<{
+      const { ok, status, data } = await fetchQuizRuntimeJson<{
         remainingPlaysByListeningUnit?: unknown;
+        message?: string;
       }>(url, {
         method: 'POST',
         body: JSON.stringify({ formItemId: key }),
@@ -1069,10 +1092,24 @@ export function useQuizAttemptRuntime({
         return;
       }
 
+      if (isQuizAttemptMutationBlockedResponse(status, data)) {
+        lockAttemptSession(
+          'Phiên làm bài đã kết thúc. Không thể tiếp tục phần nghe.',
+        );
+        markServerClosedRef.current();
+        void runDeadlineCloseFlowRef.current(id);
+        return;
+      }
+
+      if (status === 404) {
+        antdMessage.warning('Phiên làm bài không còn hiệu lực — tải lại trang.');
+        return;
+      }
+
       setListeningRemaining((prev) => ({ ...prev, [key]: before }));
       antdMessage.warning('Không khóa lượt nghe còn lại — thử lại.');
     },
-    [attempt?.attemptPublicId],
+    [attempt?.attemptPublicId, lockAttemptSession],
   );
 
   const maybeForfeitListeningOnLeaveSection = useCallback(
@@ -1092,14 +1129,17 @@ export function useQuizAttemptRuntime({
       const rawSections = Array.isArray(formPayload.sections)
         ? formPayload.sections
         : [];
-      const orderedIds = sortQuizFormSections(rawSections).map((s) => s.sectionId);
-
-      const targetIdx = orderedIds.indexOf(targetSectionId);
+      const orderedIds = sortQuizFormSections(rawSections).map((s) =>
+        Number(s.sectionId),
+      );
+      const targetIdx = orderedIds.indexOf(Number(targetSectionId));
       if (targetIdx <= 0) return;
 
       const listeningKeys = buildRemainingPlaysByListeningUnitFromForm(formPayload);
       for (let i = 0; i < targetIdx; i += 1) {
-        const key = quizSectionListeningStorageKey(orderedIds[i]!);
+        const sid = orderedIds[i]!;
+        if (!Number.isFinite(sid)) continue;
+        const key = quizSectionListeningStorageKey(sid);
         if (!Object.prototype.hasOwnProperty.call(listeningKeys, key)) continue;
         const rem = listeningRemainingRef.current[key];
         if (typeof rem === 'number' && rem > 0) {
