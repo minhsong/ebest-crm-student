@@ -121,7 +121,33 @@ export function LoginGoogleSection({
       return;
     }
     if (result.flow === "conflict") {
-      antMessage.error(result.message);
+      const alreadyOnLogin =
+        typeof window !== "undefined" &&
+        window.location.pathname.replace(/\/$/, "") === "/login";
+      modal.confirm({
+        title: "Email đã có tài khoản trên cổng",
+        content: result.message,
+        okText: alreadyOnLogin
+          ? "Đã hiểu"
+          : "Đăng nhập bằng mật khẩu",
+        cancelText: alreadyOnLogin ? undefined : "Đóng",
+        cancelButtonProps: alreadyOnLogin ? { style: { display: "none" } } : undefined,
+        onOk: () => {
+          if (alreadyOnLogin) {
+            antMessage.info(
+              "Vui lòng đăng nhập bằng email và mật khẩu ở form phía trên.",
+            );
+            return;
+          }
+          const qs = new URLSearchParams();
+          if (safeReturnUrl) {
+            qs.set(PORTAL_RETURN_URL_QUERY, safeReturnUrl);
+          }
+          const suffix = qs.toString() ? `?${qs.toString()}` : "";
+          window.location.assign(`/login${suffix}`);
+        },
+      });
+      return;
     }
   };
 
