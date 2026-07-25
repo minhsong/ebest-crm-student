@@ -27,6 +27,8 @@ import {
 	writeSelectExamCache,
 } from '@/lib/public-mock-test-online/exam-flow.util';
 import { postMockTestOnlineSelectExam } from '@/lib/public-mock-test-online/mock-test-online-api.client';
+import { MockTestOnlineApiError } from '@/lib/public-mock-test-online/mock-test-online-api-error';
+import type { MockTestErrorDiagnostics } from '@/lib/public-mock-test-online/mock-test-error-details';
 import { MockTestOnlineFunnelShell } from '@/components/public-mock-test-online/MockTestOnlineFunnelShell';
 import { MockTestOnlineSessionErrorAlert } from '@/components/public-mock-test-online/MockTestOnlineSessionErrorAlert';
 import { MockTestOnlineInExamResumeAlert } from '@/components/public-mock-test-online/MockTestOnlineInExamResumeAlert';
@@ -36,7 +38,8 @@ import { isMockTestOnlineAttemptBlocked } from '@/lib/public-mock-test-online/mo
 const { Text, Title, Paragraph } = Typography;
 
 export type MockTestOnlineSelectExamFormProps = {
-	pendingLeadId: string;
+	/** Legacy Funnel id — auth-first có thể để trống; ownership từ session/BFF. */
+	pendingLeadId?: string;
 	campaigns: MockTestOnlineCampaign[];
 	selectedCampaign: MockTestOnlineCampaign | null;
 	campaignsError?: string | null;
@@ -49,7 +52,7 @@ function formatDuration(minutes: number | null | undefined): string | null {
 }
 
 export function MockTestOnlineSelectExamForm({
-	pendingLeadId,
+	pendingLeadId = '',
 	campaigns,
 	selectedCampaign,
 	campaignsError = null,
@@ -59,7 +62,11 @@ export function MockTestOnlineSelectExamForm({
 	const { message } = App.useApp();
 	const [form] = Form.useForm<MockTestOnlineSelectExamFormValues>();
 	const [submitting, setSubmitting] = useState(false);
-	const [submitError, setSubmitError] = useState<string | null>(null);
+	const [submitError, setSubmitError] = useState<{
+		message: string;
+		errorCode?: string;
+		diagnostics?: MockTestErrorDiagnostics;
+	} | null>(null);
 
 	const sessionId = Form.useWatch('sessionId', form) ?? selectedCampaign?.sessionId;
 
@@ -96,17 +103,22 @@ export function MockTestOnlineSelectExamForm({
 			setSubmitError(null);
 			try {
 				const data = await postMockTestOnlineSelectExam({
-					pendingLeadId: lead,
 					sessionId: resolvedSessionId,
 					testVariantChoice: values.testVariantChoice,
 				});
+
+				const ownershipKey =
+					(data as { accountId?: string }).accountId?.trim() ||
+					data.pendingLeadId?.trim() ||
+					lead ||
+					'';
 
 				const campaignTitle =
 					campaigns.find((c) => c.sessionId === resolvedSessionId)?.title ??
 					selectedCampaign?.title;
 
 				writeSelectExamCache({
-					pendingLeadId: lead,
+					pendingLeadId: ownershipKey,
 					sessionId: resolvedSessionId,
 					testVariantChoice: values.testVariantChoice,
 					pendingRegistrationId: data.pendingRegistrationId,
@@ -137,7 +149,7 @@ export function MockTestOnlineSelectExamForm({
 				}
 
 				const params = new URLSearchParams();
-				params.set('lead', lead);
+				if (ownershipKey) params.set('lead', ownershipKey);
 				params.set('session', String(resolvedSessionId));
 				params.set('pending', data.pendingRegistrationId);
 				if (values.testVariantChoice) {
@@ -145,9 +157,36 @@ export function MockTestOnlineSelectExamForm({
 				}
 				router.push(`/mock-test-online/confirm-exam?${params.toString()}`);
 			} catch (e) {
-				setSubmitError(
-					e instanceof Error ? e.message : 'Không khởi tạo được phiên bài thi.',
-				);
+				if (e instanceof MockTestOnlineApiError) {
+					setSubmitError({
+						message: e.message,
+						errorCode: e.errorCode,
+						diagnostics: {
+							code: e.errorCode,
+							rawMessage: e.detail ?? e.message,
+							errorName: e.name,
+							path: 'b2_select_exam',
+							httpStatus: e.httpStatus,
+							occurredAt: new Date().toISOString(),
+						},
+					});
+				} else {
+					setSubmitError({
+						message:
+							e instanceof Error
+								? e.message
+								: 'Không khởi tạo được phiên bài thi.',
+						diagnostics: {
+							rawMessage:
+								e instanceof Error
+									? `${e.name}: ${e.message}`
+									: String(e),
+							path: 'b2_select_exam',
+							occurredAt: new Date().toISOString(),
+							stack: e instanceof Error ? e.stack?.slice(0, 2500) : undefined,
+						},
+					});
+				}
 			} finally {
 				setSubmitting(false);
 			}
@@ -155,21 +194,15 @@ export function MockTestOnlineSelectExamForm({
 		[message, router, pendingLeadId, selectedCampaign, campaigns],
 	);
 
-	if (!pendingLeadId?.trim()) {
-		return (
-			<MockTestOnlineFunnelShell step="select_exam">
-				<MockTestOnlineSessionErrorAlert
-					message="Không tìm thấy thông tin đăng ký. Vui lòng đăng ký lại."
-					step="b1_register_intake"
-				/>
-			</MockTestOnlineFunnelShell>
-		);
-	}
-
 	if (submitError) {
 		return (
 			<MockTestOnlineFunnelShell step="select_exam">
-				<MockTestOnlineSessionErrorAlert message={submitError} step="b2_select_exam" />
+				<MockTestOnlineSessionErrorAlert
+					message={submitError.message}
+					errorCode={submitError.errorCode}
+					step="b2_select_exam"
+					diagnostics={submitError.diagnostics}
+				/>
 			</MockTestOnlineFunnelShell>
 		);
 	}

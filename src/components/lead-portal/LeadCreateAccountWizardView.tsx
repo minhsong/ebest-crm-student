@@ -4,6 +4,7 @@ import { Alert, Button, Form, Input, Steps } from "antd";
 import type { FormInstance } from "antd";
 
 import { PhoneInputField } from "@/components/phone-input";
+import { validatePhone } from "@/lib/complete-profile/validation";
 import { LeadPortalPasswordFields } from "@/components/lead-portal/LeadPortalPasswordFields";
 import {
   LEAD_REGISTER_STEP_TITLES,
@@ -149,13 +150,13 @@ export function LeadCreateAccountWizardView({
           <Form.Item
             name="phone"
             label="Số điện thoại"
-            rules={[{ required: true, message: "Vui lòng nhập SĐT" }]}
+            rules={[
+              { required: true, message: "Vui lòng nhập SĐT" },
+              { validator: validatePhone },
+            ]}
             getValueFromEvent={(value: string | undefined) => value}
           >
-            <PhoneInputField
-              placeholder="0901234567"
-              onBlur={() => onPrecheck("phone")}
-            />
+            <PhoneInputField placeholder="0901234567" />
           </Form.Item>
           <Form.Item
             name="email"
@@ -175,8 +176,8 @@ export function LeadCreateAccountWizardView({
           </Form.Item>
           {!isGoogleComplete ? (
             <p className="mb-0 text-xs text-gray-500">
-              SĐT và email dùng để đăng nhập cổng thi thử — giống thông tin liên
-              hệ khi đăng ký thi online.
+              Email là tài khoản đăng nhập. Số điện thoại là thông tin liên hệ
+              (bắt buộc, đúng định dạng VN).
             </p>
           ) : null}
         </div>

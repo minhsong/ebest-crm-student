@@ -23,12 +23,13 @@ export function isPortalMockTestFunnelPath(pathname: string): boolean {
 }
 
 /**
- * Path Lead chưa hoàn thiện hồ sơ vẫn được vào (exam.start / exam.resume / funnel).
- * Hub/dashboard KHÔNG nằm trong danh sách — PO-D19: hoàn thiện hồ sơ trước khi
- * vào dashboard/results. Route đích vẫn tự guard capability server-side.
+ * Path Lead chưa hoàn thiện hồ sơ vẫn được vào trước ≥1 bài (PO-D30).
+ * Hub `/mock-test` được phép — SSR gate ép complete-profile sau khi đã có bài xong.
+ * Results/offline: SSR `assertPortalMockTestAccessWithExamHome`.
  */
 export function isLeadIncompleteProfileAllowedPath(pathname: string): boolean {
   const n = pathname.replace(/\/$/, '') || '/';
+  if (n === PORTAL_MOCK_TEST_ROUTES.hub) return true;
   if (n === PORTAL_MOCK_TEST_ROUTES.onlineStart) return true;
   if (n.startsWith(`${PORTAL_MOCK_TEST_ROUTES.onlineStart}/`)) return true;
   if (isPortalMockTestFunnelPath(n)) return true;

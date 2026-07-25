@@ -1,22 +1,25 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { mintMtoPortalAuthorizeToken } from '@/lib/public-mock-test-online/mint-mto-portal-authorize-token.server';
 
-import { getMockTestOnlinePortalAuthorizeTokenFromCookie } from '@/lib/public-mock-test-online/mock-test-online-exam-auth-cookie';
-
-
-
-/** WS mock-test-online — đọc token từ httpOnly cookie (chỉ dùng cho socket auth). */
-
-export async function GET() {
-
-	const token = getMockTestOnlinePortalAuthorizeTokenFromCookie();
-
-	if (!token) {
-
-		return NextResponse.json({ message: 'Phiên làm bài hết hạn.' }, { status: 401 });
-
+/**
+ * WS mock-test-online — mint HMAC từ portal_at + registrationId (không đọc mto_portal_auth).
+ */
+export async function GET(req: NextRequest) {
+	const q = req.nextUrl.searchParams.get('registrationId')?.trim() || '';
+	const registrationId = Number(q);
+	if (!Number.isFinite(registrationId) || registrationId < 1) {
+		return NextResponse.json(
+			{ message: 'Thiếu registrationId để mở phiên làm bài.' },
+			{ status: 400 },
+		);
 	}
 
-	return NextResponse.json({ accessToken: token });
-
+	const minted = await mintMtoPortalAuthorizeToken({ registrationId });
+	if (!minted?.portalAuthorizeToken) {
+		return NextResponse.json(
+			{ message: 'Phiên làm bài hết hạn.' },
+			{ status: 401 },
+		);
+	}
+	return NextResponse.json({ accessToken: minted.portalAuthorizeToken });
 }
-

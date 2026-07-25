@@ -3,14 +3,18 @@ import { MockTestOnlineSelectExamForm } from '@/components/public-mock-test-onli
 import { MockTestOnlineSeoJsonLd } from '@/components/public-mock-test-online/MockTestOnlineSeoJsonLd';
 import { MockTestClientErrorBoundary } from '@/components/public-mock-test-online/MockTestClientErrorBoundary';
 import { loadMockTestOnlineSelectExamPageData } from '@/lib/public-mock-test-online/fetch-online.server';
-import { getMockTestOnlineFunnelSessionId } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
 import { fetchMockTestOnlineSeo } from '@/lib/public-mock-test-online/seo/fetch-seo.server';
 import { buildPageMetadata } from '@/lib/metadata';
 import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
 import { resolveSelectExamAttemptStatus } from '@/lib/public-mock-test-online/resolve-select-exam-attempt-status.server';
-import { fetchGatewayFunnelSession } from '@/lib/public-mock-test-online/ssr/fetch-mock-test-online-gateway.server';
 import { buildMockTestOnlineConfirmExamPath } from '@/lib/public-mock-test-online/select-exam-cache';
-import { assertFunnelMatchesPortalActor } from '@/features/portal-mock-test/server/assert-funnel-identity.server';
+import {
+	buildPortalLoginHref,
+	PORTAL_RETURN_URL_QUERY,
+} from '@/lib/portal-auth/post-auth-return-url';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
+import { fetchPortalMockTestExamHome } from '@/features/portal-mock-test/server/fetch-my-exam-home.server';
+import { LEAD_COMPLETE_PROFILE_PATH } from '@/lib/portal-auth/session-routes';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,74 +25,89 @@ export const metadata = buildPageMetadata({
 });
 
 type PageProps = {
-	searchParams: Promise<{ lead?: string; campaign?: string }>;
+	searchParams: Promise<{ campaign?: string }>;
 };
 
+/**
+ * Auth-first (PO-D17/D24/D30): bắt buộc portal_at trước list/select.
+ * Pending Zalo / in_exam / profile gate từ CRM my-exam-home.
+ */
 export default async function MockTestOnlineSelectExamPage({
 	searchParams,
 }: PageProps) {
-	const sp = await searchParams;
-	const pendingLeadId =
-		sp.lead?.trim() || getMockTestOnlineFunnelSessionId() || '';
-
 	const session = await resolvePortalSessionFromCookies();
-
-	if (pendingLeadId) {
-		const funnel = await fetchGatewayFunnelSession(pendingLeadId);
-		assertFunnelMatchesPortalActor(session, funnel, pendingLeadId);
-		if (
-			funnel?.resumeStep === 'verify' &&
-			funnel.pendingRegistrationId?.trim()
-		) {
-			redirect(
-				buildMockTestOnlineConfirmExamPath({
-					pendingRegistrationId: funnel.pendingRegistrationId.trim(),
-					pendingLeadId: funnel.funnelSessionId,
-					sessionId: funnel.selectedSessionId ?? undefined,
-				}),
-			);
-		}
+	if (session.actor === 'guest') {
+		redirect(
+			buildPortalLoginHref({
+				returnUrl: PORTAL_MOCK_TEST_ROUTES.onlineSelect,
+			}),
+		);
 	}
 
+	const examHome = await fetchPortalMockTestExamHome();
+	if (examHome?.gates?.requireCompleteProfileBeforeSelect) {
+		if (session.actor === 'customer') {
+			redirect(`${PORTAL_MOCK_TEST_ROUTES.hub}?notice=profile_required`);
+		}
+		const q = new URLSearchParams({
+			[PORTAL_RETURN_URL_QUERY]: PORTAL_MOCK_TEST_ROUTES.onlineSelect,
+		});
+		redirect(`${LEAD_COMPLETE_PROFILE_PATH}?${q.toString()}`);
+	}
+	const pendingRegId =
+		examHome?.pendingZalo?.pendingRegistrationId?.trim() ||
+		examHome?.pendingZalo?.pendingId?.trim() ||
+		'';
+	if (pendingRegId) {
+		redirect(
+			buildMockTestOnlineConfirmExamPath({
+				pendingRegistrationId: pendingRegId,
+				sessionId:
+					typeof examHome?.pendingZalo?.sessionId === 'number'
+						? examHome.pendingZalo.sessionId
+						: undefined,
+			}),
+		);
+	}
+	if (examHome?.activeAttempt?.resumeAllowed) {
+		redirect(PORTAL_MOCK_TEST_ROUTES.onlineExamRun);
+	}
+
+	const sp = await searchParams;
 	const campaignRaw = sp.campaign?.trim();
 	const campaignId = campaignRaw ? parseInt(campaignRaw, 10) : undefined;
 
 	const { campaigns, selectedCampaign, campaignsError } =
 		await loadMockTestOnlineSelectExamPageData(
-			pendingLeadId || undefined,
+			undefined,
 			Number.isFinite(campaignId) ? campaignId : undefined,
 		);
 	const seo = await fetchMockTestOnlineSeo();
 
-	const testTypeCode =
-		selectedCampaign?.testTypeCode?.trim() ||
-		campaigns[0]?.testTypeCode?.trim() ||
-		'';
+	// Ưu tiên attemptStatus từ my-exam-home — tránh fetch CRM/GW lần 2.
 	const attemptStatus =
-		testTypeCode &&
-		(pendingLeadId ||
-			session.actor === 'lead' ||
-			session.actor === 'customer')
+		examHome?.attemptStatus ??
+		(session.actor === 'lead' || session.actor === 'customer'
 			? await resolveSelectExamAttemptStatus({
 					session,
-					pendingLeadId,
-					testTypeCode,
+					testTypeCode:
+						selectedCampaign?.testTypeCode?.trim() ||
+						campaigns[0]?.testTypeCode?.trim() ||
+						undefined,
 					sessionId: selectedCampaign?.sessionId,
 				})
-			: null;
+			: null);
 
 	return (
-		<>
+		<MockTestClientErrorBoundary>
 			<MockTestOnlineSeoJsonLd seo={seo} />
-			<MockTestClientErrorBoundary variant="funnel">
-				<MockTestOnlineSelectExamForm
-					pendingLeadId={pendingLeadId}
-					campaigns={campaigns}
-					selectedCampaign={selectedCampaign}
-					campaignsError={campaignsError}
-					attemptStatus={attemptStatus}
-				/>
-			</MockTestClientErrorBoundary>
-		</>
+			<MockTestOnlineSelectExamForm
+				campaigns={campaigns}
+				selectedCampaign={selectedCampaign}
+				campaignsError={campaignsError}
+				attemptStatus={attemptStatus}
+				pendingLeadId=""
+			/>
+		</MockTestClientErrorBoundary>
 	);
 }

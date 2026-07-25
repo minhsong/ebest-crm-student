@@ -237,3 +237,17 @@ export type MockTestOnlineAuthorizeResponse = {
 
 };
 
+/** Wire types — publisher CRM (`@ebest/crm-api-types`). */
+export type {
+	MockTestOnlineFunnelSessionResumeDto,
+	MockTestOnlineProvisionLeadSessionResponse,
+	MockTestOnlineFunnelResumeStep,
+	MockTestOnlineFunnelSessionStatus,
+} from '@ebest/crm-api-types/student/mock-test-online';
+
+export {
+	MOCK_TEST_ONLINE_FUNNEL_TERMINAL_DENY_CODES,
+	MOCK_TEST_ONLINE_FUNNEL_TERMINAL_DENY_CODE_SET,
+	MOCK_TEST_ONLINE_COOKIE,
+} from '@ebest/crm-api-types/student/mock-test-online';
+

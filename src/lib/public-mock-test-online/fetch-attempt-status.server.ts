@@ -1,9 +1,12 @@
-import { getApiBaseUrl } from '@/lib/env';
 import { unwrapCrmResponseBody } from '@/lib/crm-student-proxy';
 import type { MockTestOnlineAttemptStatus } from '@/lib/public-mock-test-online/types';
+import {
+	buildPublicMockTestCrmUrl,
+	buildPublicMockTestCrmHeaders,
+	fetchPublicMockTestCrmJson,
+} from '@/lib/public-mock-test-online/proxy-public-mock-test-crm.server';
 
-export function buildMockTestOnlineAttemptStatusUrl(
-	apiBase: string,
+export function buildMockTestOnlineAttemptStatusPath(
 	omniLeadId: string,
 	testTypeCode: string,
 	options?: { sessionId?: number; phoneNormalized?: string },
@@ -18,7 +21,22 @@ export function buildMockTestOnlineAttemptStatusUrl(
 	if (options?.phoneNormalized?.trim()) {
 		qs.set('phoneNormalized', options.phoneNormalized.trim());
 	}
-	return `${apiBase.replace(/\/$/, '')}/api/v1/public/mock-test-online/attempt-status?${qs}`;
+	return `attempt-status?${qs}`;
+}
+
+/** @deprecated Prefer buildMockTestOnlineAttemptStatusPath + proxy. */
+export function buildMockTestOnlineAttemptStatusUrl(
+	apiBase: string,
+	omniLeadId: string,
+	testTypeCode: string,
+	options?: { sessionId?: number; phoneNormalized?: string },
+): string {
+	const path = buildMockTestOnlineAttemptStatusPath(
+		omniLeadId,
+		testTypeCode,
+		options,
+	);
+	return `${apiBase.replace(/\/$/, '')}/api/v1/public/mock-test-online/${path}`;
 }
 
 function parseAttemptStatusPayload(data: unknown): MockTestOnlineAttemptStatus | null {
@@ -27,7 +45,7 @@ function parseAttemptStatusPayload(data: unknown): MockTestOnlineAttemptStatus |
 	return payload as MockTestOnlineAttemptStatus;
 }
 
-/** SSR — gọi CRM public attempt-status (server-side, có cache 60s). */
+/** SSR — gọi CRM public attempt-status qua proxy SSOT. */
 export async function fetchMockTestOnlineAttemptStatus(
 	omniLeadId: string,
 	testTypeCode: string,
@@ -37,17 +55,12 @@ export async function fetchMockTestOnlineAttemptStatus(
 	const typeCode = testTypeCode.trim();
 	if (!leadId || !typeCode) return null;
 
-	const apiBase = getApiBaseUrl();
-	if (!apiBase) return null;
+	const path = buildMockTestOnlineAttemptStatusPath(leadId, typeCode, options);
+	const url = buildPublicMockTestCrmUrl(path);
+	if (!url) return null;
 
-	const url = buildMockTestOnlineAttemptStatusUrl(
-		apiBase,
-		leadId,
-		typeCode,
-		options,
-	);
 	const res = await fetch(url, {
-		headers: { Accept: 'application/json' },
+		headers: buildPublicMockTestCrmHeaders(),
 		next: { revalidate: 60 },
 	});
 	if (!res.ok) return null;
@@ -68,28 +81,20 @@ export async function fetchMockTestOnlineAttemptStatusNoStore(
 		return { status: null, httpStatus: 400 };
 	}
 
-	const apiBase = getApiBaseUrl();
-	if (!apiBase) {
+	const path = buildMockTestOnlineAttemptStatusPath(leadId, typeCode, options);
+	const result = await fetchPublicMockTestCrmJson({
+		path,
+		logContext: 'mto.attempt-status',
+	});
+	if (result.configMissing) {
 		return { status: null, httpStatus: 500 };
 	}
-
-	const url = buildMockTestOnlineAttemptStatusUrl(
-		apiBase,
-		leadId,
-		typeCode,
-		options,
-	);
-	const res = await fetch(url, {
-		headers: { Accept: 'application/json' },
-		cache: 'no-store',
-	});
-	const data = await res.json().catch(() => ({}));
-	if (!res.ok) {
-		return { status: null, httpStatus: res.status };
+	if (!result.ok) {
+		return { status: null, httpStatus: result.status };
 	}
 
 	return {
-		status: parseAttemptStatusPayload(data),
-		httpStatus: res.status,
+		status: parseAttemptStatusPayload(result.data ?? result.raw),
+		httpStatus: result.status,
 	};
 }

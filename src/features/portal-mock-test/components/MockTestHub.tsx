@@ -20,10 +20,17 @@ const { Paragraph, Text } = Typography;
 type Props = {
   principal: PortalMockTestPrincipal;
   attemptStatus?: MockTestOnlineAttemptStatus | null;
+  notice?: string | null;
+  hasCompletedOnlineExam?: boolean;
 };
 
-export function MockTestHub({ principal, attemptStatus = null }: Props) {
-  const access = resolveMockTestHubAccess(principal);
+export function MockTestHub({
+  principal,
+  attemptStatus = null,
+  notice = null,
+  hasCompletedOnlineExam = false,
+}: Props) {
+  const access = resolveMockTestHubAccess(principal, { hasCompletedOnlineExam });
   const onlineState = resolveMockTestHubOnlineState(attemptStatus);
   const onlineHref =
     onlineState.kind === 'resume' || onlineState.kind === 'blocked'
@@ -38,18 +45,43 @@ export function MockTestHub({ principal, attemptStatus = null }: Props) {
           ? 'Bắt đầu thi online'
           : 'Đăng nhập để thi';
 
+  const profileHint =
+    notice === 'profile_required' ||
+    (access.needsProfileCompletion && hasCompletedOnlineExam);
+
   return (
     <>
       <PageHeader
         title="Thi thử"
         description="Chọn hình thức phù hợp để kiểm tra năng lực, làm quen với kỳ thi và theo dõi quá trình tiến bộ của bạn."
       />
-      {access.needsProfileCompletion ? (
+      {profileHint ? (
+        <PageCard className="mb-4">
+          <Text type="warning">
+            Bạn đã hoàn thành một bài thi. Vui lòng{' '}
+            {principal.actor === 'lead' ? (
+              <Link href="/lead/complete-profile">hoàn thiện hồ sơ (SĐT bắt buộc)</Link>
+            ) : (
+              <span>cập nhật số điện thoại trên hồ sơ học viên</span>
+            )}{' '}
+            để xem điểm và thi tiếp.
+          </Text>
+        </PageCard>
+      ) : access.needsProfileCompletion ? (
         <PageCard className="mb-4">
           <Text type="warning">
             Bạn có thể thi online ngay. Vui lòng{' '}
-            <Link href="/lead/complete-profile">hoàn thiện hồ sơ</Link> để xem
-            kết quả và đăng ký thi tại trung tâm.
+            {principal.actor === 'lead' ? (
+              <>
+                <Link href="/lead/complete-profile">hoàn thiện hồ sơ</Link> để xem
+                kết quả và đăng ký thi tại trung tâm.
+              </>
+            ) : (
+              <span>
+                bổ sung số điện thoại trên hồ sơ để xem kết quả đầy đủ sau bài thi
+                đầu.
+              </span>
+            )}
           </Text>
         </PageCard>
       ) : null}

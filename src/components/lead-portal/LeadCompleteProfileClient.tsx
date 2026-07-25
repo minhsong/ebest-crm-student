@@ -20,6 +20,7 @@ import {
   resolvePostAuthReturnUrl,
 } from '@/lib/portal-auth/post-auth-return-url';
 import { PhoneInputField } from '@/components/phone-input';
+import { validatePhone } from '@/lib/complete-profile/validation';
 
 type FormValues = {
   displayName: string;
@@ -170,8 +171,8 @@ export function LeadCompleteProfileClient({
               type="info"
               showIcon
               className="mb-4"
-              message="Tài khoản đã tạo — chưa hoàn thiện hồ sơ"
-              description="Điền đúng họ tên để trung tâm liên hệ và hiển thị trên kết quả thi."
+              message="Hoàn thiện hồ sơ để xem điểm và thi tiếp"
+              description="Số điện thoại là bắt buộc. Sau khi hoàn tất, bạn có thể xem kết quả bài thi và đăng ký bài thi tiếp theo."
             />
             <Form.Item
               name="phone"
@@ -181,6 +182,7 @@ export function LeadCompleteProfileClient({
                   required: true,
                   message: 'Vui lòng nhập số điện thoại',
                 },
+                { validator: validatePhone },
               ]}
             >
               <PhoneInputField placeholder="0901234567" />

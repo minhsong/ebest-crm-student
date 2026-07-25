@@ -17,20 +17,30 @@ function loginHref(mode: 'lead' | 'student', returnPath: string): string {
 /** SSOT href + gate cho hub và các entry mock-test. */
 export function resolveMockTestHubAccess(
   principal: PortalMockTestPrincipal,
+  opts?: { hasCompletedOnlineExam?: boolean },
 ): MockTestHubAccess {
+  const hasCompletedOnlineExam = opts?.hasCompletedOnlineExam === true;
+
   if (principal.actor === 'customer') {
+    const incomplete = !principal.profileCompleted;
+    // PO-D30: sau ≥1 bài mới cần SĐT để xem điểm / offline.
+    const gateAfterExam = incomplete && hasCompletedOnlineExam;
     return {
       canUse: true,
       onlineHref: PORTAL_MOCK_TEST_ROUTES.onlineStart,
-      offlineHref: PORTAL_MOCK_TEST_ROUTES.offline,
-      resultsHref: PORTAL_MOCK_TEST_ROUTES.results,
-      needsProfileCompletion: false,
+      offlineHref: gateAfterExam
+        ? `${PORTAL_MOCK_TEST_ROUTES.hub}?notice=profile_required`
+        : PORTAL_MOCK_TEST_ROUTES.offline,
+      resultsHref: gateAfterExam
+        ? `${PORTAL_MOCK_TEST_ROUTES.hub}?notice=profile_required`
+        : PORTAL_MOCK_TEST_ROUTES.results,
+      needsProfileCompletion: incomplete,
     };
   }
 
   if (principal.actor === 'lead') {
     if (!principal.profileCompleted) {
-      // exam.start được phép khi thiếu hồ sơ; results/offline vẫn gate.
+      // Bài đầu: thi online OK; results/offline → wizard (đặc biệt sau ≥1 bài SSR cũng chặn).
       return {
         canUse: true,
         onlineHref: PORTAL_MOCK_TEST_ROUTES.onlineStart,

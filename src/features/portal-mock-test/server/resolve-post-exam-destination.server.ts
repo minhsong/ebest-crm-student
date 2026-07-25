@@ -23,7 +23,10 @@ export async function resolvePostExamDestination(): Promise<PostExamDestination>
       profileCompleted: session.profile.profileCompleted === true,
     };
   } else if (session.actor === 'customer') {
-    routeSession = { kind: 'customer' };
+    routeSession = {
+      kind: 'customer',
+      profileCompleted: Boolean(session.customer.primaryPhone?.trim()),
+    };
   } else {
     routeSession = { kind: 'none' };
   }

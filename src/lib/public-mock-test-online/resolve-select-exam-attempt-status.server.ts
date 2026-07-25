@@ -1,18 +1,19 @@
 import type { MockTestOnlineAttemptStatus } from '@/lib/public-mock-test-online/types';
 import { MOCK_TEST_ONLINE_DEFAULT_TEST_TYPE } from '@/lib/public-mock-test-online/constants';
 import { fetchMockTestOnlineAttemptStatus } from '@/lib/public-mock-test-online/fetch-attempt-status.server';
-import { fetchGatewayLeadPendingAttemptContext } from '@/lib/public-mock-test-online/ssr/fetch-mock-test-online-gateway.server';
 import type { PortalSessionPayload } from '@/lib/portal-auth/resolve-portal-session.server';
+import { fetchPortalMockTestExamHome } from '@/features/portal-mock-test/server/fetch-my-exam-home.server';
 
 export type ResolveSelectExamAttemptStatusInput = {
   session: PortalSessionPayload;
-  pendingLeadId: string;
+  /** @deprecated Funnel — auth-first bỏ qua. */
+  pendingLeadId?: string;
   testTypeCode?: string;
   sessionId?: number;
 };
 
 /**
- * SSOT attempt-status trên select-exam — lead cookie hoặc guest pending (GW).
+ * SSOT attempt-status trên select-exam — auth-first qua omniLeadId / my-exam-home.
  */
 export async function resolveSelectExamAttemptStatus(
   input: ResolveSelectExamAttemptStatusInput,
@@ -33,24 +34,20 @@ export async function resolveSelectExamAttemptStatus(
   }
 
   if (input.session.actor === 'customer') {
-    const pendingLeadId = input.pendingLeadId.trim();
-    if (!pendingLeadId) return null;
-    const ctx = await fetchGatewayLeadPendingAttemptContext(pendingLeadId);
-    if (!ctx?.omniLeadId) return null;
-    return fetchMockTestOnlineAttemptStatus(ctx.omniLeadId, typeCode, {
+    const home = await fetchPortalMockTestExamHome();
+    const omniLeadId = home?.account?.omniLeadId?.trim();
+    if (!omniLeadId) {
+      // Fallback: activeAttempt từ home nếu CRM đã embed.
+      if (home?.attemptStatus) {
+        return home.attemptStatus as MockTestOnlineAttemptStatus;
+      }
+      return null;
+    }
+    return fetchMockTestOnlineAttemptStatus(omniLeadId, typeCode, {
       sessionId,
-      phoneNormalized: ctx.primaryPhoneE164 ?? undefined,
+      phoneNormalized: home?.account?.phone?.trim() || undefined,
     });
   }
 
-  const pendingLeadId = input.pendingLeadId.trim();
-  if (!pendingLeadId) return null;
-
-  const ctx = await fetchGatewayLeadPendingAttemptContext(pendingLeadId);
-  if (!ctx?.omniLeadId) return null;
-
-  return fetchMockTestOnlineAttemptStatus(ctx.omniLeadId, typeCode, {
-    sessionId,
-    phoneNormalized: ctx.primaryPhoneE164 ?? undefined,
-  });
+  return null;
 }

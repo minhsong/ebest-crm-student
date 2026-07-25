@@ -49,6 +49,16 @@ export function MockTestOnlineExamQuizClient({ entry }: Props) {
 					recovery={
 						failure.kind === 'session_expired' ? 'lead_tests' : 'restart'
 					}
+					diagnostics={{
+						code: errorCode,
+						rawMessage: failure.detail ?? failure.description,
+						path: 'b3_exam',
+						occurredAt: new Date().toISOString(),
+						extra: {
+							kind: failure.kind,
+							title: failure.title,
+						},
+					}}
 				/>
 				<div className="mt-3 flex flex-wrap gap-2">
 					<Link href="/mock-test-online/register">

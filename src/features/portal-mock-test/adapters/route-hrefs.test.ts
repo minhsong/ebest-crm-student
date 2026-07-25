@@ -23,6 +23,8 @@ describe('resolveMockTestHubAccess', () => {
         actor: 'customer',
         customerId: 1,
         displayName: 'HV',
+        profileCompleted: true,
+        phoneE164: '+84901234567',
       }),
     ).toEqual({
       canUse: true,
@@ -31,6 +33,21 @@ describe('resolveMockTestHubAccess', () => {
       resultsHref: PORTAL_MOCK_TEST_ROUTES.results,
       needsProfileCompletion: false,
     });
+  });
+
+  it('customer incomplete after exam → gate results/offline', () => {
+    const access = resolveMockTestHubAccess(
+      {
+        actor: 'customer',
+        customerId: 1,
+        displayName: 'HV',
+        profileCompleted: false,
+        phoneE164: null,
+      },
+      { hasCompletedOnlineExam: true },
+    );
+    expect(access.needsProfileCompletion).toBe(true);
+    expect(access.resultsHref).toContain('profile_required');
   });
 
   it('lead incomplete profile → online start; results/offline → complete-profile', () => {

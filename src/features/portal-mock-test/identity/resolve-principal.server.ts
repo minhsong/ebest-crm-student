@@ -30,10 +30,13 @@ export async function resolvePortalMockTestPrincipal(): Promise<PortalMockTestPr
   }
 
   if (session.actor === 'customer') {
+    const phone = session.customer.primaryPhone?.trim() || null;
     return {
       actor: 'customer',
       customerId: session.customer.id,
       displayName: session.displayName,
+      phoneE164: phone,
+      profileCompleted: Boolean(phone),
     };
   }
 

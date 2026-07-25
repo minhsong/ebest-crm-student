@@ -31,6 +31,9 @@ export type IntakeUiError = {
   description: string;
   errorCode?: string;
   action?: "login" | "contact_support" | "retry" | "resume_email";
+  /** Message / detail gốc (phase test — copy gửi hỗ trợ). */
+  detail?: string;
+  httpStatus?: number;
 };
 
 export function useMockTestOnlineIntakeForm(
@@ -144,6 +147,11 @@ export function useMockTestOnlineIntakeForm(
             description,
             errorCode: inferredCode,
             action,
+            detail:
+              typeof data.detail === "string"
+                ? data.detail
+                : extracted.detail ?? extracted.message,
+            httpStatus: response.status,
           });
           return;
         }
@@ -154,6 +162,7 @@ export function useMockTestOnlineIntakeForm(
             description:
               "Vui lòng thử lại. Nếu vẫn lỗi, liên hệ Fanpage Ebest để được hỗ trợ.",
             action: "retry",
+            detail: JSON.stringify(data).slice(0, 1500),
           });
           return;
         }
@@ -178,6 +187,10 @@ export function useMockTestOnlineIntakeForm(
             copy.recovery === "retry"
               ? copy.recovery
               : "retry",
+          detail:
+            error instanceof Error
+              ? `${error.name}: ${error.message}`
+              : String(error),
         });
       } finally {
         setSubmitting(false);

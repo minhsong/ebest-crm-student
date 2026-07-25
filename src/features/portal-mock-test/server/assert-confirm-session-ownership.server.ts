@@ -1,33 +1,12 @@
-import { evaluateFunnelMatchesPortalActor } from '@/features/portal-mock-test/server/assert-funnel-identity.server';
 import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
-import { getMockTestOnlineFunnelSessionId } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
-import { fetchGatewayFunnelSession } from '@/lib/public-mock-test-online/ssr/fetch-mock-test-online-gateway.server';
+import { fetchPortalMockTestExamHome } from '@/features/portal-mock-test/server/fetch-my-exam-home.server';
 
 export type ConfirmSessionOwnershipResult =
-  | { ok: true; funnelSessionId: string }
+  | { ok: true; accountId: string }
   | { ok: false; status: number; message: string };
 
-export function funnelOwnsPendingRegistration(
-  funnelPendingRegistrationId: string | null | undefined,
-  pendingRegistrationId: string,
-): boolean {
-  const owned = funnelPendingRegistrationId?.trim() || '';
-  const requested = pendingRegistrationId.trim();
-  return Boolean(owned) && owned === requested;
-}
-
-export function funnelOwnsSelectRequest(
-  funnelSessionId: string | null | undefined,
-  pendingLeadId: string,
-): boolean {
-  const funnelId = funnelSessionId?.trim() || '';
-  const pendingId = pendingLeadId.trim();
-  return Boolean(funnelId) && funnelId === pendingId;
-}
-
 /**
- * P5h — confirm-session / pending status không còn là bearer-capability chỉ từ UUID.
- * Bắt buộc HttpOnly funnel cookie khớp pendingRegistrationId (+ actor nếu đã login).
+ * Auth-first (PO-D24/D25) — confirm/status ownership theo portal_at + Redis pending account.
  */
 export async function resolveConfirmSessionOwnership(
   pendingRegistrationId: string,
@@ -41,25 +20,30 @@ export async function resolveConfirmSessionOwnership(
     };
   }
 
-  const funnelSessionId = getMockTestOnlineFunnelSessionId()?.trim() || '';
-  if (!funnelSessionId) {
+  const session = await resolvePortalSessionFromCookies();
+  if (session.actor === 'guest') {
     return {
       ok: false,
-      status: 403,
-      message: 'Phiên đăng ký không hợp lệ hoặc đã hết hạn.',
+      status: 401,
+      message: 'Vui lòng đăng nhập để tiếp tục xác nhận thi thử.',
     };
   }
 
-  const funnel = await fetchGatewayFunnelSession(funnelSessionId);
-  if (!funnel) {
+  const home = await fetchPortalMockTestExamHome();
+  const accountId = home?.account?.accountId?.trim() || '';
+  if (!accountId) {
     return {
       ok: false,
       status: 403,
-      message: 'Phiên đăng ký không hợp lệ hoặc đã hết hạn.',
+      message: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.',
     };
   }
 
-  if (!funnelOwnsPendingRegistration(funnel.pendingRegistrationId, pendingId)) {
+  const pendingFromHome =
+    home?.pendingZalo?.pendingRegistrationId?.trim() ||
+    home?.pendingZalo?.pendingId?.trim() ||
+    '';
+  if (!pendingFromHome || pendingFromHome !== pendingId) {
     return {
       ok: false,
       status: 403,
@@ -67,19 +51,5 @@ export async function resolveConfirmSessionOwnership(
     };
   }
 
-  const session = await resolvePortalSessionFromCookies();
-  const actorMatch = evaluateFunnelMatchesPortalActor(
-    session,
-    funnel,
-    funnelSessionId,
-  );
-  if (!actorMatch.ok) {
-    return {
-      ok: false,
-      status: 403,
-      message: 'Phiên đăng nhập không khớp đăng ký thi thử.',
-    };
-  }
-
-  return { ok: true, funnelSessionId };
+  return { ok: true, accountId };
 }

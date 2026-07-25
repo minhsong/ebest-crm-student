@@ -11,7 +11,7 @@ import type {
 } from "./lead-create-account.types";
 
 const LOGIN_KEY_CONFLICT_MSG =
-  "Email hoặc số điện thoại đã được dùng trên hệ thống. Vui lòng đăng nhập hoặc dùng thông tin khác.";
+  "Email đã được dùng trên hệ thống. Vui lòng đăng nhập hoặc dùng email khác.";
 
 type Input = {
   form: FormInstance<LeadCreateAccountFormValues>;
@@ -21,8 +21,7 @@ type Input = {
 };
 
 /**
- * Precheck chỉ hỗ trợ UX; submit API vẫn là SSOT chống trùng.
- * Sequence guard loại bỏ response cũ khi người dùng blur/chuyển bước liên tiếp.
+ * Precheck UX cho **email** (login key). SĐT chỉ validate format trên form (PO-D32).
  */
 export function useLeadLoginKeyPrecheck({
   form,
@@ -44,6 +43,7 @@ export function useLeadLoginKeyPrecheck({
 
   const checkField = useCallback(
     async (field: "email" | "phone") => {
+      if (field === "phone") return;
       if (
         advancing.current ||
         (entryMode === "google_complete" && field === "email")
@@ -57,9 +57,7 @@ export function useLeadLoginKeyPrecheck({
         return;
       }
       try {
-        const result = await checkLoginKeyAvailability({
-          ...(field === "email" ? { email: value } : { phone: value }),
-        });
+        const result = await checkLoginKeyAvailability({ email: value });
         if (requestId !== requestSequence.current) return;
         if (!result.available) {
           setWarning(LOGIN_KEY_CONFLICT_MSG);
@@ -89,7 +87,7 @@ export function useLeadLoginKeyPrecheck({
     const phone = values.phone?.trim();
     ++requestSequence.current;
     try {
-      const result = await checkLoginKeyAvailability({ email, phone });
+      const result = await checkLoginKeyAvailability({ email });
       if (!result.available) {
         setWarning(LOGIN_KEY_CONFLICT_MSG);
         setWarningAction(result.action ?? "login");
@@ -97,7 +95,7 @@ export function useLeadLoginKeyPrecheck({
       }
       clearWarning();
     } catch {
-      // Cho phép tiếp tục; submit API vẫn enforce conflict.
+      // Cho phép tiếp tục; submit API vẫn enforce conflict email.
     } finally {
       advancing.current = false;
     }

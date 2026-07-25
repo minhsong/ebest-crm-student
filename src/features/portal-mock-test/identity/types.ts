@@ -12,11 +12,13 @@ export type PortalMockTestLeadPrincipal = {
   profile: LeadProfile;
 };
 
-/** Phase 2 — portal khóa theo customerId, không omniLeadId. */
+/** Phase 2 — portal khóa theo customerId; hồ sơ đủ = có SĐT (PO-D30/D32). */
 export type PortalMockTestCustomerPrincipal = {
   actor: 'customer';
   customerId: number;
   displayName: string;
+  profileCompleted: boolean;
+  phoneE164: string | null;
 };
 
 export type PortalMockTestGuestPrincipal = {

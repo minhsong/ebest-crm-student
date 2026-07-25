@@ -1,10 +1,8 @@
-/**
- * Server-only: gọi CRM public mock-test — không expose GET qua Route Handler client.
- */
 import { getApiBaseUrl } from '@/lib/env';
 import { unwrapCrmResponseBody } from '@/lib/crm-student-proxy';
 import { parseStudentMeCustomerBrief } from '@/lib/parse-student-me-customer';
 import { fetchStudentMeForSsr } from '@/lib/server/student-me';
+import { resolveCrmServiceKey } from '@/lib/service-keys';
 import type {
 	PublicLocationGroup,
 	PublicRegistrationOptions,
@@ -45,10 +43,10 @@ function crmPublicMockTestHeaders(): HeadersInit {
 		Origin: origin,
 		Referer: `${origin}/mock-test-register`,
 	};
-	// Chỉ cần khi CRM bật PUBLIC_REG_ORIGIN_CHECK_ENABLED=true
-	const serverToken = process.env.PUBLIC_REG_SERVER_TOKEN?.trim();
-	if (serverToken) {
-		headers['X-Public-Reg-Server-Token'] = serverToken;
+	const crmKey = resolveCrmServiceKey();
+	if (crmKey) {
+		headers.Authorization = `Bearer ${crmKey}`;
+		headers['X-Public-Reg-Server-Token'] = crmKey;
 	}
 	return headers;
 }

@@ -25,6 +25,7 @@ import {
   buildQuizAuthorizeCacheKey,
   resolveQuizAuthorizeCached,
 } from '@/lib/quiz-bff-authorize-cache';
+import { resolveGatewayServiceKey } from '@/lib/service-keys';
 
 function buildParticipantSnapshotForStart(
   bodySnapshot: Record<string, unknown> | undefined,
@@ -90,7 +91,7 @@ function isUuid(s: string): boolean {
 
 function getGatewayConfig(): GatewayConfig | null {
   const baseUrl = process.env.SOCIAL_GATEWAY_BASE_URL?.replace(/\/$/, '') ?? '';
-  const serviceToken = process.env.SOCIAL_GATEWAY_SERVICE_TOKEN?.trim() ?? '';
+  const serviceToken = resolveGatewayServiceKey();
   if (!baseUrl || !serviceToken) return null;
   return { baseUrl, serviceToken };
 }

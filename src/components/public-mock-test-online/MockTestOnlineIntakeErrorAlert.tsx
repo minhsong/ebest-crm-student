@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Alert, App, Button, Space } from "antd";
 
 import { ContactSupportRichText } from "@/components/portal-contact/ContactSupportRichText";
+import { MockTestErrorDiagnosticsBox } from "@/components/public-mock-test-online/MockTestErrorDiagnosticsBox";
 import type { IntakeUiError } from "./useMockTestOnlineIntakeForm";
 
 type Props = {
@@ -74,7 +75,20 @@ export function MockTestOnlineIntakeErrorAlert({
       type="warning"
       showIcon
       message={<ContactSupportRichText text={error.title} />}
-      description={<ContactSupportRichText text={error.description} />}
+      description={
+        <Space direction="vertical" size="small" className="w-full">
+          <ContactSupportRichText text={error.description} />
+          <MockTestErrorDiagnosticsBox
+            diagnostics={{
+              code: error.errorCode,
+              rawMessage: error.detail ?? error.description,
+              path: "b1_register_intake",
+              httpStatus: error.httpStatus,
+              occurredAt: new Date().toISOString(),
+            }}
+          />
+        </Space>
+      }
       action={
         <Space direction="vertical" size="small">
           {showResumeEmail ? (

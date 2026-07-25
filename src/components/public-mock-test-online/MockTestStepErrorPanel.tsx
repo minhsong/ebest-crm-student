@@ -10,6 +10,8 @@ import {
 } from '@/lib/ui-constants';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 import { getMockTestOnlineRecoveryHref } from '@/lib/public-mock-test-online/mock-test-online-flow-dependencies';
+import { MockTestErrorDiagnosticsBox } from '@/components/public-mock-test-online/MockTestErrorDiagnosticsBox';
+import type { MockTestErrorDiagnostics } from '@/lib/public-mock-test-online/mock-test-error-details';
 
 export type MockTestStepErrorVariant =
   | 'funnel'
@@ -22,8 +24,10 @@ type Props = {
   description?: string;
   variant?: MockTestStepErrorVariant;
   onRetry?: () => void;
-  /** Chi tiết kỹ thuật — chỉ hiện khi dev. */
+  /** @deprecated Dùng `diagnostics.code` — giữ tương thích. */
   digest?: string;
+  /** Chi tiết kỹ thuật + copy (phase test). */
+  diagnostics?: MockTestErrorDiagnostics;
 };
 
 const COPY: Record<
@@ -62,6 +66,7 @@ export function MockTestStepErrorPanel({
   variant = 'generic',
   onRetry,
   digest,
+  diagnostics,
 }: Props) {
   const copy = COPY[variant];
   const handleRetry =
@@ -72,18 +77,25 @@ export function MockTestStepErrorPanel({
 
   const restartHref = getMockTestOnlineRecoveryHref();
 
+  const mergedDiagnostics: MockTestErrorDiagnostics | undefined = diagnostics
+    ? {
+        ...diagnostics,
+        code: diagnostics.code ?? digest,
+      }
+    : digest
+      ? { code: digest }
+      : undefined;
+
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center px-4 py-10">
       <Result
         status="error"
         title={title ?? copy.title}
         subTitle={
-          <div className="space-y-2 text-left text-neutral-600">
+          <div className="w-full space-y-2 text-left text-neutral-600">
             <p>{description ?? copy.description}</p>
-            {digest && process.env.NODE_ENV !== 'production' ? (
-              <p className="break-all font-mono text-xs text-neutral-400">
-                digest: {digest}
-              </p>
+            {mergedDiagnostics ? (
+              <MockTestErrorDiagnosticsBox diagnostics={mergedDiagnostics} />
             ) : null}
           </div>
         }

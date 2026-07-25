@@ -5,6 +5,7 @@ import {
   STUDENT_SAFE_USER_MESSAGES,
 } from '@/lib/student-safe-errors';
 import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
+import { resolveGatewayServiceKey } from '@/lib/service-keys';
 
 export type SocialGatewayConfig = {
   baseUrl: string;
@@ -13,7 +14,7 @@ export type SocialGatewayConfig = {
 
 export function getSocialGatewayConfig(): SocialGatewayConfig | null {
   const baseUrl = process.env.SOCIAL_GATEWAY_BASE_URL?.replace(/\/$/, '') ?? '';
-  const serviceToken = process.env.SOCIAL_GATEWAY_SERVICE_TOKEN?.trim() ?? '';
+  const serviceToken = resolveGatewayServiceKey();
   if (!baseUrl || !serviceToken) return null;
   return { baseUrl, serviceToken };
 }

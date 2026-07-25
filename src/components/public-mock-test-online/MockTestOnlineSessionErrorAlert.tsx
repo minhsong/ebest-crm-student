@@ -14,14 +14,16 @@ import {
 import { ContactSupportRichText } from '@/components/portal-contact/ContactSupportRichText';
 import { useFanpageContactUrl } from '@/contexts/portal-contact-links-context';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
+import { MockTestErrorDiagnosticsBox } from '@/components/public-mock-test-online/MockTestErrorDiagnosticsBox';
+import type { MockTestErrorDiagnostics } from '@/lib/public-mock-test-online/mock-test-error-details';
 
 type Props = {
 	message: string;
 	step: MockTestOnlineFunnelStep;
 	errorCode?: string;
-	/** Ghi đè recovery nếu caller biết ngữ cảnh (vd. deny authorize → lead_tests). */
 	recovery?: MockTestOnlineErrorRecovery;
 	onRetry?: () => void;
+	diagnostics?: MockTestErrorDiagnostics;
 };
 
 export function MockTestOnlineSessionErrorAlert({
@@ -30,6 +32,7 @@ export function MockTestOnlineSessionErrorAlert({
 	errorCode,
 	recovery: recoveryOverride,
 	onRetry,
+	diagnostics,
 }: Props) {
 	const router = useRouter();
 	const fanpageUrl = useFanpageContactUrl();
@@ -45,6 +48,17 @@ export function MockTestOnlineSessionErrorAlert({
 		`${copy.title} ${copy.description}`,
 	);
 
+	const mergedDiagnostics: MockTestErrorDiagnostics = {
+		code: diagnostics?.code ?? errorCode,
+		rawMessage: diagnostics?.rawMessage ?? message,
+		path: diagnostics?.path ?? step,
+		httpStatus: diagnostics?.httpStatus,
+		occurredAt: diagnostics?.occurredAt ?? new Date().toISOString(),
+		stack: diagnostics?.stack,
+		extra: diagnostics?.extra,
+		errorName: diagnostics?.errorName,
+	};
+
 	return (
 		<Alert
 			type="error"
@@ -53,6 +67,7 @@ export function MockTestOnlineSessionErrorAlert({
 			description={
 				<Space direction="vertical" size="middle" className="w-full">
 					<ContactSupportRichText text={copy.description} />
+					<MockTestErrorDiagnosticsBox diagnostics={mergedDiagnostics} />
 					<Space wrap>
 						{recovery === 'restart' ? (
 							<Button type="primary" onClick={handleRestart}>

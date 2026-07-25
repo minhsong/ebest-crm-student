@@ -169,9 +169,15 @@ export function logInternalApiError(
     path?: string;
     method?: string;
     errorType?: string;
+    requestId?: string;
     details?: Record<string, unknown>;
   },
 ): void {
+  const requestId =
+    options?.requestId ??
+    (typeof options?.details?.requestId === 'string'
+      ? options.details.requestId
+      : undefined);
   if (process.env.NODE_ENV === 'production') {
     const brief =
       detail instanceof Error
@@ -179,9 +185,14 @@ export function logInternalApiError(
         : typeof detail === 'string'
           ? detail
           : JSON.stringify(detail);
-    console.error(`[student-portal] ${context}: ${brief}`);
+    console.error(
+      `[student-portal]${requestId ? ` req=${requestId}` : ''} ${context}: ${brief}`,
+    );
   } else {
-    console.error(`[student-portal] ${context}`, detail);
+    console.error(
+      `[student-portal]${requestId ? ` req=${requestId}` : ''} ${context}`,
+      detail,
+    );
   }
   reportStudentPortalBffError(context, detail, options);
 }

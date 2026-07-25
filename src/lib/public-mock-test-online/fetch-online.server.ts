@@ -1,5 +1,3 @@
-import { getApiBaseUrl } from '@/lib/env';
-import { unwrapCrmResponseBody } from '@/lib/crm-student-proxy';
 import { parseStudentMeCustomerBrief } from '@/lib/parse-student-me-customer';
 import { fetchStudentMeForSsr } from '@/lib/server/student-me';
 import type {
@@ -13,72 +11,45 @@ import {
 	fetchGatewayMockTestOnlineCampaigns,
 	isGatewaySsrConfigured,
 } from '@/lib/public-mock-test-online/ssr/fetch-mock-test-online-gateway.server';
+import { fetchPublicMockTestCrmJson } from '@/lib/public-mock-test-online/proxy-public-mock-test-crm.server';
+import { mtoServerDebug } from '@/lib/public-mock-test-online/mock-test-online-debug';
 
-function resolvePortalOrigin(): string {
-	const configured = process.env.STUDENT_PORTAL_ORIGIN?.trim();
-	if (configured) return configured.replace(/\/$/, '');
-	const site =
-		process.env.SITE_URL?.trim() ||
-		process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-		'';
-	if (site) return site.replace(/\/$/, '');
-	return 'http://localhost:3000';
-}
-
-function crmOnlineHeaders(): HeadersInit {
-	const origin = resolvePortalOrigin();
-	const headers: Record<string, string> = {
-		Accept: 'application/json',
-		Origin: origin,
-		Referer: `${origin}/mock-test-online/register`,
-	};
-	const serverToken = process.env.PUBLIC_REG_SERVER_TOKEN?.trim();
-	if (serverToken) {
-		headers['X-Public-Reg-Server-Token'] = serverToken;
-	}
-	return headers;
-}
-
-/** Fallback CRM khi Gateway chưa cấu hình hoặc cache miss. */
+/** Fallback CRM khi Gateway chưa cấu hình hoặc cache miss — P2-c secondary only. */
 async function fetchCrmOnlineFallback<T>(
 	path: string,
 	fallbackError: string,
 ): Promise<{ data: T | null; error: string | null }> {
-	const apiBase = getApiBaseUrl();
-	if (!apiBase) {
+	mtoServerDebug('mto.campaigns.fallback_crm', { path });
+	const result = await fetchPublicMockTestCrmJson<T>({
+		path,
+		logContext: 'mto.campaigns.fallback_crm',
+	});
+	if (result.configMissing) {
 		return { data: null, error: 'Cấu hình hệ thống chưa đúng.' };
 	}
-	const url = `${apiBase.replace(/\/$/, '')}/api/v1/public/mock-test-online/${path}`;
-	try {
-		const res = await fetch(url, {
-			headers: crmOnlineHeaders(),
-			cache: 'no-store',
-		});
-		const raw = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-		if (!res.ok) {
-			const msg = raw.message;
-			return {
-				data: null,
-				error:
-					typeof msg === 'string' && msg.trim() ? msg : fallbackError,
-			};
-		}
+	if (!result.ok) {
 		return {
-			data: (unwrapCrmResponseBody(raw) ?? raw) as T,
-			error: null,
+			data: null,
+			error: result.errorMessage ?? fallbackError,
 		};
-	} catch {
-		return { data: null, error: 'Không thể kết nối máy chủ. Vui lòng thử lại.' };
 	}
+	return {
+		data: result.data,
+		error: null,
+	};
 }
 
 async function fetchCampaignsSsr(): Promise<{
 	data: MockTestOnlineCampaignsResponse | null;
 	error: string | null;
 }> {
+	// P2-c: GW primary
 	if (isGatewaySsrConfigured()) {
 		const gw = await fetchGatewayMockTestOnlineCampaigns();
 		if (gw.data?.campaigns) return gw;
+		mtoServerDebug('mto.campaigns.gw_empty_or_error', {
+			error: gw.error ?? null,
+		});
 	}
 	return fetchCrmOnlineFallback<MockTestOnlineCampaignsResponse>(
 		'campaigns',
@@ -121,7 +92,7 @@ export async function loadMockTestOnlineLeadRegisterPageData(): Promise<MockTest
 	return { initialContact };
 }
 
-/** B2 — trang chọn bài thi: danh sách chiến dịch từ Gateway cache. */
+/** B2 — trang chọn bài thi: danh sách chiến dịch từ Gateway cache (CRM fallback). */
 export async function loadMockTestOnlineSelectExamPageData(
 	pendingLeadId: string | undefined,
 	campaignId?: number,

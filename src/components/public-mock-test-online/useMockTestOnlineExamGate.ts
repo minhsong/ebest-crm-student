@@ -12,6 +12,8 @@ export type MockTestOnlineExamGateFailure = {
 	kind: 'session_expired' | 'form_mismatch' | 'gate_error';
 	title: string;
 	description: string;
+	/** Chi tiết kỹ thuật (phase test). */
+	detail?: string;
 };
 
 type GateResult = {
@@ -88,6 +90,10 @@ export function useMockTestOnlineExamGate(): GateResult {
 					title: 'Không kiểm tra được phiên thi',
 					description:
 						'Không tải được thông tin vào phòng thi. Vui lòng thử lại hoặc quay lại bước xác nhận.',
+					detail:
+						e instanceof Error
+							? `${e.name}: ${e.message}${e.stack ? `\n${e.stack.slice(0, 1500)}` : ''}`
+							: String(e),
 				});
 				setLoading(false);
 			}

@@ -2,7 +2,7 @@ import { LeadMockTestResultsView } from '@/features/mock-test-portal/components/
 import { StudentMockTestResultsView } from '@/features/mock-test-portal/components/StudentMockTestResultsView';
 import { MockTestClientErrorBoundary } from '@/components/public-mock-test-online/MockTestClientErrorBoundary';
 import { resolvePortalMockTestPrincipal } from '@/features/portal-mock-test/identity/resolve-principal.server';
-import { assertPortalMockTestAccess } from '@/features/portal-mock-test/server/access-guards.server';
+import { assertPortalMockTestAccessWithExamHome } from '@/features/portal-mock-test/server/access-guards.server';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 import { buildPageMetadata } from '@/lib/metadata';
 
@@ -23,7 +23,7 @@ export default async function PortalMockTestResultsPage({
   const principal = await resolvePortalMockTestPrincipal();
   const sp = await searchParams;
 
-  assertPortalMockTestAccess(principal, {
+  await assertPortalMockTestAccessWithExamHome(principal, {
     returnUrl: PORTAL_MOCK_TEST_ROUTES.results,
     capability: 'exam.view_result',
   });

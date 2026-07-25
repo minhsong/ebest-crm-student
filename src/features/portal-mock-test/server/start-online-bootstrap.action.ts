@@ -7,23 +7,18 @@ import {
   isPortalMockTestCustomerPrincipal,
 } from '@/features/portal-mock-test/identity/types';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
-import { bootstrapPortalOnlineSession } from '@/features/portal-mock-test/server/bootstrap-online.server';
 import {
   redirectLeadRegisterIfAttemptBlocked,
   redirectCustomerRegisterIfAttemptBlocked,
 } from '@/lib/public-mock-test-online/register-attempt-precheck.server';
-import {
-  writeMockTestOnlineFunnelSessionCookieStore,
-  clearMockTestOnlineFunnelSessionCookieStore,
-} from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
+import { clearMockTestOnlineFunnelSessionCookieStore } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
 import { assertPortalMockTestAccess } from '@/features/portal-mock-test/server/access-guards.server';
 
 export type StartOnlineBootstrapState = { error: string } | null;
 
 /**
- * Server Action bootstrap thi online (POST-only — không side-effect trên GET).
- * Guest → login; profile incomplete vẫn được thi; hết lượt → results.
- * Thành công: ghi funnel cookie + redirect select-exam.
+ * Auth-first (PO-D24/D25): không mint Funnel cookie / lead-pending.
+ * Guest → login; đã auth → clear legacy cookie + select-exam.
  */
 export async function startPortalOnlineBootstrapAction(): Promise<StartOnlineBootstrapState> {
   const principal = await resolvePortalMockTestPrincipal();
@@ -45,23 +40,6 @@ export async function startPortalOnlineBootstrapAction(): Promise<StartOnlineBoo
     redirect(PORTAL_MOCK_TEST_ROUTES.hub);
   }
 
-  // P0-3: bỏ funnel guest/cũ trước khi mint session gắn identity hiện tại.
   clearMockTestOnlineFunnelSessionCookieStore();
-
-  const result = await bootstrapPortalOnlineSession(principal);
-
-  if (!result.ok) {
-    if (result.attemptLimit) {
-      clearMockTestOnlineFunnelSessionCookieStore();
-      redirect(`${PORTAL_MOCK_TEST_ROUTES.results}?notice=attempt_limit`);
-    }
-    return { error: result.message };
-  }
-
-  writeMockTestOnlineFunnelSessionCookieStore(result.pendingLeadId);
-  redirect(
-    `${PORTAL_MOCK_TEST_ROUTES.onlineSelect}?lead=${encodeURIComponent(
-      result.pendingLeadId,
-    )}`,
-  );
+  redirect(PORTAL_MOCK_TEST_ROUTES.onlineSelect);
 }

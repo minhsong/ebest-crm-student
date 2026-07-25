@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiBaseUrl } from '@/lib/env';
-import { STUDENT_SAFE_USER_MESSAGES } from '@/lib/student-safe-errors';
+import { STUDENT_SAFE_USER_MESSAGES, logInternalApiError } from '@/lib/student-safe-errors';
+import {
+  briefErrorDetail,
+  isMockTestBffErrorDetailsEnabled,
+} from '@/lib/public-mock-test-online/mock-test-error-details';
+import { fetchPublicMockTestCrmJson } from '@/lib/public-mock-test-online/proxy-public-mock-test-crm.server';
 
 /** P3-4 — gợi ý exam done: ẩn CTA đăng ký lead khi contact thuộc HV. */
 export async function GET(request: NextRequest) {
@@ -11,28 +15,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ hideLeadRegister: false });
   }
 
-  const apiBase = getApiBaseUrl()?.replace(/\/$/, '');
-  if (!apiBase) {
-    return NextResponse.json({ hideLeadRegister: false });
-  }
-
   try {
-    const res = await fetch(
-      `${apiBase}/api/v1/public/mock-test-online/registrations/${registrationId}/funnel-hint`,
-      { headers: { Accept: 'application/json' }, cache: 'no-store' },
-    );
-    const data = (await res.json().catch(() => ({}))) as {
+    const result = await fetchPublicMockTestCrmJson<{
       hideLeadRegister?: boolean;
-      data?: { hideLeadRegister?: boolean };
-    };
-    const payload = (data as { data?: { hideLeadRegister?: boolean } }).data ?? data;
-    return NextResponse.json({
-      hideLeadRegister: payload?.hideLeadRegister === true,
+    }>({
+      path: `registrations/${registrationId}/funnel-hint`,
+      logContext: 'mto.bff.funnel-hint',
     });
-  } catch {
-    return NextResponse.json(
-      { hideLeadRegister: false, message: STUDENT_SAFE_USER_MESSAGES.generic },
-      { status: 502 },
-    );
+    if (!result.ok || !result.data) {
+      return NextResponse.json({ hideLeadRegister: false });
+    }
+    return NextResponse.json({
+      hideLeadRegister: result.data.hideLeadRegister === true,
+    });
+  } catch (error) {
+    logInternalApiError('mto.bff.funnel-hint', error, {
+      path: '/api/public/mock-test-online/funnel-hint',
+      method: 'GET',
+      errorType: 'BFF_FUNNEL_HINT_ERROR',
+    });
+    const body: Record<string, unknown> = {
+      hideLeadRegister: false,
+      message: STUDENT_SAFE_USER_MESSAGES.generic,
+    };
+    if (isMockTestBffErrorDetailsEnabled()) {
+      body.detail = briefErrorDetail(error);
+      body.errorCode = 'BFF_FUNNEL_HINT_ERROR';
+    }
+    return NextResponse.json(body, { status: 502 });
   }
 }

@@ -1,35 +1,20 @@
-/** sessionStorage keys cho luồng làm bài mock test online public. */
+﻿/** sessionStorage keys cho luồng làm bài mock test online public. */
 
 const AUTH_KEY = 'mock_test_online_exam_auth';
 
-
-
 export type MockTestOnlineExamAuth = {
-
   registrationId: number;
-
   sessionId: number;
-
   formPublicId: string;
-
   omniLeadId: string;
-
-  /** Metadata only — token thật nằm httpOnly cookie `mto_portal_auth`. */
-
+  /** Metadata only — HMAC mint trên BFF từ portal_at (không cookie exam). */
   portalAuthorizeToken?: string;
-
   portalAuthorizeExpiresAt: string;
-
   attemptPublicId?: string;
-
   /** Cần cho authorize-resume — lưu sessionStorage, không phải secret quiz. */
-
   examSessionToken?: string;
-
   /** AE / authorize `effectiveMaxAttempts` (MVP=1). */
-
   effectiveMaxAttempts?: number;
-
 };
 
 

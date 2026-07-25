@@ -14,15 +14,18 @@ async function parseJson<T>(res: Response): Promise<T & { message?: string; erro
 }
 
 function throwApiError(res: Response, data: unknown): never {
-	const { message, errorCode, action } = extractMockTestOnlineApiError(data);
+	const { message, errorCode, action, detail } =
+		extractMockTestOnlineApiError(data);
+	const opts = { detail, httpStatus: res.status };
 	if (res.status === 429) {
 		throw new MockTestOnlineApiError(
 			message,
 			errorCode ?? 'RATE_LIMITED',
 			action ?? 'retry',
+			opts,
 		);
 	}
-	throw new MockTestOnlineApiError(message, errorCode, action);
+	throw new MockTestOnlineApiError(message, errorCode, action, opts);
 }
 
 export async function fetchMockTestOnlinePendingStatus(
@@ -55,18 +58,27 @@ export async function fetchMockTestOnlineConfirmSession(
 }
 
 export async function postMockTestOnlineSelectExam(body: {
-	pendingLeadId: string;
+	pendingLeadId?: string;
 	sessionId: number;
 	testVariantChoice?: 'full' | 'mini';
+	primaryPhone?: string;
+	primaryPhoneE164?: string;
 }): Promise<MockTestOnlineSelectExamResponse> {
-	const res = await fetch('/api/public/mock-test-online/select-exam', {
+	/** Auth-first path (PO-D24) — không phụ thuộc Funnel cookie. */
+	const res = await fetch('/api/public/mock-test-online/select-exam-account', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(body),
+		credentials: 'include',
+		body: JSON.stringify({
+			sessionId: body.sessionId,
+			testVariantChoice: body.testVariantChoice,
+			primaryPhone: body.primaryPhone,
+			primaryPhoneE164: body.primaryPhoneE164,
+		}),
 	});
 	const data = await parseJson<MockTestOnlineSelectExamResponse>(res);
 	if (!res.ok) {
-		throw new Error(data.message ?? 'Không khởi tạo được phiên bài thi.');
+		throwApiError(res, data);
 	}
 	return data;
 }

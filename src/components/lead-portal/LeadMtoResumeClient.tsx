@@ -31,7 +31,7 @@ function LeadMtoResumeConsumeInner() {
         const data = (await res.json().catch(() => ({}))) as {
           message?: string;
           nextPath?: string;
-          kind?: 'lead_session' | 'omni_funnel';
+          kind?: 'lead_session';
         };
         if (cancelled) return;
         if (!res.ok) {
@@ -45,9 +45,7 @@ function LeadMtoResumeConsumeInner() {
         const next =
           typeof data.nextPath === 'string' && data.nextPath.trim()
             ? data.nextPath
-            : data.kind === 'omni_funnel'
-              ? '/mock-test-online/select-exam'
-              : '/mock-test';
+            : '/mock-test';
         router.replace(next);
       } catch {
         if (!cancelled) {

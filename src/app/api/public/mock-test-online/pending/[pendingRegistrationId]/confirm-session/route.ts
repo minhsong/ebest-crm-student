@@ -26,7 +26,7 @@ export async function GET(_req: Request, context: RouteContext) {
 	}
 
 	const qs = new URLSearchParams({
-		funnelSessionId: ownership.funnelSessionId,
+		accountId: ownership.accountId,
 	});
 	return proxyMockTestOnlineGatewayGet(
 		`pending/${encodeURIComponent(id)}/confirm-session?${qs.toString()}`,

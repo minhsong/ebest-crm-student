@@ -1,12 +1,9 @@
-import { getApiBaseUrl } from '@/lib/env';
-import { unwrapCrmResponseBody } from '@/lib/crm-student-proxy';
 import {
   MOCK_TEST_ONLINE_LANDING_CANONICAL_URL,
   MOCK_TEST_ONLINE_SEO_FALLBACK,
 } from './constants';
 import type { MockTestOnlineSeoConfig } from './types';
-
-const SEO_REVALIDATE_SEC = 300;
+import { fetchPublicMockTestCrmJson } from '@/lib/public-mock-test-online/proxy-public-mock-test-crm.server';
 
 function resolvePortalOrigin(): string {
   const configured = process.env.STUDENT_PORTAL_ORIGIN?.trim();
@@ -43,33 +40,16 @@ function mergeSeoConfig(raw: Partial<MockTestOnlineSeoConfig> | null): MockTestO
   };
 }
 
-/** Đọc SEO từ CRM (`mock_test_online_seo` + Redis). ISR 5 phút trên Portal. */
+/** Đọc SEO từ CRM (`mock_test_online_seo` + Redis) qua proxy SSOT. */
 export async function fetchMockTestOnlineSeo(): Promise<MockTestOnlineSeoConfig> {
-  const apiBase = getApiBaseUrl();
-  if (!apiBase) {
+  const result = await fetchPublicMockTestCrmJson<Partial<MockTestOnlineSeoConfig>>({
+    path: 'seo',
+    logContext: 'mto.ssr.seo',
+  });
+  if (!result.ok || !result.data) {
     return mergeSeoConfig(null);
   }
-
-  const origin = resolvePortalOrigin();
-  const url = `${apiBase.replace(/\/$/, '')}/api/v1/public/mock-test-online/seo`;
-
-  try {
-    const res = await fetch(url, {
-      headers: {
-        Accept: 'application/json',
-        ...(origin ? { Origin: origin, Referer: `${origin}/mock-test-online/register` } : {}),
-      },
-      next: { revalidate: SEO_REVALIDATE_SEC },
-    });
-    if (!res.ok) {
-      return mergeSeoConfig(null);
-    }
-    const body = await res.json();
-    const data = unwrapCrmResponseBody(body) as Partial<MockTestOnlineSeoConfig> | null;
-    return mergeSeoConfig(data);
-  } catch {
-    return mergeSeoConfig(null);
-  }
+  return mergeSeoConfig(result.data);
 }
 
 export function pickSeoWidgetCopy(seo: MockTestOnlineSeoConfig) {

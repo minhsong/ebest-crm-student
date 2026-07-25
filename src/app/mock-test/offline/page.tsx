@@ -3,7 +3,7 @@ import { PageCard, PageHeader } from '@/components/layout';
 import { PortalOfflineRegisterForm } from '@/features/portal-mock-test/components/PortalOfflineRegisterForm';
 import { resolvePortalMockTestPrincipal } from '@/features/portal-mock-test/identity/resolve-principal.server';
 import { isLeadMockTestPrincipal } from '@/features/portal-mock-test/identity/types';
-import { assertPortalMockTestAccess } from '@/features/portal-mock-test/server/access-guards.server';
+import { assertPortalMockTestAccessWithExamHome } from '@/features/portal-mock-test/server/access-guards.server';
 import {
   PORTAL_MOCK_TEST_API,
   PORTAL_MOCK_TEST_ROUTES,
@@ -23,7 +23,7 @@ export const metadata = buildPageMetadata({
 
 export default async function PortalMockTestOfflinePage() {
   const principal = await resolvePortalMockTestPrincipal();
-  assertPortalMockTestAccess(principal, {
+  await assertPortalMockTestAccessWithExamHome(principal, {
     returnUrl: PORTAL_MOCK_TEST_ROUTES.offline,
     capability: 'exam.offline.register',
   });

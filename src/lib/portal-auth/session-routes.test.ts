@@ -8,6 +8,7 @@ import {
 	resolvePostExamPath,
 	resolvePostLeadLoginPath,
 } from './session-routes';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 
 describe('session-routes', () => {
 	it('resolvePostLeadLoginPath — convert → re-login (không silent)', () => {
@@ -19,17 +20,15 @@ describe('session-routes', () => {
 		).toBe(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
 	});
 
-	it('resolvePostLeadLoginPath — chưa hoàn thiện hồ sơ kèm returnUrl', () => {
+	it('resolvePostLeadLoginPath — chưa hoàn thiện hồ sơ → hub (bài đầu PO-D30)', () => {
 		expect(
 			resolvePostLeadLoginPath(
 				{ profileCompleted: false },
 				'/mock-test/online/start',
 			),
-		).toBe(buildLeadCompleteProfilePath('/mock-test/online/start'));
-		expect(
-			resolvePostLeadLoginPath({ profileCompleted: false }),
-		).toBe(
-			buildLeadCompleteProfilePath(PORTAL_MOCK_TEST_RESULTS_ROUTES.lead),
+		).toBe(PORTAL_MOCK_TEST_ROUTES.hub);
+		expect(resolvePostLeadLoginPath({ profileCompleted: false })).toBe(
+			PORTAL_MOCK_TEST_ROUTES.hub,
 		);
 	});
 
@@ -54,18 +53,22 @@ describe('session-routes', () => {
 	});
 
 	it('resolvePostExamPath — customer hoặc lead hoàn thiện vào kết quả', () => {
-		expect(resolvePostExamPath({ kind: 'customer' })).toBe(
-			PORTAL_MOCK_TEST_RESULTS_ROUTES.lead,
-		);
+		expect(
+			resolvePostExamPath({ kind: 'customer', profileCompleted: true }),
+		).toBe(PORTAL_MOCK_TEST_RESULTS_ROUTES.lead);
 		expect(
 			resolvePostExamPath({ kind: 'lead', profileCompleted: true }),
 		).toBe(PORTAL_MOCK_TEST_RESULTS_ROUTES.lead);
 	});
 
-	it('resolvePostLeadLoginPath — thiếu profileCompleted → wizard (fail-closed)', () => {
-		expect(resolvePostLeadLoginPath({})).toBe(
-			buildLeadCompleteProfilePath(PORTAL_MOCK_TEST_RESULTS_ROUTES.lead),
-		);
+	it('resolvePostExamPath — customer thiếu SĐT → hub notice', () => {
+		expect(
+			resolvePostExamPath({ kind: 'customer', profileCompleted: false }),
+		).toBe(`${PORTAL_MOCK_TEST_ROUTES.hub}?notice=profile_required`);
+	});
+
+	it('resolvePostLeadLoginPath — thiếu profileCompleted → hub (không ép wizard)', () => {
+		expect(resolvePostLeadLoginPath({})).toBe(PORTAL_MOCK_TEST_ROUTES.hub);
 	});
 
 	it('isLeadCompleteProfileHref nhận diện wizard path + query', () => {

@@ -65,7 +65,7 @@ async function checkOne(input: {
 
 /**
  * W10 — debounced pre-check (complete-profile / lead register).
- * CRM chỉ nhận **một** key mỗi request → nếu có cả email + SĐT thì check lần lượt.
+ * Login key = **email** only (PO-D32). `phone` ignored for uniqueness.
  */
 export async function checkLoginKeyAvailability(input: {
   email?: string;
@@ -73,30 +73,20 @@ export async function checkLoginKeyAvailability(input: {
   excludeCustomerId?: number;
 }): Promise<LoginKeyPrecheckResult> {
   const email = input.email?.trim();
-  const phone = input.phone?.trim();
-  if (!email && !phone) {
-    return { available: true };
+  void input.phone;
+  if (!email) {
+    return { available: true, kind: 'phone' };
   }
 
-  if (email) {
-    const emailResult = await checkOne({
-      email,
-      excludeCustomerId: input.excludeCustomerId,
-    });
-    if (!emailResult.available) return emailResult;
-  }
-
-  if (phone) {
-    const phoneResult = await checkOne({
-      phone,
-      excludeCustomerId: input.excludeCustomerId,
-    });
-    if (!phoneResult.available) return phoneResult;
-  }
+  const emailResult = await checkOne({
+    email,
+    excludeCustomerId: input.excludeCustomerId,
+  });
+  if (!emailResult.available) return emailResult;
 
   return {
     available: true,
-    kind: email ? 'email' : 'phone',
+    kind: 'email',
   };
 }
 

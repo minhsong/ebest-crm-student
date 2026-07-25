@@ -202,7 +202,18 @@ export function MockTestOnlineConfirmExamClient({
 	if (apiError) {
 		return (
 			<MockTestOnlineFunnelShell step="confirm_zalo">
-				<MockTestOnlineSessionErrorAlert message={apiError} step="b2c_confirm_zalo" />
+				<MockTestOnlineSessionErrorAlert
+					message={apiError}
+					step="b2c_confirm_zalo"
+					diagnostics={{
+						rawMessage: apiError,
+						path: 'b2c_confirm_zalo',
+						occurredAt: new Date().toISOString(),
+						extra: {
+							source: sessionError ? 'zalo_session' : 'campaigns',
+						},
+					}}
+				/>
 			</MockTestOnlineFunnelShell>
 		);
 	}

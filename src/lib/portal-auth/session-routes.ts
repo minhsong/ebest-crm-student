@@ -42,7 +42,7 @@ export function buildLeadCompleteProfilePath(returnUrl?: string | null): string 
 
 export type PostExamPortalSession =
   | { kind: 'none' }
-  | { kind: 'customer' }
+  | { kind: 'customer'; profileCompleted: boolean }
   | { kind: 'lead'; profileCompleted: boolean };
 
 /**
@@ -59,6 +59,10 @@ export function resolvePostExamPath(
   }
   if (session.kind === 'lead' && !session.profileCompleted) {
     return buildLeadCompleteProfilePath(resultsPath);
+  }
+  if (session.kind === 'customer' && !session.profileCompleted) {
+    const q = new URLSearchParams({ notice: 'profile_required' });
+    return `${PORTAL_MOCK_TEST_ROUTES.hub}?${q.toString()}`;
   }
   return resultsPath;
 }
@@ -82,8 +86,9 @@ export function resolvePostLeadLoginPath(
   ) {
     return PORTAL_MOCK_TEST_RESULTS_ROUTES.login;
   }
+  // PO-D30: incomplete được vào hub / chọn bài đầu — không ép wizard ngay sau login.
   if (profile.profileCompleted !== true) {
-    return buildLeadCompleteProfilePath(fallback);
+    return PORTAL_MOCK_TEST_ROUTES.hub;
   }
   return fallback;
 }

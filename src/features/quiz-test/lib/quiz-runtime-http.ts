@@ -7,6 +7,7 @@ import {
   appendMockTestQuizAuthToUrl,
   enrichMockTestQuizAuthBody,
   isMockTestOnlineQuizRuntimeUrl,
+  mockTestQuizRuntimeClientHeaders,
 } from '@/lib/public-mock-test-online/inject-quiz-auth';
 import { refreshMockTestOnlineExamAuth } from '@/lib/public-mock-test-online/exam-auth-refresh.client';
 import { loadMockTestOnlineExamAuth, isMockTestOnlineExamSessionReady } from '@/lib/public-mock-test-online/exam-session';
@@ -43,6 +44,7 @@ async function retryMockTestQuizRequest(
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
+      ...mockTestQuizRuntimeClientHeaders(),
       ...(retryInit?.headers ?? {}),
     },
   });
@@ -70,6 +72,9 @@ export async function fetchQuizRuntimeJson<T>(
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
+      ...(isMockTestOnlineQuizRuntimeUrl(url)
+        ? mockTestQuizRuntimeClientHeaders()
+        : {}),
       ...(requestInit?.headers ?? {}),
     },
   });

@@ -28,25 +28,30 @@ type Result = {
 };
 
 /**
- * Provision Lead passwordless + hydrate portal session sau Zalo.
- * Tách khỏi WS/poll transport để hook verify gọn và tái sử dụng.
+ * Auth-first: đã có portal_at (lead/customer) → session ready, không provision lại.
+ * Chỉ guest (legacy) mới mint Lead passwordless sau Zalo.
  */
 export function useMockTestOnlineLeadSessionProvision({
 	pendingRegistrationId,
 	portalActor,
 	refreshPortalSession,
 }: Args): Result {
-	const [portalSessionReady, setPortalSessionReady] = useState(false);
+	const alreadyAuthenticated =
+		portalActor === 'customer' || portalActor === 'lead';
+	const [portalSessionReady, setPortalSessionReady] = useState(
+		alreadyAuthenticated,
+	);
 	const [provisionError, setProvisionError] = useState<string | null>(null);
-	const leadSessionProvisionedRef = useRef(false);
+	const leadSessionProvisionedRef = useRef(alreadyAuthenticated);
 	const provisionPromiseRef = useRef<Promise<boolean> | null>(null);
 
 	const resetProvisionState = useCallback(() => {
-		leadSessionProvisionedRef.current = false;
+		const authed = portalActor === 'customer' || portalActor === 'lead';
+		leadSessionProvisionedRef.current = authed;
 		provisionPromiseRef.current = null;
-		setPortalSessionReady(false);
+		setPortalSessionReady(authed);
 		setProvisionError(null);
-	}, []);
+	}, [portalActor]);
 
 	const maybeProvisionLeadSession = useCallback(
 		(status: MockTestOnlinePollStatus): Promise<boolean> => {
@@ -54,8 +59,8 @@ export function useMockTestOnlineLeadSessionProvision({
 			if (!pendingId || !isMockTestOnlineChannelVerified(status)) {
 				return Promise.resolve(false);
 			}
-			// Customer đã login: exam dùng mto_portal_auth — không mint Lead lên portal_at.
-			if (portalActor === 'customer') {
+			// Auth-first: Lead/Customer đã có portal_at trước select — không provision / không bắt SĐT.
+			if (portalActor === 'customer' || portalActor === 'lead') {
 				leadSessionProvisionedRef.current = true;
 				setPortalSessionReady(true);
 				setProvisionError(null);

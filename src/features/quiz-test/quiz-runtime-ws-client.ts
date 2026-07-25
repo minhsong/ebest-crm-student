@@ -30,10 +30,19 @@ export async function fetchQuizWsAccessToken(
   variant?: QuizRuntimeVariant | null,
 ): Promise<string | null> {
   if (isMockTestOnlineQuizRuntimeActive(variant)) {
-    const res = await fetch('/api/public/mock-test-online/exam-auth-token', {
-      credentials: 'include',
-      cache: 'no-store',
-    });
+    const { loadMockTestOnlineExamAuth } = await import(
+      '@/lib/public-mock-test-online/exam-session'
+    );
+    const auth = loadMockTestOnlineExamAuth({ allowExpiredToken: true });
+    const registrationId = auth?.registrationId;
+    if (!registrationId || registrationId < 1) return null;
+    const res = await fetch(
+      `/api/public/mock-test-online/exam-auth-token?registrationId=${encodeURIComponent(String(registrationId))}`,
+      {
+        credentials: 'include',
+        cache: 'no-store',
+      },
+    );
     if (!res.ok) return null;
     const j = (await res.json()) as { accessToken?: string };
     const t = j.accessToken?.trim();

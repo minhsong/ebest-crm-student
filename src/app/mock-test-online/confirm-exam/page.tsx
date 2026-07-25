@@ -1,11 +1,12 @@
 import { Suspense } from 'react';
+import { redirect } from 'next/navigation';
 import { MockTestOnlineConfirmExamClient } from '@/components/public-mock-test-online/MockTestOnlineConfirmExamClient';
 import { MockTestClientErrorBoundary } from '@/components/public-mock-test-online/MockTestClientErrorBoundary';
 import { loadMockTestOnlineSelectExamPageData } from '@/lib/public-mock-test-online/fetch-online.server';
-import { getMockTestOnlineFunnelSessionId } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
-import { fetchGatewayFunnelSession } from '@/lib/public-mock-test-online/ssr/fetch-mock-test-online-gateway.server';
 import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
-import { assertFunnelMatchesPortalActor } from '@/features/portal-mock-test/server/assert-funnel-identity.server';
+import { buildPortalLoginHref } from '@/lib/portal-auth/post-auth-return-url';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
+import { fetchPortalMockTestExamHome } from '@/features/portal-mock-test/server/fetch-my-exam-home.server';
 import { buildPageMetadata } from '@/lib/metadata';
 
 export const dynamic = 'force-dynamic';
@@ -16,26 +17,30 @@ export const metadata = buildPageMetadata({
 	path: '/mock-test-online/confirm-exam',
 });
 
-type PageProps = {
-	searchParams: Promise<{ lead?: string }>;
-};
-
-export default async function MockTestOnlineConfirmExamPage({
-	searchParams,
-}: PageProps) {
-	const sp = await searchParams;
-	const pendingLeadId =
-		sp.lead?.trim() || getMockTestOnlineFunnelSessionId() || '';
-
+/**
+ * Auth-first confirm — ownership qua my-exam-home (Redis account), không Funnel cookie.
+ */
+export default async function MockTestOnlineConfirmExamPage() {
 	const session = await resolvePortalSessionFromCookies();
-	if (pendingLeadId) {
-		const funnel = await fetchGatewayFunnelSession(pendingLeadId);
-		assertFunnelMatchesPortalActor(session, funnel, pendingLeadId);
+	if (session.actor === 'guest') {
+		redirect(
+			buildPortalLoginHref({
+				returnUrl: PORTAL_MOCK_TEST_ROUTES.onlineConfirm,
+			}),
+		);
 	}
 
-	const { campaigns, campaignsError } = await loadMockTestOnlineSelectExamPageData(
-		pendingLeadId || undefined,
-	);
+	const home = await fetchPortalMockTestExamHome();
+	const pendingRegId =
+		home?.pendingZalo?.pendingRegistrationId?.trim() ||
+		home?.pendingZalo?.pendingId?.trim() ||
+		'';
+	if (!pendingRegId) {
+		redirect(PORTAL_MOCK_TEST_ROUTES.onlineSelect);
+	}
+
+	const { campaigns, campaignsError } =
+		await loadMockTestOnlineSelectExamPageData(undefined);
 
 	return (
 		<Suspense

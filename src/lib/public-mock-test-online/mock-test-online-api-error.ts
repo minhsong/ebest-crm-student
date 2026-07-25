@@ -4,16 +4,21 @@ import { sanitizeStudentFacingMessage } from '@/lib/student-safe-errors';
 export class MockTestOnlineApiError extends Error {
 	readonly errorCode?: string;
 	readonly action?: 'login' | 'contact_support' | 'retry';
+	readonly detail?: string;
+	readonly httpStatus?: number;
 
 	constructor(
 		message: string,
 		errorCode?: string,
 		action?: 'login' | 'contact_support' | 'retry',
+		options?: { detail?: string; httpStatus?: number },
 	) {
 		super(message);
 		this.name = 'MockTestOnlineApiError';
 		this.errorCode = errorCode;
 		this.action = action;
+		this.detail = options?.detail;
+		this.httpStatus = options?.httpStatus;
 	}
 }
 
@@ -21,6 +26,7 @@ export function extractMockTestOnlineApiError(data: unknown): {
 	message: string;
 	errorCode?: string;
 	action?: 'login' | 'contact_support' | 'retry';
+	detail?: string;
 } {
 	if (data && typeof data === 'object') {
 		const o = data as Record<string, unknown>;
@@ -40,7 +46,13 @@ export function extractMockTestOnlineApiError(data: unknown): {
 			typeof o.message === 'string' ? o.message : undefined,
 			'Không thể xử lý yêu cầu. Vui lòng thử lại.',
 		);
-		return { message, errorCode, action };
+		const detail =
+			typeof o.detail === 'string'
+				? o.detail
+				: typeof o.message === 'string' && o.message !== message
+					? o.message
+					: undefined;
+		return { message, errorCode, action, detail };
 	}
 	return { message: 'Không thể xử lý yêu cầu. Vui lòng thử lại.' };
 }
