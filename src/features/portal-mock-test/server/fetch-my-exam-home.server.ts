@@ -11,8 +11,10 @@ export type PortalMockTestExamHome = {
   account?: {
     accountId?: string;
     accountType?: string;
+    customerId?: number | null;
     omniLeadId?: string | null;
     phone?: string | null;
+    email?: string | null;
     displayName?: string | null;
     profileCompleted?: boolean | null;
   };

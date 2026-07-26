@@ -46,6 +46,7 @@ export const STUDENT_API = {
   customerOnlineAttemptStatus: 'me/mock-test-online/attempt-status',
   /** Auth-first home — Lead|Customer (PO-D28) */
   portalMockTestExamHome: 'portal/mock-test-online/my-exam-home',
+  portalMockTestSelectExam: 'portal/mock-test-online/select-exam',
   /** @deprecated Dùng `portalExplore` — marketing Mongo đã gỡ. */
   portalMarketing: 'portal/marketing',
   portalExplore: 'portal/explore',

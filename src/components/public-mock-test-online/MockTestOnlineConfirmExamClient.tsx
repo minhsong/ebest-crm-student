@@ -107,7 +107,7 @@ export function MockTestOnlineConfirmExamClient({
 		error: verifyError,
 		status: verifyStatus,
 		verifyIssue,
-		recheck: recheckVerifyStatus,
+		wsConnected,
 	} = useMockTestOnlineZaloVerifySession({
 			pendingRegistrationId: examSession?.pendingRegistrationId,
 			examSessionToken: examSession?.examSessionToken,
@@ -143,12 +143,25 @@ export function MockTestOnlineConfirmExamClient({
 			);
 			form.setFieldsValue({ examUnlockCode: data.examUnlockCode });
 			message.success(`Dev: mã mở khóa — ${data.examUnlockCode}`);
-			// Kích hoạt lại pipeline verified → provision → auto-proceed ngay.
-			void recheckVerifyStatus();
+			if (data.registrationId && data.registrationId >= 1) {
+				handleUnlockReady(data.registrationId);
+			} else {
+				await proceedWithUnlockCode(
+					examSession,
+					data.examUnlockCode,
+					data.registrationId ?? undefined,
+				);
+			}
 		} catch (e) {
 			message.error(e instanceof Error ? e.message : 'Dev simulate thất bại.');
 		}
-	}, [examSession?.pendingRegistrationId, form, message, recheckVerifyStatus]);
+	}, [
+		examSession,
+		form,
+		handleUnlockReady,
+		message,
+		proceedWithUnlockCode,
+	]);
 
 	const onUnlockFinish = useCallback(
 		async (values: { examUnlockCode: string }) => {
@@ -368,23 +381,13 @@ export function MockTestOnlineConfirmExamClient({
 										? 'Đang chuyển bạn vào phòng làm bài…'
 										: canProceedAfterZalo
 											? 'Bạn có thể vào làm bài ngay — không cần nhập lại mã.'
-											: needsUnlockCode
-												? 'Hệ thống đang đồng bộ đăng ký. Nếu chưa tự chuyển, nhập mã 6 ký tự từ Zalo OA ở bước 2.'
-												: 'Đang đồng bộ đăng ký… Giữ tab này mở.'
+											: 'Nếu trang chưa tự chuyển, nhập mã 6 ký tự từ tin nhắn Zalo OA ở bước 2.'
 								}
 							/>
 							{!canProceedAfterZalo && !autoProceeding && verifyError ? (
 								<Text type="danger" className="text-sm block mt-2">
 									{verifyError}
 								</Text>
-							) : null}
-							{needsUnlockCode && !autoProceeding ? (
-								<div className="flex items-center gap-2 mt-3">
-									<Spin size="small" />
-									<Text type="secondary" className="text-sm">
-										Đang đồng bộ đăng ký…
-									</Text>
-								</div>
 							) : null}
 							{canProceedAfterZalo && !autoProceeding ? (
 								<Button
@@ -405,8 +408,8 @@ export function MockTestOnlineConfirmExamClient({
 								Không xác minh được với Zalo hiện tại
 							</Text>
 							<Text type="secondary" className="text-sm">
-								Xem hướng dẫn phía trên. Sau khi dùng đúng Zalo và gửi lại tin, trang
-								sẽ cập nhật.
+								Xem hướng dẫn phía trên. Sau khi dùng đúng Zalo và gửi lại tin,
+								nhập mã làm bài ở bước 2.
 							</Text>
 							{verifyError ? (
 								<Text type="danger" className="text-sm block mt-1">
@@ -416,14 +419,21 @@ export function MockTestOnlineConfirmExamClient({
 						</div>
 					) : (
 						<div className="flex items-start gap-3">
-							<Spin size="small" className="!mt-1" />
+							{wsConnected ? (
+								<Spin size="small" className="!mt-1" />
+							) : (
+								<MessageOutlined className="!mt-1 text-blue-500" />
+							)}
 							<div>
 								<Text strong className="block">
-									Đang chờ xác minh…
+									{wsConnected
+										? 'Đang chờ xác minh Zalo (realtime)…'
+										: 'Gửi tin Zalo rồi nhập mã làm bài'}
 								</Text>
 								<Text type="secondary" className="text-sm">
-									Sau khi gửi tin Zalo thành công, trang sẽ tự chuyển. Giữ tab này
-									mở.
+									{wsConnected
+										? 'Sau khi OA xác nhận, trang sẽ tự mở phòng thi. Bạn cũng có thể nhập mã 6 ký tự ngay khi nhận được.'
+										: 'Realtime chưa kết nối — nhập mã 6 ký tự từ tin nhắn Zalo OA để vào bài.'}
 								</Text>
 								{verifyError ? (
 									<Text type="danger" className="text-sm block mt-1">

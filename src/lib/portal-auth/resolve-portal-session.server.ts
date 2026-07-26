@@ -25,6 +25,8 @@ export type PortalSessionPayload =
   | {
       actor: 'customer';
       displayName: string;
+      /** Portal account id từ CRM session (JWT đã verify) — server-only. */
+      accountId?: string;
       /** Brief từ cùng GET portal/session — tránh gọi lại ở root layout. */
       customer: StudentMeCustomerBrief;
     }
@@ -32,6 +34,8 @@ export type PortalSessionPayload =
       actor: 'lead';
       displayName: string;
       omniLeadId: string;
+      /** Portal account id từ CRM session (JWT đã verify) — server-only. */
+      accountId: string;
       profile: LeadProfile;
     };
 
@@ -50,6 +54,22 @@ function mapLeadProfile(raw: Record<string, unknown>): LeadProfile | null {
 
   const mapped = mapLeadMeForClient({ ...raw, ...account, omniLeadId });
   return { ...mapped, omniLeadId };
+}
+
+/** accountId từ CRM portal/session (JWT đã verify) — không decode cookie JWT ở BFF. */
+function parsePortalSessionAccountId(
+  payload: Record<string, unknown>,
+): string | null {
+  const raw = payload.accountId;
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 1) {
+    return String(Math.trunc(raw));
+  }
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    const n = Number(trimmed);
+    if (trimmed && Number.isFinite(n) && n >= 1) return String(Math.trunc(n));
+  }
+  return null;
 }
 
 /**
@@ -97,9 +117,11 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
       forcePortalLogoutCookies();
       return { actor: 'guest' };
     }
+    const accountId = parsePortalSessionAccountId(payload) ?? undefined;
     return {
       actor: 'customer',
       displayName: customer.fullName?.trim() || 'Học viên',
+      ...(accountId ? { accountId } : {}),
       customer,
     };
   }
@@ -119,6 +141,15 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
       return { actor: 'guest' };
     }
 
+    const accountId =
+      parsePortalSessionAccountId(upgraded as Record<string, unknown>) ||
+      parsePortalSessionAccountId(payload) ||
+      (profile.id >= 1 ? String(profile.id) : '');
+    if (!accountId) {
+      forcePortalLogoutCookies();
+      return { actor: 'guest' };
+    }
+
     const displayName =
       profile.displayName?.trim() ||
       profile.phoneE164?.trim() ||
@@ -129,6 +160,7 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
       actor: 'lead',
       displayName,
       omniLeadId: profile.omniLeadId,
+      accountId,
       profile,
     };
   }

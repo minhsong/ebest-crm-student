@@ -8,6 +8,7 @@ describe('toClientPortalSessionPayload', () => {
 			actor: 'lead',
 			displayName: 'An',
 			omniLeadId: 'abc',
+			accountId: '9',
 			profile: { omniLeadId: 'abc' },
 		} as PortalSessionPayload;
 		expect(toClientPortalSessionPayload(leadSession)).toEqual({
@@ -19,7 +20,12 @@ describe('toClientPortalSessionPayload', () => {
 	it('maps guest and customer', () => {
 		expect(toClientPortalSessionPayload({ actor: 'guest' })).toEqual({ actor: 'guest' });
 		expect(
-			toClientPortalSessionPayload({ actor: 'customer', displayName: 'HV' }),
+			toClientPortalSessionPayload({
+				actor: 'customer',
+				displayName: 'HV',
+				accountId: '42',
+				customer: { id: 1, fullName: 'HV' },
+			}),
 		).toEqual({ actor: 'customer', displayName: 'HV' });
 	});
 });

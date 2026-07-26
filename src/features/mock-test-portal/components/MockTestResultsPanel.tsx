@@ -1,18 +1,30 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Alert, Empty } from 'antd';
+import Link from 'next/link';
+import { Alert, Button, Empty } from 'antd';
 import { LoadingState } from '@/components/layout';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 import type { LeadTestResultSummary } from '@/lib/lead-portal/types';
 import type { MockTestOnlineAttemptStatus } from '@/lib/public-mock-test-online/types';
 import { MockTestOnlineInProgressResultCard } from './MockTestOnlineInProgressResultCard';
 import { MockTestResultCard } from './MockTestResultCard';
 
+const DEFAULT_EMPTY_DESCRIPTION = (
+  <>
+    Bạn chưa thử sức với bài thi thử nào. Hãy làm bài đầu tiên của bạn{' '}
+    <Link href={PORTAL_MOCK_TEST_ROUTES.onlineStart} className="font-medium text-blue-600">
+      tại đây
+    </Link>
+    .
+  </>
+);
+
 type Props = {
   items: LeadTestResultSummary[];
   loading: boolean;
   error: string | null;
-  emptyDescription?: string;
+  emptyDescription?: ReactNode;
   footer?: ReactNode;
   /** Bài thi online đang làm dở — hiển thị đầu danh sách (BL-Q2). */
   inProgressAttemptStatus?: MockTestOnlineAttemptStatus | null;
@@ -23,7 +35,7 @@ export function MockTestResultsPanel({
   items,
   loading,
   error,
-  emptyDescription = 'Chưa có kết quả nào.',
+  emptyDescription = DEFAULT_EMPTY_DESCRIPTION,
   footer,
   inProgressAttemptStatus = null,
 }: Props) {
@@ -43,7 +55,11 @@ export function MockTestResultsPanel({
     <>
       {error ? <Alert type="error" message={error} showIcon className="mb-4" /> : null}
       {!loading && !error && !hasListContent ? (
-        <Empty description={emptyDescription} />
+        <Empty description={emptyDescription}>
+          <Link href={PORTAL_MOCK_TEST_ROUTES.onlineStart}>
+            <Button type="primary">Làm bài thi thử online</Button>
+          </Link>
+        </Empty>
       ) : null}
       {hasListContent ? (
         <div className="flex flex-col gap-3">

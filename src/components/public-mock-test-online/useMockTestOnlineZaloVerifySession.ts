@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Socket } from 'socket.io-client';
 import { patchSelectExamCache } from '@/lib/public-mock-test-online/exam-flow.util';
-import { fetchMockTestOnlinePendingStatus } from '@/lib/public-mock-test-online/mock-test-online-api.client';
 import {
 	MOCK_TEST_ONLINE_WS,
 	connectMockTestOnlineSocket,
@@ -16,19 +15,13 @@ import {
 } from '@/lib/public-mock-test-online/mock-test-online-zalo-verify.util';
 import type { MockTestOnlinePollStatus } from '@/lib/public-mock-test-online/types';
 import { mtoClientDebug } from '@/lib/public-mock-test-online/mock-test-online-debug';
-import { MockTestOnlineApiError } from '@/lib/public-mock-test-online/mock-test-online-api-error';
 import {
 	getPortalActor,
 	usePortalSession,
 } from '@/contexts/portal-session-context';
 import { useMockTestOnlineLeadSessionProvision } from '@/components/public-mock-test-online/useMockTestOnlineLeadSessionProvision';
 
-const POLL_INTERVAL_MS = 3000;
-const POLL_ERROR_INTERVAL_MS = 5000;
-const POLL_RATE_LIMIT_INTERVAL_MS = 60_000;
-const WS_CONNECT_FALLBACK_MS = 8000;
-
-export type MockTestOnlineZaloVerifyTransport = 'ws' | 'poll' | 'idle';
+export type MockTestOnlineZaloVerifyTransport = 'ws' | 'manual' | 'idle';
 
 type Args = {
 	pendingRegistrationId: string | null | undefined;
@@ -45,10 +38,12 @@ type Result = {
 	wsConnected: boolean;
 	error: string | null;
 	verifyIssue: MockTestOnlinePollStatus['verifyIssue'] | null;
-	/** Force re-fetch status ngay (dev simulate / nút thử lại). */
-	recheck: () => Promise<void>;
 };
 
+/**
+ * Chờ Zalo UNLOCK: **chỉ WebSocket** (không poll status / CRM).
+ * User nhập mã → verify-unlock-code một lần tại submit.
+ */
 export function useMockTestOnlineZaloVerifySession({
 	pendingRegistrationId,
 	examSessionToken,
@@ -83,16 +78,13 @@ export function useMockTestOnlineZaloVerifySession({
 	onUnlockReadyRef.current = onUnlockReady;
 	const unlockHandledRef = useRef(false);
 
-	/** `verified` tiếp tục poll cho đến khi provision+hydrate thành công và navigate. */
 	const applyStatus = useCallback(
 		(next: MockTestOnlinePollStatus): 'verified' | 'pending' => {
 			setStatus(next);
 			setVerifyIssue(next.verifyIssue ?? null);
 			const verified = isMockTestOnlineChannelVerified(next);
 			setZaloVerified(verified);
-			if (verified) {
-				setVerifyIssue(null);
-			}
+			if (verified) setVerifyIssue(null);
 			if (verified && next.registrationId && next.registrationId >= 1) {
 				const registrationId = next.registrationId;
 				void maybeProvisionLeadSession(next).then((sessionReady) => {
@@ -103,14 +95,11 @@ export function useMockTestOnlineZaloVerifySession({
 				return 'verified';
 			}
 			if (verified) void maybeProvisionLeadSession(next);
-			if (verified) return 'verified';
-			return 'pending';
+			return verified ? 'verified' : 'pending';
 		},
 		[maybeProvisionLeadSession],
 	);
 
-	// Ref để effect transport không phụ thuộc identity applyStatus:
-	// portal session đổi (guest→lead sau provision) không được tear down WS/poll.
 	const applyStatusRef = useRef(applyStatus);
 	applyStatusRef.current = applyStatus;
 
@@ -121,82 +110,20 @@ export function useMockTestOnlineZaloVerifySession({
 
 		const pendingId = pendingRegistrationId.trim();
 		let cancelled = false;
-		let pollTimer: ReturnType<typeof setTimeout> | null = null;
-		let wsFallbackTimer: ReturnType<typeof setTimeout> | null = null;
 		let socket: Socket | null = null;
-		let pollLoopActive = false;
-		let syncPollActive = false;
-		let localWsConnected = false;
 
-		const clearPollTimer = () => {
-			if (pollTimer) clearTimeout(pollTimer);
-			pollTimer = null;
-		};
-
-		const stopPollLoop = () => {
-			pollLoopActive = false;
-			syncPollActive = false;
-			clearPollTimer();
-		};
-
-		const schedulePoll = (delayMs: number) => {
-			if (cancelled || !pollLoopActive) return;
-			if (localWsConnected && !syncPollActive) return;
-			clearPollTimer();
-			pollTimer = setTimeout(() => void runPoll(), delayMs);
-		};
-
-		const runPoll = async () => {
-			if (cancelled || !pollLoopActive) return;
-			if (localWsConnected && !syncPollActive) return;
-			try {
-				const data = await fetchMockTestOnlinePendingStatus(pendingId);
-				if (cancelled) return;
-				setError(null);
-				mtoClientDebug('poll.status', {
-					pendingRegistrationId: pendingId,
-					status: data.status,
-					registrationId: data.registrationId ?? null,
-					zaloVerified: data.zaloVerifiedAt != null,
-				});
-				applyStatusRef.current(data);
-				if (unlockHandledRef.current) {
-					stopPollLoop();
-					return;
-				}
-				const delay =
-					typeof data.pollAfterMs === 'number' && data.pollAfterMs > 0
-						? data.pollAfterMs
-						: POLL_INTERVAL_MS;
-				schedulePoll(delay);
-			} catch (e) {
-				if (cancelled) return;
-				const rateLimited =
-					e instanceof MockTestOnlineApiError && e.errorCode === 'RATE_LIMITED';
-				setError(
-					rateLimited
-						? 'Hệ thống tạm giới hạn kiểm tra trạng thái. Đang thử lại sau 1 phút…'
-						: e instanceof Error
-							? e.message
-							: 'Lỗi kết nối. Đang thử lại…',
-				);
-				schedulePoll(
-					rateLimited ? POLL_RATE_LIMIT_INTERVAL_MS : POLL_ERROR_INTERVAL_MS,
-				);
-			}
-		};
-
-		const startPollFallback = (opts?: { ignoreWs?: boolean }) => {
-			if (cancelled || pollLoopActive) return;
-			if (localWsConnected && !opts?.ignoreWs) return;
-			syncPollActive = Boolean(opts?.ignoreWs);
-			pollLoopActive = true;
-			setTransport(localWsConnected ? 'ws' : 'poll');
-			void runPoll();
-		};
+		unlockHandledRef.current = false;
+		resetProvisionState();
+		setWsConnected(false);
+		setError(null);
+		setVerifyIssue(null);
 
 		const handleUnlockReady = (event: MockTestOnlineUnlockReadyEvent) => {
 			if (cancelled || event.pendingRegistrationId !== pendingId) return;
+			mtoClientDebug('ws.unlock_ready', {
+				pendingRegistrationId: pendingId,
+				registrationId: event.registrationId,
+			});
 			if (event.examSessionToken?.trim() && event.examSessionExpiresAt?.trim()) {
 				patchSelectExamCache({
 					pendingRegistrationId: pendingId,
@@ -205,117 +132,63 @@ export function useMockTestOnlineZaloVerifySession({
 				});
 			}
 			applyStatusRef.current(pollStatusFromUnlockReadyEvent(event));
-			startPollFallback({ ignoreWs: true });
 		};
 
-		unlockHandledRef.current = false;
-		resetProvisionState();
-		setTransport('idle');
-		setWsConnected(false);
-		setError(null);
-		setVerifyIssue(null);
+		const token = examSessionToken?.trim();
+		const wsConfigured = isMockTestOnlineWsConfigured();
 
-		void (async () => {
-			try {
-				const hydrated = await fetchMockTestOnlinePendingStatus(pendingId);
-				if (cancelled) return;
-				const phase = applyStatusRef.current(hydrated);
-				if (phase === 'verified') {
-					startPollFallback({ ignoreWs: true });
-				}
-			} catch (e) {
-				if (!cancelled) {
-					setError(
-						e instanceof Error
-							? e.message
-							: 'Không thể tải trạng thái xác minh.',
-					);
-				}
-			}
+		if (!token || !wsConfigured) {
+			setTransport('manual');
+			setError(
+				!token
+					? 'Chưa sẵn sàng cập nhật realtime. Sau khi gửi tin Zalo, nhập mã làm bài từ tin nhắn OA.'
+					: 'Realtime chưa cấu hình. Sau khi gửi tin Zalo, nhập mã làm bài từ tin nhắn OA.',
+			);
+			return;
+		}
 
-			const token = examSessionToken?.trim();
-			const wsConfigured = isMockTestOnlineWsConfigured();
-			const wsAvailable = Boolean(token) && wsConfigured;
+		setTransport('ws');
+		try {
+			socket = connectMockTestOnlineSocket(token);
+		} catch (e) {
+			setTransport('manual');
+			setError(
+				e instanceof Error
+					? e.message
+					: 'Không kết nối realtime. Nhập mã làm bài từ tin nhắn Zalo OA.',
+			);
+			return;
+		}
 
-			if (!wsAvailable) {
-				if (!token) {
-					setError(
-						'Chưa sẵn sàng cập nhật tự động. Bạn vẫn có thể gửi tin Zalo; nếu trang không tự chuyển, nhập mã từ tin nhắn hoặc tải lại trang.',
-					);
-				} else if (!wsConfigured) {
-					setError(
-						'Đang kiểm tra trạng thái định kỳ. Giữ tab này mở sau khi gửi tin Zalo.',
-					);
-				}
-				startPollFallback();
-				return;
-			}
-
+		socket.on(MOCK_TEST_ONLINE_WS.CONNECTED, () => {
+			if (cancelled) return;
+			setWsConnected(true);
 			setTransport('ws');
-			try {
-				socket = connectMockTestOnlineSocket(token!);
-			} catch (e) {
-				setError(
-					e instanceof Error
-						? e.message
-						: 'Không kết nối được realtime. Dùng kiểm tra định kỳ.',
-				);
-				startPollFallback();
-				return;
-			}
+			setError(null);
+		});
 
-			socket.on(MOCK_TEST_ONLINE_WS.CONNECTED, () => {
-				if (cancelled) return;
-				if (wsFallbackTimer) {
-					clearTimeout(wsFallbackTimer);
-					wsFallbackTimer = null;
-				}
-				localWsConnected = true;
-				setWsConnected(true);
-				stopPollLoop();
-				setTransport('ws');
-				setError(null);
+		socket.on(MOCK_TEST_ONLINE_WS.UNLOCK_READY, handleUnlockReady);
 
-				if (!unlockHandledRef.current) {
-					void fetchMockTestOnlinePendingStatus(pendingId)
-						.then((data) => {
-							if (cancelled) return;
-							const phase = applyStatusRef.current(data);
-							if (phase === 'verified') {
-								startPollFallback({ ignoreWs: true });
-							}
-						})
-						.catch(() => {
-							// Bỏ qua — chờ event hoặc user nhập mã
-						});
-				}
-			});
+		socket.on('connect_error', () => {
+			if (cancelled || unlockHandledRef.current) return;
+			setWsConnected(false);
+			setTransport('manual');
+			setError(
+				'Không kết nối realtime. Sau khi gửi tin Zalo, nhập mã làm bài từ tin nhắn OA.',
+			);
+		});
 
-			socket.on(MOCK_TEST_ONLINE_WS.UNLOCK_READY, handleUnlockReady);
-
-			socket.on('connect_error', () => {
-				if (cancelled || localWsConnected) return;
-				startPollFallback();
-			});
-
-			socket.on('disconnect', () => {
-				if (cancelled || unlockHandledRef.current) return;
-				localWsConnected = false;
-				setWsConnected(false);
-				startPollFallback();
-			});
-
-			wsFallbackTimer = setTimeout(() => {
-				if (!cancelled && !localWsConnected) {
-					startPollFallback();
-				}
-			}, WS_CONNECT_FALLBACK_MS);
-		})();
+		socket.on('disconnect', () => {
+			if (cancelled || unlockHandledRef.current) return;
+			setWsConnected(false);
+			setTransport('manual');
+			setError(
+				'Mất kết nối realtime. Nhập mã làm bài từ tin nhắn Zalo OA để tiếp tục.',
+			);
+		});
 
 		return () => {
 			cancelled = true;
-			stopPollLoop();
-			if (wsFallbackTimer) clearTimeout(wsFallbackTimer);
 			socket?.off(MOCK_TEST_ONLINE_WS.UNLOCK_READY, handleUnlockReady);
 			socket?.disconnect();
 		};
@@ -326,25 +199,6 @@ export function useMockTestOnlineZaloVerifySession({
 		resetProvisionState,
 	]);
 
-	const recheck = useCallback(async () => {
-		const pendingId = pendingRegistrationId?.trim();
-		if (!pendingId) return;
-		try {
-			const data = await fetchMockTestOnlinePendingStatus(pendingId);
-			applyStatusRef.current(data);
-			setError(null);
-		} catch (e) {
-			const msg =
-				e instanceof MockTestOnlineApiError
-					? e.message
-					: 'Không kiểm tra lại được trạng thái Zalo. Poll nền vẫn chạy — thử lại sau vài giây.';
-			setError(msg);
-			if (process.env.NODE_ENV !== 'production') {
-				console.error('[mock-test] zalo recheck failed', e);
-			}
-		}
-	}, [pendingRegistrationId]);
-
 	return {
 		status,
 		zaloVerified,
@@ -353,6 +207,5 @@ export function useMockTestOnlineZaloVerifySession({
 		wsConnected,
 		error: provisionError ?? error,
 		verifyIssue,
-		recheck,
 	};
 }
