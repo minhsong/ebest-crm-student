@@ -27,10 +27,10 @@ function resolveCookieMaxAgeSec(portalAuthorizeExpiresAt?: string): number {
 	return 30 * 60;
 }
 
-export function applyMockTestOnlineExamAuthCookie(
-	res: NextResponse,
+export function applyMockTestOnlineExamAuthCookie<T = unknown>(
+	res: NextResponse<T>,
 	input: { portalAuthorizeToken: string; portalAuthorizeExpiresAt?: string },
-): NextResponse {
+): NextResponse<T> {
 	const token = input.portalAuthorizeToken.trim();
 	if (!token) return res;
 	res.cookies.set(MOCK_TEST_ONLINE_EXAM_AUTH_COOKIE, token, {
@@ -43,7 +43,9 @@ export function applyMockTestOnlineExamAuthCookie(
 	return res;
 }
 
-export function clearMockTestOnlineExamAuthCookie(res: NextResponse): NextResponse {
+export function clearMockTestOnlineExamAuthCookie<T = unknown>(
+	res: NextResponse<T>,
+): NextResponse<T> {
 	res.cookies.set(MOCK_TEST_ONLINE_EXAM_AUTH_COOKIE, '', {
 		httpOnly: true,
 		sameSite: 'lax',
