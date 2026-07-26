@@ -62,20 +62,22 @@ export async function POST(req: NextRequest) {
 			},
 		);
 		const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-		const payload = (unwrapCrmResponseBody(data) ?? data) as Record<
-			string,
-			unknown
-		>;
 		if (!res.ok) {
+			// CRM error envelope: `message` ở top-level; `result` thường là Nest `error`
+			// string ("Conflict") — không unwrap kẻo mất message nghiệp vụ.
 			return NextResponse.json(
 				mapMockTestBffErrorForClient(
-					payload,
+					data,
 					res.status,
 					'Không chọn được bài thi. Vui lòng thử lại.',
 				),
 				{ status: res.status },
 			);
 		}
+		const payload = (unwrapCrmResponseBody(data) ?? data) as Record<
+			string,
+			unknown
+		>;
 		return NextResponse.json(payload, { status: res.status });
 	} catch (error) {
 		return mockTestBffCatchResponse(error, {

@@ -28,12 +28,21 @@ import {
 } from '@/lib/public-mock-test-online/exam-flow.util';
 import { postMockTestOnlineSelectExam } from '@/lib/public-mock-test-online/mock-test-online-api.client';
 import { MockTestOnlineApiError } from '@/lib/public-mock-test-online/mock-test-online-api-error';
+import { buildMockTestOnlineExamReadyPath } from '@/lib/public-mock-test-online/mock-test-online-exam-url.util';
 import type { MockTestErrorDiagnostics } from '@/lib/public-mock-test-online/mock-test-error-details';
 import { MockTestOnlineFunnelShell } from '@/components/public-mock-test-online/MockTestOnlineFunnelShell';
 import { MockTestOnlineSessionErrorAlert } from '@/components/public-mock-test-online/MockTestOnlineSessionErrorAlert';
 import { MockTestOnlineInExamResumeAlert } from '@/components/public-mock-test-online/MockTestOnlineInExamResumeAlert';
 import { MockTestOnlineAttemptLimitAlert } from '@/components/public-mock-test-online/MockTestOnlineAttemptLimitAlert';
 import { isMockTestOnlineAttemptBlocked } from '@/lib/public-mock-test-online/mock-test-online-attempt-limit.util';
+import {
+	isMockTestOnlineControlledAttemptGateError,
+	resolveMockTestOnlineErrorCopy,
+} from '@/lib/public-mock-test-online/mock-test-online-session-errors.util';
+import {
+	clearMtoExamIntent,
+	readMtoExamIntent,
+} from '@/lib/public-mock-test-online/mto-exam-intent';
 
 const { Text, Title, Paragraph } = Typography;
 
@@ -44,6 +53,8 @@ export type MockTestOnlineSelectExamFormProps = {
 	selectedCampaign: MockTestOnlineCampaign | null;
 	campaignsError?: string | null;
 	attemptStatus?: MockTestOnlineAttemptStatus | null;
+	/** Prefill variant từ returnUrl (browse-first B). */
+	initialVariant?: 'full' | 'mini';
 };
 
 function formatDuration(minutes: number | null | undefined): string | null {
@@ -57,6 +68,7 @@ export function MockTestOnlineSelectExamForm({
 	selectedCampaign,
 	campaignsError = null,
 	attemptStatus = null,
+	initialVariant,
 }: MockTestOnlineSelectExamFormProps) {
 	const router = useRouter();
 	const { message } = App.useApp();
@@ -72,11 +84,20 @@ export function MockTestOnlineSelectExamForm({
 
 	useEffect(() => {
 		form.setFieldValue('pendingLeadId', pendingLeadId);
+		const fromLs = readMtoExamIntent();
 		const id =
 			selectedCampaign?.sessionId ??
+			fromLs?.sessionId ??
 			(campaigns.length === 1 ? campaigns[0]?.sessionId : undefined);
 		if (id) form.setFieldValue('sessionId', id);
-	}, [pendingLeadId, selectedCampaign, campaigns, form]);
+		const variant =
+			initialVariant ??
+			fromLs?.testVariantChoice ??
+			undefined;
+		if (variant === 'full' || variant === 'mini') {
+			form.setFieldValue('testVariantChoice', variant);
+		}
+	}, [pendingLeadId, selectedCampaign, campaigns, form, initialVariant]);
 
 	const grouped = useMemo(() => groupCampaignsByTestType(campaigns), [campaigns]);
 
@@ -106,6 +127,21 @@ export function MockTestOnlineSelectExamForm({
 					sessionId: resolvedSessionId,
 					testVariantChoice: values.testVariantChoice,
 				});
+				clearMtoExamIntent();
+
+				// Đã Zalo unlock chưa start — vào phòng chờ, Start mới tính giờ.
+				if (
+					data.resumePhase === 'ready' &&
+					data.registrationId != null &&
+					data.registrationId >= 1
+				) {
+					router.push(
+						buildMockTestOnlineExamReadyPath({
+							registrationId: data.registrationId,
+						}),
+					);
+					return;
+				}
 
 				const ownershipKey =
 					(data as { accountId?: string }).accountId?.trim() ||
@@ -158,6 +194,16 @@ export function MockTestOnlineSelectExamForm({
 				router.push(`/mock-test-online/confirm-exam?${params.toString()}`);
 			} catch (e) {
 				if (e instanceof MockTestOnlineApiError) {
+					const gateCopy = resolveMockTestOnlineErrorCopy({
+						message: e.message,
+						errorCode: e.errorCode,
+						step: 'b2_select_exam',
+					});
+					if (
+						isMockTestOnlineControlledAttemptGateError(e.errorCode, e.message)
+					) {
+						message.warning(gateCopy.title);
+					}
 					setSubmitError({
 						message: e.message,
 						errorCode: e.errorCode,
@@ -202,27 +248,35 @@ export function MockTestOnlineSelectExamForm({
 					errorCode={submitError.errorCode}
 					step="b2_select_exam"
 					diagnostics={submitError.diagnostics}
+					onDismiss={() => setSubmitError(null)}
 				/>
 			</MockTestOnlineFunnelShell>
 		);
 	}
 
 	const activeInExam = attemptStatus?.activeInExam?.resumeAllowed ?? false;
-	const attemptLimitReached = isMockTestOnlineAttemptBlocked(attemptStatus);
+	const attemptLimitReached = isMockTestOnlineAttemptBlocked(attemptStatus, {
+		sessionId: typeof sessionId === 'number' ? sessionId : selectedCampaign?.sessionId,
+	});
 
 	return (
 		<MockTestOnlineFunnelShell step="select_exam">
 			<Title level={3} className="mock-test-page-title !mb-1 !mt-0">
-				Chọn bài thi
+				Xác nhận bài thi
 			</Title>
 			<Paragraph className="mock-test-intro-text !mb-4">
-				Chọn đúng loại đề và chiến dịch bạn muốn thi. Bước tiếp theo là xác minh
-				qua Zalo: sao chép mã và nhắn cho Zalo OA Ebest để liên kết liên hệ Zalo.
+				Kiểm tra bài đã chọn (và loại đề nếu có), rồi bấm tiếp tục để xác minh
+				qua Zalo OA Ebest.
 			</Paragraph>
 
 			<MockTestOnlineInExamResumeAlert attemptStatus={attemptStatus} />
 
-			<MockTestOnlineAttemptLimitAlert attemptStatus={attemptStatus} />
+			<MockTestOnlineAttemptLimitAlert
+				attemptStatus={attemptStatus}
+				sessionId={
+					typeof sessionId === 'number' ? sessionId : selectedCampaign?.sessionId
+				}
+			/>
 
 			{campaignsError ? (
 				<Alert type="error" showIcon message={campaignsError} className="!mb-4" />

@@ -2,7 +2,7 @@
  * Map CRM / Gateway portal contact conflict → client-safe payload (PI-D16, BL-Q7).
  */
 
-import { sanitizeApiErrorPayload } from '@/lib/student-safe-errors';
+import { sanitizeApiErrorPayload, sanitizeStudentFacingMessage } from '@/lib/student-safe-errors';
 
 export const PORTAL_EMAIL_CONFLICT_MESSAGE =
   'Email này đã có trong hệ thống. Vui lòng đăng nhập bằng tài khoản hiện có, dùng email khác hoặc liên hệ Ebest để được hỗ trợ.';
@@ -120,6 +120,34 @@ export function mapPortalConflictForClient(
         errorCode: 'RATE_LIMITED',
         action: 'retry',
         ...(retryAfterSec != null ? { retryAfterSec } : {}),
+      };
+    }
+
+    // Hết lượt / đang làm dở — 403 nghiệp vụ, không map thành «không có quyền».
+    if (
+      semantic === 'MOCK_TEST_ONLINE_ATTEMPT_LIMIT' ||
+      semantic.startsWith('MOCK_TEST_ONLINE_ATTEMPT_LIMIT:') ||
+      semantic === 'MOCK_TEST_ONLINE_IN_EXAM_ACTIVE'
+    ) {
+      const raw =
+        typeof o.message === 'string'
+          ? o.message
+          : typeof o.error === 'string'
+            ? o.error
+            : undefined;
+      const defaultMsg =
+        semantic === 'MOCK_TEST_ONLINE_IN_EXAM_ACTIVE'
+          ? 'Bạn đang có bài thi làm dở. Vui lòng tiếp tục làm bài trước khi đăng ký lượt mới.'
+          : 'Bạn đã sử dụng hết số lần thi thử online cho loại đề này. Vui lòng liên hệ Ebest để được tư vấn thêm.';
+      return {
+        message: sanitizeStudentFacingMessage(raw, defaultMsg),
+        code: semantic.startsWith('MOCK_TEST_ONLINE_ATTEMPT_LIMIT')
+          ? 'MOCK_TEST_ONLINE_ATTEMPT_LIMIT'
+          : semantic,
+        errorCode: semantic.startsWith('MOCK_TEST_ONLINE_ATTEMPT_LIMIT')
+          ? 'MOCK_TEST_ONLINE_ATTEMPT_LIMIT'
+          : semantic,
+        action: 'contact_support',
       };
     }
   }

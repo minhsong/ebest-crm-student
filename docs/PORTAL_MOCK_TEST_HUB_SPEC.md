@@ -1,8 +1,8 @@
 # Portal Mock Test Hub — SSOT route & identity
 
-> **Cập nhật:** 2026-07-17  
+> **Cập nhật:** 2026-07-26  
 > **Trạng thái:** P0–P5i triển khai (lead + customer); E2E manual còn mở  
-> **Liên quan:** [LEAD_PORTAL_SESSION_AND_MARKETING_SPEC.md](./LEAD_PORTAL_SESSION_AND_MARKETING_SPEC.md) · [PORTAL_MOCK_TEST_IMPLEMENTATION_ROADMAP.md](./PORTAL_MOCK_TEST_IMPLEMENTATION_ROADMAP.md)
+> **Liên quan:** [LEAD_PORTAL_SESSION_AND_MARKETING_SPEC.md](./LEAD_PORTAL_SESSION_AND_MARKETING_SPEC.md) · [PORTAL_MOCK_TEST_IMPLEMENTATION_ROADMAP.md](./PORTAL_MOCK_TEST_IMPLEMENTATION_ROADMAP.md) · **Logic drop/resume/results:** [DROP_RESUME_AND_RESULTS](../../ebest-crm-api/docs/modules/mock-test/MOCK_TEST_ONLINE_DROP_RESUME_AND_RESULTS_AS_BUILT.md) · **BFF auth/identity:** [PORTAL_BFF_AUTH_AND_IDENTITY_REUSE_SPEC.md](./PORTAL_BFF_AUTH_AND_IDENTITY_REUSE_SPEC.md)
 
 ## Mục tiêu
 
@@ -16,13 +16,14 @@
 | Route | Vai trò | Auth |
 |-------|---------|------|
 | `/mock-test` | Hub 3 mục | Lead / Customer JWT |
-| `/mock-test/results` | Lịch sử offline + online | Lead / Customer JWT |
+| `/mock-test/results` | Lịch sử offline + online (**SoT điểm = CRM**, không list từ GW) | Lead / Customer JWT |
 | `/mock-test/offline` | Đăng ký tại trung tâm | Lead / Customer JWT |
 | `/mock-test/online/start` | Lead / HV → bootstrap funnel (skip intake) | Lead / Customer JWT |
 | `/mock-test-online/register` | Intake (guest / HV prefill) | Public / Customer |
-| `/mock-test-online/select-exam` | Chọn đề | Funnel cookie |
-| `/mock-test-online/confirm-exam` | Zalo unlock | Funnel |
-| `/mock-test-online/exam/run` | Làm bài | Exam auth |
+| `/mock-test-online/select-exam` | Chọn đề (gate hết lượt = UX warning) | `portal_at` |
+| `/mock-test-online/confirm-exam` | Zalo unlock | Auth + pending |
+| `/mock-test-online/exam/ready` | Phòng chờ sau unlock (**chưa** timer đề) | Auth + registration |
+| `/mock-test-online/exam/run` | Làm bài (timer sau Start) | Exam authorize |
 | `/mock-test-register` | Marketing iframe | Public |
 
 ### Alias legacy

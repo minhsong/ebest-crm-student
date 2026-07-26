@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
-import { buildPortalLoginHref } from '@/lib/portal-auth/post-auth-return-url';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 import { fetchPortalMockTestExamHome } from '@/features/portal-mock-test/server/fetch-my-exam-home.server';
 import { buildMockTestOnlineConfirmExamPath } from '@/lib/public-mock-test-online/select-exam-cache';
@@ -8,17 +7,12 @@ import { buildMockTestOnlineConfirmExamPath } from '@/lib/public-mock-test-onlin
 export const dynamic = 'force-dynamic';
 
 /**
- * Auth-first (PO-D24 / B1): không guest intake → select.
- * /register chỉ còn điểm vào → login hoặc select/confirm/resume.
+ * Legacy `/mock-test-online/register` — browse-first: guest → list public; auth → select/confirm/resume.
  */
 export default async function MockTestOnlineRegisterPage() {
 	const session = await resolvePortalSessionFromCookies();
 	if (session.actor === 'guest') {
-		redirect(
-			buildPortalLoginHref({
-				returnUrl: PORTAL_MOCK_TEST_ROUTES.onlineSelect,
-			}),
-		);
+		redirect('/mock-test-online');
 	}
 
 	const home = await fetchPortalMockTestExamHome();

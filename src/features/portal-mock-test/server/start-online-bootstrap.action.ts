@@ -35,7 +35,10 @@ export async function startPortalOnlineBootstrapAction(): Promise<StartOnlineBoo
       principal.phoneE164,
     );
   } else if (isPortalMockTestCustomerPrincipal(principal)) {
-    await redirectCustomerRegisterIfAttemptBlocked(principal.customerId);
+    await redirectCustomerRegisterIfAttemptBlocked(principal.customerId, undefined, {
+      omniLeadId: principal.omniLeadId,
+      phoneE164: principal.phoneE164,
+    });
   } else {
     redirect(PORTAL_MOCK_TEST_ROUTES.hub);
   }

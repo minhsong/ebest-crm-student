@@ -36,7 +36,7 @@ export function resolveMockTestOnlineNavActiveKey(pathname: string): string | nu
   return null;
 }
 
-/** Màn làm bài full-screen — header gọn (logo, không menu). */
+/** Màn làm bài / phòng chờ / done — chrome gọn, không hydrate explore/lead CRM. */
 export function isMockTestOnlineExamFocusPath(pathname: string): boolean {
-  return /\/mock-test-online\/exam\/run(?:\/|$)/.test(pathname);
+  return /\/mock-test-online\/exam\/(?:ready|run|done)(?:\/|$)/.test(pathname);
 }

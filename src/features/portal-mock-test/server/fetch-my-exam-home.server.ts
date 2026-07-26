@@ -37,6 +37,13 @@ export type PortalMockTestExamHome = {
     registrationId?: number;
     sessionId?: number;
   } | null;
+  /** Đã Zalo unlock, chưa start — resume `/exam/ready`. */
+  activeReady?: {
+    resumeAllowed?: boolean;
+    registrationId?: number;
+    sessionId?: number;
+    examUnlockExpiresAt?: string | null;
+  } | null;
   hasCompletedOnlineExam?: boolean;
   attemptStatus?: MockTestOnlineAttemptStatus | null;
   gates?: {

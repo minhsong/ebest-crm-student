@@ -4,7 +4,7 @@ import {
 } from '@/lib/public-mock-test-online/fetch-attempt-status.server';
 import { resolveAttemptRegisterRedirectPath } from '@/lib/public-mock-test-online/attempt-status-redirect.server';
 import { MOCK_TEST_ONLINE_DEFAULT_TEST_TYPE } from '@/lib/public-mock-test-online/constants';
-import { fetchCustomerOnlineBootstrapContextSsr } from '@/features/portal-mock-test/server/fetch-customer-bootstrap-context.server';
+import { resolveMtoCallerIdentityFromCookies } from '@/features/portal-mock-test/server/resolve-mto-caller-identity.server';
 
 export {
   MOCK_TEST_ONLINE_DEFAULT_TEST_TYPE,
@@ -31,19 +31,41 @@ export async function redirectLeadRegisterIfAttemptBlocked(
   if (path) redirect(path);
 }
 
+export type CustomerAttemptPrecheckHints = {
+  omniLeadId?: string | null;
+  phoneE164?: string | null;
+};
+
 /**
- * P5c — HV portal: resolve omniLeadId qua CRM rồi precheck attempt-status.
- * Không redirect khi không load được context — bootstrap sẽ báo lỗi rõ.
+ * P5c — HV portal: resolve omniLeadId (session embed → bootstrap fallback) rồi precheck.
+ * Không redirect khi không load được identity — bootstrap sẽ báo lỗi rõ.
  */
 export async function redirectCustomerRegisterIfAttemptBlocked(
   customerId: number,
   testTypeCode = MOCK_TEST_ONLINE_DEFAULT_TEST_TYPE,
+  hints?: CustomerAttemptPrecheckHints,
 ): Promise<void> {
-  const ctx = await fetchCustomerOnlineBootstrapContextSsr();
-  if (!ctx || ctx.customerId !== customerId) return;
+  const hintOmni = hints?.omniLeadId?.trim() || '';
+  if (hintOmni) {
+    await redirectLeadRegisterIfAttemptBlocked(
+      hintOmni,
+      testTypeCode,
+      hints?.phoneE164,
+    );
+    return;
+  }
+
+  const resolved = await resolveMtoCallerIdentityFromCookies();
+  if (
+    !resolved.ok ||
+    resolved.identity.actor !== 'customer' ||
+    resolved.identity.customerId !== customerId
+  ) {
+    return;
+  }
   await redirectLeadRegisterIfAttemptBlocked(
-    ctx.omniLeadId,
+    resolved.identity.omniLeadId,
     testTypeCode,
-    ctx.phoneE164,
+    resolved.identity.phoneE164,
   );
 }

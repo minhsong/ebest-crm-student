@@ -18,6 +18,7 @@ function baseStatus(
     sessionCap: null,
     attemptMode: 'retake_zalo',
     activeInExam: null,
+    activeReady: null,
     ...overrides,
   };
 }
@@ -32,6 +33,20 @@ describe('mock-test-online-attempt-limit.util', () => {
           activeInExam: {
             registrationId: 1,
             sessionId: 1,
+            examUnlockExpiresAt: null,
+            pendingRegistrationId: null,
+            resumeAllowed: true,
+          },
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isMockTestOnlineAttemptBlocked(
+        baseStatus({
+          remaining: 0,
+          activeReady: {
+            registrationId: 90,
+            sessionId: 16,
             examUnlockExpiresAt: null,
             pendingRegistrationId: null,
             resumeAllowed: true,
@@ -65,5 +80,23 @@ describe('mock-test-online-attempt-limit.util', () => {
       }),
     );
     expect(copy).toContain('chiến dịch này');
+  });
+
+  it('should block selected session when sessionCap exhausted even if remaining>0', () => {
+    const status = baseStatus({
+      remaining: 2,
+      globalRemaining: 2,
+      maxAttempts: 3,
+      verifiedCount: 1,
+      sessionCap: {
+        sessionId: 16,
+        maxAttemptsPerPhone: 1,
+        verifiedOnSession: 1,
+        sessionRemaining: 0,
+      },
+    });
+    expect(isMockTestOnlineAttemptBlocked(status)).toBe(false);
+    expect(isMockTestOnlineAttemptBlocked(status, { sessionId: 16 })).toBe(true);
+    expect(isMockTestOnlineAttemptBlocked(status, { sessionId: 99 })).toBe(false);
   });
 });

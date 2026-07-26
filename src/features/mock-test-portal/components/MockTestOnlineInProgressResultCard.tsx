@@ -12,15 +12,22 @@ type Props = {
 	attemptStatus: MockTestOnlineAttemptStatus;
 };
 
-/** Bài thi online đang làm dở — hiển thị trên trang kết quả lead. */
+/** Bài thi online đang làm dở / đã mở khóa chưa start — trang kết quả. */
 export function MockTestOnlineInProgressResultCard({ attemptStatus }: Props) {
 	const router = useRouter();
 	const [loading, setLoading] = useState(false);
-	const active = attemptStatus.activeInExam;
-	if (!active?.resumeAllowed) return null;
+	const inExam = attemptStatus.activeInExam?.resumeAllowed
+		? attemptStatus.activeInExam
+		: null;
+	const ready =
+		!inExam && attemptStatus.activeReady?.resumeAllowed
+			? attemptStatus.activeReady
+			: null;
+	if (!inExam && !ready) return null;
 
-	const deadline = active.examUnlockExpiresAt
-		? new Date(active.examUnlockExpiresAt).toLocaleString('vi-VN', {
+	const deadlineRaw = inExam?.examUnlockExpiresAt ?? ready?.examUnlockExpiresAt;
+	const deadline = deadlineRaw
+		? new Date(deadlineRaw).toLocaleString('vi-VN', {
 				hour: '2-digit',
 				minute: '2-digit',
 				day: '2-digit',
@@ -30,10 +37,16 @@ export function MockTestOnlineInProgressResultCard({ attemptStatus }: Props) {
 
 	return (
 		<Card size="small" className="border-amber-300 bg-amber-50/50 shadow-sm">
-			<Text strong>Đang làm bài thi thử online</Text>
+			<Text strong>
+				{inExam
+					? 'Đang làm bài thi thử online'
+					: 'Đã mở khóa bài thi — sẵn sàng bắt đầu'}
+			</Text>
 			<p className="mb-0 mt-1 text-sm text-gray-600">
-				Bạn có một bài thi chưa nộp.
-				{deadline ? ` Hạn làm bài: ${deadline}.` : null}
+				{inExam
+					? 'Bạn có một bài thi chưa nộp.'
+					: 'Bạn đã xác nhận Zalo nhưng chưa bắt đầu. Đồng hồ làm bài chỉ chạy sau khi bấm Start.'}
+				{inExam && deadline ? ` Hạn làm bài: ${deadline}.` : null}
 			</p>
 			<Button
 				type="primary"
@@ -47,7 +60,7 @@ export function MockTestOnlineInProgressResultCard({ attemptStatus }: Props) {
 					);
 				}}
 			>
-				Tiếp tục làm bài
+				{inExam ? 'Tiếp tục làm bài' : 'Vào phòng chờ'}
 			</Button>
 		</Card>
 	);

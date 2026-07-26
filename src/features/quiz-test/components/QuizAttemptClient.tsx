@@ -104,8 +104,18 @@ export function QuizAttemptClient({
   const isMockLobby = mockTestOnlineActive && mockTestOnlineEntry === 'lobby';
   const isMockSession = mockTestOnlineActive && mockTestOnlineEntry === 'session';
   const confirmStartRequested = searchParams.get('confirm') === '1';
-  const mockExamReadyPath = `/mock-test-online/exam/ready?form=${encodeURIComponent(formPublicId)}`;
-  const mockExamRunPath = `/mock-test-online/exam/run?form=${encodeURIComponent(formPublicId)}`;
+  const registrationIdFromUrl = (() => {
+    const raw = searchParams.get('registrationId');
+    if (!raw) return undefined;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 1 ? Math.trunc(n) : undefined;
+  })();
+  const mockExamReadyPath = registrationIdFromUrl
+    ? `/mock-test-online/exam/ready?form=${encodeURIComponent(formPublicId)}&registrationId=${registrationIdFromUrl}`
+    : `/mock-test-online/exam/ready?form=${encodeURIComponent(formPublicId)}`;
+  const mockExamRunPath = registrationIdFromUrl
+    ? `/mock-test-online/exam/run?form=${encodeURIComponent(formPublicId)}&registrationId=${registrationIdFromUrl}`
+    : `/mock-test-online/exam/run?form=${encodeURIComponent(formPublicId)}`;
 
   const buildAttemptPagePath = useCallback(
     (params: URLSearchParams) =>
@@ -173,11 +183,23 @@ export function QuizAttemptClient({
 
   const handleOpenConfirmStart = useCallback(() => {
     if (isMockLobby) {
-      router.push(`${mockExamRunPath}&confirm=1`);
+      const qs = new URLSearchParams();
+      qs.set('form', formPublicId);
+      qs.set('confirm', '1');
+      if (registrationIdFromUrl != null) {
+        qs.set('registrationId', String(registrationIdFromUrl));
+      }
+      router.push(`/mock-test-online/exam/run?${qs.toString()}`);
       return;
     }
     openConfirmStart();
-  }, [isMockLobby, mockExamRunPath, openConfirmStart, router]);
+  }, [
+    formPublicId,
+    isMockLobby,
+    openConfirmStart,
+    registrationIdFromUrl,
+    router,
+  ]);
 
   useEffect(() => {
     if (!isMockLobby || phase !== 'attempting') return;
@@ -197,9 +219,14 @@ export function QuizAttemptClient({
     openConfirmStart();
   }, [confirmStartRequested, isMockSession, openConfirmStart, phase]);
 
-  /** Sau khi đã confirm_start, gỡ ?confirm=1 khỏi URL — tránh redirect về ready. */
+  /**
+   * Giữ ?confirm=1 khi đang confirm_start — tránh race Strict Mode/loadForm
+   * ghi đè phase → ready rồi effect trên redirect về lobby.
+   * Chỉ gỡ confirm sau khi đã Start (starting/attempting).
+   */
   useEffect(() => {
-    if (!isMockSession || !confirmStartRequested || phase !== 'confirm_start') return;
+    if (!isMockSession || !confirmStartRequested) return;
+    if (phase !== 'starting' && phase !== 'attempting') return;
     router.replace(mockExamRunPath);
   }, [confirmStartRequested, isMockSession, mockExamRunPath, phase, router]);
 

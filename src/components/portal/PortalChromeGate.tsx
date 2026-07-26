@@ -18,6 +18,7 @@ type Props = {
 
 /**
  * LP-D2 — cookie / PortalSession quyết định chrome trên funnel mock-test-online.
+ * Trang exam (ready/run/done): chrome tối giản — không lead/me, không explore CRM.
  */
 export function PortalChromeGate({ children }: Props) {
 	const session = usePortalSession();
@@ -33,12 +34,13 @@ export function PortalChromeGate({ children }: Props) {
 		);
 	}
 
+	if (examFocus) {
+		return <MockTestOnlineSiteLayout>{children}</MockTestOnlineSiteLayout>;
+	}
+
 	if (actor === 'lead') {
 		return (
-			<LeadAuthenticatedLayoutClient
-				allowMockTestFunnel
-				sidebarCollapsedDefault={examFocus}
-			>
+			<LeadAuthenticatedLayoutClient allowMockTestFunnel>
 				{children}
 			</LeadAuthenticatedLayoutClient>
 		);
@@ -46,9 +48,7 @@ export function PortalChromeGate({ children }: Props) {
 
 	if (actor === 'customer') {
 		return (
-			<CustomerPortalChromeClient sidebarCollapsedDefault={examFocus}>
-				{children}
-			</CustomerPortalChromeClient>
+			<CustomerPortalChromeClient>{children}</CustomerPortalChromeClient>
 		);
 	}
 

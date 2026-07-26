@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MockTestOnlineAttemptStatus } from '@/lib/public-mock-test-online/types';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 import { resolveMockTestHubOnlineState } from './hub-online-status';
 
 function status(
@@ -15,6 +16,7 @@ function status(
     sessionCap: null,
     attemptMode: 'full',
     activeInExam: null,
+    activeReady: null,
     ...overrides,
   };
 }
@@ -41,13 +43,39 @@ describe('resolveMockTestHubOnlineState', () => {
           },
         }),
       ),
-    ).toEqual({ kind: 'resume', label: 'Có bài đang làm dở' });
+    ).toEqual({
+      kind: 'resume',
+      label: 'Có bài đang làm dở',
+      href: PORTAL_MOCK_TEST_ROUTES.results,
+    });
+  });
+
+  it('resumes ready lobby when Zalo unlocked but not started', () => {
+    expect(
+      resolveMockTestHubOnlineState(
+        status({
+          remaining: 0,
+          activeReady: {
+            registrationId: 90,
+            sessionId: 16,
+            examUnlockExpiresAt: null,
+            pendingRegistrationId: 'pending-z',
+            resumeAllowed: true,
+          },
+        }),
+      ),
+    ).toEqual({
+      kind: 'resume',
+      label: 'Đã mở khóa — sẵn sàng bắt đầu',
+      href: '/mock-test-online/exam/ready?registrationId=90',
+    });
   });
 
   it('shows blocked when no remaining attempt', () => {
     expect(resolveMockTestHubOnlineState(status({ remaining: 0 }))).toEqual({
       kind: 'blocked',
       label: 'Đã hết lượt online',
+      href: PORTAL_MOCK_TEST_ROUTES.results,
     });
   });
 

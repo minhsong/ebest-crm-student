@@ -23,7 +23,7 @@ import {
 import { resolvePostLeadLoginPath } from '@/lib/portal-auth/session-routes';
 import type { PortalLoginMode } from '@/components/portal/PortalLoginModePicker';
 import { PortalLoginModePicker, parsePortalLoginModeFromQuery } from '@/components/portal/PortalLoginModePicker';
-import { resolvePostAuthReturnUrl } from '@/lib/portal-auth/post-auth-return-url';
+import { resolvePostAuthReturnUrl, PORTAL_RETURN_URL_QUERY } from '@/lib/portal-auth/post-auth-return-url';
 
 /** Cam brand (~HSL 16° / ~78% sat / ~51% L) — đồng bộ nhận diện với logo. */
 const LOGIN_BRAND_BG = '#e35321';
@@ -306,7 +306,11 @@ export default function LoginPage() {
                     <p className="mt-3 mb-0 text-center text-sm text-white/90">
                       Chưa có tài khoản?{' '}
                       <Link
-                        href="/register"
+                        href={
+                          explicitRedirect()
+                            ? `/register?${PORTAL_RETURN_URL_QUERY}=${encodeURIComponent(explicitRedirect()!)}`
+                            : '/register'
+                        }
                         className="font-semibold text-white underline decoration-white/50 underline-offset-2 hover:decoration-white"
                       >
                         Đăng ký

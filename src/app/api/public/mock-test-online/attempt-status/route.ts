@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
 import { gatewayUnauthorizedResponse } from '@/lib/social-gateway-bff.util';
 import { sanitizeApiErrorPayload } from '@/lib/student-safe-errors';
 import { fetchMockTestOnlineAttemptStatusNoStore } from '@/lib/public-mock-test-online/fetch-attempt-status.server';
-import { fetchCustomerOnlineBootstrapContextSsr } from '@/features/portal-mock-test/server/fetch-customer-bootstrap-context.server';
+import { resolveMtoCallerIdentityFromCookies } from '@/features/portal-mock-test/server/resolve-mto-caller-identity.server';
 
-/** Proxy CRM attempt-status — lead hoặc HV portal cookie. */
+/** Proxy CRM attempt-status — identity từ cookie session (không nhận omni từ client). */
 export async function GET(request: NextRequest) {
-	const session = await resolvePortalSessionFromCookies();
-	if (session.actor === 'guest') {
-		return gatewayUnauthorizedResponse();
+	const resolved = await resolveMtoCallerIdentityFromCookies();
+	if (!resolved.ok) {
+		if (resolved.reason === 'guest') {
+			return gatewayUnauthorizedResponse();
+		}
+		return NextResponse.json(
+			{ message: 'Không tải được thông tin thi thử.' },
+			{ status: 502 },
+		);
 	}
 
 	const testTypeCode =
@@ -21,29 +26,12 @@ export async function GET(request: NextRequest) {
 		);
 	}
 
-	let omniLeadId: string;
-	let phoneNormalized: string | undefined;
-
-	if (session.actor === 'lead') {
-		omniLeadId = session.omniLeadId;
-		phoneNormalized = session.profile.phoneE164 ?? undefined;
-	} else {
-		const ctx = await fetchCustomerOnlineBootstrapContextSsr();
-		if (!ctx || ctx.customerId !== session.customer.id) {
-			return NextResponse.json(
-				{ message: 'Không tải được thông tin thi thử.' },
-				{ status: 502 },
-			);
-		}
-		omniLeadId = ctx.omniLeadId;
-		phoneNormalized = ctx.phoneE164;
-	}
-
+	const { omniLeadId, phoneE164 } = resolved.identity;
 	const { status, httpStatus } = await fetchMockTestOnlineAttemptStatusNoStore(
 		omniLeadId,
 		testTypeCode,
-		phoneNormalized?.trim()
-			? { phoneNormalized: phoneNormalized.trim() }
+		phoneE164?.trim()
+			? { phoneNormalized: phoneE164.trim() }
 			: undefined,
 	);
 

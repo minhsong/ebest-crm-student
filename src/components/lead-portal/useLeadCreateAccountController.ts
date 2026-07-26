@@ -286,6 +286,7 @@ export function useLeadCreateAccountController(mode: LeadCreateAccountMode) {
           email: values.email.trim(),
           emailVerificationSent: result.emailVerificationSent,
           message: result.message,
+          returnUrl: resolveReturnUrl(),
         });
         setStep("done");
         message[result.emailVerificationSent ? "success" : "warning"](

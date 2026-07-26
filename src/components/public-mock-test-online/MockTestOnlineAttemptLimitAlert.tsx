@@ -17,6 +17,8 @@ type Props = {
    * Chỉ hiện khi đã có status (tránh flash generic rồi biến mất khi resume).
    */
   forced?: boolean;
+  /** Chiến dịch đang chọn — chặn theo session_cap. */
+  sessionId?: number | null;
 };
 
 /** Alert hết lượt thi — SSOT copy (select-exam, /mock-test/results). */
@@ -25,10 +27,11 @@ export function MockTestOnlineAttemptLimitAlert({
   className = '!mb-4',
   variant = 'error',
   forced = false,
+  sessionId = null,
 }: Props) {
   if (attemptStatus?.activeInExam?.resumeAllowed) return null;
 
-  const blocked = isMockTestOnlineAttemptBlocked(attemptStatus);
+  const blocked = isMockTestOnlineAttemptBlocked(attemptStatus, { sessionId });
   if (forced) {
     // Chưa load status → đợi (tránh flash copy generic).
     if (attemptStatus == null) return null;

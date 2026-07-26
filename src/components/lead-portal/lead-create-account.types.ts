@@ -15,4 +15,6 @@ export type LeadCreateAccountDoneState = {
   email: string;
   emailVerificationSent: boolean;
   message: string;
+  /** Deep-link sau xác nhận email → login (browse-first MTO). */
+  returnUrl?: string | null;
 };

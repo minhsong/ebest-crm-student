@@ -19,3 +19,19 @@ export function buildMockTestOnlineExamRunPath(
 	const query = qs.toString();
 	return query ? `${base}?${query}` : base;
 }
+
+/** Phòng chờ — Zalo unlock chưa start (đồng hồ đề sau Start). */
+export function buildMockTestOnlineExamReadyPath(
+	params: MockTestOnlineExamRunParams = {},
+): string {
+	const base = '/mock-test-online/exam/ready';
+	const qs = new URLSearchParams();
+	const regId = params.registrationId;
+	if (regId != null && Number.isFinite(regId) && regId >= 1) {
+		qs.set('registrationId', String(Math.trunc(regId)));
+	}
+	const form = params.formPublicId?.trim();
+	if (form) qs.set('form', form);
+	const query = qs.toString();
+	return query ? `${base}?${query}` : base;
+}

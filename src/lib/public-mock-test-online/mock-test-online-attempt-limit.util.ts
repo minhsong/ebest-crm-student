@@ -28,8 +28,31 @@ export function getMockTestOnlineAttemptLimitDescription(
 
 export function isMockTestOnlineAttemptBlocked(
   status: MockTestOnlineAttemptStatus | null | undefined,
+  opts?: { sessionId?: number | null },
 ): boolean {
   if (!status) return false;
   if (status.activeInExam?.resumeAllowed) return false;
-  return status.remaining <= 0;
+  const selectedSessionId =
+    opts?.sessionId != null && Number.isFinite(opts.sessionId) && opts.sessionId >= 1
+      ? opts.sessionId
+      : null;
+  // Đã unlock chưa start — không coi hết lượt khi resume đúng session (hoặc chưa chọn session).
+  if (status.activeReady?.resumeAllowed) {
+    if (
+      selectedSessionId == null ||
+      status.activeReady.sessionId === selectedSessionId
+    ) {
+      return false;
+    }
+  }
+  if (status.remaining <= 0) return true;
+  // Session cap: còn global nhưng hết lượt đúng chiến dịch đang chọn.
+  if (
+    selectedSessionId != null &&
+    status.sessionCap?.sessionId === selectedSessionId &&
+    status.sessionCap.sessionRemaining <= 0
+  ) {
+    return true;
+  }
+  return false;
 }

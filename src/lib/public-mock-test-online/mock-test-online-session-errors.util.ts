@@ -161,14 +161,27 @@ const ERROR_CODE_COPY: Record<string, MockTestOnlineErrorCopy> = {
 			'Hệ thống đang bận hoặc có sự cố tạm thời. Vui lòng thử lại sau vài phút. Nếu vẫn lỗi, liên hệ Fanpage Ebest.',
 		recovery: 'retry',
 	},
+	/** CRM/GW gate — hết lượt (global hoặc session_cap). Lỗi nghiệp vụ có kiểm soát. */
+	MOCK_TEST_ONLINE_ATTEMPT_LIMIT: {
+		title: 'Đã hết lượt thi thử online',
+		description:
+			'Bạn đã dùng hết số lần thi cho chiến dịch hoặc loại đề này. Xem lịch sử điểm, chọn chiến dịch khác còn lượt, hoặc liên hệ Ebest để được tư vấn.',
+		recovery: 'lead_tests',
+	},
+	MOCK_TEST_ONLINE_IN_EXAM_ACTIVE: {
+		title: 'Bạn đang có bài thi làm dở',
+		description:
+			'Tiếp tục bài đang làm trước khi đăng ký lượt mới. Mở lịch sử thi để vào lại phòng thi.',
+		recovery: 'lead_tests',
+	},
 	ACCESS_DENIED: {
-		title: 'Không còn lượt thi thử',
+		title: 'Đã hết lượt thi thử online',
 		description:
 			'Bạn đã dùng hết lượt thi thử online cho loại đề này. Xem lịch sử thi hoặc liên hệ Ebest để được tư vấn.',
 		recovery: 'lead_tests',
 	},
 	MAX_ATTEMPTS_EXCEEDED: {
-		title: 'Không còn lượt thi thử',
+		title: 'Đã hết lượt thi thử online',
 		description:
 			'Bạn đã dùng hết lượt thi thử online cho loại đề này. Xem lịch sử thi hoặc liên hệ Ebest để được tư vấn.',
 		recovery: 'lead_tests',
@@ -253,12 +266,40 @@ export function isMockTestOnlineSessionExpiredMessage(
 	);
 }
 
+/** Mã hết lượt / đang làm dở — UX cảnh báo nghiệp vụ, không hiện diagnostics kỹ thuật. */
+export function isMockTestOnlineControlledAttemptGateError(
+	errorCode?: string | null,
+	message?: string | null,
+): boolean {
+	const code = errorCode?.trim() ?? '';
+	if (
+		code === 'MOCK_TEST_ONLINE_ATTEMPT_LIMIT' ||
+		code.startsWith('MOCK_TEST_ONLINE_ATTEMPT_LIMIT:') ||
+		code === 'MOCK_TEST_ONLINE_IN_EXAM_ACTIVE' ||
+		code === 'ACCESS_DENIED' ||
+		code === 'MAX_ATTEMPTS_EXCEEDED' ||
+		code === 'CHANNEL_ALREADY_CONSUMED'
+	) {
+		return true;
+	}
+	const m = (message ?? '').toLowerCase();
+	return (
+		m.includes('hết số lần thi') ||
+		m.includes('hết lượt thi') ||
+		m.includes('đang có bài thi làm dở')
+	);
+}
+
 export function resolveMockTestOnlineApiErrorCopy(input: {
 	message?: string;
 	errorCode?: string;
 	step: MockTestOnlineFunnelStep;
 }): MockTestOnlineErrorCopy {
-	const code = input.errorCode?.trim();
+	const rawCode = input.errorCode?.trim() ?? '';
+	const code =
+		rawCode.startsWith('MOCK_TEST_ONLINE_ATTEMPT_LIMIT')
+			? 'MOCK_TEST_ONLINE_ATTEMPT_LIMIT'
+			: rawCode;
 	if (code && ERROR_CODE_COPY[code]) {
 		const copy = ERROR_CODE_COPY[code];
 		const description =
@@ -274,6 +315,15 @@ export function resolveMockTestOnlineApiErrorCopy(input: {
 	}
 
 	const message = input.message?.trim() || 'Đã xảy ra lỗi.';
+	if (isMockTestOnlineControlledAttemptGateError(rawCode, message)) {
+		const fallback = ERROR_CODE_COPY.MOCK_TEST_ONLINE_ATTEMPT_LIMIT;
+		return {
+			title: fallback.title,
+			description: message.includes('hết') ? message : fallback.description,
+			recovery: 'lead_tests',
+		};
+	}
+
 	const expired = isMockTestOnlineSessionExpiredMessage(message);
 	return {
 		title: message,

@@ -5,9 +5,13 @@ import { buildMockTestOnlineExamRunPath } from '@/lib/public-mock-test-online/mo
 
 const TEST_TYPE_LABELS: Record<string, string> = {
 	toeic_lr: 'TOEIC Listening & Reading',
+	toeic_sw: 'TOEIC Speaking & Writing',
 	communication: 'Giao tiếp',
 	kids: 'Thiếu nhi',
 	vstep: 'VSTEP',
+	uni_entrance: 'Đầu vào đại học',
+	university_entrance: 'Đầu vào đại học',
+	ielts: 'IELTS',
 };
 
 export function mockTestOnlineTypeLabel(code: string | null | undefined): string {

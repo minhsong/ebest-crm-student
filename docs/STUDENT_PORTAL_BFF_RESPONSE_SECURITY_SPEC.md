@@ -20,6 +20,8 @@
 
 | Chủ đề | File |
 |--------|------|
+| **Auth cookie · inject identity · tái sử dụng** | [PORTAL_BFF_AUTH_AND_IDENTITY_REUSE_SPEC.md](./PORTAL_BFF_AUTH_AND_IDENTITY_REUSE_SPEC.md) |
+| Security monorepo | [SECURITY_STANDARDS](../../ebest-crm-api/docs/monorepo/standards/SECURITY_STANDARDS.md) |
 | Sanitize message (as-built) | `ebest-student-portal/src/lib/student-safe-errors.ts` |
 | Proxy CRM | `crm-student-proxy.ts`, `student-crm-proxy.ts` |
 | Email trùng (logic nội bộ) | [PORTAL_LOGIN_KEY_EMAIL_CONFLICT_SPEC.md](../../ebest-crm-api/docs/system/PORTAL_LOGIN_KEY_EMAIL_CONFLICT_SPEC.md) |

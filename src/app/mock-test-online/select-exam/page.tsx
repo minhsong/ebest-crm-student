@@ -15,31 +15,46 @@ import {
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 import { fetchPortalMockTestExamHome } from '@/features/portal-mock-test/server/fetch-my-exam-home.server';
 import { LEAD_COMPLETE_PROFILE_PATH } from '@/lib/portal-auth/session-routes';
+import {
+	buildSelectExamIntentPath,
+	parseSelectExamIntentFromSearchParams,
+} from '@/lib/public-mock-test-online/mto-exam-intent';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = buildPageMetadata({
 	title: 'Chọn bài thi thử online',
-	description: 'Chọn bài thi sau khi đăng ký thi thử online Ebest.',
+	description: 'Xác nhận bài thi đã chọn rồi xác minh Zalo để vào phòng thi.',
 	path: '/mock-test-online/select-exam',
 });
 
 type PageProps = {
-	searchParams: Promise<{ campaign?: string }>;
+	searchParams: Promise<{
+		campaign?: string;
+		sessionId?: string;
+		variant?: string;
+	}>;
 };
 
 /**
- * Auth-first (PO-D17/D24/D30): bắt buộc portal_at trước list/select.
- * Pending Zalo / in_exam / profile gate từ CRM my-exam-home.
+ * Prefill + 1 click (browse-first B). Guest → login với returnUrl giữ intent.
+ * Auth gates (pending / resume / profile) giữ như auth-first.
  */
 export default async function MockTestOnlineSelectExamPage({
 	searchParams,
 }: PageProps) {
+	const sp = await searchParams;
+	const intentFromUrl = parseSelectExamIntentFromSearchParams(sp);
+	const selectReturnPath = intentFromUrl
+		? buildSelectExamIntentPath(intentFromUrl)
+		: PORTAL_MOCK_TEST_ROUTES.onlineSelect;
+
 	const session = await resolvePortalSessionFromCookies();
 	if (session.actor === 'guest') {
 		redirect(
 			buildPortalLoginHref({
-				returnUrl: PORTAL_MOCK_TEST_ROUTES.onlineSelect,
+				mode: 'lead',
+				returnUrl: selectReturnPath,
 			}),
 		);
 	}
@@ -50,7 +65,7 @@ export default async function MockTestOnlineSelectExamPage({
 			redirect(`${PORTAL_MOCK_TEST_ROUTES.hub}?notice=profile_required`);
 		}
 		const q = new URLSearchParams({
-			[PORTAL_RETURN_URL_QUERY]: PORTAL_MOCK_TEST_ROUTES.onlineSelect,
+			[PORTAL_RETURN_URL_QUERY]: selectReturnPath,
 		});
 		redirect(`${LEAD_COMPLETE_PROFILE_PATH}?${q.toString()}`);
 	}
@@ -70,21 +85,25 @@ export default async function MockTestOnlineSelectExamPage({
 		);
 	}
 	if (examHome?.activeAttempt?.resumeAllowed) {
-		redirect(PORTAL_MOCK_TEST_ROUTES.onlineExamRun);
+		const regId = examHome.activeAttempt.registrationId;
+		redirect(
+			regId != null && regId >= 1
+				? `${PORTAL_MOCK_TEST_ROUTES.onlineExamRun}?registrationId=${regId}`
+				: PORTAL_MOCK_TEST_ROUTES.onlineExamRun,
+		);
+	}
+	if (examHome?.activeReady?.resumeAllowed) {
+		const regId = examHome.activeReady.registrationId;
+		if (regId != null && regId >= 1) {
+			redirect(`/mock-test-online/exam/ready?registrationId=${regId}`);
+		}
 	}
 
-	const sp = await searchParams;
-	const campaignRaw = sp.campaign?.trim();
-	const campaignId = campaignRaw ? parseInt(campaignRaw, 10) : undefined;
-
+	const campaignId = intentFromUrl?.sessionId;
 	const { campaigns, selectedCampaign, campaignsError } =
-		await loadMockTestOnlineSelectExamPageData(
-			undefined,
-			Number.isFinite(campaignId) ? campaignId : undefined,
-		);
+		await loadMockTestOnlineSelectExamPageData(undefined, campaignId);
 	const seo = await fetchMockTestOnlineSeo();
 
-	// Ưu tiên attemptStatus từ my-exam-home — tránh fetch CRM/GW lần 2.
 	const attemptStatus =
 		examHome?.attemptStatus ??
 		(session.actor === 'lead' || session.actor === 'customer'
@@ -107,6 +126,7 @@ export default async function MockTestOnlineSelectExamPage({
 				campaignsError={campaignsError}
 				attemptStatus={attemptStatus}
 				pendingLeadId=""
+				initialVariant={intentFromUrl?.testVariantChoice}
 			/>
 		</MockTestClientErrorBoundary>
 	);

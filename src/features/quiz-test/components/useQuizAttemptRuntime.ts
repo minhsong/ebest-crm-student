@@ -173,6 +173,8 @@ export function useQuizAttemptRuntime({
   // Refs for async callbacks
   const autoSubmitTriggeredRef = useRef(false);
   const resetDeadlineCloseRef = useRef<() => void>(() => undefined);
+  /** Chống loadForm chồng (Strict Mode) ghi đè confirm_start → ready. */
+  const loadFormGenerationRef = useRef(0);
 
   const applyServerTimerToAttempt = useCallback(
     (timer: unknown, status?: string) => {
@@ -219,7 +221,18 @@ export function useQuizAttemptRuntime({
   }, [formPublicId, querySuffix]);
 
   const loadForm = useCallback(async () => {
-    setPhase('loading_form');
+    const generation = ++loadFormGenerationRef.current;
+    const isStale = () => generation !== loadFormGenerationRef.current;
+    // Đang confirm/start — không hạ phase về loading (tránh bounce MTO ready↔run).
+    const phaseNow = phaseRef.current;
+    if (
+      phaseNow !== 'confirm_start' &&
+      phaseNow !== 'starting' &&
+      phaseNow !== 'attempting' &&
+      phaseNow !== 'submitting'
+    ) {
+      setPhase('loading_form');
+    }
     setErrMsg(null);
 
     try {
@@ -296,6 +309,8 @@ export function useQuizAttemptRuntime({
         nextHistory = normalizeQuizAttemptHistoryItems(historyRes.data?.items);
       }
 
+      if (isStale()) return;
+
       setAttemptHistory(nextHistory);
       setFormPayload(data);
 
@@ -363,6 +378,18 @@ export function useQuizAttemptRuntime({
         return;
       }
 
+      // Stale loadForm (Strict Mode) không được ghi đè confirm_start → ready
+      // (sẽ kích hoạt redirect run → ready trên MTO).
+      const guarded = phaseRef.current;
+      if (
+        guarded === 'confirm_start' ||
+        guarded === 'starting' ||
+        guarded === 'attempting' ||
+        guarded === 'submitting'
+      ) {
+        return;
+      }
+
       setAttempt(null);
       setAnswers({});
       answersRef.current = {};
@@ -371,12 +398,22 @@ export function useQuizAttemptRuntime({
       setListeningRemaining({});
       setPhase('ready');
     } catch (e) {
+      if (isStale()) return;
       setErrMsg(
         sanitizeStudentFacingMessage(
           e instanceof Error ? e.message : null,
           STUDENT_SAFE_USER_MESSAGES.quizLoadFailed,
         ),
       );
+      const guarded = phaseRef.current;
+      if (
+        guarded === 'confirm_start' ||
+        guarded === 'starting' ||
+        guarded === 'attempting' ||
+        guarded === 'submitting'
+      ) {
+        return;
+      }
       setPhase('error');
     }
   }, [applyServerTimerToAttempt, assignmentId, fetchFormPayload, formPublicId, querySuffix, router]);

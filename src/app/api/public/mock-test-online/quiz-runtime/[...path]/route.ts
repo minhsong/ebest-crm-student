@@ -7,6 +7,7 @@ import {
 } from '@/lib/social-gateway-bff.util';
 import { STUDENT_SAFE_USER_MESSAGES } from '@/lib/student-safe-errors';
 import {
+	invalidateMtoPortalAuthorizeMintCache,
 	mintMtoPortalAuthorizeToken,
 	MTO_REGISTRATION_ID_HEADER,
 	parseRegistrationIdHeader,
@@ -102,6 +103,15 @@ async function proxyQuiz(
 			init.body = bodyText;
 		}
 		const res = await fetch(url, init);
+		// Start attempt / submit — token cũ có thể thiếu grant/status; mint lại lần sau.
+		if (
+			registrationId &&
+			res.ok &&
+			method === 'POST' &&
+			(/\/attempts$/.test(subPath) || /\/submit$/.test(subPath))
+		) {
+			invalidateMtoPortalAuthorizeMintCache(registrationId);
+		}
 		return proxyGatewayJsonResponse(res, STUDENT_SAFE_USER_MESSAGES.generic);
 	} catch (error) {
 		return mockTestBffCatchResponse(error, {

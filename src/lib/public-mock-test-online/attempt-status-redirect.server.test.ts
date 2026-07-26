@@ -15,6 +15,7 @@ function baseStatus(
     sessionCap: null,
     attemptMode: 'retake_zalo',
     activeInExam: null,
+    activeReady: null,
     ...overrides,
   };
 }
@@ -35,6 +36,22 @@ describe('resolveAttemptRegisterRedirectPath', () => {
             sessionId: 12,
             examUnlockExpiresAt: new Date(Date.now() + 60_000).toISOString(),
             pendingRegistrationId: 'pending-1',
+            resumeAllowed: true,
+          },
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it('should not redirect when activeReady resume is allowed even if remaining is 0', () => {
+    expect(
+      resolveAttemptRegisterRedirectPath(
+        baseStatus({
+          activeReady: {
+            registrationId: 90,
+            sessionId: 16,
+            examUnlockExpiresAt: null,
+            pendingRegistrationId: null,
             resumeAllowed: true,
           },
         }),

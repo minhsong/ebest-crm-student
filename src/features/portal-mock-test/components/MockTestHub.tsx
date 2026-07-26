@@ -34,11 +34,13 @@ export function MockTestHub({
   const onlineState = resolveMockTestHubOnlineState(attemptStatus);
   const onlineHref =
     onlineState.kind === 'resume' || onlineState.kind === 'blocked'
-      ? PORTAL_MOCK_TEST_ROUTES.results
+      ? onlineState.href ?? PORTAL_MOCK_TEST_ROUTES.results
       : access.onlineHref;
   const onlineCta =
     onlineState.kind === 'resume'
-      ? 'Tiếp tục bài đang làm'
+      ? attemptStatus?.activeReady?.resumeAllowed
+        ? 'Vào phòng chờ bắt đầu'
+        : 'Tiếp tục bài đang làm'
       : onlineState.kind === 'blocked'
         ? 'Xem kết quả và tư vấn'
         : access.canUse

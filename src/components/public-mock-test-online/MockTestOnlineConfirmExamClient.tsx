@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
 	Alert,
@@ -32,6 +32,7 @@ import {
 import { postMockTestOnlineDevSimulateZalo } from '@/lib/public-mock-test-online/mock-test-online-api.client';
 import { MockTestOnlineSessionErrorAlert } from '@/components/public-mock-test-online/MockTestOnlineSessionErrorAlert';
 import { mockTestUnlockCodeFormRules } from '@/lib/public-mock-test-online/unlock-code.util';
+import { clearMtoExamIntent } from '@/lib/public-mock-test-online/mto-exam-intent';
 
 const { Title, Paragraph, Text } = Typography;
 const IS_DEV = process.env.NODE_ENV === 'development';
@@ -60,6 +61,11 @@ export function MockTestOnlineConfirmExamClient({
 	const searchParams = useSearchParams();
 	const { message } = App.useApp();
 	const [form] = Form.useForm<{ examUnlockCode: string }>();
+
+	/** Intent pre-auth chỉ cần đến lúc bind select; vào confirm đã có pending server → xóa LS. */
+	useEffect(() => {
+		clearMtoExamIntent();
+	}, []);
 
 	const leadId = searchParams.get('lead')?.trim() ?? '';
 	const sessionId = parseInt(searchParams.get('session') ?? '', 10);

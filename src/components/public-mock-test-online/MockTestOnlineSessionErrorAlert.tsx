@@ -8,6 +8,7 @@ import {
 	type MockTestOnlineFunnelStep,
 } from '@/lib/public-mock-test-online/mock-test-online-flow-dependencies';
 import {
+	isMockTestOnlineControlledAttemptGateError,
 	resolveMockTestOnlineErrorCopy,
 	type MockTestOnlineErrorRecovery,
 } from '@/lib/public-mock-test-online/mock-test-online-session-errors.util';
@@ -24,6 +25,8 @@ type Props = {
 	recovery?: MockTestOnlineErrorRecovery;
 	onRetry?: () => void;
 	diagnostics?: MockTestErrorDiagnostics;
+	/** Quay lại form chọn đề (hết lượt session — chọn chiến dịch khác). */
+	onDismiss?: () => void;
 };
 
 export function MockTestOnlineSessionErrorAlert({
@@ -33,11 +36,16 @@ export function MockTestOnlineSessionErrorAlert({
 	recovery: recoveryOverride,
 	onRetry,
 	diagnostics,
+	onDismiss,
 }: Props) {
 	const router = useRouter();
 	const fanpageUrl = useFanpageContactUrl();
 	const copy = resolveMockTestOnlineErrorCopy({ message, step, errorCode });
 	const recovery = recoveryOverride ?? copy.recovery ?? 'restart';
+	const isControlledGate = isMockTestOnlineControlledAttemptGateError(
+		errorCode,
+		message,
+	);
 
 	const handleRestart = () => {
 		clearMockTestOnlineSelectExamCache();
@@ -61,13 +69,15 @@ export function MockTestOnlineSessionErrorAlert({
 
 	return (
 		<Alert
-			type="error"
+			type={isControlledGate ? 'warning' : 'error'}
 			showIcon
 			message={<ContactSupportRichText text={copy.title} />}
 			description={
 				<Space direction="vertical" size="middle" className="w-full">
 					<ContactSupportRichText text={copy.description} />
-					<MockTestErrorDiagnosticsBox diagnostics={mergedDiagnostics} />
+					{!isControlledGate ? (
+						<MockTestErrorDiagnosticsBox diagnostics={mergedDiagnostics} />
+					) : null}
 					<Space wrap>
 						{recovery === 'restart' ? (
 							<Button type="primary" onClick={handleRestart}>
@@ -84,7 +94,11 @@ export function MockTestOnlineSessionErrorAlert({
 								>
 									Xem lịch sử thi
 								</Button>
-								<Button onClick={handleRestart}>Đăng ký lại</Button>
+								{onDismiss ? (
+									<Button onClick={onDismiss}>Chọn chiến dịch khác</Button>
+								) : (
+									<Button onClick={handleRestart}>Chọn bài thi khác</Button>
+								)}
 							</>
 						) : null}
 						{recovery === 'login' ? (

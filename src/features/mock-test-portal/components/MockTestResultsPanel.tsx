@@ -40,7 +40,8 @@ export function MockTestResultsPanel({
   inProgressAttemptStatus = null,
 }: Props) {
   const showInProgress = Boolean(
-    inProgressAttemptStatus?.activeInExam?.resumeAllowed,
+    inProgressAttemptStatus?.activeInExam?.resumeAllowed ||
+      inProgressAttemptStatus?.activeReady?.resumeAllowed,
   );
   const inExamInList = items.some((item) => item.status === 'in_exam');
   const showInProgressCard = showInProgress && !inExamInList;

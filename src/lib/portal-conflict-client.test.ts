@@ -65,9 +65,18 @@ describe('mapPortalConflictForClient', () => {
     expect(result.message).toMatch(/sự cố tạm thời|thử lại/i);
   });
 
-  it('falls back to sanitize for non-conflict errors', () => {
-    const result = mapPortalConflictForClient({ message: 'Lỗi khác' }, 400);
-    expect(result.code).toBeUndefined();
-    expect(result.message).toBe('Lỗi khác');
+  it('maps attempt-limit 403 as controlled business error (not generic forbidden)', () => {
+    const result = mapPortalConflictForClient(
+      {
+        message:
+          'Bạn đã sử dụng hết số lần thi thử online cho loại đề này. Vui lòng liên hệ Ebest để được tư vấn thêm.',
+        code: 'MOCK_TEST_ONLINE_ATTEMPT_LIMIT',
+        errorCode: 'MOCK_TEST_ONLINE_ATTEMPT_LIMIT',
+      },
+      403,
+    );
+    expect(result.errorCode).toBe('MOCK_TEST_ONLINE_ATTEMPT_LIMIT');
+    expect(result.message).toMatch(/hết số lần thi thử/i);
+    expect(result.message).not.toMatch(/không có quyền/i);
   });
 });

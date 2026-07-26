@@ -19,6 +19,8 @@ export type PortalMockTestCustomerPrincipal = {
   displayName: string;
   profileCompleted: boolean;
   phoneE164: string | null;
+  /** Từ portal/session khi CRM đã stamp — tránh bootstrap N+1. */
+  omniLeadId?: string | null;
 };
 
 export type PortalMockTestGuestPrincipal = {

@@ -70,7 +70,13 @@ export function LeadCreateAccountDoneView({ initialState }: Props) {
         <Button block loading={resending} onClick={resend}>
           Gửi lại email xác nhận
         </Button>
-        <Link href="/login?mode=lead">
+        <Link
+          href={
+            state.returnUrl
+              ? `/login?mode=lead&returnUrl=${encodeURIComponent(state.returnUrl)}`
+              : '/login?mode=lead'
+          }
+        >
           <Button type="primary" block disabled={!sent}>
             {sent
               ? "Đã xác nhận — đăng nhập"

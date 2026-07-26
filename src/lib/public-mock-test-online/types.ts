@@ -89,6 +89,14 @@ export type MockTestOnlineSelectExamResponse = {
 
 	message: string;
 
+	/**
+	 * CRM: đã Zalo unlock chưa start — không mint pending mới.
+	 * Portal → authorize-resume → `/exam/ready`.
+	 */
+	resumePhase?: 'ready';
+
+	examUnlockExpiresAt?: string | null;
+
 };
 
 
