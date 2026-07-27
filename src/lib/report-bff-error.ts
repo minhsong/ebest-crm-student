@@ -37,7 +37,6 @@ function briefMessage(detail: unknown): string {
 }
 
 function stackFromDetail(detail: unknown): string | undefined {
-  if (process.env.NODE_ENV === 'production') return undefined;
   if (detail instanceof Error && detail.stack) {
     return detail.stack.slice(0, 8000);
   }

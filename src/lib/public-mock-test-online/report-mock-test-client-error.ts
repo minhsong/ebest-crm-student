@@ -32,10 +32,7 @@ export function reportMockTestClientError(input: {
 			path: input.path,
 			requestId,
 			module: input.module,
-			stack:
-				process.env.NODE_ENV === 'production'
-					? undefined
-					: input.stack?.slice(0, 4000),
+			stack: input.stack?.slice(0, 4000),
 		}),
 		keepalive: true,
 	}).catch(() => {

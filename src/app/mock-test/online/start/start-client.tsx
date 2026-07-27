@@ -41,13 +41,29 @@ export function PortalMockTestOnlineStartClient() {
           // Redirect / notFound phải bubble — Next xử lý navigation.
           if (isNextNavigationError(e)) throw e;
 
+          const digest =
+            e &&
+            typeof e === 'object' &&
+            'digest' in e &&
+            typeof (e as { digest?: unknown }).digest !== 'undefined'
+              ? String((e as { digest?: unknown }).digest)
+              : undefined;
+
           const rawMessage =
             e instanceof Error ? e.message : 'server_action_threw';
           reportMockTestClientError({
             context: 'mto.online-start.action-http-or-throw',
             message: rawMessage,
+            digest,
             path: PORTAL_MOCK_TEST_ROUTES.onlineStart,
-            stack: e instanceof Error ? e.stack : undefined,
+            // Next production error (Server Components render) thường chỉ có digest
+            // mà không có stack trên client; dùng digest làm fallback cho UI.
+            stack:
+              e instanceof Error && e.stack?.trim()
+                ? e.stack
+                : digest
+                  ? digest
+                  : undefined,
             module: 'mto-online-start',
           });
 
