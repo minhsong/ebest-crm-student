@@ -35,7 +35,11 @@ export function useMockTestGoogleFastFlow() {
   const continueToSelectExam = useCallback(async () => {
     // P0: bootstrap + ghi funnel cookie + redirect select — không dừng hub chrome.
     const res = await startPortalOnlineBootstrapAction();
-    if (res?.error) {
+    if (res && 'redirectTo' in res && res.redirectTo) {
+      window.location.assign(res.redirectTo);
+      return;
+    }
+    if (res && 'error' in res && res.error) {
       message.error(res.error);
       window.location.assign(PORTAL_MOCK_TEST_ROUTES.hub);
     }

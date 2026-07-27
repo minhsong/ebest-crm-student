@@ -91,8 +91,8 @@ export async function evaluateCustomerRegisterAttemptPrecheck(
     logPortalBootstrap('attempt_precheck.customer', {
       traceId,
       customerId,
-      identitySource: 'session_hint',
       ...result,
+      identitySource: 'session_hint',
       status: summarizeAttemptStatus(
         result.status as Record<string, unknown> | null,
       ),
@@ -133,8 +133,8 @@ export async function evaluateCustomerRegisterAttemptPrecheck(
   logPortalBootstrap('attempt_precheck.customer', {
     traceId,
     customerId,
-    identitySource: 'cookie_resolve',
     ...result,
+    identitySource: 'cookie_resolve',
     status: summarizeAttemptStatus(
       result.status as Record<string, unknown> | null,
     ),

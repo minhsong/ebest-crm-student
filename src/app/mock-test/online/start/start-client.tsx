@@ -38,7 +38,7 @@ export function PortalMockTestOnlineStartClient() {
             return;
           }
 
-          if (res?.error) {
+          if (res && 'error' in res && res.error) {
             reportMockTestClientError({
               context: 'mto.online-start.action-returned-error',
               message: res.error,
