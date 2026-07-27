@@ -13,6 +13,12 @@ import {
 } from '@/lib/public-mock-test-online/register-attempt-precheck.server';
 import { clearMockTestOnlineFunnelSessionCookieStore } from '@/lib/public-mock-test-online/mock-test-online-lead-cookie';
 import { assertPortalMockTestAccess } from '@/features/portal-mock-test/server/access-guards.server';
+import { rethrowIfNextNavigation } from '@/lib/next-navigation-errors';
+import {
+  isUpstreamConnectionFailure,
+  logInternalApiError,
+  STUDENT_SAFE_USER_MESSAGES,
+} from '@/lib/student-safe-errors';
 
 export type StartOnlineBootstrapState = { error: string } | null;
 
@@ -21,28 +27,49 @@ export type StartOnlineBootstrapState = { error: string } | null;
  * Guest → login; đã auth → clear legacy cookie + select-exam.
  */
 export async function startPortalOnlineBootstrapAction(): Promise<StartOnlineBootstrapState> {
-  const principal = await resolvePortalMockTestPrincipal();
+  try {
+    const principal = await resolvePortalMockTestPrincipal();
 
-  assertPortalMockTestAccess(principal, {
-    returnUrl: PORTAL_MOCK_TEST_ROUTES.onlineStart,
-    capability: 'exam.start',
-  });
-
-  if (isLeadMockTestPrincipal(principal)) {
-    await redirectLeadRegisterIfAttemptBlocked(
-      principal.omniLeadId,
-      undefined,
-      principal.phoneE164,
-    );
-  } else if (isPortalMockTestCustomerPrincipal(principal)) {
-    await redirectCustomerRegisterIfAttemptBlocked(principal.customerId, undefined, {
-      omniLeadId: principal.omniLeadId,
-      phoneE164: principal.phoneE164,
+    assertPortalMockTestAccess(principal, {
+      returnUrl: PORTAL_MOCK_TEST_ROUTES.onlineStart,
+      capability: 'exam.start',
     });
-  } else {
-    redirect(PORTAL_MOCK_TEST_ROUTES.hub);
-  }
 
-  clearMockTestOnlineFunnelSessionCookieStore();
-  redirect(PORTAL_MOCK_TEST_ROUTES.onlineSelect);
+    if (isLeadMockTestPrincipal(principal)) {
+      await redirectLeadRegisterIfAttemptBlocked(
+        principal.omniLeadId,
+        undefined,
+        principal.phoneE164,
+      );
+    } else if (isPortalMockTestCustomerPrincipal(principal)) {
+      await redirectCustomerRegisterIfAttemptBlocked(principal.customerId, undefined, {
+        omniLeadId: principal.omniLeadId,
+        phoneE164: principal.phoneE164,
+      });
+    } else {
+      redirect(PORTAL_MOCK_TEST_ROUTES.hub);
+    }
+
+    try {
+      clearMockTestOnlineFunnelSessionCookieStore();
+    } catch {
+      // best-effort clear legacy cookies
+    }
+
+    redirect(PORTAL_MOCK_TEST_ROUTES.onlineSelect);
+  } catch (error) {
+    rethrowIfNextNavigation(error);
+
+    logInternalApiError('mock-test-online-start-bootstrap', error, {
+      path: PORTAL_MOCK_TEST_ROUTES.onlineStart,
+      method: 'POST',
+      errorType: 'server_action',
+    });
+
+    if (isUpstreamConnectionFailure(error)) {
+      return { error: STUDENT_SAFE_USER_MESSAGES.network };
+    }
+
+    return { error: STUDENT_SAFE_USER_MESSAGES.generic };
+  }
 }

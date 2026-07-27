@@ -8,6 +8,11 @@ import {
   type StartOnlineBootstrapState,
 } from '@/features/portal-mock-test/server/start-online-bootstrap.action';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
+import { isNextNavigationError } from '@/lib/next-navigation-errors';
+import {
+  sanitizeStudentFacingMessage,
+  STUDENT_SAFE_USER_MESSAGES,
+} from '@/lib/student-safe-errors';
 
 /** Màn "đang chuẩn bị" — tự kích Server Action bootstrap (POST). */
 export function PortalMockTestOnlineStartClient() {
@@ -17,10 +22,25 @@ export function PortalMockTestOnlineStartClient() {
 
   useEffect(() => {
     let active = true;
-    startTransition(async () => {
-      const res: StartOnlineBootstrapState =
-        await startPortalOnlineBootstrapAction();
-      if (active && res?.error) setError(res.error);
+    startTransition(() => {
+      void (async () => {
+        try {
+          const res: StartOnlineBootstrapState =
+            await startPortalOnlineBootstrapAction();
+          if (active && res?.error) setError(res.error);
+        } catch (e) {
+          // Redirect / notFound phải bubble — Next xử lý navigation.
+          if (isNextNavigationError(e)) throw e;
+          if (active) {
+            setError(
+              sanitizeStudentFacingMessage(
+                e instanceof Error ? e.message : undefined,
+                STUDENT_SAFE_USER_MESSAGES.generic,
+              ),
+            );
+          }
+        }
+      })();
     });
     return () => {
       active = false;
