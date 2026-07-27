@@ -7,6 +7,7 @@ import {
   STUDENT_SAFE_USER_MESSAGES,
 } from '@/lib/student-safe-errors';
 import { rethrowIfNextNavigation } from '@/lib/next-navigation-errors';
+import { logPortalSsr, logPortalSsrError } from '@/lib/portal-ssr-debug';
 import { MockTestClientErrorBoundary } from '@/components/public-mock-test-online/MockTestClientErrorBoundary';
 import { CannotConnectToServerPanel } from '@/components/errors/CannotConnectToServerPanel';
 import { MockTestStepErrorPanel } from '@/components/public-mock-test-online/MockTestStepErrorPanel';
@@ -22,14 +23,26 @@ export const dynamic = 'force-dynamic';
  * log chi tiết server-side rồi trả panel thân thiện.
  */
 export default async function PortalMockTestOnlineStartPage() {
+  const started = Date.now();
+  logPortalSsr('online_start.begin', {
+    path: PORTAL_MOCK_TEST_ROUTES.onlineStart,
+  });
   try {
     const principal = await resolvePortalMockTestPrincipal();
+    logPortalSsr('online_start.principal', {
+      actor: principal.actor,
+      durationMs: Date.now() - started,
+    });
 
     assertPortalMockTestAccess(principal, {
       returnUrl: PORTAL_MOCK_TEST_ROUTES.onlineStart,
       capability: 'exam.start',
     });
 
+    logPortalSsr('online_start.render_ok', {
+      actor: principal.actor,
+      durationMs: Date.now() - started,
+    });
     return (
       <MockTestClientErrorBoundary variant="portal">
         <PortalMockTestOnlineStartClient />
@@ -38,6 +51,11 @@ export default async function PortalMockTestOnlineStartPage() {
   } catch (error) {
     rethrowIfNextNavigation(error);
 
+    logPortalSsrError('online_start.failed', error, {
+      path: PORTAL_MOCK_TEST_ROUTES.onlineStart,
+      durationMs: Date.now() - started,
+      connectionFailure: isUpstreamConnectionFailure(error),
+    });
     logInternalApiError('mock-test-online-start-ssr', error, {
       path: PORTAL_MOCK_TEST_ROUTES.onlineStart,
       method: 'GET',

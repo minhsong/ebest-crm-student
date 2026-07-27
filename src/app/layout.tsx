@@ -10,6 +10,7 @@ import { defaultMetadata } from '@/lib/metadata';
 import { toClientPortalSessionPayload } from '@/lib/portal-auth/portal-session-client.util';
 import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
 import { isUpstreamConnectionFailure } from '@/lib/student-safe-errors';
+import { logPortalSsrError } from '@/lib/portal-ssr-debug';
 import './globals.css';
 
 export const metadata = defaultMetadata;
@@ -23,6 +24,9 @@ export default async function RootLayout({
 	try {
 		portalSession = await resolvePortalSessionFromCookies();
 	} catch (error) {
+		logPortalSsrError('root_layout.session_failed', error, {
+			connectionFailure: isUpstreamConnectionFailure(error),
+		});
 		if (isUpstreamConnectionFailure(error)) {
 			return (
 				<html lang="vi">

@@ -17,6 +17,11 @@ import {
   type StudentMeCustomerBrief,
 } from '@/lib/parse-student-me-customer';
 import { isUpstreamConnectionFailure } from '@/lib/student-safe-errors';
+import {
+  logPortalSsr,
+  logPortalSsrError,
+  summarizePortalSessionCrmPayload,
+} from '@/lib/portal-ssr-debug';
 
 export type PortalSessionActor = 'guest' | 'lead' | 'customer';
 
@@ -81,23 +86,49 @@ function parsePortalSessionAccountId(
  */
 export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPayload> {
   const token = getPortalAccessTokenFromCookie()?.trim() ?? '';
-  if (!token) return { actor: 'guest' };
+  if (!token) {
+    logPortalSsr('portal_session.skip', { reason: 'no_cookie' });
+    return { actor: 'guest' };
+  }
 
   const apiBase = getApiBaseUrl();
-  if (!apiBase) return { actor: 'guest' };
+  if (!apiBase) {
+    logPortalSsr('portal_session.skip', { reason: 'CRM_API_URL_missing' });
+    return { actor: 'guest' };
+  }
+
+  const url = buildCrmStudentUrl(apiBase, STUDENT_API.portalSession);
+  const started = Date.now();
+  logPortalSsr('portal_session.request', {
+    method: 'GET',
+    url,
+    hasBearer: true,
+    tokenLen: token.length,
+  });
 
   let res: Response;
   try {
-    res = await fetch(buildCrmStudentUrl(apiBase, STUDENT_API.portalSession), {
+    res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       cache: 'no-store',
     });
   } catch (error) {
+    logPortalSsrError('portal_session.fetch_failed', error, {
+      url,
+      durationMs: Date.now() - started,
+      connectionFailure: isUpstreamConnectionFailure(error),
+    });
     if (isUpstreamConnectionFailure(error)) throw error;
     return { actor: 'guest' };
   }
 
+  const durationMs = Date.now() - started;
   if (!res.ok) {
+    logPortalSsr('portal_session.http_error', {
+      url,
+      status: res.status,
+      durationMs,
+    });
     if (res.status === 401) forcePortalLogoutCookies();
     return { actor: 'guest' };
   }
@@ -108,16 +139,32 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
     unknown
   >;
   const actor = payload.actor;
+  logPortalSsr('portal_session.crm_ok', {
+    url,
+    status: res.status,
+    durationMs,
+    summary: summarizePortalSessionCrmPayload(payload),
+  });
 
   if (actor === 'customer') {
     const customer = parseStudentMeCustomerBrief(
       (payload as { customer?: unknown }).customer ?? payload,
     );
     if (!customer) {
+      logPortalSsr('portal_session.map_failed', {
+        reason: 'customer_brief_invalid',
+        durationMs,
+      });
       forcePortalLogoutCookies();
       return { actor: 'guest' };
     }
     const accountId = parsePortalSessionAccountId(payload) ?? undefined;
+    logPortalSsr('portal_session.resolved', {
+      actor: 'customer',
+      accountId: accountId ?? null,
+      customerId: customer.id,
+      durationMs,
+    });
     return {
       actor: 'customer',
       displayName: customer.fullName?.trim() || 'Học viên',
@@ -132,11 +179,20 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
     );
 
     if (isLeadIdentityUpgraded(upgraded)) {
+      logPortalSsr('portal_session.resolved', {
+        actor: 'guest',
+        reason: 'identity_upgrade_relogin',
+        durationMs,
+      });
       return { actor: 'guest' };
     }
 
     const profile = mapLeadProfile(upgraded as Record<string, unknown>);
     if (!profile) {
+      logPortalSsr('portal_session.map_failed', {
+        reason: 'lead_profile_invalid',
+        durationMs,
+      });
       forcePortalLogoutCookies();
       return { actor: 'guest' };
     }
@@ -146,6 +202,10 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
       parsePortalSessionAccountId(payload) ||
       (profile.id >= 1 ? String(profile.id) : '');
     if (!accountId) {
+      logPortalSsr('portal_session.map_failed', {
+        reason: 'lead_account_id_missing',
+        durationMs,
+      });
       forcePortalLogoutCookies();
       return { actor: 'guest' };
     }
@@ -156,6 +216,13 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
       profile.email?.trim() ||
       'Thí sinh';
 
+    logPortalSsr('portal_session.resolved', {
+      actor: 'lead',
+      accountId,
+      omniLeadId: profile.omniLeadId,
+      profileCompleted: profile.profileCompleted === true,
+      durationMs,
+    });
     return {
       actor: 'lead',
       displayName,
@@ -165,6 +232,11 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
     };
   }
 
+  logPortalSsr('portal_session.map_failed', {
+    reason: 'unknown_actor',
+    actor: typeof actor === 'string' ? actor : null,
+    durationMs,
+  });
   forcePortalLogoutCookies();
   return { actor: 'guest' };
 }

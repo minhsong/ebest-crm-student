@@ -13,6 +13,7 @@ import {
   sanitizeStudentFacingMessage,
   STUDENT_SAFE_USER_MESSAGES,
 } from '@/lib/student-safe-errors';
+import { reportMockTestClientError } from '@/lib/public-mock-test-online/report-mock-test-client-error';
 
 /** Màn "đang chuẩn bị" — tự kích Server Action bootstrap (POST). */
 export function PortalMockTestOnlineStartClient() {
@@ -27,10 +28,29 @@ export function PortalMockTestOnlineStartClient() {
         try {
           const res: StartOnlineBootstrapState =
             await startPortalOnlineBootstrapAction();
-          if (active && res?.error) setError(res.error);
+          if (active && res?.error) {
+            reportMockTestClientError({
+              context: 'mto.online-start.action-returned-error',
+              message: res.error,
+              path: PORTAL_MOCK_TEST_ROUTES.onlineStart,
+              module: 'mto-online-start',
+            });
+            setError(res.error);
+          }
         } catch (e) {
           // Redirect / notFound phải bubble — Next xử lý navigation.
           if (isNextNavigationError(e)) throw e;
+
+          const rawMessage =
+            e instanceof Error ? e.message : 'server_action_threw';
+          reportMockTestClientError({
+            context: 'mto.online-start.action-http-or-throw',
+            message: rawMessage,
+            path: PORTAL_MOCK_TEST_ROUTES.onlineStart,
+            stack: e instanceof Error ? e.stack : undefined,
+            module: 'mto-online-start',
+          });
+
           if (active) {
             setError(
               sanitizeStudentFacingMessage(

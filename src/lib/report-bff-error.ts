@@ -44,7 +44,7 @@ function stackFromDetail(detail: unknown): string | undefined {
   return undefined;
 }
 
-/** Gửi lỗi lên CRM (noop khi thiếu env). */
+/** Gửi lỗi lên CRM (noop khi thiếu env). Log rõ khi relay fail — trước đây nuốt im. */
 export function reportStudentPortalBffError(
   context: string,
   detail: unknown,
@@ -59,7 +59,16 @@ export function reportStudentPortalBffError(
 ): void {
   const baseUrl = getCrmBaseUrl();
   const serviceKey = resolveCrmServiceKey();
-  if (!baseUrl || !serviceKey) return;
+  if (!baseUrl || !serviceKey) {
+    console.warn(
+      JSON.stringify({
+        event: 'portal.bff_error_relay.skipped',
+        context,
+        reason: !baseUrl ? 'CRM_API_URL_missing' : 'CRM_SERVICE_KEY_missing',
+      }),
+    );
+    return;
+  }
 
   const requestId =
     options?.requestId?.trim() ||
@@ -88,7 +97,6 @@ export function reportStudentPortalBffError(
     'Content-Type': 'application/json',
     Authorization: `Bearer ${serviceKey}`,
   };
-  // Dual-send: legacy header nếu CRM dual-read còn bật
   const legacyReport = process.env.STUDENT_PORTAL_BFF_REPORT_KEY?.trim();
   if (legacyReport) {
     headers['X-Student-Portal-Bff-Key'] = legacyReport;
@@ -100,7 +108,27 @@ export function reportStudentPortalBffError(
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
-  }).catch(() => {
-    /* swallow — đã log console qua logInternalApiError */
-  });
+  })
+    .then((res) => {
+      if (res.ok || res.status === 204) return;
+      console.warn(
+        JSON.stringify({
+          event: 'portal.bff_error_relay.http_error',
+          context,
+          status: res.status,
+          url,
+          requestId: requestId ?? null,
+        }),
+      );
+    })
+    .catch((err) => {
+      console.warn(
+        JSON.stringify({
+          event: 'portal.bff_error_relay.fetch_failed',
+          context,
+          url,
+          message: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    });
 }
