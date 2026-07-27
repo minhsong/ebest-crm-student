@@ -7,7 +7,7 @@ import {
   STUDENT_SAFE_USER_MESSAGES,
 } from '@/lib/student-safe-errors';
 import { rethrowIfNextNavigation } from '@/lib/next-navigation-errors';
-import { logPortalSsr, logPortalSsrError } from '@/lib/portal-ssr-debug';
+import { logPortalSsr, logPortalSsrError, summarizeBootstrapPrincipal } from '@/lib/portal-ssr-debug';
 import { MockTestClientErrorBoundary } from '@/components/public-mock-test-online/MockTestClientErrorBoundary';
 import { CannotConnectToServerPanel } from '@/components/errors/CannotConnectToServerPanel';
 import { MockTestStepErrorPanel } from '@/components/public-mock-test-online/MockTestStepErrorPanel';
@@ -31,6 +31,9 @@ export default async function PortalMockTestOnlineStartPage() {
     const principal = await resolvePortalMockTestPrincipal();
     logPortalSsr('online_start.principal', {
       actor: principal.actor,
+      principal: summarizeBootstrapPrincipal(
+        principal as Record<string, unknown>,
+      ),
       durationMs: Date.now() - started,
     });
 

@@ -57,16 +57,29 @@ export function assertPortalMockTestAccess(
   PortalMockTestPrincipal,
   { actor: 'guest' }
 > {
+  const redirectTo = getPortalMockTestAccessRedirect(principal, options);
+  if (redirectTo) redirect(redirectTo);
+}
+
+/**
+ * Phiên bản không throw redirect — dùng Server Action trả `{ redirectTo }`.
+ */
+export function getPortalMockTestAccessRedirect(
+  principal: PortalMockTestPrincipal,
+  options: GuardOptions,
+): string | null {
   const allow = options.allowActors ?? ['lead', 'customer'];
   const returnUrl = options.returnUrl;
 
   if (principal.actor === 'guest') {
-    redirect(loginRedirect(returnUrl, 'lead'));
+    return loginRedirect(returnUrl, 'lead');
   }
 
   if (!allow.includes(principal.actor)) {
-    redirect(PORTAL_MOCK_TEST_ROUTES.hub);
+    return PORTAL_MOCK_TEST_ROUTES.hub;
   }
+
+  return null;
 }
 
 /**

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button, Result, Spin } from 'antd';
 import {
   startPortalOnlineBootstrapAction,
@@ -17,6 +18,7 @@ import { reportMockTestClientError } from '@/lib/public-mock-test-online/report-
 
 /** Màn "đang chuẩn bị" — tự kích Server Action bootstrap (POST). */
 export function PortalMockTestOnlineStartClient() {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [, startTransition] = useTransition();
@@ -28,7 +30,15 @@ export function PortalMockTestOnlineStartClient() {
         try {
           const res: StartOnlineBootstrapState =
             await startPortalOnlineBootstrapAction();
-          if (active && res?.error) {
+
+          if (!active) return;
+
+          if (res && 'redirectTo' in res && res.redirectTo) {
+            router.replace(res.redirectTo);
+            return;
+          }
+
+          if (res?.error) {
             reportMockTestClientError({
               context: 'mto.online-start.action-returned-error',
               message: res.error,
@@ -49,6 +59,11 @@ export function PortalMockTestOnlineStartClient() {
               ? String((e as { digest?: unknown }).digest)
               : undefined;
 
+          const errorKeys =
+            e && typeof e === 'object'
+              ? Object.keys(e as object).slice(0, 12)
+              : [];
+
           const rawMessage =
             e instanceof Error ? e.message : 'server_action_threw';
           reportMockTestClientError({
@@ -56,13 +71,11 @@ export function PortalMockTestOnlineStartClient() {
             message: rawMessage,
             digest,
             path: PORTAL_MOCK_TEST_ROUTES.onlineStart,
-            // Next production error (Server Components render) thường chỉ có digest
-            // mà không có stack trên client; dùng digest làm fallback cho UI.
             stack:
               e instanceof Error && e.stack?.trim()
                 ? e.stack
                 : digest
-                  ? digest
+                  ? `digest:${digest};keys:${errorKeys.join(',')}`
                   : undefined,
             module: 'mto-online-start',
           });
@@ -81,7 +94,7 @@ export function PortalMockTestOnlineStartClient() {
     return () => {
       active = false;
     };
-  }, [attempt]);
+  }, [attempt, router]);
 
   if (error) {
     return (
