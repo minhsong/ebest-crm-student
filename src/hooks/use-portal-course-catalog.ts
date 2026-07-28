@@ -1,9 +1,21 @@
 'use client';
 
-import { usePortalExplore } from '@/contexts/portal-explore-context';
+import { usePortalExploreOptional } from '@/contexts/portal-explore-context';
+import type { PortalExplorePayload } from '@/lib/portal-course-catalog/types';
 
-/** Thin wrapper — dùng data từ PortalExploreProvider (không fetch lặp). */
+/** Thin wrapper — data từ PortalExploreProvider; ngoài provider → rỗng. */
 export function usePortalCourseCatalog() {
-  const { loading, error, courses } = usePortalExplore();
-  return { loading, error, courses };
+  const explore = usePortalExploreOptional();
+  if (!explore) {
+    return {
+      loading: false,
+      error: null,
+      courses: [] as PortalExplorePayload['courses'],
+    };
+  }
+  return {
+    loading: explore.loading,
+    error: explore.error,
+    courses: explore.courses,
+  };
 }

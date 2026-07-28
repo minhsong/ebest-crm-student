@@ -5,7 +5,7 @@ import { MockTestClientErrorBoundary } from '@/components/public-mock-test-onlin
 import { loadMockTestOnlineSelectExamPageData } from '@/lib/public-mock-test-online/fetch-online.server';
 import { fetchMockTestOnlineSeo } from '@/lib/public-mock-test-online/seo/fetch-seo.server';
 import { buildPageMetadata } from '@/lib/metadata';
-import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
+import { getCachedPortalSession } from '@/lib/portal-auth/resolve-portal-session.server';
 import { resolveSelectExamAttemptStatus } from '@/lib/public-mock-test-online/resolve-select-exam-attempt-status.server';
 import { buildMockTestOnlineConfirmExamPath } from '@/lib/public-mock-test-online/select-exam-cache';
 import {
@@ -24,7 +24,8 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = buildPageMetadata({
 	title: 'Chọn bài thi thử online',
-	description: 'Xác nhận bài thi đã chọn rồi xác minh Zalo để vào phòng thi.',
+	description:
+		'Chọn bài thi thử phù hợp mục đích đánh giá năng lực tiếng Anh của bạn.',
 	path: '/mock-test-online/select-exam',
 });
 
@@ -49,7 +50,7 @@ export default async function MockTestOnlineSelectExamPage({
 		? buildSelectExamIntentPath(intentFromUrl)
 		: PORTAL_MOCK_TEST_ROUTES.onlineSelect;
 
-	const session = await resolvePortalSessionFromCookies();
+	const session = await getCachedPortalSession();
 	if (session.actor === 'guest') {
 		redirect(
 			buildPortalLoginHref({

@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server';
 import { proxyPortalAuthLoginPost } from '@/lib/portal-auth/portal-auth-login.server';
 
-/** Proxy customer login — CRM `POST /student/auth/login` (chỉ học viên). */
+/** Proxy password login thống nhất — CRM `POST /student/auth/login`. */
 export async function POST(request: Request) {
-  return proxyPortalAuthLoginPost(request, 'customer');
+  return proxyPortalAuthLoginPost(request);
 }

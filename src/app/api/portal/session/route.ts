@@ -6,7 +6,7 @@ import {
 import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
 import { toClientPortalSessionPayload } from '@/lib/portal-auth/portal-session-client.util';
 
-/** Route Handler — được phép mutate cookie (sweep legacy + force logout). */
+/** Route Handler — canonical client session probe (SSOT). */
 export async function GET() {
   if (hasLegacyPortalAuthCookies()) {
     clearLegacyPortalAuthCookies();

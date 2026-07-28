@@ -49,5 +49,6 @@ describe('post auth return URL', () => {
     });
     expect(href).toContain('returnUrl=');
     expect(href).not.toContain('redirect=');
+    expect(href).not.toContain('mode=');
   });
 });

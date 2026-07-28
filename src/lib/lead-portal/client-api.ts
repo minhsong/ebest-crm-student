@@ -1,7 +1,6 @@
 import type { PortalAuthActor } from '@/lib/portal-auth/portal-auth-session';
-import type { LeadProfile, LeadSessionProbe, LeadTestResultSummary } from './types';
-import { fetchClientPortalSession } from '@/lib/portal-auth/portal-session.client';
-import { portalLogoutClient } from '@/lib/portal-auth/portal-session.client';
+import type { LeadProfile, LeadTestResultSummary } from './types';
+import { portalLogoutAndLeave } from '@/lib/portal-auth/portal-session.client';
 import { LeadPortalUnauthorizedError } from './errors';
 
 async function parseJsonMessage(res: Response): Promise<{ message?: string }> {
@@ -22,7 +21,7 @@ export async function leadLogin(
   loginId: string,
   password: string,
 ): Promise<{ actor: PortalAuthActor }> {
-  const res = await fetch('/api/auth/lead/login', {
+  const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ loginId, password }),
@@ -116,10 +115,12 @@ export async function leadResendEmailVerification(
   };
 }
 
+/** @deprecated Dùng `useAuth().logout` / `usePortalSession().logout` (hard navigate). */
 export async function leadLogout(): Promise<void> {
-  await portalLogoutClient();
+  await portalLogoutAndLeave();
 }
 
+/** Editable lead profile — canonical read/write: `/api/lead/me`. */
 export async function fetchLeadProfile(): Promise<LeadProfile> {
   const res = await fetch('/api/lead/me', { cache: 'no-store' });
   if (res.status === 401) {
@@ -178,15 +179,5 @@ export async function fetchLeadTestResults(): Promise<LeadTestResultSummary[]> {
   return Array.isArray(data) ? data : (data.items ?? []);
 }
 
-/**
- * Probe phiên portal (lead | customer | none).
- * SSOT: `/api/portal/session` — không dual-probe lead me trước.
- */
-export async function probeLeadSession(): Promise<LeadSessionProbe> {
-  const session = await fetchClientPortalSession();
-  if (session.actor === 'customer') return { kind: 'customer' };
-  if (session.actor === 'lead') return { kind: 'lead' };
-  return { kind: 'none' };
-}
-
-export type { LeadProfile, LeadSessionProbe, LeadTestResultSummary } from './types';
+export type { LeadProfile, LeadTestResultSummary } from './types';
+export type { LeadSessionProbe } from './types';

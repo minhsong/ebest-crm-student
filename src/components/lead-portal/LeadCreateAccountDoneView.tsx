@@ -73,8 +73,8 @@ export function LeadCreateAccountDoneView({ initialState }: Props) {
         <Link
           href={
             state.returnUrl
-              ? `/login?mode=lead&returnUrl=${encodeURIComponent(state.returnUrl)}`
-              : '/login?mode=lead'
+              ? `/login?returnUrl=${encodeURIComponent(state.returnUrl)}`
+              : '/login'
           }
         >
           <Button type="primary" block disabled={!sent}>

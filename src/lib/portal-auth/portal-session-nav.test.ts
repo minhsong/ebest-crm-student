@@ -12,6 +12,8 @@ describe('portal-session-nav', () => {
 		expect(parseClientPortalSessionPayload({ actor: 'customer', displayName: '  A ' })).toEqual({
 			actor: 'customer',
 			displayName: 'A',
+			customer: { id: 0, fullName: 'Học viên' },
+			classes: [],
 		});
 	});
 
@@ -21,6 +23,10 @@ describe('portal-session-nav', () => {
 		expect(homePathForClientSession({ actor: 'guest' })).toBeNull();
 		expect(postLoginPathForPortalActor('customer', '/profile')).toBe('/profile');
 		expect(postLoginPathForPortalActor('customer', '//evil')).toBe('/');
-		expect(postLoginPathForPortalActor('lead', null)).toBe('/mock-test/results');
+		expect(postLoginPathForPortalActor('customer', null)).toBe('/');
+		expect(postLoginPathForPortalActor('lead', null)).toBe('/mock-test');
+		expect(
+			postLoginPathForPortalActor('lead', '/mock-test/results'),
+		).toBe('/mock-test/results');
 	});
 });

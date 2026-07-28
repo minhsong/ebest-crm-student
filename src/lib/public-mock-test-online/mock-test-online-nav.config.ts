@@ -11,7 +11,7 @@ export const MOCK_TEST_ONLINE_NAV_ITEMS: MockTestOnlineNavItem[] = [
   {
     key: 'login',
     label: 'Đăng nhập',
-    href: '/login?mode=lead',
+    href: '/login',
     matchPrefix: '/login',
   },
   {

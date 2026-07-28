@@ -25,8 +25,8 @@ type GuardOptions = {
   hasCompletedOnlineExam?: boolean;
 };
 
-function loginRedirect(returnUrl: string, mode: 'lead' | 'student'): string {
-  return buildPortalLoginHref({ mode, returnUrl });
+function loginRedirect(returnUrl: string): string {
+  return buildPortalLoginHref({ returnUrl });
 }
 
 function profileCompletedOf(principal: PortalMockTestPrincipal): boolean {
@@ -72,7 +72,7 @@ export function getPortalMockTestAccessRedirect(
   const returnUrl = options.returnUrl;
 
   if (principal.actor === 'guest') {
-    return loginRedirect(returnUrl, 'lead');
+    return loginRedirect(returnUrl);
   }
 
   if (!allow.includes(principal.actor)) {

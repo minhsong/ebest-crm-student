@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	LEAD_COMPLETE_PROFILE_PATH,
+	PORTAL_LOGIN_PATH,
 	PORTAL_MOCK_TEST_RESULTS_ROUTES,
 	buildLeadCompleteProfilePath,
 	isLeadCompleteProfileHref,
@@ -17,7 +18,7 @@ describe('session-routes', () => {
 				identityUpgrade: { available: true, reLoginRequired: true },
 				profileCompleted: false,
 			}),
-		).toBe(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
+		).toBe(PORTAL_LOGIN_PATH);
 	});
 
 	it('resolvePostLeadLoginPath — chưa hoàn thiện hồ sơ → hub (bài đầu PO-D30)', () => {
@@ -32,9 +33,15 @@ describe('session-routes', () => {
 		);
 	});
 
-	it('resolvePostLeadLoginPath — đã hoàn thiện', () => {
+	it('resolvePostLeadLoginPath — đã hoàn thiện → hub (không mặc định results)', () => {
 		expect(
 			resolvePostLeadLoginPath({ profileCompleted: true }),
+		).toBe(PORTAL_MOCK_TEST_ROUTES.hub);
+		expect(
+			resolvePostLeadLoginPath(
+				{ profileCompleted: true },
+				PORTAL_MOCK_TEST_RESULTS_ROUTES.lead,
+			),
 		).toBe(PORTAL_MOCK_TEST_RESULTS_ROUTES.lead);
 	});
 

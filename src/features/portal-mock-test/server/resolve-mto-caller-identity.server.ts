@@ -1,5 +1,7 @@
-import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
-import type { PortalSessionPayload } from '@/lib/portal-auth/resolve-portal-session.server';
+import {
+  getCachedPortalSession,
+  type PortalSessionPayload,
+} from '@/lib/portal-auth/resolve-portal-session.server';
 import { fetchCustomerOnlineBootstrapContextSsr } from '@/features/portal-mock-test/server/fetch-customer-bootstrap-context.server';
 
 /**
@@ -89,7 +91,7 @@ export async function resolveMtoCallerIdentityFromSession(
 
 /** Cookie → session → identity MTO (một điểm vào cho Route Handler). */
 export async function resolveMtoCallerIdentityFromCookies(): Promise<ResolveMtoCallerIdentityResult> {
-  const session = await resolvePortalSessionFromCookies();
+  const session = await getCachedPortalSession();
   return resolveMtoCallerIdentityFromSession(session);
 }
 

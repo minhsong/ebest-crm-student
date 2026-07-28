@@ -4,19 +4,20 @@ import React, {
   createContext,
   useCallback,
   useContext,
-  useEffect,
-  useState,
+  useMemo,
 } from 'react';
 import { getMessageFromClientApiJson } from '@/lib/parse-client-api-json';
-import {
-  parseStudentMeCustomerBrief,
-  type StudentMeCustomerBrief,
-} from '@/lib/parse-student-me-customer';
+import { type StudentMeCustomerBrief } from '@/lib/parse-student-me-customer';
 
-import type { PortalLoginMode } from '@/components/portal/PortalLoginModePicker';
 import { portalLoginPath } from '@/lib/portal-auth/portal-login-api';
 import { usePortalSession } from '@/contexts/portal-session-context';
+import type { PortalSessionReadyState } from '@/contexts/portal-session-context';
+import {
+  getCustomerFromPortalSession,
+  isPortalSessionReady,
+} from '@/lib/portal-auth/portal-session-selectors';
 import { buildPortalLoginHref } from '@/lib/portal-auth/post-auth-return-url';
+import { portalLogoutAndLeave } from '@/lib/portal-auth/portal-session.client';
 
 export type AuthCustomer = StudentMeCustomerBrief;
 
@@ -25,121 +26,71 @@ export interface AuthState {
   ready: boolean;
 }
 
-interface AuthContextValue extends AuthState {
+interface AuthActions {
   login: (
     loginId: string,
     password: string,
-    options?: { mode?: PortalLoginMode },
-  ) => Promise<{ ok: boolean; actor?: 'customer' | 'lead'; message?: string }>;
+  ) => Promise<{
+    ok: boolean;
+    actor?: 'customer' | 'lead';
+    session?: PortalSessionReadyState;
+    message?: string;
+  }>;
   linkGoogle: (idToken: string) => Promise<{ ok: boolean; message?: string }>;
   logout: () => Promise<void>;
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
   refreshSession: () => Promise<void>;
 }
 
+type AuthContextValue = AuthActions;
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 /**
- * Customer profile + HV APIs (fetchWithAuth).
- * Identity actor SSOT = PortalSessionProvider; logout đồng bộ portal session.
+ * Imperative auth actions (login/logout/fetchWithAuth).
+ * Identity + customer profile SSOT = PortalSessionProvider + selectors.
  */
-export function AuthProvider({
-  children,
-  initialCustomer,
-}: {
-  children: React.ReactNode;
-  initialCustomer?: AuthCustomer | null;
-}) {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const portal = usePortalSession();
-  const portalStatus = portal.status;
-  const portalActor = portal.status === 'ready' ? portal.actor : null;
   const refreshPortalSession = portal.refresh;
   const logoutPortalSession = portal.logout;
-  const [state, setState] = useState<AuthState>(() => ({
-    customer: initialCustomer ?? null,
-    ready: Boolean(initialCustomer),
-  }));
 
   const refreshSession = useCallback(async () => {
-    try {
-      const res = await fetch('/api/me', { method: 'GET' });
-      if (!res.ok) {
-        setState({ customer: null, ready: true });
-        return;
-      }
-      const payload = await res.json().catch(() => ({}));
-      const raw = payload?.customer ?? payload;
-      const customer = parseStudentMeCustomerBrief(raw);
-      if (!customer) {
-        setState({ customer: null, ready: true });
-        return;
-      }
-      setState({ customer, ready: true });
-    } catch {
-      setState({ customer: null, ready: true });
-    }
-  }, []);
-
-  useEffect(() => {
-    if (portalStatus !== 'ready') return;
-
-    if (portalActor !== 'customer') {
-      setState({ customer: null, ready: true });
-      return;
-    }
-
-    if (initialCustomer) {
-      setState({ customer: initialCustomer, ready: true });
-      return;
-    }
-
-    void refreshSession();
-  }, [portalStatus, portalActor, initialCustomer, refreshSession]);
+    await refreshPortalSession();
+  }, [refreshPortalSession]);
 
   const logout = useCallback(async () => {
     await logoutPortalSession();
-    setState({ customer: null, ready: true });
   }, [logoutPortalSession]);
 
   const login = useCallback(
-    async (
-      loginId: string,
-      password: string,
-      options?: { mode?: PortalLoginMode },
-    ) => {
-      const mode = options?.mode ?? 'customer';
+    async (loginId: string, password: string) => {
       try {
-        const res = await fetch(portalLoginPath(mode), {
+        const res = await fetch(portalLoginPath(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ loginId, password }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          const fallback =
-            mode === 'lead'
-              ? 'Đăng nhập thất bại. Nếu bạn là học viên Ebest, hãy chọn «Đang là học viên Ebest» ở trên.'
-              : 'Đăng nhập thất bại.';
           return {
             ok: false,
             message:
               getMessageFromClientApiJson(data) ??
-              (typeof data?.message === 'string' ? data.message : fallback),
+              (typeof data?.message === 'string'
+                ? data.message
+                : 'Đăng nhập thất bại.'),
           };
         }
         const actor: 'customer' | 'lead' =
           data?.actor === 'lead' ? 'lead' : 'customer';
-        await refreshPortalSession();
-        if (actor === 'lead') {
-          return { ok: true, actor: 'lead' as const };
-        }
-        await refreshSession();
-        return { ok: true, actor: 'customer' as const };
+        const session = await refreshPortalSession();
+        return { ok: true, actor, session };
       } catch {
         return { ok: false, message: 'Không thể kết nối. Vui lòng thử lại.' };
       }
     },
-    [refreshSession, refreshPortalSession],
+    [refreshPortalSession],
   );
 
   const linkGoogle = useCallback(async (idToken: string) => {
@@ -174,39 +125,54 @@ export function AuthProvider({
   const fetchWithAuth = useCallback(
     async (url: string, options: RequestInit = {}) => {
       const res = await fetch(url, { ...options });
-      if (res.status === 401) {
-        await logout();
-        if (typeof window !== 'undefined') {
-          const { pathname, search } = window.location;
-          if (!pathname.startsWith('/login')) {
-            window.location.assign(
-              buildPortalLoginHref({
-                sessionExpired: true,
-                returnUrl: `${pathname}${search}`,
-              }),
-            );
-          }
-        }
+      if (res.status === 401 && typeof window !== 'undefined') {
+        const { pathname, search } = window.location;
+        const href = pathname.startsWith('/login')
+          ? buildPortalLoginHref({ sessionExpired: true, returnUrl: '/' })
+          : buildPortalLoginHref({
+              sessionExpired: true,
+              returnUrl: `${pathname}${search}`,
+            });
+        // Một lần clear + assign — không gọi portal.logout (tránh double /login).
+        await portalLogoutAndLeave(href);
       }
       return res;
     },
-    [logout],
+    [],
   );
 
-  const value: AuthContextValue = {
-    ...state,
-    login,
-    linkGoogle,
-    logout,
-    fetchWithAuth,
-    refreshSession,
-  };
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      login,
+      linkGoogle,
+      logout,
+      fetchWithAuth,
+      refreshSession,
+    }),
+    [login, linkGoogle, logout, fetchWithAuth, refreshSession],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
+/** Auth actions + derived customer state từ portal session. */
+export function useAuth(): AuthContextValue & AuthState {
+  const actions = useContext(AuthContext);
+  const portal = usePortalSession();
+  if (!actions) throw new Error('useAuth must be used within AuthProvider');
+
+  const ready = isPortalSessionReady(portal);
+  const customer = useMemo(
+    () => getCustomerFromPortalSession(portal),
+    [portal],
+  );
+
+  return useMemo(
+    () => ({
+      ...actions,
+      customer,
+      ready,
+    }),
+    [actions, customer, ready],
+  );
 }

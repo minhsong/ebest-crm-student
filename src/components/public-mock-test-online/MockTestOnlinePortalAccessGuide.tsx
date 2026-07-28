@@ -5,6 +5,7 @@ import { Alert, Steps, Typography } from 'antd';
 import type { LeadSessionProbe } from '@/lib/lead-portal/types';
 import {
   isLeadCompleteProfileHref,
+  PORTAL_LOGIN_PATH,
   PORTAL_MOCK_TEST_RESULTS_ROUTES,
 } from '@/lib/portal-auth/session-routes';
 
@@ -94,7 +95,7 @@ export function MockTestOnlinePortalAccessGuide({ probe, nextPath }: Props) {
               description: (
                 <>
                   Truy cập{' '}
-                  <Link href={PORTAL_MOCK_TEST_RESULTS_ROUTES.login}>
+                  <Link href={PORTAL_LOGIN_PATH}>
                     trang đăng nhập cổng học viên
                   </Link>
                   , đăng nhập bằng SĐT/email và mật khẩu, rồi mở mục{' '}

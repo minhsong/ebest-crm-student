@@ -1,7 +1,7 @@
 import type { LeadTestResultSummary } from '@/lib/lead-portal/types';
 
 export async function fetchStudentMockTestResults(): Promise<LeadTestResultSummary[]> {
-  const res = await fetch('/api/me/mock-test-results', { cache: 'no-store' });
+  const res = await fetch('/api/student/me/mock-test-results', { cache: 'no-store' });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(

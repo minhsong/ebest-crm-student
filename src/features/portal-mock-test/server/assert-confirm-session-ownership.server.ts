@@ -1,4 +1,4 @@
-import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
+import { getCachedPortalSession } from '@/lib/portal-auth/resolve-portal-session.server';
 
 export type ConfirmSessionOwnershipResult =
 	| { ok: true; accountId: string }
@@ -21,7 +21,7 @@ export async function resolveConfirmSessionOwnership(
 		};
 	}
 
-	const session = await resolvePortalSessionFromCookies();
+	const session = await getCachedPortalSession();
 	if (session.actor === 'guest') {
 		return {
 			ok: false,

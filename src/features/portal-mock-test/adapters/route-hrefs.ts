@@ -1,6 +1,7 @@
 import type { PortalMockTestPrincipal } from '../identity/types';
 import { PORTAL_MOCK_TEST_ROUTES } from '../routes.config';
 import { buildLeadCompleteProfilePath } from '@/lib/portal-auth/session-routes';
+import { buildPortalLoginHref } from '@/lib/portal-auth/post-auth-return-url';
 
 export type MockTestHubAccess = {
   canUse: boolean;
@@ -9,10 +10,6 @@ export type MockTestHubAccess = {
   resultsHref: string;
   needsProfileCompletion: boolean;
 };
-
-function loginHref(mode: 'lead' | 'student', returnPath: string): string {
-  return `/login?mode=${mode}&returnUrl=${encodeURIComponent(returnPath)}`;
-}
 
 /** SSOT href + gate cho hub và các entry mock-test. */
 export function resolveMockTestHubAccess(
@@ -58,7 +55,9 @@ export function resolveMockTestHubAccess(
     };
   }
 
-  const hubLogin = loginHref('lead', PORTAL_MOCK_TEST_ROUTES.hub);
+  const hubLogin = buildPortalLoginHref({
+    returnUrl: PORTAL_MOCK_TEST_ROUTES.hub,
+  });
   return {
     canUse: false,
     onlineHref: hubLogin,

@@ -1,9 +1,14 @@
 import type { ReactNode } from 'react';
-import { Card, Col, Divider, Row } from 'antd';
-import { APP_BRAND, APP_NAME } from '@/lib/ui-constants';
+import Link from 'next/link';
+import { Card, Col, Divider, Row, Typography } from 'antd';
+import { EbestLogo } from '@/components/branding/EbestLogo';
+import { APP_BRAND, APP_NAME, EBEST_BRAND_ORANGE } from '@/lib/ui-constants';
+import { PORTAL_LOGIN_PATH } from '@/lib/portal-auth/session-routes';
+
+const { Title, Text } = Typography;
 
 type AuthWideFormLayoutProps = {
-  /** Tiêu đề chính (vd: Đăng nhập / Quên mật khẩu) */
+  /** Tiêu đề chính (vd: Quên mật khẩu / Đặt lại mật khẩu) */
   title: string;
   /** Dòng phụ dưới tiêu đề — mặc định brand + app */
   subtitle?: ReactNode;
@@ -11,10 +16,13 @@ type AuthWideFormLayoutProps = {
   children: ReactNode;
   /** Cột phải: hướng dẫn / mẹo */
   sidebar: ReactNode;
+  /** Hiện link về đăng nhập dưới form — mặc định true */
+  showLoginLink?: boolean;
 };
 
 /**
- * Layout 2 cột (form + sidebar) đồng bộ với trang đăng nhập.
+ * Layout 2 cột (form + sidebar) cho trang recovery auth (forgot / reset).
+ * Dùng Ant Design Typography + Card; brand accent đồng bộ login.
  */
 export function AuthWideFormLayout({
   title,
@@ -25,23 +33,43 @@ export function AuthWideFormLayout({
   ),
   children,
   sidebar,
+  showLoginLink = true,
 }: AuthWideFormLayoutProps) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-100 py-8 px-4 sm:py-12 sm:px-6">
       <div className="mx-auto max-w-4xl">
-        <h1 className="mb-1 mt-0 text-center text-2xl font-semibold text-gray-800">
+        <div className="mb-6 flex justify-center">
+          <Link href={PORTAL_LOGIN_PATH} aria-label="Về trang đăng nhập">
+            <EbestLogo variant="login-hero" priority />
+          </Link>
+        </div>
+        <Title level={3} className="!mb-1 !mt-0 text-center !text-gray-800">
           {title}
-        </h1>
+        </Title>
         {subtitle != null && (
-          <h2 className="mb-8 mt-0 text-center text-xl font-medium text-blue-600">
+          <Text
+            className="mb-8 block text-center text-base font-medium"
+            style={{ color: EBEST_BRAND_ORANGE }}
+          >
             {subtitle}
-          </h2>
+          </Text>
         )}
 
         <Card className="overflow-hidden shadow-md" bordered={false}>
           <Row gutter={[32, 24]}>
             <Col xs={24} md={12} className="order-2 md:order-1">
               {children}
+              {showLoginLink ? (
+                <div className="mt-4 text-center">
+                  <Link
+                    href={PORTAL_LOGIN_PATH}
+                    className="text-sm font-medium hover:underline"
+                    style={{ color: EBEST_BRAND_ORANGE }}
+                  >
+                    ← Quay lại đăng nhập
+                  </Link>
+                </div>
+              ) : null}
             </Col>
 
             <Col xs={24} md={0}>

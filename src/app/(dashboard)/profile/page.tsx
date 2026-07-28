@@ -63,7 +63,7 @@ export default function ProfilePage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchWithAuth('/api/me');
+      const res = await fetchWithAuth('/api/student/me');
       const data = await res.json().catch(() => ({}));
       const payload: MeCustomer | undefined = data?.customer ?? data;
       if (!res.ok) {
@@ -105,7 +105,7 @@ export default function ProfilePage() {
         const body: Record<string, string> = { ...values };
         if (loginKeyType === 'email') delete body.primaryEmail;
         if (loginKeyType === 'phone') delete body.primaryPhone;
-        const res = await fetchWithAuth('/api/me', {
+        const res = await fetchWithAuth('/api/student/me', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -140,7 +140,7 @@ export default function ProfilePage() {
       try {
         const formData = new FormData();
         formData.append('file', file);
-        const res = await fetchWithAuth('/api/me/avatar', {
+        const res = await fetchWithAuth('/api/student/me/avatar', {
           method: 'POST',
           body: formData,
         });

@@ -257,9 +257,8 @@ export function MockTestOnlineConfirmExamClient({
 				Xác minh qua Zalo
 			</Title>
 			<Paragraph className="mock-test-intro-text !mb-4">
-				Sao chép mã xác nhận và nhắn cho Zalo OA Ebest. Sau khi xác minh thành công,
-				trang sẽ tự chuyển bạn vào phòng thi. Mục tiêu bước này là liên kết Zalo
-				của bạn với hồ sơ đăng ký.
+				Sao chép mã xác nhận và gửi tin nhắn đến Zalo OA Ebest để xác minh. Sau
+				khi xác minh thành công, bấm Tiếp tục.
 			</Paragraph>
 
 			{authorizeError ? (
@@ -404,7 +403,7 @@ export function MockTestOnlineConfirmExamClient({
 									onClick={onContinueAfterZalo}
 									loading={submittingUnlock}
 								>
-									Tiếp tục làm bài
+									Tiếp tục
 								</Button>
 							) : null}
 						</>
@@ -466,7 +465,7 @@ export function MockTestOnlineConfirmExamClient({
 					{needsUnlockCode
 						? 'Nhập mã 6 ký tự từ tin nhắn Zalo OA Ebest để vào phòng làm bài. Mất mã? Gửi lại tin xác nhận trên Zalo — OA sẽ gửi lại mã.'
 						: canProceedAfterZalo
-							? 'Chỉ cần khi nút «Tiếp tục làm bài» không hoạt động. Nhập mã 6 ký tự từ tin nhắn OA Ebest.'
+							? 'Chỉ cần khi nút «Tiếp tục» không hoạt động. Nhập mã 6 ký tự từ tin nhắn OA Ebest.'
 							: 'Trên web, sau khi xác minh Zalo trang thường tự chuyển — không cần nhập mã. Chỉ dùng ô này nếu trang vẫn đứng yên sau khi đã gửi tin thành công.'}
 				</Paragraph>
 				<Form form={form} layout="vertical" onFinish={onUnlockFinish}>

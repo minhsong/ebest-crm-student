@@ -9,8 +9,7 @@ import {
   PORTAL_MOCK_TEST_ROUTES,
 } from '@/features/portal-mock-test/routes.config';
 import { loadPublicMockTestRegisterPageData } from '@/lib/public-mock-test/fetch-public-mock-test.server';
-import { parseStudentMeCustomerBrief } from '@/lib/parse-student-me-customer';
-import { fetchStudentMeForSsr } from '@/lib/server/student-me';
+import { loadLoggedInCustomerContactFromSession } from '@/lib/portal-auth/portal-me-contact.server';
 import { buildPageMetadata } from '@/lib/metadata';
 
 export const dynamic = 'force-dynamic';
@@ -42,12 +41,11 @@ export default async function PortalMockTestOfflinePage() {
   };
 
   if (principal.actor === 'customer') {
-    const me = await fetchStudentMeForSsr();
-    const customer = parseStudentMeCustomerBrief(me?.customer);
+    const contactFromSession = await loadLoggedInCustomerContactFromSession();
     contact = {
-      displayName: customer?.fullName ?? principal.displayName,
-      primaryPhone: customer?.primaryPhone ?? '',
-      primaryEmail: customer?.primaryEmail ?? '',
+      displayName: contactFromSession?.displayName ?? principal.displayName,
+      primaryPhone: contactFromSession?.primaryPhone ?? '',
+      primaryEmail: contactFromSession?.primaryEmail ?? '',
     };
   } else if (isLeadMockTestPrincipal(principal)) {
     contact = {

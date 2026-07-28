@@ -1,6 +1,8 @@
 import { proxyPortalAuthLoginPost } from '@/lib/portal-auth/portal-auth-login.server';
 
-/** Proxy lead-only login — CRM `POST /student/auth/lead/login` (BL-Q8: không fallback customer). */
+/**
+ * @deprecated Alias — dùng `POST /api/auth/login` (password thống nhất).
+ */
 export async function POST(request: Request) {
-  return proxyPortalAuthLoginPost(request, 'lead');
+  return proxyPortalAuthLoginPost(request);
 }

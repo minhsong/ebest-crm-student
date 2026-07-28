@@ -1,5 +1,4 @@
-import { parseStudentMeCustomerBrief } from '@/lib/parse-student-me-customer';
-import { fetchStudentMeForSsr } from '@/lib/server/student-me';
+import { loadLoggedInCustomerContactFromSession } from '@/lib/portal-auth/portal-me-contact.server';
 import type {
 	MockTestOnlineCampaign,
 	MockTestOnlineCampaignsResponse,
@@ -71,19 +70,7 @@ async function fetchCampaignDetailSsr(
 }
 
 async function loadLoggedInStudentContact() {
-	try {
-		const payload = await fetchStudentMeForSsr();
-		if (!payload) return null;
-		const parsed = parseStudentMeCustomerBrief(payload?.customer ?? payload);
-		if (!parsed) return null;
-		return {
-			displayName: parsed.fullName || undefined,
-			primaryPhone: parsed.primaryPhone?.trim() || undefined,
-			primaryEmail: parsed.primaryEmail?.trim() || undefined,
-		};
-	} catch {
-		return null;
-	}
+	return loadLoggedInCustomerContactFromSession();
 }
 
 /** B1 — trang đăng ký nhanh: chỉ contact (tags ở complete-profile sau thi). */

@@ -4,15 +4,13 @@ import {
   buildCrmStudentUrl,
   unwrapCrmResponseBody,
 } from '@/lib/crm-student-proxy';
-import type { PortalLoginMode } from '@/components/portal/PortalLoginModePicker';
+import { STUDENT_API } from '@/lib/student-api';
 import type { PortalLoginActorPayload } from '@/lib/portal-auth/portal-auth-session';
-import { PORTAL_LOGIN_CRM_PATH } from '@/lib/portal-auth/portal-login-api';
 import { respondPortalPasswordLoginSuccess } from '@/lib/portal-auth/apply-portal-auth-success.server';
 
-/** Proxy login CRM + set cookie — dùng chung `/api/auth/login` và `/api/auth/lead/login`. */
+/** Proxy password login CRM thống nhất — `POST /student/auth/login`. */
 export async function proxyPortalAuthLoginPost(
   request: Request,
-  mode: PortalLoginMode,
 ): Promise<NextResponse> {
   const body = await request.json();
   const apiBase = getApiBaseUrl();
@@ -20,7 +18,7 @@ export async function proxyPortalAuthLoginPost(
     return NextResponse.json({ message: 'Cấu hình server chưa đúng.' }, { status: 500 });
   }
 
-  const url = buildCrmStudentUrl(apiBase, PORTAL_LOGIN_CRM_PATH[mode]);
+  const url = buildCrmStudentUrl(apiBase, STUDENT_API.authLogin);
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -35,5 +33,5 @@ export async function proxyPortalAuthLoginPost(
   }
 
   const payload = unwrapCrmResponseBody(data) as PortalLoginActorPayload;
-  return respondPortalPasswordLoginSuccess(mode, payload);
+  return respondPortalPasswordLoginSuccess(payload);
 }

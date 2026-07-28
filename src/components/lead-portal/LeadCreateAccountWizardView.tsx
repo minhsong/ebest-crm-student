@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { ArrowLeftOutlined, ArrowRightOutlined } from "@ant-design/icons";
 import { Alert, Button, Form, Input, Steps } from "antd";
 import type { FormInstance } from "antd";
@@ -34,9 +34,9 @@ type Props = {
 
 function LoginAction() {
   return (
-    <Link href="/login?mode=lead">
+    <Link href="/login">
       <Button size="small" type="primary">
-        Đăng nhập
+        ÄÄƒng nháº­p
       </Button>
     </Link>
   );
@@ -61,7 +61,7 @@ export function LeadCreateAccountWizardView({
   onNext,
 }: Props) {
   const stepItems = isGoogleComplete
-    ? [{ title: "Thông tin" }, { title: "Mật khẩu" }]
+    ? [{ title: "ThÃ´ng tin" }, { title: "Máº­t kháº©u" }]
     : [
         { title: LEAD_REGISTER_STEP_TITLES[1] },
         { title: LEAD_REGISTER_STEP_TITLES[2] },
@@ -69,10 +69,10 @@ export function LeadCreateAccountWizardView({
 
   return (
     <LeadPortalShell
-      title={isGoogleComplete ? "Hoàn thiện đăng ký Google" : title}
+      title={isGoogleComplete ? "HoÃ n thiá»‡n Ä‘Äƒng kÃ½ Google" : title}
       description={
         isGoogleComplete
-          ? "Email đã xác minh bởi Google. Nhập SĐT, họ tên và tạo mật khẩu để mở tài khoản."
+          ? "Email Ä‘Ã£ xÃ¡c minh bá»Ÿi Google. Nháº­p SÄT, há» tÃªn vÃ  táº¡o máº­t kháº©u Ä‘á»ƒ má»Ÿ tÃ i khoáº£n."
           : description
       }
       maxWidthClass="max-w-lg"
@@ -95,8 +95,8 @@ export function LeadCreateAccountWizardView({
           type="info"
           showIcon
           className="mb-4"
-          message="Đăng ký nhanh bằng Google"
-          description="Email được khóa theo tài khoản Google. Bạn vẫn cần tạo mật khẩu để đăng nhập bằng email sau này."
+          message="ÄÄƒng kÃ½ nhanh báº±ng Google"
+          description="Email Ä‘Æ°á»£c khÃ³a theo tÃ i khoáº£n Google. Báº¡n váº«n cáº§n táº¡o máº­t kháº©u Ä‘á»ƒ Ä‘Äƒng nháº­p báº±ng email sau nÃ y."
         />
       )}
 
@@ -137,11 +137,11 @@ export function LeadCreateAccountWizardView({
           {isSelfServe || isGoogleComplete ? (
             <Form.Item
               name="displayName"
-              label="Họ và tên"
-              rules={[{ required: true, message: "Vui lòng nhập họ tên" }]}
+              label="Há» vÃ  tÃªn"
+              rules={[{ required: true, message: "Vui lÃ²ng nháº­p há» tÃªn" }]}
             >
               <Input
-                placeholder="Nguyễn Văn A"
+                placeholder="Nguyá»…n VÄƒn A"
                 autoComplete="name"
                 maxLength={255}
               />
@@ -149,9 +149,9 @@ export function LeadCreateAccountWizardView({
           ) : null}
           <Form.Item
             name="phone"
-            label="Số điện thoại"
+            label="Sá»‘ Ä‘iá»‡n thoáº¡i"
             rules={[
-              { required: true, message: "Vui lòng nhập SĐT" },
+              { required: true, message: "Vui lÃ²ng nháº­p SÄT" },
               { validator: validatePhone },
             ]}
             getValueFromEvent={(value: string | undefined) => value}
@@ -162,8 +162,8 @@ export function LeadCreateAccountWizardView({
             name="email"
             label="Email"
             rules={[
-              { required: true, message: "Vui lòng nhập email" },
-              { type: "email", message: "Email không hợp lệ" },
+              { required: true, message: "Vui lÃ²ng nháº­p email" },
+              { type: "email", message: "Email khÃ´ng há»£p lá»‡" },
             ]}
           >
             <Input
@@ -176,8 +176,8 @@ export function LeadCreateAccountWizardView({
           </Form.Item>
           {!isGoogleComplete ? (
             <p className="mb-0 text-xs text-gray-500">
-              Email là tài khoản đăng nhập. Số điện thoại là thông tin liên hệ
-              (bắt buộc, đúng định dạng VN).
+              Email lÃ  tÃ i khoáº£n Ä‘Äƒng nháº­p. Sá»‘ Ä‘iá»‡n thoáº¡i lÃ  thÃ´ng tin liÃªn há»‡
+              (báº¯t buá»™c, Ä‘Ãºng Ä‘á»‹nh dáº¡ng VN).
             </p>
           ) : null}
         </div>
@@ -192,19 +192,19 @@ export function LeadCreateAccountWizardView({
           }
         >
           <LeadPortalPasswordFields
-            passwordLabel={isGoogleComplete ? "Tạo mật khẩu" : "Mật khẩu"}
+            passwordLabel={isGoogleComplete ? "Táº¡o máº­t kháº©u" : "Máº­t kháº©u"}
           />
         </div>
 
         <div className="mt-6 flex flex-wrap gap-2">
           {!isGoogleComplete && step === 2 ? (
             <Button icon={<ArrowLeftOutlined />} onClick={onBack}>
-              Quay lại
+              Quay láº¡i
             </Button>
           ) : null}
           {isSelfServe ? (
             <Button icon={<ArrowLeftOutlined />} onClick={onChooseOther}>
-              Chọn cách khác
+              Chá»n cÃ¡ch khÃ¡c
             </Button>
           ) : null}
           {!isGoogleComplete && step === 1 ? (
@@ -216,7 +216,7 @@ export function LeadCreateAccountWizardView({
               block
               className="sm:!w-auto"
             >
-              Tiếp tục
+              Tiáº¿p tá»¥c
             </Button>
           ) : (
             <Button
@@ -227,29 +227,29 @@ export function LeadCreateAccountWizardView({
               className="sm:!flex-1"
             >
               {isGoogleComplete
-                ? "Hoàn tất đăng ký Google"
+                ? "HoÃ n táº¥t Ä‘Äƒng kÃ½ Google"
                 : isSelfServe
-                  ? "Hoàn tất đăng ký"
-                  : "Tạo tài khoản"}
+                  ? "HoÃ n táº¥t Ä‘Äƒng kÃ½"
+                  : "Táº¡o tÃ i khoáº£n"}
             </Button>
           )}
         </div>
       </Form>
 
       <p className="mt-6 text-center text-sm text-gray-500">
-        Đã có tài khoản?{" "}
+        ÄÃ£ cÃ³ tÃ i khoáº£n?{" "}
         <Link
-          href="/login?mode=lead"
+          href="/login"
           className="font-medium text-orange-600 hover:underline"
         >
-          Đăng nhập
+          ÄÄƒng nháº­p
         </Link>
-        {" · "}
+        {" Â· "}
         <Link
           href="/mock-test-online"
           className="text-orange-600 hover:underline"
         >
-          Thi thử online
+          Thi thá»­ online
         </Link>
       </p>
     </LeadPortalShell>

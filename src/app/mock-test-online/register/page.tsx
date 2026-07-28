@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
+import { getCachedPortalSession } from '@/lib/portal-auth/resolve-portal-session.server';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 import { fetchPortalMockTestExamHome } from '@/features/portal-mock-test/server/fetch-my-exam-home.server';
 import { buildMockTestOnlineConfirmExamPath } from '@/lib/public-mock-test-online/select-exam-cache';
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
  * Legacy `/mock-test-online/register` — browse-first: guest → list public; auth → select/confirm/resume.
  */
 export default async function MockTestOnlineRegisterPage() {
-	const session = await resolvePortalSessionFromCookies();
+	const session = await getCachedPortalSession();
 	if (session.actor === 'guest') {
 		redirect('/mock-test-online');
 	}

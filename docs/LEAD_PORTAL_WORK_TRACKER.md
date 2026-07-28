@@ -277,6 +277,25 @@ Public endpoints:
 | M7-10 | **PI-D18** session DTO SSR-only (BL-Q9) | ✅ |
 | M7-11 | Audit client `omniLeadId` → SSR/BFF | ✅ |
 
+### SSR shell & Unified `/me` (v3 — 2026-07-28)
+
+**Spec:** [PORTAL_SSR_SHELL v3.1](./PORTAL_SSR_SHELL_AND_IDENTITY_SPEC.md) · **Plan:** [PORTAL_SSR_UNIFIED_ME_IMPLEMENTATION_PLAN.md](./PORTAL_SSR_UNIFIED_ME_IMPLEMENTATION_PLAN.md) · **Impact:** [PORTAL_SSR_IMPACT_AND_NEXTJS_PATTERNS.md](./PORTAL_SSR_IMPACT_AND_NEXTJS_PATTERNS.md) · CRM: [PORTAL_UNIFIED_ME_CACHE_SPEC.md](../../ebest-crm-api/docs/modules/student-portal/PORTAL_UNIFIED_ME_CACHE_SPEC.md)
+
+| ID | Việc | Wave | PR | Trạng thái |
+|----|------|------|-----|------------|
+| CRM-1 | `PortalMeCacheService` envelope + accountId key | A | CRM-1 | ⬜ |
+| CRM-2 | `GET portal/me` + delegate session read | A | CRM-2 | ⬜ |
+| CRM-3 | Invalidate promote/PATCH/attach | A | CRM-3 | ⬜ |
+| PR-1 | `getCachedPortalMe()` React cache | B | PR-1 | ⬜ |
+| PR-2 | Types + mapper + root/dashboard seed | B | PR-2 | ⬜ |
+| PR-3 | BFF `GET /api/me` → CRM portal/me | B | PR-3 | ⬜ |
+| PR-4 | Skip client mount fetch; wire chrome | B | PR-4 | ⬜ |
+| PR-5 | Remove `fetchStudentMeForSsr` duplicates | B | PR-5 | ⬜ |
+| PR-6 | RSC chrome (optional) | C | PR-6 | ⬜ |
+| C-1…5 | Tests, E2E, legacy cache removal | Hardening | — | ⬜ |
+
+**P0 blind spots:** BL-11 lead no Redis; BL-12/15/16 accountId cache + invalidate on accountType change — [ME-CACHE spec](../../ebest-crm-api/docs/modules/student-portal/PORTAL_UNIFIED_ME_CACHE_SPEC.md).
+
 ---
 
 ## M8 — Đăng ký lead + profile gate + Google (P0→P2)

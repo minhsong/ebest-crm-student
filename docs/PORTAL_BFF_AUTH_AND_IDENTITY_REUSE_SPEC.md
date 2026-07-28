@@ -1,7 +1,7 @@
 # Portal BFF — Auth cookie · Token proxy · Tái sử dụng identity (SSOT)
 
-> **Phiên bản:** 1.1  
-> **Cập nhật:** 2026-07-26  
+> **Phiên bản:** 1.2  
+> **Cập nhật:** 2026-07-28  
 > **Trạng thái:** **CANONICAL mục tiêu + as-built**  
 > **Phạm vi:** Student Portal (Next.js) · CRM IdP · Gateway (chỉ nhận identity đã resolve từ BFF/CRM)  
 > **Liên quan:** [SECURITY_STANDARDS](../../ebest-crm-api/docs/monorepo/standards/SECURITY_STANDARDS.md) · [BFF_RESPONSE_SECURITY](./STUDENT_PORTAL_BFF_RESPONSE_SECURITY_SPEC.md) · [UPA](../../ebest-crm-api/docs/monorepo/portal-identity/UNIFIED_PORTAL_AUTHENTICATION_SPEC.md) · [SIX_STEP_FLOW](../../ebest-crm-api/docs/modules/mock-test/MOCK_TEST_ONLINE_SIX_STEP_FLOW_ANALYSIS.md) · [DROP_RESUME](../../ebest-crm-api/docs/modules/mock-test/MOCK_TEST_ONLINE_DROP_RESUME_AND_RESULTS_AS_BUILT.md)
@@ -180,7 +180,43 @@ Helper SSOT (as-built):
 
 ---
 
-## 8. Quyết định khóa
+## 8. SSR shell & hybrid seed (2026-07-28)
+
+**Canonical:** [PORTAL_SSR_SHELL_AND_IDENTITY_SPEC](./PORTAL_SSR_SHELL_AND_IDENTITY_SPEC.md)
+
+### 8.1 Tóm tắt as-built
+
+| Layer | SSOT | Gap |
+|-------|------|-----|
+| CRM read | `GET portal/session` — actor + profile spread | ✅ Đủ |
+| Portal SSR | `resolvePortalSessionFromCookies()` ở root + guards | ⚠️ Nested layout gọi lại `student/me` |
+| Client identity | `PortalSessionProvider` + `AuthProvider` | ⚠️ Client DTO chỉ `{ actor, displayName }` → re-fetch `/api/me` |
+| Chrome | `PortalChromeGate` (client) | ⚠️ Spinner + waterfall sau hydrate |
+
+### 8.2 Mục tiêu BFF (bổ sung v3)
+
+| # | Nguyên tắc |
+|---|------------|
+| **A6** | Một request Next → **một** CRM `portal/me` (React `cache()`) |
+| **A7** | SSR seed **`PortalMeClient`** — `actor` + layout fields; strip omni |
+| **A8** | Read **một** `GET /api/me` → CRM `portal/me`; PATCH giữ path actor cũ tạm |
+| **A9** | CRM Redis **`portal:me:{accountId}`** TTL **3600s** — lead + customer |
+
+**CRM spec:** [PORTAL_UNIFIED_ME_CACHE_SPEC.md](../../ebest-crm-api/docs/modules/student-portal/PORTAL_UNIFIED_ME_CACHE_SPEC.md)
+
+### 8.3 Phase triển khai (v3)
+
+| Wave | PR | Mô tả |
+|------|-----|-------|
+| CRM | CRM-1…3 | `PortalMeCacheService`, `GET portal/me`, invalidate |
+| Portal | PR-1…5 | `getCachedPortalMe`, unified `/api/me`, seed layout by `actor` |
+| Portal | PR-6 | RSC chrome L3 |
+
+Chi tiết: [PORTAL_SSR_UNIFIED_ME_IMPLEMENTATION_PLAN.md](./PORTAL_SSR_UNIFIED_ME_IMPLEMENTATION_PLAN.md) · [PORTAL_SSR_SHELL v3.1](./PORTAL_SSR_SHELL_AND_IDENTITY_SPEC.md).
+
+---
+
+## 9. Quyết định khóa
 
 | ID | Nội dung |
 |----|----------|
@@ -188,6 +224,7 @@ Helper SSOT (as-built):
 | **BFF-ID-2** | Upstream chỉ nhận id do BFF/CRM inject — không tin client claim |
 | **BFF-ID-3** | Capability exam (HMAC) ≠ identity; mint server-side, cache theo registration |
 | **BFF-ID-4** | Tối ưu = tái sử dụng session/home/mirror/mint — không chuyển SoT điểm/registration sang Redis browser |
+| **BFF-ID-5** | SSR shell = Unified `/me` (**SSR-ADR-7/8/9**) — CRM `portal/me` + BFF `GET /api/me`; cache Redis `portal:me:{accountId}` 60p |
 
 ---
 

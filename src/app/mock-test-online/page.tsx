@@ -3,7 +3,8 @@ import { MockTestOnlineSeoJsonLd } from '@/components/public-mock-test-online/Mo
 import { MockTestClientErrorBoundary } from '@/components/public-mock-test-online/MockTestClientErrorBoundary';
 import { loadMockTestOnlineSelectExamPageData } from '@/lib/public-mock-test-online/fetch-online.server';
 import { fetchMockTestOnlineSeo } from '@/lib/public-mock-test-online/seo/fetch-seo.server';
-import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
+import { getCachedPortalSession } from '@/lib/portal-auth/resolve-portal-session.server';
+import { getPortalActorFromSession } from '@/lib/portal-auth/portal-session-selectors.server';
 import { buildPageMetadata } from '@/lib/metadata';
 
 export const dynamic = 'force-dynamic';
@@ -20,14 +21,11 @@ export const metadata = buildPageMetadata({
 export default async function MockTestOnlinePage() {
   const [seo, session, pageData] = await Promise.all([
     fetchMockTestOnlineSeo(),
-    resolvePortalSessionFromCookies(),
+    getCachedPortalSession(),
     loadMockTestOnlineSelectExamPageData(undefined),
   ]);
 
-  const actor =
-    session.actor === 'lead' || session.actor === 'customer'
-      ? session.actor
-      : 'guest';
+  const actor = getPortalActorFromSession(session);
 
   return (
     <MockTestClientErrorBoundary>

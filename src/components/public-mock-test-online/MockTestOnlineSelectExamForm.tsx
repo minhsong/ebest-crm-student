@@ -6,23 +6,17 @@ import {
 	Alert,
 	App,
 	Button,
-	Card,
 	Form,
 	Input,
 	Radio,
-	Space,
-	Tag,
 	Typography,
 } from 'antd';
-import { ClockCircleOutlined, FileTextOutlined } from '@ant-design/icons';
 import type {
 	MockTestOnlineCampaign,
 	MockTestOnlineAttemptStatus,
 	MockTestOnlineSelectExamFormValues,
 } from '@/lib/public-mock-test-online/types';
 import {
-	groupCampaignsByTestType,
-	formatMockTestRegistrationDeadline,
 	mockTestOnlineTypeLabel,
 	writeSelectExamCache,
 } from '@/lib/public-mock-test-online/exam-flow.util';
@@ -34,6 +28,7 @@ import { MockTestOnlineFunnelShell } from '@/components/public-mock-test-online/
 import { MockTestOnlineSessionErrorAlert } from '@/components/public-mock-test-online/MockTestOnlineSessionErrorAlert';
 import { MockTestOnlineInExamResumeAlert } from '@/components/public-mock-test-online/MockTestOnlineInExamResumeAlert';
 import { MockTestOnlineAttemptLimitAlert } from '@/components/public-mock-test-online/MockTestOnlineAttemptLimitAlert';
+import { MockTestOnlineExamTypePicker } from '@/components/public-mock-test-online/MockTestOnlineExamTypePicker';
 import { isMockTestOnlineAttemptBlocked } from '@/lib/public-mock-test-online/mock-test-online-attempt-limit.util';
 import {
 	isMockTestOnlineControlledAttemptGateError,
@@ -56,11 +51,6 @@ export type MockTestOnlineSelectExamFormProps = {
 	/** Prefill variant từ returnUrl (browse-first B). */
 	initialVariant?: 'full' | 'mini';
 };
-
-function formatDuration(minutes: number | null | undefined): string | null {
-	if (!minutes || minutes < 1) return null;
-	return `~${minutes} phút`;
-}
 
 export function MockTestOnlineSelectExamForm({
 	pendingLeadId = '',
@@ -98,8 +88,6 @@ export function MockTestOnlineSelectExamForm({
 			form.setFieldValue('testVariantChoice', variant);
 		}
 	}, [pendingLeadId, selectedCampaign, campaigns, form, initialVariant]);
-
-	const grouped = useMemo(() => groupCampaignsByTestType(campaigns), [campaigns]);
 
 	const activeCampaign = useMemo(() => {
 		if (sessionId) {
@@ -262,11 +250,11 @@ export function MockTestOnlineSelectExamForm({
 	return (
 		<MockTestOnlineFunnelShell step="select_exam">
 			<Title level={3} className="mock-test-page-title !mb-1 !mt-0">
-				Xác nhận bài thi
+				Hãy chọn bài thi thử
 			</Title>
 			<Paragraph className="mock-test-intro-text !mb-4">
-				Kiểm tra bài đã chọn (và loại đề nếu có), rồi bấm tiếp tục để xác minh
-				qua Zalo OA Ebest.
+				Chọn bài phù hợp mục đích đánh giá năng lực tiếng Anh của bạn, rồi bấm
+				Tiếp tục.
 			</Paragraph>
 
 			<MockTestOnlineInExamResumeAlert attemptStatus={attemptStatus} />
@@ -305,117 +293,19 @@ export function MockTestOnlineSelectExamForm({
 					<Input />
 				</Form.Item>
 
-				{campaigns.length > 1 ? (
+				{campaigns.length > 0 ? (
 					<Form.Item
 						name="sessionId"
-						label="Bài thi"
 						rules={[{ required: true, message: 'Vui lòng chọn bài thi.' }]}
+						className="!mb-4"
 					>
-						<Radio.Group className="w-full">
-							<Space direction="vertical" className="w-full" size="middle">
-								{grouped.map((group) => (
-									<div key={group.testTypeCode}>
-										<Text strong className="mb-2 block text-sm">
-											{group.label}
-										</Text>
-										<Space direction="vertical" className="w-full" size="small">
-											{group.items.map((c) => {
-												const duration = formatDuration(c.estimatedDurationMinutes);
-												const deadline = formatMockTestRegistrationDeadline(
-													c.registrationDeadlineAt,
-												);
-												const selected = sessionId === c.sessionId;
-												const typeLabel = mockTestOnlineTypeLabel(c.testTypeCode);
-												return (
-													<Radio key={c.sessionId} value={c.sessionId} className="!m-0">
-														<Card
-															size="small"
-															className={`mock-test-campaign-card ${selected ? 'mock-test-campaign-card--selected' : ''}`}
-															onClick={() =>
-																form.setFieldValue('sessionId', c.sessionId)
-															}
-														>
-															<div className="mock-test-campaign-card-head">
-																<Text strong className="mock-test-campaign-card-title">
-																	{c.title}
-																</Text>
-																<Tag color="blue" className="!m-0">
-																	{typeLabel}
-																</Tag>
-															</div>
-															<div className="mock-test-campaign-card-meta">
-																{duration ? (
-																	<Text type="secondary" className="text-xs">
-																		<ClockCircleOutlined className="mr-1" />
-																		Thời lượng {duration}
-																	</Text>
-																) : null}
-																{deadline ? (
-																	<Text type="secondary" className="text-xs">
-																		<FileTextOutlined className="mr-1" />
-																		Hạn đăng ký: {deadline}
-																	</Text>
-																) : null}
-																{c.variantMode === 'user_choice' ? (
-																	<Tag className="!m-0">Chọn Full hoặc Mini</Tag>
-																) : null}
-															</div>
-														</Card>
-													</Radio>
-												);
-											})}
-										</Space>
-									</div>
-								))}
-							</Space>
-						</Radio.Group>
+						<MockTestOnlineExamTypePicker campaigns={campaigns} />
 					</Form.Item>
 				) : (
-					<>
-						<Form.Item name="sessionId" hidden>
-							<Input type="hidden" />
-						</Form.Item>
-						{campaigns[0] ? (
-							<Card size="small" className="mock-test-campaign-card mock-test-campaign-card--selected !mb-4">
-								<div className="mock-test-campaign-card-head">
-									<Text strong className="mock-test-campaign-card-title">
-										{campaigns[0].title}
-									</Text>
-									<Tag color="blue">
-										{mockTestOnlineTypeLabel(campaigns[0].testTypeCode)}
-									</Tag>
-								</div>
-								<div className="mock-test-campaign-card-meta">
-									{formatDuration(campaigns[0].estimatedDurationMinutes) ? (
-										<Tag icon={<ClockCircleOutlined />}>
-											Thời lượng {formatDuration(campaigns[0].estimatedDurationMinutes)}
-										</Tag>
-									) : null}
-									{formatMockTestRegistrationDeadline(
-										campaigns[0].registrationDeadlineAt,
-									) ? (
-										<Tag icon={<FileTextOutlined />}>
-											Hạn đăng ký:{' '}
-											{formatMockTestRegistrationDeadline(
-												campaigns[0].registrationDeadlineAt,
-											)}
-										</Tag>
-									) : null}
-								</div>
-							</Card>
-						) : null}
-					</>
+					<Form.Item name="sessionId" hidden>
+						<Input type="hidden" />
+					</Form.Item>
 				)}
-
-				{activeCampaign?.marketingBlurb ? (
-					<Alert
-						type="info"
-						showIcon
-						className="!mb-4"
-						message="Giới thiệu bài thi"
-						description={activeCampaign.marketingBlurb}
-					/>
-				) : null}
 
 				{activeCampaign?.variantMode === 'user_choice' ? (
 					<Form.Item
@@ -441,24 +331,13 @@ export function MockTestOnlineSelectExamForm({
 					</Form.Item>
 				) : null}
 
-				{activeCampaign ? (
-					<Alert
-						type="success"
-						showIcon
-						className="!mb-4 mock-test-select-exam-summary"
-						message="Bạn sẽ thi"
-						description={
-							<>
-								<Text strong className="block">{activeCampaign.title}</Text>
-								<Text type="secondary" className="text-sm">
-									Loại đề: {mockTestOnlineTypeLabel(activeCampaign.testTypeCode)}
-									{activeCampaign.variantMode === 'user_choice'
-										? ' — chọn Full hoặc Mini ở trên'
-										: ''}
-								</Text>
-							</>
-						}
-					/>
+				{activeCampaign && activeCampaign.variantMode !== 'user_choice' ? (
+					<Text type="secondary" className="block text-sm !mb-4">
+						Đã chọn: {activeCampaign.title}
+						{activeCampaign.testTypeCode
+							? ` · ${mockTestOnlineTypeLabel(activeCampaign.testTypeCode)}`
+							: ''}
+					</Text>
 				) : null}
 
 				<Form.Item className="!mb-0">
@@ -470,7 +349,7 @@ export function MockTestOnlineSelectExamForm({
 						loading={submitting}
 						disabled={campaigns.length === 0 || activeInExam || attemptLimitReached}
 					>
-						Tiếp tục — xác minh Zalo
+						Tiếp tục
 					</Button>
 				</Form.Item>
 			</Form>

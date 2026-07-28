@@ -65,7 +65,7 @@ describe('resolveMockTestHubAccess', () => {
   it('guest → login with returnUrl hub', () => {
     const access = resolveMockTestHubAccess({ actor: 'guest' });
     expect(access.canUse).toBe(false);
-    expect(access.onlineHref).toContain('/login?mode=lead');
+    expect(access.onlineHref).toContain('/login?');
     expect(access.onlineHref).toContain(
       encodeURIComponent(PORTAL_MOCK_TEST_ROUTES.hub),
     );

@@ -38,11 +38,11 @@ export function resolvePostAuthReturnUrl(
 
 export function buildPortalLoginHref(input: {
   returnUrl: string;
+  /** @deprecated Mode không còn dùng — password login thống nhất. */
   mode?: 'lead' | 'student';
   sessionExpired?: boolean;
 }): string {
   const query = new URLSearchParams();
-  if (input.mode) query.set('mode', input.mode);
   if (input.sessionExpired) query.set('session', 'expired');
   const safeReturnUrl = sanitizePortalReturnUrl(input.returnUrl);
   if (safeReturnUrl) query.set(PORTAL_RETURN_URL_QUERY, safeReturnUrl);

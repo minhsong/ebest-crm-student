@@ -13,48 +13,42 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { LoginGoogleSection } from '@/features/auth/LoginGoogleSection';
 import { usePortalGoogleConfig } from '@/features/auth/usePortalGoogleConfig';
 import { usePortalSession } from '@/contexts/portal-session-context';
+import { leadResendEmailVerification } from '@/lib/lead-portal/client-api';
+import { postLoginPathForPortalActor } from '@/lib/portal-auth/portal-session-nav';
+import { resolveLeadRedirectFromSession } from '@/lib/portal-auth/resolve-lead-navigation';
 import {
-  fetchLeadProfile,
-  leadResendEmailVerification,
-} from '@/lib/lead-portal/client-api';
+  getCustomerFromPortalSession,
+  getPortalActor,
+  isPortalSessionReady,
+} from '@/lib/portal-auth/portal-session-selectors';
 import {
-  postLoginPathForPortalActor,
-} from '@/lib/portal-auth/portal-session-nav';
-import { resolvePostLeadLoginPath } from '@/lib/portal-auth/session-routes';
-import type { PortalLoginMode } from '@/components/portal/PortalLoginModePicker';
-import { PortalLoginModePicker, parsePortalLoginModeFromQuery } from '@/components/portal/PortalLoginModePicker';
-import { resolvePostAuthReturnUrl, PORTAL_RETURN_URL_QUERY } from '@/lib/portal-auth/post-auth-return-url';
+  resolvePostAuthReturnUrl,
+  PORTAL_RETURN_URL_QUERY,
+} from '@/lib/portal-auth/post-auth-return-url';
 
-/** Cam brand (~HSL 16° / ~78% sat / ~51% L) — đồng bộ nhận diện với logo. */
-const LOGIN_BRAND_BG = '#e35321';
-
-const GUIDE_ITEMS_CUSTOMER = [
+const GUIDE_ITEMS = [
   `Đây là cổng thông tin dành cho học viên và thí sinh thi thử online của ${APP_BRAND}.`,
-  'Học viên đăng nhập bằng email/SĐT đã đăng ký tại trung tâm. Có thể dùng Google nếu Gmail trùng email hồ sơ.',
+  'Đăng nhập bằng email hoặc SĐT đã đăng ký. Hệ thống tự nhận diện học viên hoặc thí sinh.',
+  'Có thể dùng Google nếu Gmail trùng email hồ sơ / tài khoản đã liên kết.',
   `${APP_BRAND} tiếp nhận và quản lý thông tin học tập một cách bảo mật.`,
 ];
 
-const GUIDE_ITEMS_LEAD = [
-  'Dành cho thí sinh thi thử online hoặc người chưa học tại Ebest.',
-  'Đăng nhập bằng SĐT/email và mật khẩu đã đặt khi đăng ký. Lần đầu sau xác nhận email, bạn sẽ hoàn thiện hồ sơ trước khi vào cổng.',
-  'Chưa có tài khoản? Chọn «Đăng ký» để tạo tài khoản mới.',
-];
-
 /**
- * Trang đăng nhập – UI riêng cho khách (không dùng layout dashboard).
- * Đã đăng nhập thì chuyển về / (dashboard).
+ * Trang đăng nhập thống nhất — một form, CRM quyết định actor.
  */
 export default function LoginPage() {
   const router = useRouter();
-  const { login, customer, ready } = useAuth();
+  const { login } = useAuth();
   const portal = usePortalSession();
+  const customer = getCustomerFromPortalSession(portal);
+  const actor = getPortalActor(portal);
+  const ready = isPortalSessionReady(portal);
   const { message: antMessage } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsEmailVerify, setNeedsEmailVerify] = useState(false);
   const [lastLoginId, setLastLoginId] = useState('');
   const [resendLoading, setResendLoading] = useState(false);
-  const [loginMode, setLoginMode] = useState<PortalLoginMode>('customer');
   const [sessionExpired, setSessionExpired] = useState(false);
   const googleCfg = usePortalGoogleConfig();
 
@@ -69,46 +63,21 @@ export default function LoginPage() {
     if (typeof window === 'undefined') return;
     const q = new URLSearchParams(window.location.search);
     setSessionExpired(q.get('session') === 'expired');
-    setLoginMode(parsePortalLoginModeFromQuery(q.get('mode')));
   }, []);
 
   useEffect(() => {
     if (portal.status === 'loading' || !ready) return;
-    if (customer || portal.actor === 'customer') {
+    if (customer || actor === 'customer') {
       router.replace(
         postLoginPathForPortalActor('customer', explicitRedirect()),
       );
       return;
     }
-    if (portal.actor === 'lead') {
-      let cancelled = false;
-      void (async () => {
-        try {
-          const profile = await fetchLeadProfile();
-          if (cancelled) return;
-          const fallback = postLoginPathForPortalActor(
-            'lead',
-            explicitRedirect(),
-          );
-          // Có returnUrl → đi thẳng; route đích tự guard (exam.start vs results).
-          if (explicitRedirect()) {
-            router.replace(fallback);
-            return;
-          }
-          router.replace(resolvePostLeadLoginPath(profile, fallback));
-        } catch {
-          if (!cancelled) {
-            router.replace(
-              postLoginPathForPortalActor('lead', explicitRedirect()),
-            );
-          }
-        }
-      })();
-      return () => {
-        cancelled = true;
-      };
+    if (actor === 'lead' && portal.status === 'ready' && portal.actor === 'lead') {
+      router.replace(resolveLeadRedirectFromSession(portal, explicitRedirect()));
+      return;
     }
-  }, [portal, ready, customer, router, explicitRedirect]);
+  }, [portal, ready, customer, actor, router, explicitRedirect]);
 
   const onFinish = useCallback(
     async (values: { loginId: string; password: string }) => {
@@ -118,26 +87,14 @@ export default function LoginPage() {
       const loginId = values.loginId.trim();
       setLastLoginId(loginId);
       try {
-        const result = await login(loginId, values.password, {
-          mode: loginMode,
-        });
+        const result = await login(loginId, values.password);
         if (result.ok) {
           antMessage.success('Đăng nhập thành công.');
-          const actor = result.actor === 'lead' ? 'lead' : 'customer';
-          if (actor === 'lead') {
-            try {
-              const profile = await fetchLeadProfile();
-              router.replace(
-                resolvePostLeadLoginPath(
-                  profile,
-                  postLoginPathForPortalActor('lead', explicitRedirect()),
-                ),
-              );
-            } catch {
-              router.replace(
-                postLoginPathForPortalActor('lead', explicitRedirect()),
-              );
-            }
+          const nextActor = result.actor === 'lead' ? 'lead' : 'customer';
+          if (nextActor === 'lead' && result.session) {
+            router.replace(
+              resolveLeadRedirectFromSession(result.session, explicitRedirect()),
+            );
           } else {
             router.replace(
               postLoginPathForPortalActor('customer', explicitRedirect()),
@@ -146,10 +103,7 @@ export default function LoginPage() {
         } else {
           const msg = result.message ?? 'Đăng nhập thất bại.';
           setError(msg);
-          if (
-            loginMode === 'lead' &&
-            /xác nhận email/i.test(msg)
-          ) {
+          if (/xác nhận email/i.test(msg)) {
             setNeedsEmailVerify(true);
           }
         }
@@ -157,14 +111,10 @@ export default function LoginPage() {
         setLoading(false);
       }
     },
-    [login, router, antMessage, explicitRedirect, loginMode],
+    [login, router, antMessage, explicitRedirect],
   );
 
-  if (
-    ready &&
-    portal.status === 'ready' &&
-    (customer || portal.actor === 'customer' || portal.actor === 'lead')
-  ) {
+  if (ready && (customer || actor === 'customer' || actor === 'lead')) {
     return null;
   }
 
@@ -182,19 +132,8 @@ export default function LoginPage() {
         >
           <div style={{ backgroundColor: EBEST_BRAND_ORANGE }}>
             <Row gutter={[0, 0]}>
-              {/* Desktop: trái = đăng nhập; mobile: dưới cùng (sau hướng dẫn) */}
               <Col xs={24} md={12} className="order-3 md:order-1">
                 <div className="flex flex-col items-center px-4 pb-4 pt-4 md:items-start md:border-r md:border-white/25 md:px-5 md:py-4 md:pr-6">
-                  <PortalLoginModePicker
-                    variant="brand"
-                    className="mb-3 w-full max-w-sm"
-                    value={loginMode}
-                    onChange={(mode) => {
-                      setLoginMode(mode);
-                      setError(null);
-                      setNeedsEmailVerify(false);
-                    }}
-                  />
                   <Form
                     layout="vertical"
                     onFinish={onFinish}
@@ -239,11 +178,7 @@ export default function LoginPage() {
                     </Form.Item>
                     <div className="-mt-1 mb-2 text-right">
                       <Link
-                        href={
-                          loginMode === 'lead'
-                            ? '/forgot-password?mode=lead'
-                            : '/forgot-password'
-                        }
+                        href="/forgot-password"
                         className="text-sm text-white/90 underline-offset-2 hover:text-white hover:underline"
                       >
                         Quên mật khẩu?
@@ -337,39 +272,22 @@ export default function LoginPage() {
                         />
                       </div>
                       <LoginGoogleSection
-                        mode={loginMode}
                         returnUrl={explicitRedirect()}
                         className="mt-1.5"
                         noteClassName="!text-white/75"
-                        onLoggedIn={(sessionActor) => {
-                          const actor = sessionActor;
-          if (actor === 'lead') {
-            void (async () => {
-              try {
-                const profile = await fetchLeadProfile();
-                const fallback = postLoginPathForPortalActor(
-                  'lead',
-                  explicitRedirect(),
-                );
-                if (explicitRedirect()) {
-                  router.replace(fallback);
-                  return;
-                }
-                router.replace(resolvePostLeadLoginPath(profile, fallback));
-              } catch {
-                router.replace(
-                  postLoginPathForPortalActor(
-                    'lead',
-                    explicitRedirect(),
-                  ),
-                );
-              }
-            })();
-            return;
+                        onLoggedIn={(nextActor, session) => {
+                          if (nextActor === 'lead') {
+                            router.replace(
+                              resolveLeadRedirectFromSession(
+                                session,
+                                explicitRedirect(),
+                              ),
+                            );
+                            return;
                           }
                           router.replace(
                             postLoginPathForPortalActor(
-                              actor,
+                              nextActor,
                               explicitRedirect(),
                             ),
                           );
@@ -380,19 +298,13 @@ export default function LoginPage() {
                 </div>
               </Col>
 
-              {/* Desktop: phải = hướng dẫn; mobile: trên cùng — một viền ngăn với form */}
               <Col xs={24} md={12} className="order-1 md:order-2">
                 <div className="border-b border-white/25 px-4 pb-4 pt-3 md:border-b-0 md:px-5 md:py-4 md:pl-6">
                   <h3 className="mb-2 text-sm font-semibold text-white">
-                    {loginMode === 'lead'
-                      ? 'Thông tin dành cho thí sinh'
-                      : 'Thông tin dành cho học viên'}
+                    Hướng dẫn đăng nhập
                   </h3>
                   <ul className="list-outside space-y-2.5 pl-4 text-sm leading-relaxed text-white">
-                    {(loginMode === 'lead'
-                      ? GUIDE_ITEMS_LEAD
-                      : GUIDE_ITEMS_CUSTOMER
-                    ).map((item, i) => (
+                    {GUIDE_ITEMS.map((item, i) => (
                       <li key={i} className="marker:text-white/50">
                         {item}
                       </li>

@@ -4,7 +4,7 @@ import {
   mintMtoPortalAuthorizeToken,
 } from './mint-mto-portal-authorize-token.server';
 
-const resolvePortalSessionFromCookies = vi.hoisted(() =>
+const getCachedPortalSession = vi.hoisted(() =>
   vi.fn(async () => ({
     actor: 'lead' as const,
     omniLeadId: 'omni-1',
@@ -17,7 +17,7 @@ const resolvePortalSessionFromCookies = vi.hoisted(() =>
 const fetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/portal-auth/resolve-portal-session.server', () => ({
-  resolvePortalSessionFromCookies,
+  getCachedPortalSession,
 }));
 
 vi.mock('@/lib/social-gateway-bff.util', () => ({
@@ -35,7 +35,7 @@ describe('mintMtoPortalAuthorizeToken cache', () => {
   beforeEach(() => {
     invalidateMtoPortalAuthorizeMintCache();
     fetchMock.mockReset();
-    resolvePortalSessionFromCookies.mockClear();
+    getCachedPortalSession.mockClear();
     vi.stubGlobal('fetch', fetchMock);
     fetchMock.mockResolvedValue({
       ok: true,
@@ -56,7 +56,7 @@ describe('mintMtoPortalAuthorizeToken cache', () => {
     expect(a?.portalAuthorizeToken).toBe('hmac-token');
     expect(b?.portalAuthorizeToken).toBe('hmac-token');
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(resolvePortalSessionFromCookies).toHaveBeenCalledTimes(1);
+    expect(getCachedPortalSession).toHaveBeenCalledTimes(1);
   });
 
   it('forceRefresh bypasses cache', async () => {

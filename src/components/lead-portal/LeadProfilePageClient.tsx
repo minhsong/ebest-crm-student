@@ -4,39 +4,43 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Form, Input, App } from 'antd';
 import { PageCard, PageHeader, LoadingState } from '@/components/layout';
 import { useRequireLeadSession } from '@/hooks/use-lead-session';
-import { fetchLeadProfile, type LeadProfile } from '@/lib/lead-portal/client-api';
+import { usePortalSession } from '@/contexts/portal-session-context';
+import { getLeadSessionSummary } from '@/lib/portal-auth/portal-session-selectors';
+import { leadProfileToClientSessionPayload } from '@/lib/portal-auth/sync-lead-portal-session.util';
+import type { LeadProfile } from '@/lib/lead-portal/types';
+import type { PortalLeadSessionSummary } from '@/lib/portal-auth/portal-lead-session.types';
 
 function maskInternalEmail(email: string): string {
   if (email.endsWith('@mto.ebest.internal')) return '—';
   return email;
 }
 
+function sessionSummaryToFormProfile(
+  summary: PortalLeadSessionSummary,
+): LeadProfile {
+  return {
+    ...summary,
+    omniLeadId: '',
+  };
+}
+
 export function LeadProfilePageClient() {
   const { message } = App.useApp();
   const { checking, ready } = useRequireLeadSession();
+  const portal = usePortalSession();
   const [form] = Form.useForm();
   const [profile, setProfile] = useState<LeadProfile | null>(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadProfile = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchLeadProfile();
-      setProfile(data);
-      form.setFieldsValue({ displayName: data.displayName ?? '' });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Không tải được hồ sơ.');
-    } finally {
-      setLoading(false);
-    }
-  }, [form]);
-
   useEffect(() => {
-    if (ready) void loadProfile();
-  }, [ready, loadProfile]);
+    if (!ready) return;
+    const summary = getLeadSessionSummary(portal);
+    if (!summary) return;
+    const seeded = sessionSummaryToFormProfile(summary);
+    setProfile(seeded);
+    form.setFieldsValue({ displayName: seeded.displayName ?? '' });
+  }, [ready, portal, form]);
 
   const onFinish = useCallback(
     async (values: { displayName?: string }) => {
@@ -53,16 +57,18 @@ export function LeadProfilePageClient() {
           setError(typeof data?.message === 'string' ? data.message : 'Cập nhật thất bại.');
           return;
         }
-        setProfile(data as LeadProfile);
+        const updated = data as LeadProfile;
+        setProfile(updated);
+        portal.setFromPayload(leadProfileToClientSessionPayload(updated));
         message.success('Đã cập nhật thông tin.');
       } finally {
         setSaving(false);
       }
     },
-    [message],
+    [message, portal],
   );
 
-  if (checking || !ready || loading) {
+  if (checking || !ready || profile == null) {
     return <LoadingState tip="Đang tải thông tin…" />;
   }
 

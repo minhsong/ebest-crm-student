@@ -1,35 +1,25 @@
-import type { PortalLoginMode } from '@/components/portal/PortalLoginModePicker';
 import { STUDENT_API } from '@/lib/student-api';
 
-/** BFF login paths — SSOT cho auth-context + tests. */
-export const PORTAL_LOGIN_BFF_PATH: Record<PortalLoginMode, string> = {
-  customer: '/api/auth/login',
-  lead: '/api/auth/lead/login',
-};
+/** BFF password login — một path duy nhất. */
+export const PORTAL_LOGIN_BFF_PATH = '/api/auth/login' as const;
 
-export const PORTAL_FORGOT_PASSWORD_BFF_PATH: Record<PortalLoginMode, string> = {
-  customer: '/api/auth/forgot-password',
-  lead: '/api/auth/lead/forgot-password',
-};
+/** BFF quên / đặt lại mật khẩu — thống nhất (alias lead vẫn proxy cùng CRM). */
+export const PORTAL_FORGOT_PASSWORD_BFF_PATH =
+  '/api/auth/forgot-password' as const;
 
-export const PORTAL_RESET_PASSWORD_BFF_PATH: Record<PortalLoginMode, string> = {
-  customer: '/api/auth/reset-password',
-  lead: '/api/auth/lead/reset-password',
-};
+export const PORTAL_RESET_PASSWORD_BFF_PATH =
+  '/api/auth/reset-password' as const;
 
-export const PORTAL_LOGIN_CRM_PATH: Record<PortalLoginMode, string> = {
-  customer: STUDENT_API.authLogin,
-  lead: STUDENT_API.authLeadLogin,
-};
+export const PORTAL_LOGIN_CRM_PATH = STUDENT_API.authLogin;
 
-export function portalLoginPath(mode: PortalLoginMode): string {
-  return PORTAL_LOGIN_BFF_PATH[mode];
+export function portalLoginPath(): string {
+  return PORTAL_LOGIN_BFF_PATH;
 }
 
-export function portalForgotPasswordPath(mode: PortalLoginMode): string {
-  return PORTAL_FORGOT_PASSWORD_BFF_PATH[mode];
+export function portalForgotPasswordPath(): string {
+  return PORTAL_FORGOT_PASSWORD_BFF_PATH;
 }
 
-export function portalResetPasswordPath(mode: PortalLoginMode): string {
-  return PORTAL_RESET_PASSWORD_BFF_PATH[mode];
+export function portalResetPasswordPath(): string {
+  return PORTAL_RESET_PASSWORD_BFF_PATH;
 }

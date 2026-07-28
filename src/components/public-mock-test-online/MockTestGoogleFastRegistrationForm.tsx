@@ -108,7 +108,7 @@ export function MockTestGoogleFastRegistrationForm({
           loading={submitting}
           className="flex-1"
         >
-          Tiếp tục chọn đề
+          Tiếp tục
         </Button>
       </div>
     </Form>

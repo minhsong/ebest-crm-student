@@ -1,60 +1,66 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { fetchLeadTestResults } from '@/lib/lead-portal/client-api';
+import { usePortalSession } from '@/contexts/portal-session-context';
 import {
-  fetchLeadProfile,
-  fetchLeadTestResults,
-} from '@/lib/lead-portal/client-api';
-import { isLeadPortalUnauthorizedError } from '@/lib/lead-portal/errors';
+  getLeadSessionSummary,
+  getPortalActor,
+  isPortalSessionReady,
+} from '@/lib/portal-auth/portal-session-selectors';
 import {
   PORTAL_MOCK_TEST_RESULTS_ROUTES,
-  resolvePostLeadLoginPath,
 } from '@/lib/portal-auth/session-routes';
+import { buildPortalLoginHref } from '@/lib/portal-auth/post-auth-return-url';
+import { resolveLeadPostLoginDestination } from '@/lib/portal-auth/resolve-lead-navigation';
 import { useMockTestResultsList } from './useMockTestResultsList';
 
 /**
- * Container hook — auth lead (layout đã gate), silent upgrade, danh sách kết quả.
+ * Container hook — auth lead (layout đã gate), post-login hub redirect, danh sách kết quả.
+ * Không gọi thêm `/api/portal/session` — dùng SSOT `PortalSessionProvider`.
  */
 export function useLeadMockTestResultsPage() {
   const router = useRouter();
+  const portal = usePortalSession();
+  const portalReady = isPortalSessionReady(portal);
+  const actor = getPortalActor(portal);
+  const profile = getLeadSessionSummary(portal);
   const [authReady, setAuthReady] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [authError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const next = await fetchLeadProfile();
-        const dest = resolvePostLeadLoginPath(next);
-        if (!cancelled && dest !== PORTAL_MOCK_TEST_RESULTS_ROUTES.lead) {
-          router.replace(dest);
-          return;
-        }
-        if (!cancelled) setAuthReady(true);
-      } catch (e) {
-        if (!cancelled) {
-          if (isLeadPortalUnauthorizedError(e)) {
-            router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
-            return;
-          }
-          setAuthError(
-            e instanceof Error ? e.message : 'Không tải được phiên đăng nhập.',
-          );
-          setAuthReady(true);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
+    if (!portalReady) return;
 
-  const fetcher = useCallback(() => fetchLeadTestResults(), []);
+    if (actor === 'customer') {
+      router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.student);
+      return;
+    }
+    if (actor !== 'lead' || !profile) {
+      router.replace(
+        buildPortalLoginHref({
+          returnUrl: PORTAL_MOCK_TEST_RESULTS_ROUTES.lead,
+        }),
+      );
+      return;
+    }
+
+    // Đang ở trang kết quả: giữ results làm intent; incomplete → hub (PO-D30).
+    const dest = resolveLeadPostLoginDestination(
+      profile,
+      PORTAL_MOCK_TEST_RESULTS_ROUTES.lead,
+    );
+    if (dest !== PORTAL_MOCK_TEST_RESULTS_ROUTES.lead) {
+      router.replace(dest);
+      return;
+    }
+
+    setAuthReady(true);
+  }, [portalReady, actor, profile, router]);
 
   const { items, loading, error } = useMockTestResultsList({
     enabled: authReady,
-    fetcher,
+    fetcher: fetchLeadTestResults,
   });
 
   return {

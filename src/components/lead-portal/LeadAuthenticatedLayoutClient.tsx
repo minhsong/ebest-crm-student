@@ -1,204 +1,133 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { PortalDashboardShell } from '@/components/layouts/dashboard';
 import { buildLeadPortalMenuAntdItems } from '@/lib/dashboard-menu';
-import type { LeadProfile } from '@/lib/lead-portal/types';
-import { fetchLeadProfile } from '@/lib/lead-portal/client-api';
-import { isLeadPortalUnauthorizedError } from '@/lib/lead-portal/errors';
-import { isLeadIdentityUpgraded } from '@/lib/portal-auth/portal-auth-session';
+import type { PortalLeadSessionSummary } from '@/lib/portal-auth/portal-lead-session.types';
+import { useAuth } from '@/contexts/auth-context';
 import { usePortalSession } from '@/contexts/portal-session-context';
 import {
-	buildLeadCompleteProfilePath,
-	isLeadCompleteProfilePath,
-	PORTAL_MOCK_TEST_RESULTS_ROUTES,
-} from '@/lib/portal-auth/session-routes';
+  getLeadSessionSummary,
+  getPortalActor,
+  isPortalSessionReady,
+} from '@/lib/portal-auth/portal-session-selectors';
+import { isLeadCompleteProfilePath } from '@/lib/portal-auth/session-routes';
 import {
-	PORTAL_MOCK_TEST_ROUTES,
-	isLeadIncompleteProfileAllowedPath,
-	isPortalMockTestFunnelPath,
+  PORTAL_MOCK_TEST_ROUTES,
+  isPortalMockTestFunnelPath,
 } from '@/features/portal-mock-test/routes.config';
 import { MockTestOnlineSiteLayout } from '@/components/public-mock-test-online/MockTestOnlineSiteLayout';
 import { LoadingState } from '@/components/layout';
 import { PortalExploreProvider } from '@/contexts/portal-explore-context';
+import { resolveLeadNavigation } from '@/lib/portal-auth/resolve-lead-navigation';
 
-function resolveLeadDisplayName(profile: LeadProfile): string {
-	const name = profile.displayName?.trim();
-	if (name) return name;
-	const phone = profile.phoneE164?.trim();
-	if (phone) return phone;
-	const email = profile.email?.trim();
-	if (email && !email.endsWith('@mto.ebest.internal')) return email;
-	return 'Thí sinh';
+function resolveLeadDisplayName(profile: PortalLeadSessionSummary): string {
+  const name = profile.displayName?.trim();
+  if (name) return name;
+  const phone = profile.phoneE164?.trim();
+  if (phone) return phone;
+  const email = profile.email?.trim();
+  if (email && !email.endsWith('@mto.ebest.internal')) return email;
+  return 'Thí sinh';
 }
 
 type Props = {
-	children: ReactNode;
-	initialProfile?: LeadProfile | null;
-	skipInitialProbe?: boolean;
-	allowMockTestFunnel?: boolean;
-	sidebarCollapsedDefault?: boolean;
+  children: ReactNode;
+  allowMockTestFunnel?: boolean;
+  sidebarCollapsedDefault?: boolean;
 };
 
 function LeadAuthenticatedLayoutInner({
-	children,
-	initialProfile = null,
-	skipInitialProbe = false,
-	allowMockTestFunnel = false,
-	sidebarCollapsedDefault = false,
+  children,
+  allowMockTestFunnel = false,
+  sidebarCollapsedDefault = false,
 }: Props) {
-	const router = useRouter();
-	const pathname = usePathname();
-	const portal = usePortalSession();
-	const [ready, setReady] = useState(skipInitialProbe && Boolean(initialProfile));
-	const [profile, setProfile] = useState<LeadProfile | null>(initialProfile);
-	const onCompleteProfilePath = isLeadCompleteProfilePath(pathname);
+  const router = useRouter();
+  const pathname = usePathname();
+  const { logout } = useAuth();
+  const portal = usePortalSession();
+  const portalReady = isPortalSessionReady(portal);
+  const actor = getPortalActor(portal);
+  const profile = getLeadSessionSummary(portal);
+  const onCompleteProfilePath = isLeadCompleteProfilePath(pathname);
 
-	useEffect(() => {
-		if (skipInitialProbe && initialProfile) {
-			setProfile(initialProfile);
-			setReady(true);
-			return;
-		}
+  useEffect(() => {
+    if (!portalReady) return;
 
-		if (portal.status !== 'ready') return;
+    const nav = resolveLeadNavigation({
+      actor: actor ?? 'guest',
+      profile,
+      currentPath: pathname,
+      allowMockTestFunnel,
+      mode: 'layout',
+    });
+    if (nav.action === 'redirect') {
+      router.replace(nav.destination);
+    }
+  }, [portalReady, actor, profile, pathname, allowMockTestFunnel, router]);
 
-		if (portal.actor === 'customer') {
-			router.replace(
-				allowMockTestFunnel
-					? '/mock-test-online'
-					: PORTAL_MOCK_TEST_RESULTS_ROUTES.student,
-			);
-			return;
-		}
-		if (portal.actor === 'guest') {
-			router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
-			return;
-		}
+  const menuItems = useMemo(
+    () =>
+      buildLeadPortalMenuAntdItems((path, label) => (
+        <Link href={path}>{label}</Link>
+      )),
+    [],
+  );
 
-		let cancelled = false;
-		void (async () => {
-			try {
-				const next = await fetchLeadProfile();
-				if (cancelled) return;
-				if (isLeadIdentityUpgraded(next)) {
-					await portal.refresh();
-					router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
-					return;
-				}
-				if (
-					!next.profileCompleted &&
-					!isLeadCompleteProfilePath(pathname) &&
-					!isLeadIncompleteProfileAllowedPath(pathname ?? '')
-				) {
-					router.replace(
-						buildLeadCompleteProfilePath(
-							pathname && pathname !== '/'
-								? pathname
-								: PORTAL_MOCK_TEST_ROUTES.hub,
-						),
-					);
-					return;
-				}
-				if (next.profileCompleted && isLeadCompleteProfilePath(pathname)) {
-					router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.lead);
-					return;
-				}
-				setProfile(next);
-				setReady(true);
-			} catch (e) {
-				if (cancelled) return;
-				if (isLeadPortalUnauthorizedError(e)) {
-					router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
-					return;
-				}
-				router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
-			}
-		})();
+  const handleLogout = useCallback(() => {
+    void logout();
+  }, [logout]);
 
-		return () => {
-			cancelled = true;
-		};
-	}, [
-		portal,
-		router,
-		skipInitialProbe,
-		initialProfile,
-		allowMockTestFunnel,
-		pathname,
-	]);
+  if (onCompleteProfilePath) {
+    return <>{children}</>;
+  }
 
-	const menuItems = useMemo(
-		() =>
-			buildLeadPortalMenuAntdItems((path, label) => (
-				<Link href={path}>{label}</Link>
-			)),
-		[],
-	);
+  if (!portalReady || actor === 'guest') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5]">
+        <LoadingState tip="Đang tải phiên đăng nhập…" />
+      </div>
+    );
+  }
 
-	const handleLogout = useCallback(() => {
-		void portal.logout().then(() => {
-			router.replace(PORTAL_MOCK_TEST_RESULTS_ROUTES.login);
-		});
-	}, [portal, router]);
+  const onFunnelPath = isPortalMockTestFunnelPath(pathname ?? '');
+  const profileIncomplete = profile != null && !profile.profileCompleted;
+  if (onFunnelPath && (profile == null || profileIncomplete)) {
+    return <MockTestOnlineSiteLayout>{children}</MockTestOnlineSiteLayout>;
+  }
+  if (profileIncomplete) {
+    return <>{children}</>;
+  }
+  if (profile == null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5]">
+        <LoadingState tip="Đang tải phiên đăng nhập…" />
+      </div>
+    );
+  }
 
-	/** Chưa hoàn thiện hồ sơ: chỉ wizard, không mở sidebar layout. */
-	if (onCompleteProfilePath) {
-		return <>{children}</>;
-	}
-
-	// Funnel thi (mock-test-online): chưa xác định hoặc chưa hoàn thiện hồ sơ
-	// → chrome public (không sidebar dashboard). PO-D19: sidebar chỉ mở khi
-	// profileCompleted.
-	const onFunnelPath = isPortalMockTestFunnelPath(pathname ?? '');
-	const profileIncomplete = profile != null && !profile.profileCompleted;
-	if (onFunnelPath && (!ready || profile == null || profileIncomplete)) {
-		return <MockTestOnlineSiteLayout>{children}</MockTestOnlineSiteLayout>;
-	}
-	if (profileIncomplete) {
-		// Path được phép ngoài funnel (exam start/resume) — render không sidebar.
-		return <>{children}</>;
-	}
-	if (!ready || profile == null) {
-		return (
-			<div className="flex min-h-screen items-center justify-center bg-[#f0f2f5]">
-				<LoadingState tip="Đang tải phiên đăng nhập…" />
-			</div>
-		);
-	}
-
-	return (
-		<PortalDashboardShell
-			ready={ready && Boolean(profile)}
-			loadingTip="Đang tải phiên đăng nhập…"
-			menuItems={menuItems}
-			userDisplayName={
-				profile
-					? resolveLeadDisplayName(profile)
-					: portal.status === 'ready' && portal.actor === 'lead'
-						? portal.displayName
-						: 'Thí sinh'
-			}
-			profileHref="/lead/profile"
-			homeHref={PORTAL_MOCK_TEST_ROUTES.hub}
-			onLogout={handleLogout}
-			defaultSidebarCollapsed={sidebarCollapsedDefault}
-		>
-			{children}
-		</PortalDashboardShell>
-	);
+  return (
+    <PortalDashboardShell
+      ready
+      loadingTip="Đang tải phiên đăng nhập…"
+      menuItems={menuItems}
+      userDisplayName={resolveLeadDisplayName(profile)}
+      profileHref="/lead/profile"
+      homeHref={PORTAL_MOCK_TEST_ROUTES.hub}
+      onLogout={handleLogout}
+      defaultSidebarCollapsed={sidebarCollapsedDefault}
+    >
+      {children}
+    </PortalDashboardShell>
+  );
 }
 
-/**
- * Layout đăng nhập đầy đủ cho lead — cùng chrome dashboard (header + sidebar).
- * Gate: chưa `profileCompleted` → complete-profile, trừ exam.start/resume.
- */
 export function LeadAuthenticatedLayoutClient(props: Props) {
-	return (
-		<PortalExploreProvider>
-			<LeadAuthenticatedLayoutInner {...props} />
-		</PortalExploreProvider>
-	);
+  return (
+    <PortalExploreProvider>
+      <LeadAuthenticatedLayoutInner {...props} />
+    </PortalExploreProvider>
+  );
 }

@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { MockTestOnlineConfirmExamClient } from '@/components/public-mock-test-online/MockTestOnlineConfirmExamClient';
 import { MockTestClientErrorBoundary } from '@/components/public-mock-test-online/MockTestClientErrorBoundary';
 import { loadMockTestOnlineSelectExamPageData } from '@/lib/public-mock-test-online/fetch-online.server';
-import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
+import { getCachedPortalSession } from '@/lib/portal-auth/resolve-portal-session.server';
 import { buildPortalLoginHref } from '@/lib/portal-auth/post-auth-return-url';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 import { fetchPortalMockTestExamHome } from '@/features/portal-mock-test/server/fetch-my-exam-home.server';
@@ -12,8 +12,8 @@ import { buildPageMetadata } from '@/lib/metadata';
 export const dynamic = 'force-dynamic';
 
 export const metadata = buildPageMetadata({
-	title: 'Xác nhận bài thi thử online',
-	description: 'Xác nhận bài thi, Zalo OA và mã mở khóa — Ebest English.',
+	title: 'Xác minh Zalo — thi thử online',
+	description: 'Xác minh qua Zalo OA Ebest để hoàn tất bước xác nhận trước khi làm bài.',
 	path: '/mock-test-online/confirm-exam',
 });
 
@@ -21,7 +21,7 @@ export const metadata = buildPageMetadata({
  * Auth-first confirm — ownership qua my-exam-home (Redis account), không Funnel cookie.
  */
 export default async function MockTestOnlineConfirmExamPage() {
-	const session = await resolvePortalSessionFromCookies();
+	const session = await getCachedPortalSession();
 	if (session.actor === 'guest') {
 		redirect(
 			buildPortalLoginHref({

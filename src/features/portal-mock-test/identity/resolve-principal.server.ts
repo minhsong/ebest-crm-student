@@ -1,5 +1,5 @@
 import {
-  resolvePortalSessionFromCookies,
+  getCachedPortalSession,
   type PortalSessionPayload,
 } from '@/lib/portal-auth/resolve-portal-session.server';
 import type { PortalMockTestPrincipal } from './types';
@@ -23,7 +23,7 @@ function mapLeadSession(
 
 /** SSOT identity cho hub / bootstrap / results (phase 1: lead). */
 export async function resolvePortalMockTestPrincipal(): Promise<PortalMockTestPrincipal> {
-  const session = await resolvePortalSessionFromCookies();
+  const session = await getCachedPortalSession();
 
   if (session.actor === 'lead') {
     return mapLeadSession(session);

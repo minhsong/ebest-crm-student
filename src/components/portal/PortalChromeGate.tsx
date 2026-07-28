@@ -17,8 +17,9 @@ type Props = {
 };
 
 /**
- * LP-D2 — cookie / PortalSession quyết định chrome trên funnel mock-test-online.
- * Trang exam (ready/run/done): chrome tối giản — không lead/me, không explore CRM.
+ * LP-D2 — cookie / PortalSession quyết định chrome trên funnel mock-test.
+ * Guest: chrome public (browse / marketing) — không ép /login.
+ * Chỉ logout chủ động (`portalLogoutAndLeave`) mới điều hướng về /login.
  */
 export function PortalChromeGate({ children }: Props) {
 	const session = usePortalSession();

@@ -5,6 +5,7 @@ import { GoogleLogin } from "@react-oauth/google";
 import { App } from "antd";
 
 import { usePortalSession } from "@/contexts/portal-session-context";
+import type { PortalSessionReadyState } from "@/contexts/portal-session-context";
 import { googleRegisterOrLogin } from "@/lib/lead-portal/google-register-client";
 import { storePendingGoogleRegistration } from "@/lib/lead-portal/google-register-pending.client";
 import { GooglePasswordLinkStep } from "@/features/auth/GooglePasswordLinkStep";
@@ -15,10 +16,8 @@ import {
 } from "@/lib/portal-auth/post-auth-return-url";
 
 type Props = {
-  /** `customer` = HV Google login; `lead` = Google register-or-login (CRM quyết định actor). */
-  mode?: "customer" | "lead";
   /** Phải nằm trong `<GoogleOAuthProvider clientId={...}>` (xem trang login). */
-  onLoggedIn: (actor: "lead" | "customer") => void;
+  onLoggedIn: (actor: "lead" | "customer", session: PortalSessionReadyState) => void;
   /** Giữ qua register_ticket → /register?google=continue. */
   returnUrl?: string | null;
   /** Bọc ngoài (spacing, canh lề). */
@@ -28,10 +27,9 @@ type Props = {
 };
 
 /**
- * Nút Google Identity Services → ID token → HV login hoặc Lead register-or-login.
+ * Nút Google Identity Services → ID token → CRM quyết định actor (HV / Lead).
  */
 export function LoginGoogleSection({
-  mode = "customer",
   onLoggedIn,
   returnUrl = null,
   className = "",
@@ -47,15 +45,13 @@ export function LoginGoogleSection({
   } | null>(null);
 
   const note =
-    mode === "lead"
-      ? "Tiếp tục với Google để đăng nhập hoặc đăng ký tài khoản thí sinh. Email trùng học viên sẽ được hướng dẫn liên kết an toàn."
-      : "Dùng Gmail trùng email hồ sơ tại trung tâm hoặc tài khoản đã đăng ký cổng học viên.";
+    "Tiếp tục với Google để đăng nhập hoặc đăng ký. Email trùng học viên sẽ được hướng dẫn liên kết an toàn.";
 
   const finishSession = useCallback(
     async (actor: "lead" | "customer") => {
-      await refreshPortalSession();
+      const session = await refreshPortalSession();
       antMessage.success("Đăng nhập thành công.");
-      onLoggedIn(actor);
+      onLoggedIn(actor, session);
     },
     [antMessage, onLoggedIn, refreshPortalSession],
   );

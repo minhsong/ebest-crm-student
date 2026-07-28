@@ -11,13 +11,25 @@ import React, {
 import type { ClientPortalSessionPayload } from '@/lib/portal-auth/portal-session-client.util';
 import {
 	fetchClientPortalSession,
-	portalLogoutClient,
+	portalLogoutAndLeave,
 } from '@/lib/portal-auth/portal-session.client';
+import { PORTAL_POST_LOGOUT_PATH } from '@/lib/portal-auth/session-routes';
 
 export type PortalSessionReadyState =
 	| { status: 'ready'; actor: 'guest' }
-	| { status: 'ready'; actor: 'customer'; displayName: string }
-	| { status: 'ready'; actor: 'lead'; displayName: string };
+	| {
+			status: 'ready';
+			actor: 'customer';
+			displayName: string;
+			customer: Extract<ClientPortalSessionPayload, { actor: 'customer' }>['customer'];
+			classes: Extract<ClientPortalSessionPayload, { actor: 'customer' }>['classes'];
+	  }
+	| {
+			status: 'ready';
+			actor: 'lead';
+			displayName: string;
+			profile: Extract<ClientPortalSessionPayload, { actor: 'lead' }>['profile'];
+	  };
 
 export type PortalSessionState =
 	| { status: 'loading' }
@@ -42,6 +54,8 @@ function toReadyState(
 			status: 'ready',
 			actor: 'customer',
 			displayName: data.displayName?.trim() || 'Học viên',
+			customer: data.customer,
+			classes: data.classes,
 		};
 	}
 	if (data.actor === 'lead') {
@@ -49,6 +63,7 @@ function toReadyState(
 			status: 'ready',
 			actor: 'lead',
 			displayName: data.displayName?.trim() || 'Thí sinh',
+			profile: data.profile,
 		};
 	}
 	return { status: 'ready', actor: 'guest' };
@@ -80,7 +95,8 @@ export function PortalSessionProvider({
 	}, []);
 
 	const logout = useCallback(async () => {
-		await portalLogoutClient();
+		// Hard navigate trước khi set guest — tránh remount chrome thiếu PortalExploreProvider.
+		await portalLogoutAndLeave(PORTAL_POST_LOGOUT_PATH);
 		setState({ status: 'ready', actor: 'guest' });
 	}, []);
 
@@ -114,10 +130,4 @@ export function usePortalSession(): PortalSessionContextValue {
 	return ctx;
 }
 
-/** Narrow helper — chỉ gọi khi đã biết status !== loading. */
-export function getPortalActor(
-	session: PortalSessionState,
-): 'guest' | 'customer' | 'lead' | null {
-	if (session.status === 'loading') return null;
-	return session.actor;
-}
+export { getPortalActor } from '@/lib/portal-auth/portal-session-selectors';

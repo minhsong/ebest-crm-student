@@ -3,7 +3,6 @@
  */
 
 import { getMessageFromClientApiJson } from '@/lib/parse-client-api-json';
-import type { PortalLoginMode } from '@/components/portal/PortalLoginModePicker';
 import {
   portalForgotPasswordPath,
   portalResetPasswordPath,
@@ -17,14 +16,13 @@ export type PasswordRecoveryResult = {
 
 export async function postForgotPassword(
   loginId: string,
-  mode: PortalLoginMode = 'customer',
 ): Promise<PasswordRecoveryResult> {
-  const body =
-    mode === 'lead'
-      ? { loginId: loginId.trim() }
-      : { email: loginId.trim().toLowerCase() };
+  const trimmed = loginId.trim();
+  const body = trimmed.includes('@')
+    ? { loginId: trimmed, email: trimmed.toLowerCase() }
+    : { loginId: trimmed };
 
-  const res = await fetch(portalForgotPasswordPath(mode), {
+  const res = await fetch(portalForgotPasswordPath(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -40,9 +38,8 @@ export async function postForgotPassword(
 export async function postResetPassword(
   token: string,
   password: string,
-  mode: PortalLoginMode = 'customer',
 ): Promise<PasswordRecoveryResult> {
-  const res = await fetch(portalResetPasswordPath(mode), {
+  const res = await fetch(portalResetPasswordPath(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token, password }),

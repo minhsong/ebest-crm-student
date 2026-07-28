@@ -7,6 +7,8 @@ export const PORTAL_MOCK_TEST_ROUTES = {
   results: '/mock-test/results',
   offline: '/mock-test/offline',
   onlineStart: '/mock-test/online/start',
+  /** Landing browse marketing MTO (guest OK). */
+  onlineBrowse: '/mock-test-online',
   onlineRegisterGuest: '/mock-test-online/register',
   onlineSelect: '/mock-test-online/select-exam',
   onlineConfirm: '/mock-test-online/confirm-exam',

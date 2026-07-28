@@ -1,6 +1,6 @@
 # Tiêu chuẩn code — ebest-student-portal
 
-> **Cập nhật:** 2026-07-07  
+> **Cập nhật:** 2026-07-28  
 > **Umbrella SSOT:** [docs/standards/README.md](../../ebest-crm-api/docs/monorepo/standards/README.md)
 
 ---
@@ -20,10 +20,14 @@
 
 | Tài liệu | Nội dung |
 |----------|----------|
+| [PORTAL_SSR_SHELL_AND_IDENTITY_SPEC.md](../PORTAL_SSR_SHELL_AND_IDENTITY_SPEC.md) | Spec v3.1 — ADR, ma trận field |
+| [PORTAL_SSR_UNIFIED_ME_IMPLEMENTATION_PLAN.md](../PORTAL_SSR_UNIFIED_ME_IMPLEMENTATION_PLAN.md) | **Kế hoạch triển khai Wave A–C** |
+| [PORTAL_SSR_IMPACT_AND_NEXTJS_PATTERNS.md](../PORTAL_SSR_IMPACT_AND_NEXTJS_PATTERNS.md) | **Impact analysis + NX-1…8 patterns** |
 | [STUDENT_PORTAL_BFF_RESPONSE_SECURITY_SPEC.md](../STUDENT_PORTAL_BFF_RESPONSE_SECURITY_SPEC.md) | SP-SEC-1…6 chi tiết |
 | [STUDENT_PORTAL_LEARNING_UI.md](../STUDENT_PORTAL_LEARNING_UI.md) | Learning UI SSOT |
 | [QUIZ_RUNTIME_AND_RESULT_VIEW.md](../QUIZ_RUNTIME_AND_RESULT_VIEW.md) | Quiz runtime |
 | [LEAD_PORTAL_SESSION_AND_MARKETING_SPEC.md](../LEAD_PORTAL_SESSION_AND_MARKETING_SPEC.md) | Lead portal UX |
+| [PORTAL_SSR_SHELL_AND_IDENTITY_SPEC.md](../PORTAL_SSR_SHELL_AND_IDENTITY_SPEC.md) | **Unified `/me` + layout by `actor`** — v3.1 |
 
 ### Code SSOT (as-built)
 

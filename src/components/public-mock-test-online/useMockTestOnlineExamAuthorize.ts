@@ -107,7 +107,7 @@ export function useMockTestOnlineExamAuthorize() {
 				const copy: MockTestOnlineErrorCopy = {
 					title: 'Chưa sẵn sàng vào phòng thi',
 					description:
-						'Đã xác minh Zalo nhưng chưa lấy được phiên làm bài. Bấm «Tiếp tục làm bài» hoặc nhập mã dự phòng từ tin nhắn Zalo.',
+						'Đã xác minh Zalo nhưng chưa lấy được phiên làm bài. Bấm «Tiếp tục» hoặc nhập mã dự phòng từ tin nhắn Zalo.',
 					recovery: 'retry',
 				};
 				setAuthorizeError(copy);
@@ -144,7 +144,7 @@ export function useMockTestOnlineExamAuthorize() {
 					message.error(copy.title);
 				} else {
 					message.warning(
-						`${copy.title}. Bạn có thể bấm «Tiếp tục làm bài» hoặc nhập mã dự phòng.`,
+						`${copy.title}. Bạn có thể bấm «Tiếp tục» hoặc nhập mã dự phòng.`,
 					);
 				}
 			} finally {

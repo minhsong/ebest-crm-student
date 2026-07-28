@@ -2,7 +2,7 @@ import {
   buildGatewayServiceHeaders,
   getSocialGatewayConfig,
 } from '@/lib/social-gateway-bff.util';
-import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
+import { getCachedPortalSession } from '@/lib/portal-auth/resolve-portal-session.server';
 import { resolveMtoCallerIdentityFromSession } from '@/features/portal-mock-test/server/resolve-mto-caller-identity.server';
 import { buildAuthorizeResumeBody } from '@/features/portal-mock-test/server/authorize-resume-body.server';
 
@@ -120,7 +120,7 @@ async function mintMtoPortalAuthorizeTokenUncached(input: {
   const cfg = getSocialGatewayConfig();
   if (!cfg) return null;
 
-  const session = await resolvePortalSessionFromCookies();
+  const session = await getCachedPortalSession();
   if (session.actor === 'guest') return null;
 
   const resolved = await resolveMtoCallerIdentityFromSession(session);

@@ -8,11 +8,9 @@ import { LeadPortalPasswordFields } from '@/components/lead-portal/LeadPortalPas
 import { PublicMockTestProfileFields } from '@/components/public-mock-test/PublicMockTestProfileFields';
 import {
   completeLeadProfile,
-  fetchLeadProfile,
 } from '@/lib/lead-portal/client-api';
 import { isLeadPortalUnauthorizedError } from '@/lib/lead-portal/errors';
-import { PORTAL_MOCK_TEST_RESULTS_ROUTES } from '@/lib/portal-auth/session-routes';
-import type { LeadProfile } from '@/lib/lead-portal/types';
+import type { PortalLeadSessionSummary } from '@/lib/portal-auth/portal-lead-session.types';
 import type { PublicRegistrationOptions } from '@/lib/public-mock-test/types';
 import { collectPublicProfilePayload } from '@/lib/public-mock-test/profile-payload';
 import {
@@ -21,6 +19,16 @@ import {
 } from '@/lib/portal-auth/post-auth-return-url';
 import { PhoneInputField } from '@/components/phone-input';
 import { validatePhone } from '@/lib/complete-profile/validation';
+import { usePortalSession } from '@/contexts/portal-session-context';
+import {
+  getLeadSessionSummary,
+  getPortalActor,
+  isPortalSessionReady,
+} from '@/lib/portal-auth/portal-session-selectors';
+import { leadProfileToClientSessionPayload } from '@/lib/portal-auth/sync-lead-portal-session.util';
+import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
+
+type LeadProfileFormState = PortalLeadSessionSummary;
 
 type FormValues = {
   displayName: string;
@@ -48,49 +56,39 @@ export function LeadCompleteProfileClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl =
-    resolvePostAuthReturnUrl(searchParams) ??
-    PORTAL_MOCK_TEST_RESULTS_ROUTES.lead;
+    resolvePostAuthReturnUrl(searchParams) ?? PORTAL_MOCK_TEST_ROUTES.hub;
   const { message } = App.useApp();
   const [form] = Form.useForm<FormValues>();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [profile, setProfile] = useState<LeadProfile | null>(null);
+  const [profile, setProfile] = useState<LeadProfileFormState | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const portal = usePortalSession();
 
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const next = await fetchLeadProfile();
-        if (cancelled) return;
-        if (next.profileCompleted) {
-          router.replace(returnUrl);
-          return;
-        }
-        setProfile(next);
-        form.setFieldsValue({
-          displayName: next.displayName ?? '',
-          phone: next.phoneE164 ?? '',
-        });
-        setLoading(false);
-      } catch (e) {
-        if (cancelled) return;
-        if (isLeadPortalUnauthorizedError(e)) {
-          router.replace(
-            buildPortalLoginHref({ mode: 'lead', returnUrl }),
-          );
-          return;
-        }
-        message.error(
-          e instanceof Error ? e.message : 'Không tải được hồ sơ.',
-        );
-        router.replace(buildPortalLoginHref({ mode: 'lead', returnUrl }));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [form, message, returnUrl, router]);
+    if (!isPortalSessionReady(portal)) return;
+
+    const actor = getPortalActor(portal);
+    if (actor !== 'lead') {
+      router.replace(buildPortalLoginHref({ mode: 'lead', returnUrl }));
+      return;
+    }
+
+    const next = getLeadSessionSummary(portal);
+    if (!next) return;
+
+    if (next.profileCompleted) {
+      router.replace(returnUrl);
+      return;
+    }
+
+    setProfile(next);
+    form.setFieldsValue({
+      displayName: next.displayName ?? '',
+      phone: next.phoneE164 ?? '',
+    });
+    setLoading(false);
+  }, [form, portal, returnUrl, router]);
 
   const onFinish = useCallback(
     async (values: FormValues) => {
@@ -108,12 +106,13 @@ export function LeadCompleteProfileClient({
           return;
         }
         const profilePayload = collectPublicProfilePayload(allValues);
-        await completeLeadProfile({
+        const updated = await completeLeadProfile({
           password: allValues.password,
           displayName,
           phone: allValues.phone?.trim(),
           ...profilePayload,
         });
+        portal.setFromPayload(leadProfileToClientSessionPayload(updated));
         message.success('Đã hoàn thiện hồ sơ. Chào mừng bạn đến cổng Ebest!');
         router.replace(returnUrl);
       } catch (e) {
@@ -130,7 +129,7 @@ export function LeadCompleteProfileClient({
         setSubmitting(false);
       }
     },
-    [form, message, returnUrl, router],
+    [form, message, portal, returnUrl, router],
   );
 
   if (loading || !profile) {

@@ -1,68 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getApiBaseUrl } from '@/lib/env';
-import { getPortalAccessTokenFromCookie } from '@/lib/portal-auth-cookie';
-import { mapPortalConflictForClient } from '@/lib/portal-conflict-client';
+import { NextResponse } from 'next/server';
+import { toClientPortalSessionPayload } from '@/lib/portal-auth/portal-session-client.util';
+import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
 import { sanitizeApiErrorPayload } from '@/lib/student-safe-errors';
 
-const STUDENT_BASE = '/api/v1/student';
-
-export async function GET(request: NextRequest) {
-  const token = getPortalAccessTokenFromCookie();
-  if (!token) {
-    return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
-  }
-  const apiBaseUrl = getApiBaseUrl();
-  if (!apiBaseUrl) {
+/**
+ * @deprecated Dùng `GET /api/portal/session` — compatibility wrapper 1 release.
+ * GET trả portal session client-safe; PATCH đã chuyển sang `/api/student/me`.
+ */
+export async function GET() {
+  try {
+    const session = await resolvePortalSessionFromCookies();
+    if (session.actor === 'guest') {
+      return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
+    }
+    return NextResponse.json(toClientPortalSessionPayload(session));
+  } catch (error) {
     return NextResponse.json(
-      { message: 'Cấu hình server chưa đúng.' },
-      { status: 500 },
+      sanitizeApiErrorPayload(error, 502),
+      { status: 502 },
     );
   }
-  const url = `${apiBaseUrl.replace(/\/$/, '')}${STUDENT_BASE}/me`;
-  const res = await fetch(url, {
-    headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    return NextResponse.json(
-      sanitizeApiErrorPayload(data, res.status),
-      { status: res.status },
-    );
-  }
-  const payload = data?.result ?? data?.data ?? data;
-  return NextResponse.json(payload ?? data);
 }
 
-export async function PATCH(request: NextRequest) {
-  const token = getPortalAccessTokenFromCookie();
-  if (!token) {
-    return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
-  }
-  const apiBaseUrl = getApiBaseUrl();
-  if (!apiBaseUrl) {
-    return NextResponse.json(
-      { message: 'Cấu hình server chưa đúng.' },
-      { status: 500 },
-    );
-  }
-  const body = await request.json();
-  const url = `${apiBaseUrl.replace(/\/$/, '')}${STUDENT_BASE}/me`;
-  const res = await fetch(url, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    return NextResponse.json(
-      mapPortalConflictForClient(data, res.status, 'Cập nhật thất bại.'),
-      { status: res.status },
-    );
-  }
-  const payload = data?.result ?? data?.data ?? data;
-  return NextResponse.json(payload ?? data);
+/** @deprecated Dùng `PATCH /api/student/me`. */
+export async function PATCH(request: Request) {
+  const { PATCH: patchStudentMe } = await import('../student/me/route');
+  return patchStudentMe(request);
 }

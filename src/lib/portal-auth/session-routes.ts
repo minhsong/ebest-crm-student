@@ -9,9 +9,20 @@ import {
 export const PORTAL_MOCK_TEST_RESULTS_ROUTES = {
   lead: PORTAL_MOCK_TEST_ROUTES.results,
   student: PORTAL_MOCK_TEST_ROUTES.results,
-  /** Unified login (customer → lead fallback). */
-  login: '/login',
 } as const;
+
+/**
+ * Entry `/login` — dùng cho logout chủ động, bounce guest khỏi khu auth,
+ * và link «Đăng nhập» trên trang public (không gắn returnUrl).
+ * Deep-link có returnUrl → `buildPortalLoginHref`.
+ */
+export const PORTAL_LOGIN_PATH = '/login' as const;
+
+/**
+ * Sau logout chủ động (click Đăng xuất) — hard navigate về entry login.
+ * Không dùng để đuổi guest khỏi trang public / funnel mock-test.
+ */
+export const PORTAL_POST_LOGOUT_PATH = PORTAL_LOGIN_PATH;
 
 /** Gate sau đăng ký cơ bản — bắt buộc trước layout lead đầy đủ. */
 export const LEAD_COMPLETE_PROFILE_PATH = '/lead/complete-profile' as const;
@@ -67,6 +78,11 @@ export function resolvePostExamPath(
   return resultsPath;
 }
 
+/**
+ * Điều hướng sau login Lead.
+ * Mặc định = hub (trang chủ thí sinh) — không phải `/mock-test/results`.
+ * `fallback` chỉ khi đã hoàn thiện hồ sơ (vd. returnUrl sau nộp bài → results).
+ */
 export function resolvePostLeadLoginPath(
   profile: {
     identityUpgrade?: {
@@ -76,7 +92,7 @@ export function resolvePostLeadLoginPath(
     };
     profileCompleted?: boolean;
   },
-  fallback: string = PORTAL_MOCK_TEST_RESULTS_ROUTES.lead,
+  fallback: string = PORTAL_MOCK_TEST_ROUTES.hub,
 ): string {
   // UPA-D15: convert xong → đăng nhập lại cổng HV (không silent cookie).
   if (
@@ -84,7 +100,7 @@ export function resolvePostLeadLoginPath(
     (profile.identityUpgrade.reLoginRequired ||
       profile.identityUpgrade.applied)
   ) {
-    return PORTAL_MOCK_TEST_RESULTS_ROUTES.login;
+    return PORTAL_LOGIN_PATH;
   }
   // PO-D30: incomplete được vào hub / chọn bài đầu — không ép wizard ngay sau login.
   if (profile.profileCompleted !== true) {
@@ -93,8 +109,11 @@ export function resolvePostLeadLoginPath(
   return fallback;
 }
 
-/** Đường dẫn sau đăng nhập unified / lead login. */
+/**
+ * Trang chủ sau đăng nhập thường (không có returnUrl).
+ * Kết quả thi thử chỉ qua returnUrl / resolvePostExamPath sau nộp bài.
+ */
 export function resolvePostPortalLoginPath(actor: PortalAuthActor): string {
-  if (actor === 'lead') return PORTAL_MOCK_TEST_RESULTS_ROUTES.lead;
-  return PORTAL_MOCK_TEST_RESULTS_ROUTES.student;
+  if (actor === 'lead') return PORTAL_MOCK_TEST_ROUTES.hub;
+  return '/';
 }

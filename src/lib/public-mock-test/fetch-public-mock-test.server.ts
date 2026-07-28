@@ -1,7 +1,6 @@
 import { getApiBaseUrl } from '@/lib/env';
 import { unwrapCrmResponseBody } from '@/lib/crm-student-proxy';
-import { parseStudentMeCustomerBrief } from '@/lib/parse-student-me-customer';
-import { fetchStudentMeForSsr } from '@/lib/server/student-me';
+import { loadLoggedInCustomerContactFromSession } from '@/lib/portal-auth/portal-me-contact.server';
 import { resolveCrmServiceKey } from '@/lib/service-keys';
 import type {
 	PublicLocationGroup,
@@ -90,19 +89,7 @@ async function loadLoggedInStudentContact(): Promise<{
 	primaryPhone?: string;
 	primaryEmail?: string;
 } | null> {
-	try {
-		const payload = await fetchStudentMeForSsr();
-		if (!payload) return null;
-		const parsed = parseStudentMeCustomerBrief(payload?.customer ?? payload);
-		if (!parsed) return null;
-		return {
-			displayName: parsed.fullName || undefined,
-			primaryPhone: parsed.primaryPhone?.trim() || undefined,
-			primaryEmail: parsed.primaryEmail?.trim() || undefined,
-		};
-	} catch {
-		return null;
-	}
+	return loadLoggedInCustomerContactFromSession();
 }
 
 /** SSR: tag options cho form hoàn thiện hồ sơ lead / đăng ký thi công khai. */

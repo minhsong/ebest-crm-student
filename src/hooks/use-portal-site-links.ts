@@ -1,9 +1,16 @@
 'use client';
 
-import { usePortalExplore } from '@/contexts/portal-explore-context';
+import { usePortalExploreOptional } from '@/contexts/portal-explore-context';
 
-/** Thin wrapper — dùng data từ PortalExploreProvider (không fetch lặp). */
+/** Thin wrapper — data từ PortalExploreProvider; ngoài provider → rỗng (an toàn sau logout). */
 export function usePortalSiteLinks() {
-  const { loading, error, siteLinks } = usePortalExplore();
-  return { loading, error, siteLinks };
+  const explore = usePortalExploreOptional();
+  if (!explore) {
+    return { loading: false, error: null, siteLinks: null };
+  }
+  return {
+    loading: explore.loading,
+    error: explore.error,
+    siteLinks: explore.siteLinks,
+  };
 }

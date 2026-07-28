@@ -1,4 +1,4 @@
-import { resolvePortalSessionFromCookies } from '@/lib/portal-auth/resolve-portal-session.server';
+import { getCachedPortalSession } from '@/lib/portal-auth/resolve-portal-session.server';
 import {
   resolvePostExamPath,
   type PostExamPortalSession,
@@ -14,7 +14,7 @@ export type PostExamDestination = {
  * Browser chỉ nhận actor + internal path; không nhận profile/identity internals.
  */
 export async function resolvePostExamDestination(): Promise<PostExamDestination> {
-  const session = await resolvePortalSessionFromCookies();
+  const session = await getCachedPortalSession();
 
   let routeSession: PostExamPortalSession;
   if (session.actor === 'lead') {

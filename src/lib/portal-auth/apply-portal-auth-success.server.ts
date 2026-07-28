@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { PortalAuthActor } from '@/lib/portal-auth/portal-auth-session';
 import type { PortalLoginActorPayload } from '@/lib/portal-auth/portal-auth-session';
+import { resolvePortalLoginActor } from '@/lib/portal-auth/portal-auth-session';
 import { applyPortalSessionAccessToken } from '@/lib/portal-auth/portal-auth-session.server';
 
 export function readAccessTokenFromCrmPayload(
@@ -24,14 +25,15 @@ export function applyPortalAccessTokenCookie(
 
 /**
  * Password login success — set cookie + response allowlist (không lộ JWT).
+ * Actor suy từ payload CRM (không nhận mode từ client).
  */
 export function respondPortalPasswordLoginSuccess(
-  mode: PortalAuthActor,
   payload: PortalLoginActorPayload,
 ): NextResponse {
-  applyPortalAccessTokenCookie(mode, readAccessTokenFromCrmPayload(payload));
+  const actor = resolvePortalLoginActor(payload);
+  applyPortalAccessTokenCookie(actor, readAccessTokenFromCrmPayload(payload));
 
-  if (mode === 'lead') {
+  if (actor === 'lead') {
     return NextResponse.json({
       actor: 'lead' as const,
       account: payload.account ?? payload.leadAccount ?? null,

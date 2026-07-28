@@ -154,10 +154,10 @@ export function MockTestOnlinePhoneIntakeForm({
             block
             loading={submitting}
           >
-            Tiếp tục — chọn bài thi
+            Tiếp tục
           </Button>
           <Text type="secondary" className="text-xs block text-center">
-            Bước tiếp theo: chọn bài thi, xác minh Zalo và làm bài.
+            Điền đủ thông tin rồi bấm Tiếp tục để hoàn tất bước đăng ký.
           </Text>
         </Space>
       </Form.Item>

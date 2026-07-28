@@ -84,3 +84,8 @@ export function usePortalExplore(): PortalExploreState {
   }
   return ctx;
 }
+
+/** Optional — không throw khi ngoài provider (vd. remount sau logout). */
+export function usePortalExploreOptional(): PortalExploreState | null {
+  return useContext(PortalExploreContext);
+}

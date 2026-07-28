@@ -6,11 +6,12 @@ type Props = {
   searchParams?: SearchParams | Promise<SearchParams>;
 };
 
-/** Legacy `/lead/login` → unified `/login` (customer → lead fallback). */
+/** Legacy `/lead/login` → unified `/login` (CRM quyết định actor). */
 export default async function LeadLoginRedirectPage({ searchParams }: Props) {
   const params = (await Promise.resolve(searchParams ?? {})) as SearchParams;
   const qs = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
+    if (key === 'mode') continue;
     if (typeof value === 'string' && value) qs.set(key, value);
     else if (Array.isArray(value) && value[0]) qs.set(key, value[0]);
   }

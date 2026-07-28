@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { getApiBaseUrl } from '@/lib/env';
 import {
   forcePortalLogoutCookies,
@@ -36,6 +37,7 @@ export type PortalSessionPayload =
       accountId?: string;
       /** Brief từ cùng GET portal/session — tránh gọi lại ở root layout. */
       customer: StudentMeCustomerBrief;
+      classes: Array<{ id: number; name: string; status?: string | null }>;
     }
   | {
       actor: 'lead';
@@ -61,6 +63,28 @@ function mapLeadProfile(raw: Record<string, unknown>): LeadProfile | null {
 
   const mapped = mapLeadMeForClient({ ...raw, ...account, omniLeadId });
   return { ...mapped, omniLeadId };
+}
+
+function parseCustomerClasses(
+  payload: Record<string, unknown>,
+): Array<{ id: number; name: string; status?: string | null }> {
+  const raw = payload.classes;
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const row = item as Record<string, unknown>;
+      const id = Number(row.id);
+      const name = typeof row.name === 'string' ? row.name.trim() : '';
+      const status =
+        typeof row.status === 'string' || row.status === null
+          ? (row.status as string | null)
+          : null;
+      if (!Number.isFinite(id) || !name) return null;
+      return { id, name, status };
+    })
+    .filter(Boolean) as Array<{ id: number; name: string; status?: string | null }>;
 }
 
 /** accountId từ CRM portal/session (JWT đã verify) — không decode cookie JWT ở BFF. */
@@ -227,6 +251,7 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
       displayName: customer.fullName?.trim() || 'Học viên',
       ...(accountId ? { accountId } : {}),
       customer,
+      classes: parseCustomerClasses(payload),
     };
   }
 
@@ -297,3 +322,6 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
   forcePortalLogoutCookies();
   return { actor: 'guest' };
 }
+
+/** Dedupe CRM `/portal/session` trong cùng một RSC request. */
+export const getCachedPortalSession = cache(resolvePortalSessionFromCookies);

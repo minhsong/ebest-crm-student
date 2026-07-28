@@ -2,6 +2,7 @@ import type { ClientPortalSessionPayload } from '@/lib/portal-auth/portal-sessio
 import {
 	parseClientPortalSessionPayload,
 } from '@/lib/portal-auth/portal-session-nav';
+import { PORTAL_POST_LOGOUT_PATH } from '@/lib/portal-auth/session-routes';
 
 /** Client hydrate — SSOT GET /api/portal/session. */
 export async function fetchClientPortalSession(): Promise<ClientPortalSessionPayload> {
@@ -14,11 +15,24 @@ export async function fetchClientPortalSession(): Promise<ClientPortalSessionPay
 	}
 }
 
-/** Logout UI SSOT — xóa cả lead + customer cookie. */
+/** Logout UI SSOT — xóa cookie rồi hard-navigate khỏi trang auth (tránh remount thiếu provider). */
 export async function portalLogoutClient(): Promise<void> {
 	try {
 		await fetch('/api/auth/portal/logout', { method: 'POST' });
 	} catch {
-		// cookie server có thể đã clear một phần — client vẫn reset state
+		// cookie server có thể đã clear một phần — client vẫn reset / điều hướng
+	}
+}
+
+/**
+ * Logout + rời trang hiện tại (full document navigation).
+ * Soft `router.replace` dễ race: session → guest trong khi view lead vẫn mount.
+ */
+export async function portalLogoutAndLeave(
+	href: string = PORTAL_POST_LOGOUT_PATH,
+): Promise<void> {
+	await portalLogoutClient();
+	if (typeof window !== 'undefined') {
+		window.location.assign(href);
 	}
 }
