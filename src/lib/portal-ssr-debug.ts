@@ -185,3 +185,35 @@ export function logPortalBootstrap(
   });
   console.info(line);
 }
+
+/**
+ * Log gọi upstream (CRM/GW) — luôn stdout.
+ * Dùng để trả lời: API nào fail, status/body gì.
+ */
+export function logPortalUpstream(
+  event: string,
+  details: {
+    method?: string;
+    url?: string | null;
+    path?: string;
+    status?: number;
+    ok?: boolean;
+    durationMs?: number;
+    errorMessage?: string | null;
+    bodyPreview?: string | null;
+    traceId?: string;
+    [key: string]: unknown;
+  },
+): void {
+  const line = JSON.stringify({
+    event: `portal.upstream.${event}`,
+    ts: new Date().toISOString(),
+    pid: process.pid,
+    ...details,
+    bodyPreview:
+      typeof details.bodyPreview === 'string'
+        ? details.bodyPreview.slice(0, 800)
+        : details.bodyPreview,
+  });
+  console.info(line);
+}

@@ -74,11 +74,16 @@ export async function fetchMockTestOnlineAttemptStatusNoStore(
 	omniLeadId: string,
 	testTypeCode: string,
 	options?: { sessionId?: number; phoneNormalized?: string },
-): Promise<{ status: MockTestOnlineAttemptStatus | null; httpStatus: number }> {
+): Promise<{
+	status: MockTestOnlineAttemptStatus | null;
+	httpStatus: number;
+	url?: string | null;
+	errorMessage?: string | null;
+}> {
 	const leadId = omniLeadId.trim();
 	const typeCode = testTypeCode.trim();
 	if (!leadId || !typeCode) {
-		return { status: null, httpStatus: 400 };
+		return { status: null, httpStatus: 400, url: null, errorMessage: 'missing_ids' };
 	}
 
 	const path = buildMockTestOnlineAttemptStatusPath(leadId, typeCode, options);
@@ -87,14 +92,26 @@ export async function fetchMockTestOnlineAttemptStatusNoStore(
 		logContext: 'mto.attempt-status',
 	});
 	if (result.configMissing) {
-		return { status: null, httpStatus: 500 };
+		return {
+			status: null,
+			httpStatus: 500,
+			url: result.url,
+			errorMessage: result.errorMessage,
+		};
 	}
 	if (!result.ok) {
-		return { status: null, httpStatus: result.status };
+		return {
+			status: null,
+			httpStatus: result.status,
+			url: result.url,
+			errorMessage: result.errorMessage,
+		};
 	}
 
 	return {
 		status: parseAttemptStatusPayload(result.data ?? result.raw),
 		httpStatus: result.status,
+		url: result.url,
+		errorMessage: null,
 	};
 }

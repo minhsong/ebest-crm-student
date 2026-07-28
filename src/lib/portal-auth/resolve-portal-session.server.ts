@@ -20,8 +20,10 @@ import { isUpstreamConnectionFailure } from '@/lib/student-safe-errors';
 import {
   logPortalSsr,
   logPortalSsrError,
+  logPortalUpstream,
   summarizePortalSessionCrmPayload,
 } from '@/lib/portal-ssr-debug';
+import { reportStudentPortalBffError } from '@/lib/report-bff-error';
 
 export type PortalSessionActor = 'guest' | 'lead' | 'customer';
 
@@ -118,17 +120,65 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
       durationMs: Date.now() - started,
       connectionFailure: isUpstreamConnectionFailure(error),
     });
+    logPortalUpstream('portal_session_network', {
+      method: 'GET',
+      url,
+      ok: false,
+      status: 502,
+      durationMs: Date.now() - started,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      bodyPreview: error instanceof Error ? error.stack?.slice(0, 800) : null,
+    });
+    reportStudentPortalBffError(
+      'mto.portal-session.network',
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        path: STUDENT_API.portalSession,
+        method: 'GET',
+        errorType: 'PORTAL_SESSION_NETWORK',
+        details: {
+          url,
+          durationMs: Date.now() - started,
+        },
+      },
+    );
     if (isUpstreamConnectionFailure(error)) throw error;
     return { actor: 'guest' };
   }
 
   const durationMs = Date.now() - started;
   if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
     logPortalSsr('portal_session.http_error', {
       url,
       status: res.status,
       durationMs,
+      bodyPreview: errBody.slice(0, 400),
     });
+    logPortalUpstream('portal_session_http_error', {
+      method: 'GET',
+      url,
+      status: res.status,
+      ok: false,
+      durationMs,
+      errorMessage: `HTTP ${res.status}`,
+      bodyPreview: errBody.slice(0, 800),
+    });
+    reportStudentPortalBffError(
+      'mto.portal-session.http',
+      new Error(`GET ${url} → HTTP ${res.status}`),
+      {
+        path: STUDENT_API.portalSession,
+        method: 'GET',
+        errorType: 'PORTAL_SESSION_HTTP',
+        details: {
+          url,
+          status: res.status,
+          bodyPreview: errBody.slice(0, 800),
+          durationMs,
+        },
+      },
+    );
     if (res.status === 401) forcePortalLogoutCookies();
     return { actor: 'guest' };
   }
@@ -144,6 +194,13 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
     status: res.status,
     durationMs,
     summary: summarizePortalSessionCrmPayload(payload),
+  });
+  logPortalUpstream('portal_session_ok', {
+    method: 'GET',
+    url,
+    status: res.status,
+    ok: true,
+    durationMs,
   });
 
   if (actor === 'customer') {

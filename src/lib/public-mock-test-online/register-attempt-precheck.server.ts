@@ -34,7 +34,8 @@ export async function evaluateLeadRegisterAttemptPrecheck(
   phoneNormalized?: string | null,
   traceId?: string,
 ): Promise<RegisterAttemptPrecheckResult> {
-  const { status, httpStatus } = await fetchMockTestOnlineAttemptStatusNoStore(
+  const { status, httpStatus, url, errorMessage } =
+    await fetchMockTestOnlineAttemptStatusNoStore(
     omniLeadId,
     testTypeCode,
     phoneNormalized?.trim()
@@ -50,6 +51,8 @@ export async function evaluateLeadRegisterAttemptPrecheck(
     httpStatus,
     blocked,
     redirectPath,
+    upstreamUrl: url ?? null,
+    upstreamError: errorMessage ?? null,
     isBlockedUtil: isMockTestOnlineAttemptBlocked(status),
     attemptStatus: summarizeAttemptStatus(
       status as Record<string, unknown> | null,

@@ -3,7 +3,6 @@
 import { useCallback, useState } from "react";
 import { App } from "antd";
 
-import { startPortalOnlineBootstrapAction } from "@/features/portal-mock-test/server/start-online-bootstrap.action";
 import { PORTAL_MOCK_TEST_ROUTES } from "@/features/portal-mock-test/routes.config";
 import type { GoogleRegisterFlowResult } from "@/lib/lead-portal/google-register-client";
 
@@ -33,14 +32,29 @@ export function useMockTestGoogleFastFlow() {
   const reset = useCallback(() => setStep({ kind: "google" }), []);
 
   const continueToSelectExam = useCallback(async () => {
-    // P0: bootstrap + ghi funnel cookie + redirect select — không dừng hub chrome.
-    const res = await startPortalOnlineBootstrapAction();
-    if (res && 'redirectTo' in res && res.redirectTo) {
-      window.location.assign(res.redirectTo);
-      return;
-    }
-    if (res && 'error' in res && res.error) {
-      message.error(res.error);
+    // Cùng Route Handler với /mock-test/online/start — tránh Server Action opaque.
+    try {
+      const res = await fetch("/api/mock-test/bootstrap-online", {
+        method: "POST",
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const data = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        redirectTo?: string;
+        error?: string;
+      } | null;
+      if (data?.ok && data.redirectTo) {
+        window.location.assign(data.redirectTo);
+        return;
+      }
+      if (data?.error) {
+        message.error(data.error);
+      }
+      window.location.assign(PORTAL_MOCK_TEST_ROUTES.hub);
+    } catch {
+      message.error("Không thể khởi tạo phiên thi. Vui lòng thử lại.");
       window.location.assign(PORTAL_MOCK_TEST_ROUTES.hub);
     }
   }, [message]);

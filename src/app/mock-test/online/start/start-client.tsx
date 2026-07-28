@@ -4,19 +4,21 @@ import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button, Result, Spin } from 'antd';
-import {
-  startPortalOnlineBootstrapAction,
-  type StartOnlineBootstrapState,
-} from '@/features/portal-mock-test/server/start-online-bootstrap.action';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
-import { isNextNavigationError } from '@/lib/next-navigation-errors';
 import {
   sanitizeStudentFacingMessage,
   STUDENT_SAFE_USER_MESSAGES,
 } from '@/lib/student-safe-errors';
 import { reportMockTestClientError } from '@/lib/public-mock-test-online/report-mock-test-client-error';
 
-/** Màn "đang chuẩn bị" — tự kích Server Action bootstrap (POST). */
+type BootstrapJson =
+  | { ok: true; redirectTo: string; traceId: string }
+  | { ok: false; error: string; traceId: string | null; debug?: string };
+
+/**
+ * Màn "đang chuẩn bị" — gọi Route Handler POST (không Server Action).
+ * Network tab thấy JSON thật; CRM nhận MTO_BOOTSTRAP_SERVER_ERROR nếu server throw.
+ */
 export function PortalMockTestOnlineStartClient() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -27,59 +29,76 @@ export function PortalMockTestOnlineStartClient() {
     let active = true;
     startTransition(() => {
       void (async () => {
+        let traceId: string | null = null;
         try {
-          const res: StartOnlineBootstrapState =
-            await startPortalOnlineBootstrapAction();
+          const res = await fetch('/api/mock-test/bootstrap-online', {
+            method: 'POST',
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+            cache: 'no-store',
+          });
 
-          if (!active) return;
-
-          if (res && 'redirectTo' in res && res.redirectTo) {
-            router.replace(res.redirectTo);
+          const text = await res.text();
+          let data: BootstrapJson | null = null;
+          try {
+            data = JSON.parse(text) as BootstrapJson;
+          } catch {
+            reportMockTestClientError({
+              context: 'mto.online-start.bootstrap-non-json',
+              message: `HTTP ${res.status}; body=${text.slice(0, 300)}`,
+              path: PORTAL_MOCK_TEST_ROUTES.onlineStart,
+              module: 'mto-online-start',
+              stack: text.slice(0, 2000),
+            });
+            if (active) {
+              setError(STUDENT_SAFE_USER_MESSAGES.generic);
+            }
             return;
           }
 
-          if (res && 'error' in res && res.error) {
+          if (data && 'traceId' in data && data.traceId) {
+            traceId = data.traceId;
+          }
+
+          if (!active) return;
+
+          if (data && data.ok === true && data.redirectTo) {
+            router.replace(data.redirectTo);
+            return;
+          }
+
+          if (data && data.ok === false) {
             reportMockTestClientError({
-              context: 'mto.online-start.action-returned-error',
-              message: res.error,
+              context: 'mto.online-start.bootstrap-returned-error',
+              message: data.error,
               path: PORTAL_MOCK_TEST_ROUTES.onlineStart,
               module: 'mto-online-start',
+              requestId: traceId ?? undefined,
+              stack: data.debug,
             });
-            setError(res.error);
+            setError(data.error);
+            return;
           }
-        } catch (e) {
-          // Redirect / notFound phải bubble — Next xử lý navigation.
-          if (isNextNavigationError(e)) throw e;
 
-          const digest =
-            e &&
-            typeof e === 'object' &&
-            'digest' in e &&
-            typeof (e as { digest?: unknown }).digest !== 'undefined'
-              ? String((e as { digest?: unknown }).digest)
-              : undefined;
-
-          const errorKeys =
-            e && typeof e === 'object'
-              ? Object.keys(e as object).slice(0, 12)
-              : [];
-
-          const rawMessage =
-            e instanceof Error ? e.message : 'server_action_threw';
           reportMockTestClientError({
-            context: 'mto.online-start.action-http-or-throw',
-            message: rawMessage,
-            digest,
+            context: 'mto.online-start.bootstrap-unexpected-shape',
+            message: `HTTP ${res.status}; ${text.slice(0, 300)}`,
             path: PORTAL_MOCK_TEST_ROUTES.onlineStart,
-            stack:
-              e instanceof Error && e.stack?.trim()
-                ? e.stack
-                : digest
-                  ? `digest:${digest};keys:${errorKeys.join(',')}`
-                  : undefined,
             module: 'mto-online-start',
+            requestId: traceId ?? undefined,
           });
-
+          setError(STUDENT_SAFE_USER_MESSAGES.generic);
+        } catch (e) {
+          const rawMessage =
+            e instanceof Error ? e.message : 'bootstrap_fetch_threw';
+          reportMockTestClientError({
+            context: 'mto.online-start.bootstrap-fetch-threw',
+            message: rawMessage,
+            path: PORTAL_MOCK_TEST_ROUTES.onlineStart,
+            module: 'mto-online-start',
+            requestId: traceId ?? undefined,
+            stack: e instanceof Error ? e.stack : undefined,
+          });
           if (active) {
             setError(
               sanitizeStudentFacingMessage(

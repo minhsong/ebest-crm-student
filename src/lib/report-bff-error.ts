@@ -75,11 +75,17 @@ export function reportStudentPortalBffError(
       ? options.details.requestId
       : undefined);
 
+  const detailStack = stackFromDetail(detail);
+  const detailsStack =
+    typeof options?.details?.stack === 'string'
+      ? options.details.stack.slice(0, 8000)
+      : undefined;
+
   const payload: ReportBffErrorInput = {
     context,
     message: briefMessage(detail),
     errorType: options?.errorType,
-    stack: stackFromDetail(detail),
+    stack: detailStack || detailsStack,
     customerId: options?.customerId,
     path: options?.path,
     method: options?.method,
