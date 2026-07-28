@@ -40,11 +40,14 @@ function mergeSeoConfig(raw: Partial<MockTestOnlineSeoConfig> | null): MockTestO
   };
 }
 
-/** Đọc SEO từ CRM (`mock_test_online_seo` + Redis) qua proxy SSOT. */
+/** Đọc SEO từ CRM (`mock_test_online_seo` + Redis) qua proxy SSOT.
+ * Dùng ISR revalidate — không `no-store` (tránh Dynamic server usage trên layout/metadata).
+ */
 export async function fetchMockTestOnlineSeo(): Promise<MockTestOnlineSeoConfig> {
   const result = await fetchPublicMockTestCrmJson<Partial<MockTestOnlineSeoConfig>>({
     path: 'seo',
     logContext: 'mto.ssr.seo',
+    cacheMode: 300,
   });
   if (!result.ok || !result.data) {
     return mergeSeoConfig(null);

@@ -70,16 +70,31 @@ function bodyPreviewFromRaw(raw: Record<string, unknown>): string {
 	}
 }
 
+/** Next.js throw khi no-store fetch trong context static — không phải lỗi mạng CRM. */
+function isNextDynamicServerUsageError(error: unknown): boolean {
+	const msg = error instanceof Error ? error.message : String(error);
+	return /Dynamic server usage|STATIC_GENERATION_BAILOUT|no-store fetch/i.test(
+		msg,
+	);
+}
+
 /**
  * Fetch CRM public MTO path (GET/POST/…).
  * Không throw — caller map sang NextResponse / soft null.
  * Mọi HTTP/network fail → stdout `portal.upstream.*` + CRM khi network.
+ *
+ * @param cacheMode - mặc định `no-store` (auth/mutation). SEO dùng `revalidate`.
  */
 export async function fetchPublicMockTestCrmJson<T = unknown>(options: {
 	path: string;
 	method?: 'GET' | 'POST' | 'PATCH';
 	body?: unknown;
 	logContext?: string;
+	/**
+	 * `no-store` (default) | số giây ISR revalidate.
+	 * SEO / dữ liệu ít đổi: truyền số (vd. 300) để tránh Dynamic server usage.
+	 */
+	cacheMode?: 'no-store' | number;
 }): Promise<PublicMockTestCrmFetchResult<T>> {
 	const method = options.method ?? 'GET';
 	const operation = options.logContext ?? options.path;
@@ -111,17 +126,24 @@ export async function fetchPublicMockTestCrmJson<T = unknown>(options: {
 		};
 	}
 
+	const cacheMode = options.cacheMode ?? 'no-store';
+	const fetchInit: RequestInit & { next?: { revalidate: number } } = {
+		method,
+		headers: buildPublicMockTestCrmHeaders(),
+		body:
+			method !== 'GET' && options.body !== undefined
+				? JSON.stringify(options.body)
+				: undefined,
+	};
+	if (typeof cacheMode === 'number' && cacheMode >= 0) {
+		fetchInit.next = { revalidate: cacheMode };
+	} else {
+		fetchInit.cache = 'no-store';
+	}
+
 	const started = Date.now();
 	try {
-		const res = await fetch(url, {
-			method,
-			headers: buildPublicMockTestCrmHeaders(),
-			body:
-				method !== 'GET' && options.body !== undefined
-					? JSON.stringify(options.body)
-					: undefined,
-			cache: 'no-store',
-		});
+		const res = await fetch(url, fetchInit);
 		const raw = (await res.json().catch(() => ({}))) as Record<
 			string,
 			unknown
@@ -189,6 +211,28 @@ export async function fetchPublicMockTestCrmJson<T = unknown>(options: {
 		const durationMs = Date.now() - started;
 		const errorMessage =
 			error instanceof Error ? error.message : String(error);
+
+		// Next static bailout — không phải CRM chết; soft-fail, không spam system-errors.
+		if (isNextDynamicServerUsageError(error)) {
+			logPortalUpstream('crm_next_dynamic_bailout', {
+				method,
+				url,
+				path: options.path,
+				status: 0,
+				ok: false,
+				durationMs,
+				errorMessage,
+			});
+			return {
+				ok: false,
+				status: 0,
+				data: null,
+				raw: {},
+				url,
+				errorMessage: 'next_dynamic_bailout',
+			};
+		}
+
 		logPortalUpstream('crm_network_error', {
 			method,
 			url,
