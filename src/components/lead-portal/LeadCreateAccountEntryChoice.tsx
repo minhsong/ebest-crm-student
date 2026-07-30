@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -43,7 +43,7 @@ export function LeadCreateAccountEntryChoice({
       await onGoogleDecision(await googleRegisterOrLogin(idToken));
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : "ÄÄƒng kÃ½ Google tháº¥t báº¡i.";
+        error instanceof Error ? error.message : "Đăng ký Google thất bại.";
       onError(errorMessage);
       message.error(errorMessage);
     } finally {
@@ -67,7 +67,7 @@ export function LeadCreateAccountEntryChoice({
             errorAction === "login" ? (
               <Link href="/login">
                 <Button size="small" type="primary">
-                  ÄÄƒng nháº­p
+                  Đăng nhập
                 </Button>
               </Link>
             ) : undefined
@@ -82,7 +82,7 @@ export function LeadCreateAccountEntryChoice({
               <div className="rounded-lg border border-orange-100 bg-orange-50/40 p-4">
                 <p className="mb-3 text-sm font-medium text-gray-800">
                   <GoogleOutlined className="mr-2 text-orange-600" />
-                  Tiáº¿p tá»¥c vá»›i Google
+                  Tiếp tục với Google
                 </p>
                 <div className="flex justify-center [&_iframe]:!max-w-full">
                   <GoogleLogin
@@ -95,17 +95,17 @@ export function LeadCreateAccountEntryChoice({
                     useOneTap={false}
                     onSuccess={(credential) => {
                       if (!credential.credential) {
-                        message.error("KhÃ´ng láº¥y Ä‘Æ°á»£c mÃ£ Google.");
+                        message.error("Không lấy được mã Google.");
                         return;
                       }
                       void authenticateGoogle(credential.credential);
                     }}
-                    onError={() => message.error("ÄÄƒng kÃ½ Google tháº¥t báº¡i.")}
+                    onError={() => message.error("Đăng ký Google thất bại.")}
                   />
                 </div>
                 <p className="mb-0 mt-2 text-center text-xs text-gray-500">
-                  Email má»›i sáº½ hoÃ n thiá»‡n thÃ´ng tin vÃ  táº¡o máº­t kháº©u trÆ°á»›c khi má»Ÿ
-                  tÃ i khoáº£n.
+                  Nếu email chưa có tài khoản, bạn sẽ bổ sung thông tin và tạo
+                  mật khẩu ngay sau bước này.
                 </p>
               </div>
             </Spin>
@@ -120,17 +120,17 @@ export function LeadCreateAccountEntryChoice({
           disabled={googleSubmitting}
           onClick={onChooseEmail}
         >
-          ÄÄƒng kÃ½ báº±ng email
+          Đăng ký bằng email
         </Button>
       </Space>
 
       <p className="mt-6 text-center text-sm text-gray-500">
-        ÄÃ£ cÃ³ tÃ i khoáº£n?{" "}
+        Đã có tài khoản?{" "}
         <Link
           href="/login"
           className="font-medium text-orange-600 hover:underline"
         >
-          ÄÄƒng nháº­p
+          Đăng nhập
         </Link>
       </p>
     </LeadPortalShell>
