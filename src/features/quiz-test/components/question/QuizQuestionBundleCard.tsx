@@ -3,9 +3,16 @@
 import { SoundFilled } from '@ant-design/icons';
 import { QaArticleHtml } from '@/features/qa/components/QaArticleHtml';
 import type { QuizFormItemPayload } from '@/features/quiz-test/types';
+import { extractQuizAudioTracks } from '@/features/quiz-test/lib/quiz-content-audio';
 import {
-  extractQuizAudioTracks,
-} from '@/features/quiz-test/lib/quiz-content-audio';
+  canEmbedBundleListeningPlayer,
+  normalizeListeningRemaining,
+  quizBundleCardClassName,
+  quizBundleQuestionsPaneClassName,
+  quizBundleShellClassName,
+  quizBundleStemPaneClassName,
+  shouldSplitBundleLayout,
+} from '@/features/quiz-test/lib/quiz-bundle-layout';
 import type { QuizGradingPerItem } from '@/features/quiz-test/lib/quiz-runtime-view';
 import { listeningUnitHasAutoplayEligibleAudio } from '@/features/quiz-test/lib/quiz-listening-rules';
 import { quizAnchorDomId } from '@/features/quiz-test/lib/quiz-section-navigation';
@@ -60,18 +67,17 @@ export const QuizQuestionBundleCard = memo(function QuizQuestionBundleCard({
   showExplanation = false,
 }: QuizQuestionBundleCardProps) {
   const audioTracks = useMemo(() => extractQuizAudioTracks(bundleContent), [bundleContent]);
-  const rem =
-    typeof listeningRemaining === 'number' && Number.isFinite(listeningRemaining)
-      ? listeningRemaining
-      : 0;
-  const canListen =
-    embedListeningPlayer &&
-    !readOnly &&
-    !!reportListeningCycle &&
-    !!listeningUnitKey &&
-    listeningUnitHasAutoplayEligibleAudio(bundleContent) &&
-    audioTracks.length > 0 &&
-    rem > 0;
+  const rem = normalizeListeningRemaining(listeningRemaining);
+  const canListen = canEmbedBundleListeningPlayer({
+    embedListeningPlayer,
+    readOnly,
+    hasReportCycle: !!reportListeningCycle,
+    hasUnitKey: !!listeningUnitKey,
+    contentEligible: listeningUnitHasAutoplayEligibleAudio(bundleContent),
+    trackCount: audioTracks.length,
+    remaining: rem,
+  });
+  const split = shouldSplitBundleLayout(stemHtml);
 
   const handleListeningRoundDone = useCallback(() => {
     if (listeningUnitKey) void reportListeningCycle?.(listeningUnitKey);
@@ -79,56 +85,60 @@ export const QuizQuestionBundleCard = memo(function QuizQuestionBundleCard({
 
   if (!items.length) return null;
 
-  const inner = (
-    <Card
-      size="small"
-      className={
-        listeningHighlight
-          ? 'border-orange-400 ring-2 ring-orange-500 ring-offset-2 bg-orange-50/30 transition-shadow duration-300'
-          : 'border-neutral-200 bg-neutral-50/40 hover:border-neutral-300'
-      }
-    >
-      <div className="flex items-center gap-2">
-        <Typography.Text
-          strong
-          className={`text-base ${listeningHighlight ? 'text-red-600' : ''}`}
-        >
-          {title}
-        </Typography.Text>
-        {listeningHighlight ? (
-          <SoundFilled className="text-base text-red-500 animate-pulse" title="Đang phát âm thanh" />
-        ) : canListen ? (
-          <SoundFilled className="text-base text-neutral-400" title="Có âm thanh" />
-        ) : null}
-      </div>
-      {stemHtml ? (
-        <div className="mt-2">
-          <QaArticleHtml html={stemHtml} />
+  const titleRow = (
+    <div className="flex items-center gap-2">
+      <Typography.Text
+        strong
+        className={`text-base ${listeningHighlight ? 'text-red-600' : ''}`}
+      >
+        {title}
+      </Typography.Text>
+      {listeningHighlight ? (
+        <SoundFilled className="text-base text-red-500 animate-pulse" title="Đang phát âm thanh" />
+      ) : canListen ? (
+        <SoundFilled className="text-base text-neutral-400" title="Có âm thanh" />
+      ) : null}
+    </div>
+  );
+
+  const body = (
+    <Card size="small" className={quizBundleCardClassName(listeningHighlight)}>
+      <div className={quizBundleShellClassName(split)}>
+        <div className={quizBundleStemPaneClassName(split)}>
+          {titleRow}
+          {split ? (
+            <div className="mt-2">
+              <QaArticleHtml html={stemHtml!} />
+            </div>
+          ) : null}
+          {canListen ? (
+            <QuizHiddenListeningPlayer
+              tracks={audioTracks}
+              canPlay={rem > 0}
+              onPlaylistRoundCompleted={handleListeningRoundDone}
+            />
+          ) : null}
         </div>
-      ) : null}
-      {canListen ? (
-        <QuizHiddenListeningPlayer
-          tracks={audioTracks}
-          canPlay={rem > 0}
-          onPlaylistRoundCompleted={handleListeningRoundDone}
-        />
-      ) : null}
-      <div className="mt-3 flex flex-col gap-3">
-        {items.map((row, idx) => (
-          <QuizQuestionCard
-            key={String(row.formItemId)}
-            row={row}
-            questionIndex={startQuestionIndex + idx}
-            answerValue={answerMap[String(row.formItemId)]}
-            readOnly={readOnly}
-            onAnswerChange={onAnswerChange}
-            isCorrect={correctByFormItemId?.[String(row.formItemId)]}
-            grading={gradingPerItem?.[String(row.formItemId)]}
-            scrollAnchorId={quizAnchorDomId(String(row.formItemId))}
-            listeningHighlight={listeningHighlight}
-            showExplanation={showExplanation}
-          />
-        ))}
+        <div className={quizBundleQuestionsPaneClassName(split)}>
+          {items.map((row, idx) => {
+            const key = String(row.formItemId);
+            return (
+              <QuizQuestionCard
+                key={key}
+                row={row}
+                questionIndex={startQuestionIndex + idx}
+                answerValue={answerMap[key]}
+                readOnly={readOnly}
+                onAnswerChange={onAnswerChange}
+                isCorrect={correctByFormItemId?.[key]}
+                grading={gradingPerItem?.[key]}
+                scrollAnchorId={quizAnchorDomId(key)}
+                listeningHighlight={listeningHighlight}
+                showExplanation={showExplanation}
+              />
+            );
+          })}
+        </div>
       </div>
     </Card>
   );
@@ -136,11 +146,10 @@ export const QuizQuestionBundleCard = memo(function QuizQuestionBundleCard({
   if (bundleAnchorId) {
     return (
       <div id={bundleAnchorId} className="scroll-mt-28">
-        {inner}
+        {body}
       </div>
     );
   }
 
-  return inner;
+  return body;
 });
-
