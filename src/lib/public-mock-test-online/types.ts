@@ -15,6 +15,10 @@ export type MockTestOnlineCampaign = {
 
 	registrationDeadlineAt: string | null;
 
+	/** Override phút làm bài trên session (null = dùng form). */
+	examDurationMinutes?: number | null;
+
+	/** Thời gian làm bài hiệu lực (phút): session > Test Form. */
 	estimatedDurationMinutes: number | null;
 
 	marketingBlurb: string | null;
