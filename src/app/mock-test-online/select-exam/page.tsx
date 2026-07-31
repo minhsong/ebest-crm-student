@@ -101,7 +101,7 @@ export default async function MockTestOnlineSelectExamPage({
 	}
 
 	const campaignId = intentFromUrl?.sessionId;
-	const { campaigns, selectedCampaign, campaignsError } =
+	const { campaigns, typePresentations, selectedCampaign, campaignsError } =
 		await loadMockTestOnlineSelectExamPageData(undefined, campaignId);
 	const seo = await fetchMockTestOnlineSeo();
 
@@ -123,6 +123,7 @@ export default async function MockTestOnlineSelectExamPage({
 			<MockTestOnlineSeoJsonLd seo={seo} />
 			<MockTestOnlineSelectExamForm
 				campaigns={campaigns}
+				typePresentations={typePresentations}
 				selectedCampaign={selectedCampaign}
 				campaignsError={campaignsError}
 				attemptStatus={attemptStatus}

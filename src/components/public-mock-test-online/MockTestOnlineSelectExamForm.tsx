@@ -8,13 +8,13 @@ import {
 	Button,
 	Form,
 	Input,
-	Radio,
 	Typography,
 } from 'antd';
 import type {
 	MockTestOnlineCampaign,
 	MockTestOnlineAttemptStatus,
 	MockTestOnlineSelectExamFormValues,
+	MockTestTypePresentationPublic,
 } from '@/lib/public-mock-test-online/types';
 import {
 	mockTestOnlineTypeLabel,
@@ -28,7 +28,8 @@ import { MockTestOnlineFunnelShell } from '@/components/public-mock-test-online/
 import { MockTestOnlineSessionErrorAlert } from '@/components/public-mock-test-online/MockTestOnlineSessionErrorAlert';
 import { MockTestOnlineInExamResumeAlert } from '@/components/public-mock-test-online/MockTestOnlineInExamResumeAlert';
 import { MockTestOnlineAttemptLimitAlert } from '@/components/public-mock-test-online/MockTestOnlineAttemptLimitAlert';
-import { MockTestOnlineExamTypePicker } from '@/components/public-mock-test-online/MockTestOnlineExamTypePicker';
+import { MockTestOnlineExamMasterDetail } from '@/components/public-mock-test-online/MockTestOnlineExamMasterDetail';
+import { MockTestOnlineVariantChoiceRadios } from '@/components/public-mock-test-online/MockTestOnlineVariantChoiceRadios';
 import { isMockTestOnlineAttemptBlocked } from '@/lib/public-mock-test-online/mock-test-online-attempt-limit.util';
 import {
 	isMockTestOnlineControlledAttemptGateError,
@@ -45,6 +46,7 @@ export type MockTestOnlineSelectExamFormProps = {
 	/** Legacy Funnel id — auth-first có thể để trống; ownership từ session/BFF. */
 	pendingLeadId?: string;
 	campaigns: MockTestOnlineCampaign[];
+	typePresentations?: MockTestTypePresentationPublic[] | null;
 	selectedCampaign: MockTestOnlineCampaign | null;
 	campaignsError?: string | null;
 	attemptStatus?: MockTestOnlineAttemptStatus | null;
@@ -55,6 +57,7 @@ export type MockTestOnlineSelectExamFormProps = {
 export function MockTestOnlineSelectExamForm({
 	pendingLeadId = '',
 	campaigns,
+	typePresentations = [],
 	selectedCampaign,
 	campaignsError = null,
 	attemptStatus = null,
@@ -253,8 +256,7 @@ export function MockTestOnlineSelectExamForm({
 				Hãy chọn bài thi thử
 			</Title>
 			<Paragraph className="mock-test-intro-text !mb-4">
-				Chọn bài phù hợp mục đích đánh giá năng lực tiếng Anh của bạn, rồi bấm
-				Tiếp tục.
+				Chọn loại bài, xem mô tả, chọn đợt thi đang mở, rồi bấm Bắt đầu.
 			</Paragraph>
 
 			<MockTestOnlineInExamResumeAlert attemptStatus={attemptStatus} />
@@ -299,7 +301,10 @@ export function MockTestOnlineSelectExamForm({
 						rules={[{ required: true, message: 'Vui lòng chọn bài thi.' }]}
 						className="!mb-4"
 					>
-						<MockTestOnlineExamTypePicker campaigns={campaigns} />
+						<MockTestOnlineExamMasterDetail
+							campaigns={campaigns}
+							typePresentations={typePresentations}
+						/>
 					</Form.Item>
 				) : (
 					<Form.Item name="sessionId" hidden>
@@ -311,23 +316,10 @@ export function MockTestOnlineSelectExamForm({
 					<Form.Item
 						name="testVariantChoice"
 						label="Chọn loại đề"
-						extra="Full test mô phỏng đầy đủ; Mini test phù hợp thử nhanh trong ~15 phút."
+						extra="Full test mô phỏng đầy đủ; Mini test phù hợp thử nhanh."
 						rules={[{ required: true, message: 'Vui lòng chọn loại đề.' }]}
 					>
-						<Radio.Group className="mock-test-variant-radio-group">
-							<Radio value="full">
-								<Text strong>Đề đầy đủ (Full test)</Text>
-								<Text type="secondary" className="block text-xs">
-									200 câu — mô phỏng bài thi thật
-								</Text>
-							</Radio>
-							<Radio value="mini">
-								<Text strong>Đề rút gọn (Mini test)</Text>
-								<Text type="secondary" className="block text-xs">
-									50 câu — làm nhanh, phù hợp lần thử đầu
-								</Text>
-							</Radio>
-						</Radio.Group>
+						<MockTestOnlineVariantChoiceRadios campaign={activeCampaign} />
 					</Form.Item>
 				) : null}
 
@@ -347,9 +339,14 @@ export function MockTestOnlineSelectExamForm({
 						size="large"
 						block
 						loading={submitting}
-						disabled={campaigns.length === 0 || activeInExam || attemptLimitReached}
+						disabled={
+							campaigns.length === 0 ||
+							activeInExam ||
+							attemptLimitReached ||
+							sessionId == null
+						}
 					>
-						Tiếp tục
+						Bắt đầu
 					</Button>
 				</Form.Item>
 			</Form>

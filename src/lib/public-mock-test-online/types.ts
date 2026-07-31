@@ -21,18 +21,43 @@ export type MockTestOnlineCampaign = {
 	/** Thời gian làm bài hiệu lực (phút): session > Test Form. */
 	estimatedDurationMinutes: number | null;
 
+	/** Số câu từ test form (SX-07) — thường = Full / primary. */
+	questionCount?: number | null;
+
+	/** Số câu Mini khi variantMode = user_choice. */
+	questionCountMini?: number | null;
+
 	marketingBlurb: string | null;
 
 	zaloOaId?: string | null;
 
 };
 
+/** Public presentation theo type — select-exam master list. */
+export type MockTestTypePresentationPublic = {
+	testTypeCode: string;
+	displayNameVi: string;
+	displayNameEn?: string | null;
+	sortOrder: number;
+	defaultDurationMinutes?: number | null;
+	descriptionHtmlVi: string;
+	highlightsVi?: string[] | null;
+	isListedOnSelectExam: boolean;
+};
+
+/** Alias wire `@ebest/crm-api-types` (khi package đã build sync). */
+export type {
+	MockTestOnlineCampaignsListWire,
+	MockTestOnlineCampaignPublicWire,
+	MockTestTypePresentationPublicWire,
+} from '@ebest/crm-api-types/student/mock-test-online';
+
 /** Wire CRM `GET .../attempt-status` — alias package type. */
 export type MockTestOnlineAttemptStatus = MockTestOnlineAttemptStatusWire;
 
 export type MockTestOnlineCampaignsResponse = {
 	campaigns: MockTestOnlineCampaign[];
-
+	typePresentations?: MockTestTypePresentationPublic[];
 };
 
 
@@ -174,6 +199,8 @@ export type MockTestOnlineSelectExamPageData = {
 	pendingLeadId: string | null;
 
 	campaigns: MockTestOnlineCampaign[];
+
+	typePresentations: MockTestTypePresentationPublic[];
 
 	selectedCampaign: MockTestOnlineCampaign | null;
 

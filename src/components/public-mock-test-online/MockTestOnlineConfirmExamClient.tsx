@@ -27,6 +27,7 @@ import { useMockTestOnlineSelectExamSession } from '@/components/public-mock-tes
 import { useMockTestOnlineZaloVerifySession } from '@/components/public-mock-test-online/useMockTestOnlineZaloVerifySession';
 import {
 	mockTestOnlineTypeLabel,
+	mockTestVariantChoiceLabel,
 	parseZaloConfirmMessage,
 } from '@/lib/public-mock-test-online/exam-flow.util';
 import { postMockTestOnlineDevSimulateZalo } from '@/lib/public-mock-test-online/mock-test-online-api.client';
@@ -316,7 +317,10 @@ export function MockTestOnlineConfirmExamClient({
 					) : null}
 					{variant ? (
 						<Tag color="geekblue">
-							{variant === 'full' ? 'Full test (200 câu)' : 'Mini test (50 câu)'}
+							{mockTestVariantChoiceLabel(variant, {
+								questionCount: campaign?.questionCount,
+								questionCountMini: campaign?.questionCountMini,
+							}) || (variant === 'full' ? 'Full test' : 'Mini test')}
 						</Tag>
 					) : null}
 					{campaign?.estimatedDurationMinutes ? (

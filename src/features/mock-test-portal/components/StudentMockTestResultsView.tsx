@@ -7,6 +7,7 @@ import { LeadConsultCta } from '@/components/lead-portal/LeadConsultCta';
 import { MockTestOnlineAttemptLimitAlert } from '@/components/public-mock-test-online/MockTestOnlineAttemptLimitAlert';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 import { usePortalSiteLinks } from '@/hooks/use-portal-site-links';
+import { CourseRecommendationsBlock } from '@/features/course-recommendations';
 import { MockTestResultsPanel } from './MockTestResultsPanel';
 import { useStudentMockTestResultsPage } from '../hooks/useStudentMockTestResultsPage';
 import { usePortalMockTestInExamStatus } from '../hooks/useLeadMockTestInExamStatus';
@@ -25,6 +26,7 @@ export function StudentMockTestResultsView({ notice }: Props) {
   const { siteLinks } = usePortalSiteLinks();
   const showInProgress =
     !inExamLoading && Boolean(inExamStatus?.activeInExam?.resumeAllowed);
+  const hasScoredResult = items.some((item) => item.trackingPhase === 'done');
 
   return (
     <>
@@ -60,6 +62,16 @@ export function StudentMockTestResultsView({ notice }: Props) {
           error={error}
           inProgressAttemptStatus={showInProgress ? inExamStatus : null}
         />
+        {hasScoredResult ? (
+          <CourseRecommendationsBlock
+            enabled
+            preferExplore={false}
+            compact
+            className="!mb-0 mt-6 border-t border-gray-100 pt-4"
+            title="Khóa học gợi ý từ kết quả thi"
+            sectionId="course-recommendations"
+          />
+        ) : null}
         {notice === 'attempt_limit' ? (
           <LeadConsultCta
             siteLinks={siteLinks}

@@ -9,6 +9,8 @@ const TEST_TYPE_LABELS: Record<string, string> = {
 	communication: 'Giao tiếp',
 	kids: 'Thiếu nhi',
 	vstep: 'VSTEP',
+	udn_placement: 'Tiếng Anh đầu vào ĐH Đà Nẵng',
+	vnuk_placement: 'Đầu vào VNUK',
 	uni_entrance: 'Đầu vào đại học',
 	university_entrance: 'Đầu vào đại học',
 	ielts: 'IELTS',
@@ -35,11 +37,29 @@ export function formatMockTestRegistrationDeadline(
 	});
 }
 
+export function formatQuestionCountLabel(
+	count: number | null | undefined,
+	fallback?: string,
+): string | null {
+	if (typeof count === 'number' && count > 0) return `${count} câu`;
+	return fallback ?? null;
+}
+
 export function mockTestVariantChoiceLabel(
 	variant: 'full' | 'mini' | null | undefined,
+	counts?: {
+		questionCount?: number | null;
+		questionCountMini?: number | null;
+	},
 ): string {
-	if (variant === 'mini') return 'Đề rút gọn (50 câu)';
-	if (variant === 'full') return 'Đề đầy đủ (200 câu)';
+	if (variant === 'mini') {
+		const n = formatQuestionCountLabel(counts?.questionCountMini);
+		return n ? `Đề rút gọn (${n})` : 'Đề rút gọn (Mini)';
+	}
+	if (variant === 'full') {
+		const n = formatQuestionCountLabel(counts?.questionCount);
+		return n ? `Đề đầy đủ (${n})` : 'Đề đầy đủ (Full)';
+	}
 	return '';
 }
 

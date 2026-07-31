@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { Button, Alert } from 'antd';
-import { BulbOutlined } from '@ant-design/icons';
 import { PageCard, PageHeader } from '@/components/layout';
 import { LeadConsultCta } from '@/components/lead-portal/LeadConsultCta';
 import { MockTestOnlineAttemptLimitAlert } from '@/components/public-mock-test-online/MockTestOnlineAttemptLimitAlert';
 import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.config';
 import { usePortalSiteLinks } from '@/hooks/use-portal-site-links';
+import { CourseRecommendationsBlock } from '@/features/course-recommendations';
 import { MockTestResultsPanel } from './MockTestResultsPanel';
 import { useLeadMockTestResultsPage } from '../hooks/useLeadMockTestResultsPage';
 import { usePortalMockTestInExamStatus } from '../hooks/useLeadMockTestInExamStatus';
@@ -62,17 +62,14 @@ export function LeadMockTestResultsView({ notice }: Props) {
           inProgressAttemptStatus={showInProgress ? inExamStatus : null}
         />
         {hasScoredResult ? (
-          <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3">
-            <p className="mb-2 flex items-center gap-2 text-sm text-gray-800">
-              <BulbOutlined className="text-blue-500" />
-              Dựa trên kết quả thi, xem khóa học gợi ý cho bạn.
-            </p>
-            <Link href="/lead/courses#recommendations">
-              <Button type="primary" size="small">
-                Xem gợi ý khóa học
-              </Button>
-            </Link>
-          </div>
+          <CourseRecommendationsBlock
+            enabled={authReady}
+            preferExplore
+            compact
+            className="!mb-0 mt-6 border-t border-gray-100 pt-4"
+            title="Khóa học gợi ý từ kết quả thi"
+            sectionId="course-recommendations"
+          />
         ) : null}
         {notice === 'attempt_limit' ? (
           <LeadConsultCta

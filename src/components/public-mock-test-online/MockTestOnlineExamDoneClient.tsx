@@ -10,6 +10,7 @@ import { MockTestOnlinePortalAccessGuide } from '@/components/public-mock-test-o
 import { MockTestOnlineEmailVerificationPrompt } from '@/components/public-mock-test-online/MockTestOnlineEmailVerificationPrompt';
 import { MockTestOnlineAttemptLimitAlert } from '@/components/public-mock-test-online/MockTestOnlineAttemptLimitAlert';
 import { MockTestOnlineSessionErrorAlert } from '@/components/public-mock-test-online/MockTestOnlineSessionErrorAlert';
+import { CourseRecommendationsBlock } from '@/features/course-recommendations';
 import { usePortalMockTestInExamStatus } from '@/features/mock-test-portal/hooks/useLeadMockTestInExamStatus';
 import { fetchExamFunnelHint } from '@/lib/complete-profile/check-login-key';
 import {
@@ -181,6 +182,16 @@ export function MockTestOnlineExamDoneClient() {
 					) : null,
 				].filter(Boolean)}
 			/>
+			{showCoursesCta ? (
+				<CourseRecommendationsBlock
+					enabled
+					preferExplore={false}
+					compact
+					className="!mb-0 mt-6"
+					title="Khóa học gợi ý cho bạn"
+					sectionId="course-recommendations"
+				/>
+			) : null}
 			{showLeadRegisterCta && attemptLimitReached ? (
 				<>
 					<MockTestOnlineAttemptLimitAlert

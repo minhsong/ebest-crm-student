@@ -3,29 +3,33 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert, Button, Typography } from 'antd';
-import type { MockTestOnlineCampaign } from '@/lib/public-mock-test-online/types';
+import type {
+  MockTestOnlineCampaign,
+  MockTestTypePresentationPublic,
+} from '@/lib/public-mock-test-online/types';
 import {
   buildSelectExamIntentPath,
   writeMtoExamIntent,
 } from '@/lib/public-mock-test-online/mto-exam-intent';
 import { buildPortalLoginHref } from '@/lib/portal-auth/post-auth-return-url';
 import { MockTestOnlineFunnelShell } from '@/components/public-mock-test-online/MockTestOnlineFunnelShell';
-import { MockTestOnlineExamTypePicker } from '@/components/public-mock-test-online/MockTestOnlineExamTypePicker';
+import { MockTestOnlineExamMasterDetail } from '@/components/public-mock-test-online/MockTestOnlineExamMasterDetail';
 
 const { Title, Paragraph } = Typography;
 
 export type MockTestOnlineBrowseCampaignsProps = {
   campaigns: MockTestOnlineCampaign[];
+  typePresentations?: MockTestTypePresentationPublic[] | null;
   campaignsError?: string | null;
   actor: 'guest' | 'lead' | 'customer';
 };
 
 /**
- * Landing marketing MTO — chọn card bài thi → «Tiếp tục»
- * (guest → login+returnUrl; đã auth → select prefill).
+ * Landing marketing MTO — master–detail loại bài → chọn campaign → «Tiếp tục».
  */
 export function MockTestOnlineBrowseCampaignsClient({
   campaigns,
+  typePresentations = [],
   campaignsError = null,
   actor,
 }: MockTestOnlineBrowseCampaignsProps) {
@@ -61,8 +65,7 @@ export function MockTestOnlineBrowseCampaignsClient({
         Hãy chọn bài thi thử
       </Title>
       <Paragraph className="mock-test-intro-text !mb-5">
-        Chọn bài phù hợp mục đích đánh giá năng lực tiếng Anh của bạn, rồi bấm
-        Tiếp tục.
+        Chọn loại bài phù hợp, xem mô tả, rồi chọn đợt thi đang mở.
       </Paragraph>
 
       {campaignsError ? (
@@ -79,11 +82,12 @@ export function MockTestOnlineBrowseCampaignsClient({
         />
       ) : null}
 
-      <MockTestOnlineExamTypePicker
+      <MockTestOnlineExamMasterDetail
         campaigns={campaigns}
+        typePresentations={typePresentations}
         selectedSessionId={selectedSessionId}
         onSelect={setSelectedSessionId}
-        idPrefix="mto-browse-type"
+        idPrefix="mto-browse-md"
       />
 
       {selectedSessionId != null ? (

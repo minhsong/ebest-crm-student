@@ -29,7 +29,7 @@ export function mapPortalExploreToLegacyMarketing(
       title: course.title,
       summary: course.shortDescription,
       imageUrl: course.thumbnailUrl ?? undefined,
-      ctaUrl: course.detailUrl,
+      ctaUrl: course.detailUrl ?? undefined,
       sortOrder: course.sortOrder,
     })),
     updatedAt: new Date().toISOString(),

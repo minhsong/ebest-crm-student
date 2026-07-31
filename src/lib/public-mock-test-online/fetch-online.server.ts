@@ -102,6 +102,7 @@ export async function loadMockTestOnlineSelectExamPageData(
 	return {
 		pendingLeadId: pendingLeadId?.trim() || null,
 		campaigns,
+		typePresentations: campaignsRes.data?.typePresentations ?? [],
 		selectedCampaign,
 		campaignsError: campaignsRes.error,
 	};

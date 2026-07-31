@@ -12,7 +12,6 @@ import {
   getMockTestDeliveryModeTag,
   getMockTestResultTitle,
 } from '@/features/mock-test-portal/lib/mock-test-result-display.util';
-
 const { Text } = Typography;
 
 type Props = {

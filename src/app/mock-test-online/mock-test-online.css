@@ -252,7 +252,7 @@
 	line-height: 1.5;
 }
 
-/* Type groups — Collapse panels */
+/* Type groups — Collapse panels (legacy; browse/select dùng master-detail) */
 .mto-exam-type-collapse {
 	background: transparent;
 	border: none !important;
@@ -289,6 +289,58 @@
 
 .mto-exam-type-collapse .ant-collapse-content-box {
 	padding: 12px 14px 14px !important;
+}
+
+/* Master–detail select-exam / browse (SX-02) */
+.mto-exam-master-detail {
+	width: 100%;
+	margin-bottom: 16px;
+}
+
+.mto-type-list-card {
+	width: 100%;
+	border-radius: 12px !important;
+	border: 1.5px solid #e8e8e8 !important;
+	cursor: pointer;
+	transition:
+		border-color 0.2s ease,
+		box-shadow 0.2s ease,
+		background 0.2s ease;
+}
+
+.mto-type-list-card:hover {
+	border-color: #91caff !important;
+}
+
+.mto-type-list-card--selected {
+	border-color: #1677ff !important;
+	background: #f0f7ff;
+	box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.14);
+}
+
+.mto-type-list-card .ant-card-body {
+	padding: 12px 14px;
+}
+
+.mto-type-list-card-title {
+	display: block;
+	line-height: 1.35;
+	margin-bottom: 6px;
+}
+
+.mto-type-list-card-meta {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.mto-type-detail-html {
+	font-size: 0.925rem;
+	line-height: 1.55;
+}
+
+.mto-type-detail-html .qa-content {
+	max-width: none;
 }
 
 /* Browse landing — card chọn bài */

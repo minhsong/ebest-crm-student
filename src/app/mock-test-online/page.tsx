@@ -32,6 +32,7 @@ export default async function MockTestOnlinePage() {
       <MockTestOnlineSeoJsonLd seo={seo} />
       <MockTestOnlineBrowseCampaignsClient
         campaigns={pageData.campaigns}
+        typePresentations={pageData.typePresentations}
         campaignsError={pageData.campaignsError}
         actor={actor}
       />

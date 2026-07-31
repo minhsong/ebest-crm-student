@@ -1,16 +1,22 @@
 'use client';
 
+import { useState } from 'react';
 import { BookOutlined } from '@ant-design/icons';
 import { Alert, Button, Card, Image, Spin } from 'antd';
 import { PageCard, PageHeader } from '@/components/layout';
 import { LeadConsultCta } from '@/components/lead-portal/LeadConsultCta';
 import { LeadCourseRecommendationsBlock } from '@/components/lead-portal/LeadCourseRecommendationsBlock';
+import {
+  PortalCourseDetailDrawer,
+  type PortalCourseDetailContent,
+} from '@/components/lead-portal/PortalCourseDetailDrawer';
 import { usePortalCourseCatalog } from '@/hooks/use-portal-course-catalog';
 import { usePortalSiteLinks } from '@/hooks/use-portal-site-links';
 
 export function LeadCoursesPageClient() {
   const { loading: catalogLoading, error, courses } = usePortalCourseCatalog();
   const { siteLinks } = usePortalSiteLinks();
+  const [detail, setDetail] = useState<PortalCourseDetailContent | null>(null);
 
   return (
     <>
@@ -57,11 +63,15 @@ export function LeadCoursesPageClient() {
                     <Button
                       key="detail"
                       type="link"
-                      href={course.detailUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      onClick={() =>
+                        setDetail({
+                          title: course.title,
+                          shortDescription: course.shortDescription,
+                          detailHtml: course.detailHtml,
+                        })
+                      }
                     >
-                      Xem thêm
+                      Xem chi tiết
                     </Button>,
                   ]}
                 >
@@ -81,6 +91,12 @@ export function LeadCoursesPageClient() {
 
         <LeadConsultCta siteLinks={siteLinks} />
       </PageCard>
+
+      <PortalCourseDetailDrawer
+        open={detail != null}
+        course={detail}
+        onClose={() => setDetail(null)}
+      />
     </>
   );
 }
