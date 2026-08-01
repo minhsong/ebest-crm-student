@@ -117,9 +117,7 @@ export function LeadCompleteProfileClient({
         router.replace(returnUrl);
       } catch (e) {
         if (isLeadPortalUnauthorizedError(e)) {
-          router.replace(
-            buildPortalLoginHref({ mode: 'lead', returnUrl }),
-          );
+          // client-api đã recoverInvalidPortalSession — tránh double navigate
           return;
         }
         message.error(

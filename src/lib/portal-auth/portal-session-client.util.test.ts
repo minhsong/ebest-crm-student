@@ -45,6 +45,12 @@ describe('toClientPortalSessionPayload', () => {
 		expect(toClientPortalSessionPayload({ actor: 'guest' })).toEqual({ actor: 'guest' });
 		expect(
 			toClientPortalSessionPayload({
+				actor: 'guest',
+				authFailure: 'expired',
+			}),
+		).toEqual({ actor: 'guest', authFailure: 'expired' });
+		expect(
+			toClientPortalSessionPayload({
 				actor: 'customer',
 				displayName: 'HV',
 				accountId: '42',

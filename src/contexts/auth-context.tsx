@@ -16,8 +16,7 @@ import {
   getCustomerFromPortalSession,
   isPortalSessionReady,
 } from '@/lib/portal-auth/portal-session-selectors';
-import { buildPortalLoginHref } from '@/lib/portal-auth/post-auth-return-url';
-import { portalLogoutAndLeave } from '@/lib/portal-auth/portal-session.client';
+import { recoverInvalidPortalSession } from '@/lib/portal-auth/portal-session-recovery';
 
 export type AuthCustomer = StudentMeCustomerBrief;
 
@@ -127,14 +126,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch(url, { ...options });
       if (res.status === 401 && typeof window !== 'undefined') {
         const { pathname, search } = window.location;
-        const href = pathname.startsWith('/login')
-          ? buildPortalLoginHref({ sessionExpired: true, returnUrl: '/' })
-          : buildPortalLoginHref({
-              sessionExpired: true,
-              returnUrl: `${pathname}${search}`,
-            });
+        const returnUrl = pathname.startsWith('/login')
+          ? '/'
+          : `${pathname}${search}`;
         // Một lần clear + assign — không gọi portal.logout (tránh double /login).
-        await portalLogoutAndLeave(href);
+        await recoverInvalidPortalSession({
+          returnUrl,
+          sessionExpired: true,
+        });
       }
       return res;
     },

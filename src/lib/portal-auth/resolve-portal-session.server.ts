@@ -25,11 +25,12 @@ import {
   summarizePortalSessionCrmPayload,
 } from '@/lib/portal-ssr-debug';
 import { reportStudentPortalBffError } from '@/lib/report-bff-error';
+import type { PortalGuestAuthFailure } from '@/lib/portal-auth/portal-session-auth-failure';
 
 export type PortalSessionActor = 'guest' | 'lead' | 'customer';
 
 export type PortalSessionPayload =
-  | { actor: 'guest' }
+  | { actor: 'guest'; authFailure?: PortalGuestAuthFailure }
   | {
       actor: 'customer';
       displayName: string;
@@ -188,22 +189,29 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
       errorMessage: `HTTP ${res.status}`,
       bodyPreview: errBody.slice(0, 800),
     });
-    reportStudentPortalBffError(
-      'mto.portal-session.http',
-      new Error(`GET ${url} → HTTP ${res.status}`),
-      {
-        path: STUDENT_API.portalSession,
-        method: 'GET',
-        errorType: 'PORTAL_SESSION_HTTP',
-        details: {
-          url,
-          status: res.status,
-          bodyPreview: errBody.slice(0, 800),
-          durationMs,
+    const isExpectedAuthFailure = res.status === 401 || res.status === 403;
+    // 401/403 = JWT hết hạn / stale — lifecycle bình thường, không đẩy log platform.
+    if (!isExpectedAuthFailure) {
+      reportStudentPortalBffError(
+        'mto.portal-session.http',
+        new Error(`GET ${url} → HTTP ${res.status}`),
+        {
+          path: STUDENT_API.portalSession,
+          method: 'GET',
+          errorType: 'PORTAL_SESSION_HTTP',
+          details: {
+            url,
+            status: res.status,
+            bodyPreview: errBody.slice(0, 800),
+            durationMs,
+          },
         },
-      },
-    );
-    if (res.status === 401) forcePortalLogoutCookies();
+      );
+    }
+    if (isExpectedAuthFailure) {
+      forcePortalLogoutCookies();
+      return { actor: 'guest', authFailure: 'expired' };
+    }
     return { actor: 'guest' };
   }
 
@@ -237,7 +245,7 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
         durationMs,
       });
       forcePortalLogoutCookies();
-      return { actor: 'guest' };
+      return { actor: 'guest', authFailure: 'expired' };
     }
     const accountId = parsePortalSessionAccountId(payload) ?? undefined;
     logPortalSsr('portal_session.resolved', {
@@ -266,7 +274,7 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
         reason: 'identity_upgrade_relogin',
         durationMs,
       });
-      return { actor: 'guest' };
+      return { actor: 'guest', authFailure: 'relogin_required' };
     }
 
     const profile = mapLeadProfile(upgraded as Record<string, unknown>);
@@ -276,7 +284,7 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
         durationMs,
       });
       forcePortalLogoutCookies();
-      return { actor: 'guest' };
+      return { actor: 'guest', authFailure: 'expired' };
     }
 
     const accountId =
@@ -289,7 +297,7 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
         durationMs,
       });
       forcePortalLogoutCookies();
-      return { actor: 'guest' };
+      return { actor: 'guest', authFailure: 'expired' };
     }
 
     const displayName =
@@ -320,7 +328,7 @@ export async function resolvePortalSessionFromCookies(): Promise<PortalSessionPa
     durationMs,
   });
   forcePortalLogoutCookies();
-  return { actor: 'guest' };
+  return { actor: 'guest', authFailure: 'expired' };
 }
 
 /** Dedupe CRM `/portal/session` trong cùng một RSC request. */

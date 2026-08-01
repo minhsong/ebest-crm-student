@@ -2,10 +2,11 @@ import { PORTAL_MOCK_TEST_ROUTES } from '@/features/portal-mock-test/routes.conf
 import type { PortalLeadSessionSummary } from '@/lib/portal-auth/portal-lead-session.types';
 import type { PortalSessionReadyState } from '@/contexts/portal-session-context';
 import { postLoginPathForPortalActor } from '@/lib/portal-auth/portal-session-nav';
+import type { PortalGuestAuthFailure } from '@/lib/portal-auth/portal-session-auth-failure';
+import { buildAuthRequiredLoginHref } from '@/lib/portal-auth/portal-session-recovery';
 import {
   buildLeadCompleteProfilePath,
   isLeadCompleteProfilePath,
-  PORTAL_LOGIN_PATH,
   resolvePostLeadLoginPath,
 } from '@/lib/portal-auth/session-routes';
 import { isLeadIncompleteProfileAllowedPath } from '@/features/portal-mock-test/routes.config';
@@ -20,6 +21,8 @@ export type LeadNavigationInput = {
   allowMockTestFunnel?: boolean;
   /** `postLogin` — sau login; `layout` — gate trong layout (không ép hub PO-D30). */
   mode?: LeadNavigationMode;
+  /** Khi guest do JWT invalid — gắn session=expired. */
+  authFailure?: PortalGuestAuthFailure | null;
 };
 
 export type LeadNavigationResult =
@@ -42,12 +45,20 @@ export function resolveLeadNavigation(
     returnUrl = null,
     allowMockTestFunnel = false,
     mode = 'layout',
+    authFailure = null,
   } = input;
 
   if (actor === 'guest') {
     return {
       action: 'redirect',
-      destination: PORTAL_LOGIN_PATH,
+      destination: buildAuthRequiredLoginHref({
+        returnUrl:
+          returnUrl ||
+          (currentPath && currentPath !== '/'
+            ? currentPath
+            : PORTAL_MOCK_TEST_ROUTES.hub),
+        authFailure,
+      }),
     };
   }
 

@@ -9,6 +9,12 @@ import {
 describe('portal-session-nav', () => {
 	it('parses session payload fail-safe', () => {
 		expect(parseClientPortalSessionPayload(null)).toEqual({ actor: 'guest' });
+		expect(
+			parseClientPortalSessionPayload({
+				actor: 'guest',
+				authFailure: 'expired',
+			}),
+		).toEqual({ actor: 'guest', authFailure: 'expired' });
 		expect(parseClientPortalSessionPayload({ actor: 'customer', displayName: '  A ' })).toEqual({
 			actor: 'customer',
 			displayName: 'A',

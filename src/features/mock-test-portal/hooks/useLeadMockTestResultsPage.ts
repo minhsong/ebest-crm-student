@@ -37,9 +37,14 @@ export function useLeadMockTestResultsPage() {
       return;
     }
     if (actor !== 'lead' || !profile) {
+      const authFailure =
+        portal.status === 'ready' && portal.actor === 'guest'
+          ? portal.authFailure
+          : undefined;
       router.replace(
         buildPortalLoginHref({
           returnUrl: PORTAL_MOCK_TEST_RESULTS_ROUTES.lead,
+          sessionExpired: Boolean(authFailure),
         }),
       );
       return;

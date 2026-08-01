@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { PortalDashboardShell } from '@/components/layouts/dashboard';
@@ -22,6 +22,7 @@ import { MockTestOnlineSiteLayout } from '@/components/public-mock-test-online/M
 import { LoadingState } from '@/components/layout';
 import { PortalExploreProvider } from '@/contexts/portal-explore-context';
 import { resolveLeadNavigation } from '@/lib/portal-auth/resolve-lead-navigation';
+import { recoverInvalidPortalSession } from '@/lib/portal-auth/portal-session-recovery';
 
 function resolveLeadDisplayName(profile: PortalLeadSessionSummary): string {
   const name = profile.displayName?.trim();
@@ -52,9 +53,22 @@ function LeadAuthenticatedLayoutInner({
   const actor = getPortalActor(portal);
   const profile = getLeadSessionSummary(portal);
   const onCompleteProfilePath = isLeadCompleteProfilePath(pathname);
+  const recoveringRef = useRef(false);
 
   useEffect(() => {
-    if (!portalReady) return;
+    if (!portalReady || recoveringRef.current) return;
+
+    if (actor === 'guest') {
+      recoveringRef.current = true;
+      const authFailure =
+        portal.status === 'ready' && portal.actor === 'guest'
+          ? portal.authFailure
+          : undefined;
+      void recoverInvalidPortalSession({
+        sessionExpired: Boolean(authFailure),
+      });
+      return;
+    }
 
     const nav = resolveLeadNavigation({
       actor: actor ?? 'guest',
@@ -62,11 +76,15 @@ function LeadAuthenticatedLayoutInner({
       currentPath: pathname,
       allowMockTestFunnel,
       mode: 'layout',
+      authFailure:
+        portal.status === 'ready' && portal.actor === 'guest'
+          ? portal.authFailure
+          : undefined,
     });
     if (nav.action === 'redirect') {
       router.replace(nav.destination);
     }
-  }, [portalReady, actor, profile, pathname, allowMockTestFunnel, router]);
+  }, [portalReady, actor, profile, pathname, allowMockTestFunnel, router, portal]);
 
   const menuItems = useMemo(
     () =>
@@ -87,7 +105,7 @@ function LeadAuthenticatedLayoutInner({
   if (!portalReady || actor === 'guest') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5]">
-        <LoadingState tip="Đang tải phiên đăng nhập…" />
+        <LoadingState tip="Đang chuyển đến trang đăng nhập…" />
       </div>
     );
   }

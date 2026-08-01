@@ -2,10 +2,10 @@ import { redirect } from 'next/navigation';
 
 import { buildPageMetadata } from '@/lib/metadata';
 import { toPortalLeadSessionSummary } from '@/lib/portal-auth/portal-lead-session.types';
+import { getPortalRequestPathname } from '@/lib/portal-auth/get-portal-request-path.server';
+import { buildAuthRequiredLoginHref } from '@/lib/portal-auth/portal-session-recovery';
 import { resolveLeadPostLoginDestination } from '@/lib/portal-auth/resolve-lead-navigation';
 import { getCachedPortalSession } from '@/lib/portal-auth/resolve-portal-session.server';
-
-import { PORTAL_LOGIN_PATH } from '@/lib/portal-auth/session-routes';
 
 import DashboardLayoutClient from './DashboardLayoutClient';
 
@@ -23,9 +23,15 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const session = await getCachedPortalSession();
+  const returnUrl = await getPortalRequestPathname('/');
 
   if (session.actor === 'guest') {
-    redirect(PORTAL_LOGIN_PATH);
+    redirect(
+      buildAuthRequiredLoginHref({
+        returnUrl,
+        authFailure: session.authFailure,
+      }),
+    );
   }
 
   if (session.actor === 'lead') {

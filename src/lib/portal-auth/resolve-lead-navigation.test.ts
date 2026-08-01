@@ -56,6 +56,31 @@ describe('resolveLeadNavigation', () => {
     ).toBe(PORTAL_MOCK_TEST_ROUTES.hub);
   });
 
+  it('layout mode — guest → login với returnUrl (không session=expired nếu thiếu authFailure)', () => {
+    const result = resolveLeadNavigation({
+      actor: 'guest',
+      currentPath: '/lead/profile',
+      mode: 'layout',
+    });
+    expect(result).toEqual({
+      action: 'redirect',
+      destination: '/login?returnUrl=%2Flead%2Fprofile',
+    });
+  });
+
+  it('layout mode — guest expired → login session=expired', () => {
+    const result = resolveLeadNavigation({
+      actor: 'guest',
+      currentPath: '/lead/profile',
+      mode: 'layout',
+      authFailure: 'expired',
+    });
+    expect(result).toEqual({
+      action: 'redirect',
+      destination: '/login?session=expired&returnUrl=%2Flead%2Fprofile',
+    });
+  });
+
   it('resolveLeadRedirectFromSession — guest session → trang chủ lead (hub)', () => {
     expect(
       resolveLeadRedirectFromSession({ status: 'ready', actor: 'guest' }, null),

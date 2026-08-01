@@ -40,6 +40,7 @@ BL-Q1 (tính lượt nếu đã Zalo) · BL-Q8 (login «Chưa học» không fal
 | LP-UI-01 | `GET /api/portal/session` cookie-first | ✅ |
 | LP-UI-02 | `PortalChromeGate` — sidebar+header khi cookie | ✅ |
 | LP-UI-03 | `usePortalSession` hook SSOT | ✅ |
+| LP-UI-08 | Auth-required 401/expired → logout + `/login?session=expired` (BFF-ID-6) | ✅ |
 
 ---
 

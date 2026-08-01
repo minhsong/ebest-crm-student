@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
@@ -16,7 +16,10 @@ import {
   isPortalSessionReady,
 } from '@/lib/portal-auth/portal-session-selectors';
 import { resolveLeadRedirectFromSession } from '@/lib/portal-auth/resolve-lead-navigation';
-import { PORTAL_POST_LOGOUT_PATH } from '@/lib/portal-auth/session-routes';
+import {
+  buildAuthRequiredLoginHref,
+  recoverInvalidPortalSession,
+} from '@/lib/portal-auth/portal-session-recovery';
 
 export default function DashboardLayoutClient({
   children,
@@ -26,6 +29,7 @@ export default function DashboardLayoutClient({
   const { logout } = useAuth();
   const portal = usePortalSession();
   const router = useRouter();
+  const recoveringRef = useRef(false);
 
   const portalReady = isPortalSessionReady(portal);
   const actor = getPortalActor(portal);
@@ -33,10 +37,26 @@ export default function DashboardLayoutClient({
   const shellReady = isCustomerPortalShellReady(portal);
 
   useEffect(() => {
-    if (!portalReady) return;
+    if (!portalReady || recoveringRef.current) return;
 
     if (actor === 'guest') {
-      router.replace(PORTAL_POST_LOGOUT_PATH);
+      recoveringRef.current = true;
+      const authFailure =
+        portal.status === 'ready' && portal.actor === 'guest'
+          ? portal.authFailure
+          : undefined;
+      if (authFailure) {
+        void recoverInvalidPortalSession({ sessionExpired: true });
+        return;
+      }
+      router.replace(
+        buildAuthRequiredLoginHref({
+          returnUrl:
+            typeof window !== 'undefined'
+              ? `${window.location.pathname}${window.location.search}`
+              : '/',
+        }),
+      );
       return;
     }
 

@@ -1,6 +1,7 @@
 import type { PortalAuthActor } from '@/lib/portal-auth/portal-auth-session';
 import type { LeadProfile, LeadTestResultSummary } from './types';
 import { portalLogoutAndLeave } from '@/lib/portal-auth/portal-session.client';
+import { recoverInvalidPortalSession } from '@/lib/portal-auth/portal-session-recovery';
 import { LeadPortalUnauthorizedError } from './errors';
 
 async function parseJsonMessage(res: Response): Promise<{ message?: string }> {
@@ -15,6 +16,11 @@ async function parseLoginResponse(res: Response): Promise<{
     message?: string;
     actor?: PortalAuthActor;
   };
+}
+
+async function rejectUnauthorized(): Promise<never> {
+  await recoverInvalidPortalSession({ sessionExpired: true });
+  throw new LeadPortalUnauthorizedError();
 }
 
 export async function leadLogin(
@@ -124,7 +130,7 @@ export async function leadLogout(): Promise<void> {
 export async function fetchLeadProfile(): Promise<LeadProfile> {
   const res = await fetch('/api/lead/me', { cache: 'no-store' });
   if (res.status === 401) {
-    throw new LeadPortalUnauthorizedError();
+    await rejectUnauthorized();
   }
   const data = await res.json();
   if (!res.ok) {
@@ -152,7 +158,7 @@ export async function completeLeadProfile(input: {
     body: JSON.stringify(input),
   });
   if (res.status === 401) {
-    throw new LeadPortalUnauthorizedError();
+    await rejectUnauthorized();
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -168,7 +174,7 @@ export async function completeLeadProfile(input: {
 export async function fetchLeadTestResults(): Promise<LeadTestResultSummary[]> {
   const res = await fetch('/api/lead/me/test-results', { cache: 'no-store' });
   if (res.status === 401) {
-    throw new LeadPortalUnauthorizedError();
+    await rejectUnauthorized();
   }
   const data = await res.json();
   if (!res.ok) {

@@ -1,7 +1,7 @@
 # Portal BFF — Auth cookie · Token proxy · Tái sử dụng identity (SSOT)
 
-> **Phiên bản:** 1.2  
-> **Cập nhật:** 2026-07-28  
+> **Phiên bản:** 1.3  
+> **Cập nhật:** 2026-08-01  
 > **Trạng thái:** **CANONICAL mục tiêu + as-built**  
 > **Phạm vi:** Student Portal (Next.js) · CRM IdP · Gateway (chỉ nhận identity đã resolve từ BFF/CRM)  
 > **Liên quan:** [SECURITY_STANDARDS](../../ebest-crm-api/docs/monorepo/standards/SECURITY_STANDARDS.md) · [BFF_RESPONSE_SECURITY](./STUDENT_PORTAL_BFF_RESPONSE_SECURITY_SPEC.md) · [UPA](../../ebest-crm-api/docs/monorepo/portal-identity/UNIFIED_PORTAL_AUTHENTICATION_SPEC.md) · [SIX_STEP_FLOW](../../ebest-crm-api/docs/modules/mock-test/MOCK_TEST_ONLINE_SIX_STEP_FLOW_ANALYSIS.md) · [DROP_RESUME](../../ebest-crm-api/docs/modules/mock-test/MOCK_TEST_ONLINE_DROP_RESUME_AND_RESULTS_AS_BUILT.md)
@@ -76,6 +76,32 @@ getPortalAccessTokenFromCookie()
 
 - Actor do **CRM** quyết định sau verify JWT.  
 - BFF **không** decode `accountType` từ JWT để quyết nghiệp vụ (PO-D16).
+
+### 2.2.1 Vùng route & phục hồi phiên (BFF-ID-6) — 2026-08-01
+
+| Vùng | Ai được vào | Khi JWT invalid / CRM 401·403 |
+|------|-------------|-------------------------------|
+| **Public** (whitelist đã chốt: login, forgot/reset, MTO browse/register/exam focus, …) | Guest OK | Soft: `actor: 'guest'`; **không** ép login; **không** publish system error |
+| **Auth-required** (`(dashboard)/**`, `lead/(authenticated)/**`, API `/api/student/*`, `/api/lead/*`, MTO auth-first) | Customer và/hoặc Lead | **Hard recovery**: clear cookie → `/login?session=expired&returnUrl=…` |
+| **Probe** `GET /api/portal/session` | Ai cũng gọi | Soft guest (HTTP 200); flag `authFailure` khi cookie từng có nhưng CRM từ chối |
+
+**Phân loại lỗi CRM `portal/session`:**
+
+| Status | UX / payload | Log platform |
+|--------|--------------|--------------|
+| Không cookie | `{ actor: 'guest' }` | Không |
+| **401 / 403** | clear cookie + `{ actor: 'guest', authFailure: 'expired' }` | **Không** (expected auth lifecycle) |
+| Identity upgrade (re-login) | clear + `{ actor: 'guest', authFailure: 'relogin_required' }` | Không |
+| 5xx / network | guest (hoặc throw connection) | **Có** (`PORTAL_SESSION_HTTP` / `NETWORK`) |
+
+**Auth-required layout / client:**
+
+1. Guest **không** cookie → `/login?returnUrl=…` (chưa đăng nhập).  
+2. Guest có `authFailure: 'expired' | 'relogin_required'` → `/login?session=expired&returnUrl=…`.  
+3. API nghiệp vụ BFF trả 401 → clear cookie + client `recoverInvalidPortalSession` (logout + hard navigate login expired).  
+4. Dùng `fetchWithAuth` / lead client-api wrapper — **không** để UI “chết” im lặng trên trang đòi quyền.
+
+Helpers: `lib/portal-auth/portal-session-recovery.ts` · middleware gắn `x-portal-pathname` cho returnUrl SSR.
 
 ### 2.3 Resolve identity nghiệp vụ MTO (tái sử dụng)
 
@@ -161,6 +187,9 @@ Helper SSOT (as-built):
 |---------|------|
 | Cookie read | `lib/portal-auth-cookie.ts` |
 | Session resolve | `lib/portal-auth/resolve-portal-session.server.ts` |
+| Session recovery (auth zone) | `lib/portal-auth/portal-session-recovery.ts` |
+| Pathname header constant | `lib/portal-auth/portal-pathname-header.ts` |
+| Pathname SSR (`x-portal-pathname`) | `src/middleware.ts` + `lib/portal-auth/get-portal-request-path.server.ts` |
 | CRM proxy Bearer | `lib/crm-student-proxy.ts` |
 | MTO caller identity | `features/portal-mock-test/server/resolve-mto-caller-identity.server.ts` |
 | Authorize body strip | `features/portal-mock-test/server/authorize-resume-body.server.ts` |
@@ -174,6 +203,7 @@ Helper SSOT (as-built):
 - [ ] Route có auth đọc cookie / Bearer proxy — không nhận identity từ body UI  
 - [ ] Body đã `delete` omni/customer/account id trước forward  
 - [ ] Dùng helper identity dùng chung (không copy-paste lead vs customer)  
+- [ ] Auth-required: 401/expired → logout + `/login?session=expired` (BFF-ID-6); không report 401 `portal/session` lên platform  
 - [ ] Không thêm `NEXT_PUBLIC_*` secret  
 - [ ] Lỗi client đã sanitize (SP-SEC)  
 - [ ] Không tăng round-trip CRM nếu đã có data trên session/home  
@@ -225,6 +255,7 @@ Chi tiết: [PORTAL_SSR_UNIFIED_ME_IMPLEMENTATION_PLAN.md](./PORTAL_SSR_UNIFIED_
 | **BFF-ID-3** | Capability exam (HMAC) ≠ identity; mint server-side, cache theo registration |
 | **BFF-ID-4** | Tối ưu = tái sử dụng session/home/mirror/mint — không chuyển SoT điểm/registration sang Redis browser |
 | **BFF-ID-5** | SSR shell = Unified `/me` (**SSR-ADR-7/8/9**) — CRM `portal/me` + BFF `GET /api/me`; cache Redis `portal:me:{accountId}` 60p |
+| **BFF-ID-6** | Auth-required + JWT invalid → logout + login (`session=expired`); soft-guest chỉ cho public/probe; 401 session **không** lên log platform |
 
 ---
 

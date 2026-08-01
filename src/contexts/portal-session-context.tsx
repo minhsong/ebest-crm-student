@@ -9,6 +9,7 @@ import React, {
 	useState,
 } from 'react';
 import type { ClientPortalSessionPayload } from '@/lib/portal-auth/portal-session-client.util';
+import type { PortalGuestAuthFailure } from '@/lib/portal-auth/portal-session-auth-failure';
 import {
 	fetchClientPortalSession,
 	portalLogoutAndLeave,
@@ -16,7 +17,7 @@ import {
 import { PORTAL_POST_LOGOUT_PATH } from '@/lib/portal-auth/session-routes';
 
 export type PortalSessionReadyState =
-	| { status: 'ready'; actor: 'guest' }
+	| { status: 'ready'; actor: 'guest'; authFailure?: PortalGuestAuthFailure }
 	| {
 			status: 'ready';
 			actor: 'customer';
@@ -66,7 +67,9 @@ function toReadyState(
 			profile: data.profile,
 		};
 	}
-	return { status: 'ready', actor: 'guest' };
+	return data.authFailure
+		? { status: 'ready', actor: 'guest', authFailure: data.authFailure }
+		: { status: 'ready', actor: 'guest' };
 }
 
 export function PortalSessionProvider({

@@ -85,7 +85,14 @@ export function parseClientPortalSessionPayload(
 			},
 		};
 	}
-	return { actor: 'guest' };
+	const authFailure =
+		o.actor === 'guest' &&
+		(o.authFailure === 'expired' || o.authFailure === 'relogin_required')
+			? o.authFailure
+			: undefined;
+	return authFailure
+		? { actor: 'guest', authFailure }
+		: { actor: 'guest' };
 }
 
 /** Home zone khi đã login (chrome / redirect-if-logged-in). */
