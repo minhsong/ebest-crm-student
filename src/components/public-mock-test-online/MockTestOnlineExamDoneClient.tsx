@@ -11,6 +11,11 @@ import { MockTestOnlineEmailVerificationPrompt } from '@/components/public-mock-
 import { MockTestOnlineAttemptLimitAlert } from '@/components/public-mock-test-online/MockTestOnlineAttemptLimitAlert';
 import { MockTestOnlineSessionErrorAlert } from '@/components/public-mock-test-online/MockTestOnlineSessionErrorAlert';
 import { CourseRecommendationsBlock } from '@/features/course-recommendations';
+import { usePortalSession } from '@/hooks/usePortalSession';
+import {
+	getCustomerClassesFromPortalSession,
+	getPortalActor,
+} from '@/lib/portal-auth/portal-session-selectors';
 import { usePortalMockTestInExamStatus } from '@/features/mock-test-portal/hooks/useLeadMockTestInExamStatus';
 import { fetchExamFunnelHint } from '@/lib/complete-profile/check-login-key';
 import {
@@ -32,6 +37,9 @@ const AUTO_REDIRECT_SECONDS_GUEST = 6;
 
 export function MockTestOnlineExamDoneClient() {
 	const router = useRouter();
+	const portal = usePortalSession();
+	const portalActor = getPortalActor(portal);
+	const customerClasses = getCustomerClassesFromPortalSession(portal);
 	const [destination, setDestination] =
 		useState<MockTestPostExamDestination | null>(null);
 	const [destinationError, setDestinationError] = useState(false);
@@ -103,8 +111,11 @@ export function MockTestOnlineExamDoneClient() {
 			: 'Đăng nhập xem kết quả';
 
 	const showLeadRegisterCta = sessionKind === 'none' && !hideLeadRegister;
-	/** Courses / dashboard chỉ sau khi Lead đã hoàn thiện hồ sơ (PO-D19). */
-	const showCoursesCta = loggedIn && !needsCompleteProfile;
+	/** Courses CTA: Lead / customer chưa có lớp. Customer đã có lớp → CRE ẩn. */
+	const showCoursesCta =
+		loggedIn &&
+		!needsCompleteProfile &&
+		!(portalActor === 'customer' && customerClasses.length > 0);
 	const attemptLimitReached = isMockTestOnlineAttemptBlocked(attemptStatus);
 
 	useEffect(() => {

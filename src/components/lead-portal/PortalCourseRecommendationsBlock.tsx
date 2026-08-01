@@ -2,6 +2,11 @@
 
 import { PortalCourseRecommendationsSection } from '@/components/lead-portal/PortalCourseRecommendationsSection';
 import { usePortalCourseRecommendations } from '@/hooks/use-portal-course-recommendations';
+import { usePortalSession } from '@/hooks/usePortalSession';
+import {
+  getCustomerClassesFromPortalSession,
+  getPortalActor,
+} from '@/lib/portal-auth/portal-session-selectors';
 
 type Props = {
   enabled?: boolean;
@@ -12,7 +17,10 @@ type Props = {
   className?: string;
 };
 
-/** Container — fetch/reuse CRE cho Lead/Customer đã đăng nhập. */
+/**
+ * Container — fetch/reuse CRE cho Lead/Customer đã đăng nhập.
+ * Ẩn khi customer đã có lớp tại Ebest (CRE đã xong nhiệm vụ; Care tiếp tục).
+ */
 export function PortalCourseRecommendationsBlock({
   enabled = true,
   preferExplore = true,
@@ -21,10 +29,21 @@ export function PortalCourseRecommendationsBlock({
   compact,
   className,
 }: Props) {
+  const portal = usePortalSession();
+  const actor = getPortalActor(portal);
+  const customerClasses = getCustomerClassesFromPortalSession(portal);
+  const hideForEnrolledCustomer =
+    actor === 'customer' && customerClasses.length > 0;
+  const fetchEnabled = enabled && !hideForEnrolledCustomer;
+
   const { data, loading, error } = usePortalCourseRecommendations({
-    enabled,
+    enabled: fetchEnabled,
     preferExplore,
   });
+
+  if (hideForEnrolledCustomer) {
+    return null;
+  }
 
   return (
     <PortalCourseRecommendationsSection
