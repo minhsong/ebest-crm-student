@@ -59,6 +59,18 @@ Theo pattern CRM Client (`REACT_CODE_STANDARDS.md` — áp dụng tương đươ
 
 ---
 
+## 2b. Nội dung bài học buổi (Knowledge Base M2)
+
+| Mục | Giá trị |
+|-----|---------|
+| Route | `/learning/knowledge/sessions/[classSessionId]?classId=` |
+| API | `GET /api/student/learning/classes/:classId/sessions/:classSessionId/runtime-content` |
+| Hook | `useSessionRuntimeContent` |
+| View | `SessionKnowledgeContentView` — Collapse Lesson → KU → sections |
+| Entry | Nút **Nội dung bài học** trên `SessionVocabularyDetailView` |
+
+---
+
 ## 3. Tái s dụng vocabulary UI
 
 ### 3.1 `vocabulary-display.util.ts`

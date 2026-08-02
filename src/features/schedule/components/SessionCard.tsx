@@ -294,6 +294,7 @@ function SessionCardInner({ row, stripedDim, classCode, classId }: SessionCardPr
         open={materialsOpen}
         sessionId={row.sessionId}
         sessionTitle={row.title ?? undefined}
+        classId={classId}
         onClose={() => setMaterialsOpen(false)}
       />
     </>

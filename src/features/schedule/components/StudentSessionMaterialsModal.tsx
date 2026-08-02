@@ -18,7 +18,9 @@ import {
   ExportOutlined,
   FolderOpenOutlined,
   EyeOutlined,
+  ReadOutlined,
 } from '@ant-design/icons';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import type { StudentSessionMaterial } from '@/types/student-session-material';
 import {
@@ -31,6 +33,7 @@ import {
 import { resolveStudentSessionMaterialOpenHref } from '@/lib/session-material-open-url';
 import { StudentOpenInNewTabLink } from '@/components/ui/StudentOpenInNewTabLink';
 import { StudentMediaPlayModal } from '@/features/schedule/components/StudentMediaPlayModal';
+import { sessionKnowledgeContentHref } from '@/features/learning/utils/vocabulary-session-routes';
 
 const { Text, Paragraph } = Typography;
 
@@ -38,6 +41,8 @@ type Props = {
   open: boolean;
   sessionId: number | null;
   sessionTitle?: string;
+  /** Lớp của buổi — dùng deep-link Knowledge Base / từ vựng. */
+  classId?: number;
   onClose: () => void;
 };
 
@@ -45,6 +50,7 @@ export function StudentSessionMaterialsModal({
   open,
   sessionId,
   sessionTitle,
+  classId,
   onClose,
 }: Props) {
   const { token } = theme.useToken();
@@ -217,6 +223,13 @@ export function StudentSessionMaterialsModal({
         <Paragraph type="secondary" style={{ marginTop: 0, marginBottom: token.marginMD }}>
           Chỉ hiển thị tài liệu CRM đánh dấu công khai cho học viên (công khai trên chi tiết buổi).
         </Paragraph>
+        {classId != null && sessionId != null ? (
+          <div style={{ marginBottom: token.marginMD }}>
+            <Link href={sessionKnowledgeContentHref(classId, sessionId)}>
+              <Button icon={<ReadOutlined />}>Nội dung bài học</Button>
+            </Link>
+          </div>
+        ) : null}
         {loading && (
           <Flex justify="center" style={{ padding: '40px 0' }}>
             <Spin tip="Đang tải..." />

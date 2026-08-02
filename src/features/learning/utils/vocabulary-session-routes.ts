@@ -2,6 +2,11 @@ export function vocabularySessionDetailHref(classId: number, classSessionId: num
 	return `/learning/vocabulary/sessions/${classSessionId}?classId=${classId}`;
 }
 
+/** Knowledge Base M2 — đọc nội dung bài học buổi (published). */
+export function sessionKnowledgeContentHref(classId: number, classSessionId: number): string {
+	return `/learning/knowledge/sessions/${classSessionId}?classId=${classId}`;
+}
+
 export function flashcardSessionHref(classId: number, classSessionId: number): string {
 	return `/learning/flashcard?classId=${classId}&classSessionId=${classSessionId}`;
 }

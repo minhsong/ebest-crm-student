@@ -17,6 +17,7 @@ import type {
 	DictionaryProgressPayload,
 	DictionarySearchPayload,
 	DictionarySuggestPayload,
+	SessionRuntimeContentPayload,
 } from '@/types/learning';
 import type { DrillStartAuthorizeContext } from '@/lib/drill-authorize-client';
 import type { FlashcardStartAuthorizeContext } from '@/lib/flashcard-authorize-client';
@@ -73,6 +74,17 @@ export async function fetchSessionVocabulary(
 		{ cache: 'no-store' },
 	);
 	return parseJsonResponse(res, 'Không tải được danh sách từ vựng.');
+}
+
+export async function fetchSessionRuntimeContent(
+	classId: number,
+	classSessionId: number,
+): Promise<SessionRuntimeContentPayload> {
+	const res = await fetch(
+		`/api/student/learning/classes/${classId}/sessions/${classSessionId}/runtime-content`,
+		{ cache: 'no-store' },
+	);
+	return parseJsonResponse(res, 'Không tải được nội dung bài học.');
 }
 
 export async function fetchClassVocabularySessions(

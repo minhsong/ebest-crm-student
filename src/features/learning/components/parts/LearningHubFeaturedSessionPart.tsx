@@ -1,7 +1,7 @@
 'use client';
 
 import { Button, Empty, Flex, Typography } from 'antd';
-import { BookOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import { BookOutlined, ReadOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { LearningViewPartCard } from '@/features/learning/components/parts/LearningViewPartCard';
 import { formatNearestSessionDate } from '@/features/learning/utils/format-nearest-session-date';
 import type { LearningHubNearestSession } from '@/types/learning';
@@ -14,6 +14,7 @@ type Props = {
 	canFlashcard: boolean;
 	onFlashcard: () => void;
 	onWordList: () => void;
+	onKnowledgeContent?: () => void;
 	onBrowseAllSessions: () => void;
 };
 
@@ -23,6 +24,7 @@ export function LearningHubFeaturedSessionPart({
 	canFlashcard,
 	onFlashcard,
 	onWordList,
+	onKnowledgeContent,
 	onBrowseAllSessions,
 }: Props) {
 	return (
@@ -31,7 +33,7 @@ export function LearningHubFeaturedSessionPart({
 			title={
 				<span>
 					<BookOutlined className="mr-2" />
-					Từ vựng gần nhất
+					Buổi gần nhất
 				</span>
 			}
 			loading={loading}
@@ -49,6 +51,16 @@ export function LearningHubFeaturedSessionPart({
 						</Text>
 					</div>
 					<div className="learning-hub-featured__actions">
+						{onKnowledgeContent ? (
+							<Button
+								size="large"
+								block
+								icon={<ReadOutlined />}
+								onClick={onKnowledgeContent}
+							>
+								Nội dung bài học
+							</Button>
+						) : null}
 						<Button
 							type="primary"
 							size="large"

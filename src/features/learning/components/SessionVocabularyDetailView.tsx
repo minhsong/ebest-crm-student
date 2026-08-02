@@ -7,6 +7,7 @@ import { Alert, Button, Input, Skeleton, Space } from 'antd';
 import {
 	ArrowLeftOutlined,
 	PlayCircleOutlined,
+	ReadOutlined,
 	ThunderboltOutlined,
 } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout';
@@ -16,6 +17,7 @@ import { VocabularyWordDetailModal } from '@/features/learning/components/Vocabu
 import { useSessionVocabulary } from '@/features/learning/hooks/useSessionVocabulary';
 import {
 	flashcardSessionHref,
+	sessionKnowledgeContentHref,
 	vocabularyHomeHref,
 	vocabularySessionBestOfHref,
 } from '@/features/learning/utils/vocabulary-session-routes';
@@ -69,6 +71,10 @@ export function SessionVocabularyDetailView({
 		classId && classSessionId
 			? vocabularySessionBestOfHref(classId, classSessionId)
 			: null;
+	const knowledgeHref =
+		classId && classSessionId
+			? sessionKnowledgeContentHref(classId, classSessionId)
+			: null;
 	const vocabularyHomeHrefValue = vocabularyHomeHref(classId, backHref);
 	const accessNotice = resolveReadOnlyNoticeMessage(readOnlyReason);
 
@@ -96,6 +102,11 @@ export function SessionVocabularyDetailView({
 				}
 				extra={
 					<Space wrap>
+						{knowledgeHref ? (
+							<Link href={knowledgeHref}>
+								<Button icon={<ReadOutlined />}>Nội dung bài học</Button>
+							</Link>
+						) : null}
 						{bestOfHref && canRecordEvents ? (
 							<Link href={bestOfHref}>
 								<Button icon={<ThunderboltOutlined />}>Best of buổi</Button>

@@ -269,6 +269,42 @@ export interface LearningVocabularyPayload {
 	items: LearningVocabularyItem[];
 }
 
+/** Knowledge Base M2 — section KU (published snapshot). */
+export type SessionKnowledgeSectionType = 'theory' | 'example' | 'image' | 'tip';
+
+export interface SessionKnowledgeSection {
+	id: string;
+	type: SessionKnowledgeSectionType;
+	order: number;
+	schemaVersion: number;
+	payload: Record<string, unknown>;
+}
+
+export interface SessionKnowledgeUnit {
+	knowledgeUnitId: number;
+	sortOrder: number;
+	title: string;
+	sections: SessionKnowledgeSection[];
+}
+
+export interface SessionKnowledgeLesson {
+	sortOrder: number;
+	lessonId: number;
+	lessonTitle: string | null;
+	durationMin: number | null;
+	knowledgeUnits: SessionKnowledgeUnit[];
+}
+
+export interface SessionRuntimeContentPayload {
+	classId: number;
+	classSessionId: number;
+	courseSessionId: number | null;
+	sessionTitle: string;
+	learningAccess?: LearningVocabularyLearningAccess;
+	lessons: SessionKnowledgeLesson[];
+	emptyReason?: string;
+}
+
 export type LearningEventType =
 	| 'asset.viewed'
 	| 'asset.audio_played'

@@ -1,0 +1,79 @@
+.session-knowledge-page {
+	max-width: 920px;
+}
+
+.session-knowledge-lesson-label {
+	font-weight: 600;
+}
+
+.session-knowledge-lesson-meta {
+	font-weight: 400;
+	color: #8c8c8c;
+}
+
+.session-knowledge-kus {
+	display: flex;
+	flex-direction: column;
+	gap: 1.25rem;
+}
+
+.session-knowledge-ku {
+	padding: 0.25rem 0;
+}
+
+.session-knowledge-ku__title {
+	margin: 0 0 0.75rem;
+	font-size: 1.05rem;
+	font-weight: 600;
+}
+
+.session-knowledge-sections {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.session-knowledge-section {
+	border: 1px solid #e8e8e8;
+	border-radius: 8px;
+	padding: 0.75rem 1rem;
+	background: #fff;
+}
+
+.session-knowledge-section__type {
+	display: inline-block;
+	margin-bottom: 0.5rem;
+	padding: 0.1rem 0.5rem;
+	border-radius: 4px;
+	background: #f5f5f5;
+	font-size: 0.75rem;
+	color: #595959;
+}
+
+.session-knowledge-section__html :is(p, ul, ol) {
+	margin: 0.35rem 0;
+}
+
+.session-knowledge-section__html img {
+	max-width: 100%;
+	height: auto;
+}
+
+.session-knowledge-section__examples {
+	margin: 0;
+	padding-left: 1.25rem;
+}
+
+.session-knowledge-section__translation {
+	color: #8c8c8c;
+}
+
+.session-knowledge-section__image img {
+	max-width: 100%;
+	border-radius: 6px;
+}
+
+.session-knowledge-empty {
+	margin: 0;
+	color: #8c8c8c;
+}

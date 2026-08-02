@@ -25,6 +25,7 @@ import { hubClassCanRecordEvents } from '@/features/learning/utils/learning-acce
 import { isLearningHubNoEnrollment } from '@/features/learning/utils/learning-hub-enrollment';
 import {
 	flashcardSessionHref,
+	sessionKnowledgeContentHref,
 	vocabularyHomeHref,
 	vocabularyPracticeHref,
 	vocabularySessionDetailHref,
@@ -104,6 +105,11 @@ export function LearningHubView() {
 		router.push(vocabularySessionDetailHref(nearest.classId, nearest.classSessionId));
 	};
 
+	const goKnowledgeContent = () => {
+		if (!nearest) return;
+		router.push(sessionKnowledgeContentHref(nearest.classId, nearest.classSessionId));
+	};
+
 	const goGames = () => {
 		if (!selectedClassId) return;
 		router.push(vocabularyPracticeHref(selectedClassId));
@@ -176,6 +182,7 @@ export function LearningHubView() {
 								canFlashcard={canFlashcardNearest}
 								onFlashcard={goFlashcard}
 								onWordList={goWordList}
+								onKnowledgeContent={goKnowledgeContent}
 								onBrowseAllSessions={goAllSessions}
 							/>
 
