@@ -72,8 +72,10 @@ export function useSectionListeningTaking({
   const sectionStorageKey = quizSectionListeningStorageKey(effectiveSectionId);
 
   const queueHasListening = useMemo(
-    () => buildSectionListeningQueue(renderBlocks).length > 0,
-    [renderBlocks],
+    () =>
+      buildSectionListeningQueue(renderBlocks, activeSectionMeta?.demoSample)
+        .length > 0,
+    [activeSectionMeta?.demoSample, renderBlocks],
   );
 
   const hasSectionListeningQuota = isKnownListeningRemaining(

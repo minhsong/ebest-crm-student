@@ -50,6 +50,16 @@ export type QuizGroupBundlePayload = {
   children?: QuizBundleChildPayload[];
 };
 
+export type QuizFormSectionDemoSample = {
+  questionType?: string;
+  stem?: string;
+  options?: Array<{ id: string; label: string }>;
+  media?: {
+    audio?: Array<Record<string, unknown>>;
+  };
+  revealedAnswer?: { correctOptionIds?: string[] };
+};
+
 export type QuizFormSectionPayload = {
   sectionId: number;
   order: number;
@@ -60,6 +70,8 @@ export type QuizFormSectionPayload = {
   listeningPlaybackMode?: 'auto' | 'on_demand' | null;
   /** @deprecated Đọc listeningPlaybackMode */
   listeningAutoPlay?: boolean | null;
+  /** Ví dụ minh họa thuộc hướng dẫn — không phải câu hỏi. */
+  demoSample?: QuizFormSectionDemoSample | null;
 };
 
 export type QuizPublishedFormPayload = {

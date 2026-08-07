@@ -200,6 +200,7 @@ export function QuizAttemptTakingSection({
             key={listening.sectionStorageKey}
             sectionId={listening.effectiveSectionId}
             renderBlocks={renderBlocks}
+            demoSample={listening.activeSectionMeta?.demoSample ?? null}
             listeningRemaining={listeningRemaining ?? {}}
             sectionQuotaMax={listening.sectionListeningQuotaMax}
             playbackMode={listening.sectionPlaybackMode}

@@ -1,6 +1,6 @@
 "use client";
 
-import type { QuizRenderableBlock } from "@/features/quiz-test/lib/quiz-renderable-items";
+import type { QuizFormSectionDemoSample } from "@/features/quiz-test/types";
 
 import {
   computeSectionListeningLocks,
@@ -56,6 +56,9 @@ export type QuizSectionListeningOrchestratorProps = {
 
   renderBlocks: QuizRenderableBlock[];
 
+  /** Audio ví dụ hướng dẫn (không phải câu hỏi). */
+  demoSample?: QuizFormSectionDemoSample | null;
+
   listeningRemaining: Record<string, number>;
 
   sectionQuotaMax?: number | null;
@@ -98,6 +101,8 @@ export const QuizSectionListeningOrchestrator = forwardRef<
 
     renderBlocks,
 
+    demoSample = null,
+
     listeningRemaining,
 
     sectionQuotaMax,
@@ -122,9 +127,9 @@ export const QuizSectionListeningOrchestrator = forwardRef<
   ref,
 ) {
   const flat = useMemo(
-    () => flattenSectionListeningQueue(renderBlocks),
+    () => flattenSectionListeningQueue(renderBlocks, demoSample),
 
-    [renderBlocks],
+    [demoSample, renderBlocks],
   );
 
   const sectionKey = quizSectionListeningStorageKey(sectionId);

@@ -76,6 +76,9 @@ type PublishedSectionRow = {
   listeningRepeatCount?: number | null;
   listeningPlaybackMode?: SectionListeningPlaybackSetting;
   listeningAutoPlay?: boolean | null;
+  demoSample?: {
+    media?: { audio?: unknown[] };
+  } | null;
 };
 
 export type SectionListeningPlaybackSetting = 'auto' | 'on_demand' | null;
@@ -103,14 +106,25 @@ function parseSectionListeningPlaybackSetting(meta: {
 function sectionMetaFromPublishedRow(
   sid: number,
   s: PublishedSectionRow,
-): { sectionId: number; listeningRepeatCount?: number | null; listeningPlaybackMode?: SectionListeningPlaybackSetting; listeningAutoPlay?: boolean | null } {
+): PublishedSectionRow {
   return {
     sectionId: sid,
     listeningRepeatCount: s.listeningRepeatCount ?? null,
     listeningPlaybackMode: parseSectionListeningPlaybackSetting(s),
     listeningAutoPlay:
       typeof s.listeningAutoPlay === 'boolean' ? s.listeningAutoPlay : null,
+    demoSample: s.demoSample ?? null,
   };
+}
+
+function demoSampleContentFromSection(
+  meta: PublishedSectionRow | undefined,
+): unknown | null {
+  const media = meta?.demoSample?.media;
+  if (!media || typeof media !== 'object') return null;
+  const audio = Array.isArray(media.audio) ? media.audio : [];
+  if (!audio.length) return null;
+  return { media: { audio } };
 }
 
 function parsePreviewLikeItem(raw: Record<string, unknown>): PreviewLikeItem | null {
@@ -190,8 +204,13 @@ function getContentForPreviewRow(
 function collectAudioUnitContentsInSection(
   sectionRows: PreviewLikeItem[],
   bundleByGroupId: Map<number, PreviewLikeGroupBundle>,
+  sectionMeta?: PublishedSectionRow,
 ): unknown[] {
   const out: unknown[] = [];
+  const demoContent = demoSampleContentFromSection(sectionMeta);
+  if (demoContent && contentHasListeningAudio(demoContent)) {
+    out.push(demoContent);
+  }
   for (const row of sectionRows) {
     const content = getContentForPreviewRow(row, bundleByGroupId);
     if (contentHasListeningAudio(content)) out.push(content);
@@ -215,10 +234,15 @@ function resolveSectionRepeatQuota(
 function classifySectionKind(
   sectionRows: PreviewLikeItem[],
   bundleByGroupId: Map<number, PreviewLikeGroupBundle>,
+  sectionMeta?: PublishedSectionRow,
 ): 'exam' | 'listening' | 'invalid_mix' | 'invalid_empty' {
   if (!sectionRows.length) return 'invalid_empty';
   let withAudio = 0;
   let withoutAudio = 0;
+  const demoContent = demoSampleContentFromSection(sectionMeta);
+  if (demoContent && contentHasListeningAudio(demoContent)) {
+    withAudio += 1;
+  }
   for (const row of sectionRows) {
     const content = getContentForPreviewRow(row, bundleByGroupId);
     if (contentHasListeningAudio(content)) withAudio += 1;
@@ -237,10 +261,14 @@ export function buildRemainingPlaysByListeningUnitFromForm(
     parseFormListeningContext(form);
 
   for (const [sectionId, rows] of itemsBySection) {
-    const kind = classifySectionKind(rows, bundleByGroupId);
-    if (kind !== 'listening') continue;
-    const audioUnits = collectAudioUnitContentsInSection(rows, bundleByGroupId);
     const meta = sectionMetaById.get(sectionId) ?? {};
+    const kind = classifySectionKind(rows, bundleByGroupId, meta);
+    if (kind !== 'listening') continue;
+    const audioUnits = collectAudioUnitContentsInSection(
+      rows,
+      bundleByGroupId,
+      meta,
+    );
     out[quizSectionListeningStorageKey(sectionId)] = resolveSectionRepeatQuota(
       meta,
       audioUnits,
@@ -266,12 +294,16 @@ export function resolveSectionPlaybackModeFromForm(
   const { bundleByGroupId, sectionMetaById, itemsBySection } =
     parseFormListeningContext(form);
   const rows = itemsBySection.get(sectionId) ?? [];
-  const kind = classifySectionKind(rows, bundleByGroupId);
+  const sectionMeta = sectionMetaById.get(sectionId) ?? { sectionId };
+  const kind = classifySectionKind(rows, bundleByGroupId, sectionMeta);
   if (kind !== 'listening') return null;
 
-  const sectionMeta = sectionMetaById.get(sectionId) ?? { sectionId };
   const setting = parseSectionListeningPlaybackSetting(sectionMeta);
-  const audioUnits = collectAudioUnitContentsInSection(rows, bundleByGroupId);
+  const audioUnits = collectAudioUnitContentsInSection(
+    rows,
+    bundleByGroupId,
+    sectionMeta,
+  );
   if (setting === 'auto') return 'auto';
   if (setting === 'on_demand') return 'on_demand';
   for (const content of audioUnits) {
@@ -289,12 +321,14 @@ export type ListeningSectionPlaybackInfo = {
 export function listListeningSectionPlaybackModes(
   form: QuizPublishedFormPayload | Record<string, unknown> | null | undefined,
 ): ListeningSectionPlaybackInfo[] {
-  const { bundleByGroupId, itemsBySection } = parseFormListeningContext(form);
+  const { bundleByGroupId, sectionMetaById, itemsBySection } =
+    parseFormListeningContext(form);
   const out: ListeningSectionPlaybackInfo[] = [];
 
   for (const sectionId of itemsBySection.keys()) {
     const rows = itemsBySection.get(sectionId) ?? [];
-    if (classifySectionKind(rows, bundleByGroupId) !== 'listening') continue;
+    const meta = sectionMetaById.get(sectionId);
+    if (classifySectionKind(rows, bundleByGroupId, meta) !== 'listening') continue;
     const mode = resolveSectionPlaybackModeFromForm(form, sectionId);
     if (mode) {
       out.push({ sectionId, mode });
